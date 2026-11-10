@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
@@ -22,6 +23,7 @@ import {
   isWaitingOnOther,
   requestName,
   isProcessing,
+  requestFields,
   reviewsQuery,
   useApproveRequest,
   useDismissRequest,
@@ -75,7 +77,9 @@ export function ReviewsPage() {
   const [nudged, setNudged] = useState<ReadonlySet<string>>(new Set())
 
   // This page is one workspace's reviews; the list spans all of the person's.
-  const requests = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
+  const [find, setFind] = useFindParam()
+  const inThisWorkspace = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
+  const requests = findIn(inThisWorkspace, find, requestFields)
   const groups = groupRequests(requests, tab, userId)
   const items = groups.flatMap((g) => g.items)
   // No review in the address means none is selected: the panel invites a choice.
@@ -95,7 +99,11 @@ export function ReviewsPage() {
   const searchFor = (next: { tab?: Review.Tab; review?: string }) => ({
     to: ROUTE,
     params: { workspace },
-    search: { tab: next.tab ?? tab, ...(next.review ? { review: next.review } : {}) },
+    search: {
+      tab: next.tab ?? tab,
+      ...(next.review ? { review: next.review } : {}),
+      ...(find.trim() ? { q: find.trim() } : {}),
+    },
   })
   const select = (id: string | undefined, replace = true) =>
     void navigate({ ...searchFor(id ? { review: id } : {}), replace })
@@ -244,9 +252,15 @@ export function ReviewsPage() {
               selectedId={selected?.id}
               listRef={listRef}
               rowProps={rowProps}
+              find={find}
+              onFind={setFind}
+              hasRequests={inThisWorkspace.length > 0}
               linkTo={(id) => clientLink(searchFor({ review: id }))}
               onTab={(next) =>
-                void navigate({ ...searchFor({ tab: next }), search: { tab: next } })
+                void navigate({
+                  ...searchFor({ tab: next }),
+                  search: { tab: next, ...(find.trim() ? { q: find.trim() } : {}) },
+                })
               }
             />
             <section className={styles.detail} aria-label="Selected review">

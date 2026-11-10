@@ -24,6 +24,8 @@ import { TeamStack } from '#features/teams/AvatarStack.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { settingsCrumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -66,6 +68,12 @@ export function MembersPage() {
   const query = workspaceQuery(workspace)
   const result = useQuery(query)
   const { data } = result
+  const [find, setFind] = useFindParam()
+  const shownMembers = findIn(data?.members ?? [], find, (m) => [
+    m.user.name,
+    m.user.email,
+    ROLE_LABEL[m.role] ?? m.role,
+  ])
   const [roleChange, setRoleChange] = useState<{
     memberId: string
     name: string
@@ -122,6 +130,7 @@ export function MembersPage() {
           workspaceSettingsCrumb(workspace),
         ])}
         title="Members"
+        actions={<FindField noun="members" value={find} onChange={setFind} />}
       />
       <SettingsPage>
         <QueryBoundary
@@ -138,8 +147,9 @@ export function MembersPage() {
                 description={peopleCount(loaded.members.length)}
                 bare
               >
+                {shownMembers.length === 0 ? <NoMatches noun="members" query={find} /> : null}
                 <div className={styles.list}>
-                  {loaded.members.map((m) => {
+                  {shownMembers.map((m) => {
                     const isMe = m.userId === session?.user.id
                     const editable = canManage && !isMe
                     return (

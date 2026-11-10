@@ -3,6 +3,7 @@ import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { teamPath } from '#lib/api-paths.ts'
+import { findParam } from '#lib/find.ts'
 import { getJson, post, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
@@ -20,14 +21,30 @@ export interface ReviewsSearch {
   tab: Review.Tab
   /** The selected review request's id, so a link can point at one review. */
   review?: string
+  /** The find text. */
+  q?: string
 }
 
-/** The `?tab=` of the page (anything unknown is "Requested from you") and the `?review=` selected. */
+/** What a find text is looked for in: the build, its branch, commit and pull request, the team and the two people. */
+export const requestFields = (r: Review.Request) => [
+  `Build #${r.build.number} #${r.build.number}`,
+  r.build.name === 'default' ? undefined : r.build.name,
+  r.build.branch,
+  r.build.commitSha,
+  r.build.prNumber === null ? undefined : `PR #${r.build.prNumber}`,
+  r.team.name,
+  r.reviewer.name,
+  r.requestedBy?.name,
+]
+
+/** The `?tab=` of the page (anything unknown is "Requested from you"), the `?review=` selected and the `?q=` find text. */
 export function validateReviewsSearch(search: Record<string, unknown>): ReviewsSearch {
   const tab = REVIEW_TABS.find((t) => t.value === search['tab'])
   const review = search['review']
+  const q = findParam(search['q']).trim()
   return {
     tab: tab?.value ?? 'for-you',
+    ...(q ? { q } : {}),
     ...(typeof review === 'string' && review ? { review } : {}),
   }
 }

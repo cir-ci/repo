@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { validateInboxSearch } from '#features/inbox/api.ts'
@@ -283,5 +283,55 @@ describe('InboxPage', () => {
     await show()
     await expect.element(page.getByRole('heading', { name: "You're all caught up" })).toBeVisible()
     await expect.element(page.getByText('Select a notification')).toBeVisible()
+  })
+
+  it('finds notifications by text, team or build, keeps the text in the address and clears it with Esc', async () => {
+    fakeApi({
+      'GET /api/inbox': list([
+        item('n1'),
+        item('n2', {
+          kind: 'build_rejected',
+          actor: { id: 'u3', name: 'Grace', image: null },
+          payload: { reason: 'Logo moved' },
+          team: { slug: 'docs', name: 'Docs' },
+          build: { ...item('x').build, number: 13, branch: 'feature/logo' },
+        }),
+      ]),
+    })
+    const { router } = await show()
+    const rows = page.getByRole('list', { name: 'For you' })
+    const find = page.getByRole('textbox', { name: 'Find notifications' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find notifications')
+    await userEvent.keyboard('/')
+    await expect.element(find).toHaveFocus()
+    await userEvent.type(find, 'logo')
+    await expect.element(rows.getByText('Grace rejected build #13')).toBeVisible()
+    await expect
+      .element(rows.getByText('Ada requested your review of build #12'))
+      .not.toBeInTheDocument()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'logo' }))
+    await userEvent.fill(find, 'docs')
+    await expect.element(rows.getByText('Grace rejected build #13')).toBeVisible()
+    await userEvent.fill(find, '#12')
+    await expect.element(rows.getByText('Ada requested your review of build #12')).toBeVisible()
+    await userEvent.fill(find, 'nothing here')
+    await expect.element(page.getByText('No notifications match “nothing here”.')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await expect.element(rows.getByText('Grace rejected build #13')).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
+  })
+
+  it('opens with the find text and the notification of the address', async () => {
+    fakeApi({
+      'GET /api/inbox': list([item('n1'), item('n2', { kind: 'build_approved' })], 'everything'),
+    })
+    await show('/inbox?tab=everything&item=n2&q=approved')
+    await expect
+      .element(page.getByRole('textbox', { name: 'Find notifications' }))
+      .toHaveValue('approved')
+    // The row, and the same words as the pane's title: the notification of the address is selected.
+    await expect.poll(() => page.getByText('Ada approved build #12').elements().length).toBe(2)
+    expect(page.getByText('Ada requested your review of build #12').elements()).toHaveLength(0)
   })
 })

@@ -565,3 +565,36 @@ describe('ViewPage', () => {
       .toBeVisible()
   })
 })
+
+describe('the find field', () => {
+  it('sends the typed text as q, keeps it in the address and clears it with Esc', async () => {
+    const fake = api([build(3), build(4, { branch: 'feature/octo' })])
+    const { router } = await show()
+    const find = page.getByRole('textbox', { name: 'Find builds' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find builds')
+    await userEvent.keyboard('/')
+    await expect.element(find).toHaveFocus()
+    await userEvent.type(find, 'octo')
+    await vi.waitFor(() => expect(router.state.location.search).toEqual({ q: 'octo' }))
+    await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?q=octo')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await vi.waitFor(() => expect(router.state.location.search).toEqual({}))
+  })
+
+  it('starts from the text in the address, and Clear filters empties the field too', async () => {
+    const fake = api([build(3)])
+    await show('/acme/web?q=main&review=pending')
+    const find = page.getByRole('textbox', { name: 'Find builds' })
+    await expect.element(find).toHaveValue('main')
+    expect(fake.urls).toContain('/api/teams/acme/web?review=pending&q=main')
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await expect.element(find).toHaveValue('')
+  })
+
+  it('says no builds match the text when it is the only filter', async () => {
+    api([])
+    await show('/acme/web?q=zzz')
+    await expect.element(page.getByText('No builds match “zzz”.')).toBeVisible()
+  })
+})

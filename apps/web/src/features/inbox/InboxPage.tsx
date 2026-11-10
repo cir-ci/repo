@@ -18,16 +18,20 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
+import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
   awaitsYourReview,
   inboxCount,
+  inboxFields,
   inboxQuery,
   inboxTabs,
   notificationGlyph,
@@ -64,7 +68,9 @@ export function InboxPage() {
   const markAll = useMarkAllRead()
   const approve = useApproveBuild()
 
-  const items = data?.items ?? []
+  const [find, setFind] = useFindParam()
+  const everything = data?.items ?? []
+  const items = findIn(everything, find, inboxFields)
   const snoozedTab = tab === 'snoozed'
 
   const markRead = (item: Inbox.Item) => {
@@ -114,6 +120,7 @@ export function InboxPage() {
     },
   })
 
+  useSelectFromParam(setSelectedId)
   const failed = [setRead, snooze, unsnooze, remove, markAll, approve].find((m) => m.error)?.error
   const unread = data?.unread ?? 0
 
@@ -122,16 +129,19 @@ export function InboxPage() {
       <PageHeading
         title="Inbox"
         actions={
-          <Button
-            size="sm"
-            disabled={unread === 0}
-            loading={markAll.isPending}
-            onClick={() =>
-              markAll.mutate(undefined, { onSuccess: () => announce('Marked everything read') })
-            }
-          >
-            Mark all read
-          </Button>
+          <>
+            <FindField noun="notifications" value={find} onChange={setFind} />
+            <Button
+              size="sm"
+              disabled={unread === 0}
+              loading={markAll.isPending}
+              onClick={() =>
+                markAll.mutate(undefined, { onSuccess: () => announce('Marked everything read') })
+              }
+            >
+              Mark all read
+            </Button>
+          </>
         }
       />
       <div className={styles.page}>
@@ -141,14 +151,20 @@ export function InboxPage() {
           value={tab}
           onChange={(next) => {
             setSelectedId(undefined)
-            void navigate({ to: '/inbox', search: { tab: next }, replace: true })
+            void navigate({
+              to: '/inbox',
+              search: { tab: next, ...(find.trim() ? { q: find.trim() } : {}) },
+              replace: true,
+            })
           }}
         >
           <QueryBoundary query={query} announce="Loading your inbox" rows={4}>
             {() => (
               <div className={styles.split}>
                 <div className={styles.listColumn}>
-                  {items.length === 0 ? (
+                  {everything.length > 0 && items.length === 0 ? (
+                    <NoMatches noun="notifications" query={find} />
+                  ) : items.length === 0 ? (
                     <div className={styles.emptyList}>
                       <EmptyState icon={<InboxIcon size={32} />} title={EMPTY[tab].title}>
                         {EMPTY[tab].text}

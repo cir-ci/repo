@@ -10,7 +10,7 @@ export type BuildsSearch = BuildFilters & { before?: number }
 
 const STATUSES = ['pending', 'uploading', 'processing', 'complete', 'error', 'expired'] as const
 const REVIEWS = ['pending', 'approved', 'rejected'] as const
-const TEXT_KEYS = ['branch', 'branchContains', 'author', 'reviewer', 'name'] as const
+const TEXT_KEYS = ['q', 'branch', 'branchContains', 'author', 'reviewer', 'name'] as const
 
 /** An ISO datetime in the one form the API accepts (UTC, with the `Z`), or nothing. */
 function isoOrUndefined(value: unknown): string | undefined {

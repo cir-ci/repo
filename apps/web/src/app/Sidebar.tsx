@@ -6,14 +6,15 @@ import {
   ImageIcon,
   InboxIcon,
   InsightsIcon,
+  IconButton,
   Kbd,
   ListChecksIcon,
   ListFilterIcon,
-  NavItem,
   NavSection,
   PinIcon,
   ReviewIcon,
   SearchIcon,
+  Tooltip,
   Avatar,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -42,7 +43,7 @@ import {
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom (the canvas's Sidebar board): the workspace switcher, Search, Inbox, Reviews,
+ * Top to bottom (the canvas's Sidebar board): the workspace switcher with the search button (⌘K) at its right, Inbox, Reviews,
  * Teams, Insights, then the workspace's teams (Pinned, then Teams; the open one expands to Builds,
  * Triage, Baselines and Sites), "Your views", and the account button. With no teams the Teams
  * section says "No teams yet"; creating a team lives on the Teams page. No settings links:
@@ -106,14 +107,23 @@ export function Sidebar({ user }: Sidebar.Props) {
             {...(caps?.canCreateWorkspace ? { onCreate: () => setNewWorkspaceOpen(true) } : {})}
           />
         </div>
+        <Tooltip
+          content={
+            <>
+              Search <Kbd>⌘K</Kbd>
+            </>
+          }
+          side="bottom"
+        >
+          <IconButton
+            label="Search"
+            aria-keyshortcuts="Meta+K"
+            onClick={() => setCommandMenuOpen(true)}
+          >
+            <SearchIcon size={16} />
+          </IconButton>
+        </Tooltip>
       </div>
-      <NavItem
-        icon={<SearchIcon />}
-        trailing={<Kbd>⌘K</Kbd>}
-        onClick={() => setCommandMenuOpen(true)}
-      >
-        Search
-      </NavItem>
       <NavLink
         to="/inbox"
         icon={<InboxIcon />}

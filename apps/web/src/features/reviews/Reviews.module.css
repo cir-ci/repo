@@ -340,3 +340,12 @@
     padding: 20px 16px 32px;
   }
 }
+
+.find {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.find > span {
+  width: 100%;
+}

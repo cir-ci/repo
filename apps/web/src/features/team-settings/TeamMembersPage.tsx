@@ -22,6 +22,8 @@ import {
   useRemoveTeamMember,
 } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { addCandidates, addLabel, removalText, ROLE_LABEL } from './members-model.ts'
@@ -50,9 +52,12 @@ function Members({ workspace, team, teamName }: Members.Props) {
   const announce = useAnnounce()
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
+  const [find, setFind] = useFindParam()
   const [removing, setRemoving] = useState<Team.Member | null>(null)
   const remove = useRemoveTeamMember(workspace, team)
 
+  const shown = (list: Team.Member[]) =>
+    findIn(list, find, (m) => [m.name, m.email, ROLE_LABEL[m.role] ?? m.role])
   const leaving = removing !== null && removing.id === me
   const dialog = removing ? removalText(teamName, { name: removing.name, you: leaving }) : null
 
@@ -64,6 +69,7 @@ function Members({ workspace, team, teamName }: Members.Props) {
             <h2 id="team-members" className={styles.title}>
               Members
             </h2>
+            <FindField noun="members" value={find} onChange={setFind} />
             {canManage ? (
               <Button variant="primary" onClick={() => setAdding(true)}>
                 <PlusIcon size={14} />
@@ -72,8 +78,9 @@ function Members({ workspace, team, teamName }: Members.Props) {
             ) : null}
           </div>
           {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
+          {shown(members).length === 0 ? <NoMatches noun="members" query={find} /> : null}
           <ul aria-label="Team members" className={styles.list}>
-            {members.map((m) => {
+            {shown(members).map((m) => {
               const you = m.id === me
               return (
                 <li key={m.id} className={styles.row}>

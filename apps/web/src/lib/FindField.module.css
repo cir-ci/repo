@@ -1,0 +1,26 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 260px;
+  max-width: 100%;
+}
+
+.icon {
+  position: absolute;
+  left: 10px;
+  z-index: 1;
+  color: var(--circi-text-tertiary);
+  pointer-events: none;
+}
+
+.root input {
+  padding-left: 30px;
+}
+
+/* No matches: centred in the list's area, in tertiary text. */
+.none {
+  margin: 0;
+  padding: 48px 16px;
+  text-align: center;
+}

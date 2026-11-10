@@ -15,6 +15,8 @@ import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -54,6 +56,12 @@ export function TeamsPage() {
     ...integrationsQuery(workspace?.slug ?? ''),
     enabled: canManage && workspace !== undefined,
   })
+  const [find, setFind] = useFindParam()
+  const shown = findIn(teams ?? [], find, (o) => [
+    o.team.name,
+    o.team.slug,
+    `${o.workspace.slug}/${o.team.slug}`,
+  ])
   const canImport =
     canManage && integrations?.integrations.some((i) => i.kind === 'github') === true
 
@@ -69,20 +77,25 @@ export function TeamsPage() {
           ) : null
         }
         actions={
-          canCreateTeam ? (
-            <>
-              {canImport ? (
-                <Button onClick={() => setImportOpen(true)}>Import from GitHub</Button>
-              ) : null}
-              <Button
-                variant="primary"
-                leading={<PlusIcon size={14} />}
-                onClick={() => setNewTeamOpen(true)}
-              >
-                New team
-              </Button>
-            </>
-          ) : null
+          <>
+            {teams && teams.length > 0 ? (
+              <FindField noun="teams" value={find} onChange={setFind} />
+            ) : null}
+            {canCreateTeam ? (
+              <>
+                {canImport ? (
+                  <Button onClick={() => setImportOpen(true)}>Import from GitHub</Button>
+                ) : null}
+                <Button
+                  variant="primary"
+                  leading={<PlusIcon size={14} />}
+                  onClick={() => setNewTeamOpen(true)}
+                >
+                  New team
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
       <div className={styles.content}>
@@ -108,8 +121,9 @@ export function TeamsPage() {
                   <span className={styles.changes}>Changes</span>
                   <span className={styles.updated}>Updated</span>
                 </div>
+                {shown.length === 0 ? <NoMatches noun="teams" query={find} /> : null}
                 <ul aria-label="Teams" className={styles.list}>
-                  {teams.map(({ workspace: owner, team, latestBuild }) => {
+                  {shown.map(({ workspace: owner, team, latestBuild }) => {
                     const state = latestBuild ? buildState(latestBuild) : null
                     const cell = latestBuild ? changesCell(latestBuild) : null
                     return (

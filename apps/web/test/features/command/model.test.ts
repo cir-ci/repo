@@ -9,10 +9,12 @@ import {
   flatten,
   groupEntries,
   type JumpInput,
+  jumpEntries,
   keyEvents,
   localMatches,
   parseBuildQuery,
   searchEntries,
+  uniqueEntries,
   wrapIndex,
 } from '#features/command/model.ts'
 import { SHORTCUTS } from '#lib/shortcuts.ts'
@@ -35,6 +37,11 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
   branches: [],
   teams: [],
   snapshots: [],
+  baselines: [],
+  triage: [],
+  notifications: [],
+  reviews: [],
+  views: [],
   ...over,
 })
 
@@ -295,6 +302,138 @@ describe('search entries', () => {
       ]),
     )
     expect(entries[1]?.preview?.title).toBe('Web')
+  })
+})
+
+describe('search entries of the other kinds', () => {
+  const more = results({
+    baselines: [{ teamSlug: 'web', teamName: 'Web', name: 'checkout/summary', buildNumber: 140 }],
+    triage: [
+      {
+        teamSlug: 'web',
+        teamName: 'Web',
+        kind: 'flaky',
+        key: 'nav/header',
+        snapshotName: 'nav/header',
+        buildNumber: 150,
+        branch: 'main',
+      },
+      {
+        teamSlug: 'web',
+        teamName: 'Web',
+        kind: 'failed',
+        key: 'build:142',
+        snapshotName: null,
+        buildNumber: 142,
+        branch: 'main',
+      },
+    ],
+    notifications: [
+      {
+        id: 'n1',
+        kind: 'build_rejected',
+        tab: 'snoozed',
+        read: false,
+        createdAt: '2026-03-10T12:00:00.000Z',
+        actor: { name: 'Ada' },
+        build: { number: 148, name: 'default' },
+        team: { slug: 'web', name: 'Web' },
+        payload: { reason: 'spacing is off' },
+      },
+    ],
+    reviews: [
+      {
+        id: 'r1',
+        tab: 'created',
+        teamSlug: 'web',
+        teamName: 'Web',
+        build: { number: 148, name: 'default', branch: 'main' },
+        reviewer: { name: 'Grace' },
+        requestedBy: { name: 'Ada' },
+      },
+    ],
+    views: [{ id: 'v1', name: 'Mine', team: null }],
+  })
+
+  const path = (id: string) => {
+    const e = searchEntries('acme', 'x', more).find((x) => x.id === id)
+    return e?.target.type === 'path' ? e.target.path : undefined
+  }
+  const rows = (id: string) =>
+    searchEntries('acme', 'x', more).find((x) => x.id === id)?.preview?.rows
+
+  it('groups them after Screenshots, each labelled by its own name', () => {
+    const groups = groupEntries(searchEntries('acme', 'x', more))
+    expect(groups.map((g) => g.group)).toEqual([
+      'Jump to',
+      'Baselines',
+      'Triage',
+      'Inbox',
+      'Reviews',
+    ])
+    expect(flatten(groups).map((e) => e.label)).toEqual([
+      'Mine',
+      'checkout/summary',
+      'nav/header',
+      'Build #142 failed',
+      'Ada rejected build #148',
+      'Build #148 · main',
+    ])
+  })
+
+  it('opens each with the item selected', () => {
+    expect(path('baseline:web:checkout/summary')).toBe('/acme/web/baselines/checkout/summary')
+    expect(path('triage:web:flaky:nav/header')).toBe('/acme/web/triage?item=flaky%3Anav%2Fheader')
+    expect(path('triage:web:failed:build:142')).toBe('/acme/web/triage?item=failed%3Abuild%3A142')
+    expect(path('notification:n1')).toBe('/inbox?tab=snoozed&item=n1')
+    expect(path('review:r1')).toBe('/workspaces/acme/reviews?tab=created&review=r1')
+    expect(path('view:v1')).toBe('/workspaces/acme/views/v1')
+  })
+
+  it('has key facts for the peek pane', () => {
+    expect(rows('triage:web:flaky:nav/header')).toEqual(
+      expect.arrayContaining([
+        { label: 'Kind', value: 'Flaky' },
+        { label: 'Build', value: '#150' },
+        { label: 'Branch', value: 'main' },
+      ]),
+    )
+    expect(rows('notification:n1')).toEqual(
+      expect.arrayContaining([
+        { label: 'Message', value: 'spacing is off' },
+        { label: 'From', value: 'Ada' },
+        { label: 'Status', value: 'Unread' },
+      ]),
+    )
+    expect(rows('review:r1')).toEqual(
+      expect.arrayContaining([
+        { label: 'Reviewer', value: 'Grace' },
+        { label: 'In', value: 'Created by you' },
+      ]),
+    )
+    expect(rows('baseline:web:checkout/summary')).toEqual(
+      expect.arrayContaining([{ label: 'From build', value: '#140' }]),
+    )
+  })
+
+  it('shows a saved view once, though it is also a menu entry', () => {
+    const jump = jumpEntries({
+      workspace: 'acme',
+      teams: [],
+      views: [
+        {
+          id: 'v1',
+          name: 'Mine',
+          filters: {},
+          pinned: false,
+          position: 0,
+          team: null,
+          createdAt: '',
+        },
+      ],
+    })
+    const all = uniqueEntries([...jump, ...searchEntries('acme', 'mi', more)])
+    expect(all.filter((e) => e.id === 'view:v1')).toHaveLength(1)
   })
 })
 

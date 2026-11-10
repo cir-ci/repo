@@ -26,6 +26,7 @@ import {
   normalizeQuery,
   peekHint,
   searchEntries,
+  uniqueEntries,
   wrapIndex,
 } from './model.ts'
 
@@ -68,11 +69,11 @@ export function CommandMenu({
   const showContext = context !== undefined && !contextCleared
   const own =
     q === '' ? emptyQueryEntries(pathname, jump, mode) : localMatches(q, pathname, jump, mode)
-  const entries = [
+  const entries = uniqueEntries([
     // Clearing the chip leaves the page's own actions out.
     ...(contextCleared ? own.filter((e) => e.group !== 'Actions') : own),
     ...(q !== '' && workspace ? searchEntries(workspace, q, results, openTeam) : []),
-  ]
+  ])
   const groups = groupEntries(entries, context?.actions)
   const flat = flatten(groups)
   const current = flat.length === 0 ? -1 : Math.min(active, flat.length - 1)

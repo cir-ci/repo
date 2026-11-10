@@ -3,6 +3,7 @@ import { Avatar, Badge, ListRow, ReviewIcon, StatusIcon } from '@circi/ui'
 import type { MouseEventHandler } from 'react'
 
 import { useTeamMark } from '#features/integrations/TeamMark.tsx'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
@@ -33,6 +34,9 @@ export function ReviewList({
   snoozed,
   groups,
   selectedId,
+  find,
+  onFind,
+  hasRequests,
   listRef,
   rowProps,
   linkTo,
@@ -75,8 +79,13 @@ export function ReviewList({
           </button>
         ))}
       </div>
+      <div className={styles.find}>
+        <FindField noun="reviews" value={find} onChange={onFind} />
+      </div>
       <div className={styles.scroll} id="reviews-list" ref={listRef}>
-        {groups.length === 0 ? (
+        {groups.length === 0 && hasRequests && find.trim() !== '' ? (
+          <NoMatches noun="reviews" query={find} />
+        ) : groups.length === 0 ? (
           <div className={styles.empty}>
             <ReviewIcon size={28} />
             <p className={styles.emptyTitle}>{EMPTY[tab].title}</p>
@@ -200,6 +209,11 @@ export namespace ReviewList {
     snoozed: number
     groups: readonly RequestGroup[]
     selectedId: string | undefined
+    /** The find text, and how the field changes it. */
+    find: string
+    onFind: (next: string) => void
+    /** Whether the tab has requests before the find text narrows them. */
+    hasRequests: boolean
     listRef: (el: HTMLElement | null) => void
     rowProps: (id: string) => { 'data-row-id': string }
     /** A link to this page with other search params (the tab, or the selected review). */

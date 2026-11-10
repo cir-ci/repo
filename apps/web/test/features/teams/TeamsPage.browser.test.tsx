@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
@@ -272,5 +272,34 @@ describe('TeamsPage', () => {
       await userEvent.keyboard('{Escape}')
       await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
     })
+  })
+
+  it('finds teams by name or address, keeps the text in the address and clears it with Esc', async () => {
+    fakeApi({
+      'GET /api/teams': {
+        body: { teams: [overview('acme', 'web-app'), overview('acme', 'storybook')] },
+      },
+      'GET /api/capabilities': { body: caps() },
+    })
+    const { router } = await show()
+    const list = page.getByRole('list', { name: 'Teams' })
+    const find = page.getByRole('textbox', { name: 'Find teams' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find teams')
+    await userEvent.keyboard('/')
+    await expect.element(find).toHaveFocus()
+    await userEvent.type(find, 'story')
+    await expect.element(list.getByText('acme/web-app')).not.toBeInTheDocument()
+    await expect.element(list.getByText('acme/storybook')).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'story' }))
+    // The count in the header is how many teams there are, not how many match.
+    await expect.element(page.getByLabelText('2 teams')).toBeVisible()
+    await userEvent.fill(find, 'acme/web')
+    await expect.element(list.getByText('acme/web-app')).toBeVisible()
+    await userEvent.fill(find, 'zzz')
+    await expect.element(page.getByText('No teams match “zzz”.')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await expect.element(list.getByText('acme/storybook')).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
   })
 })

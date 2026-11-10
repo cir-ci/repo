@@ -57,12 +57,12 @@ describe('Settings, Teams', () => {
   it('finds a team by what is typed', async () => {
     await show()
     await expect.element(page.getByText('storybook', { exact: true })).toBeVisible()
-    await userEvent.type(page.getByRole('textbox', { name: 'Find a team' }), 'story')
+    await userEvent.type(page.getByRole('textbox', { name: 'Find teams' }), 'story')
     await expect
       .poll(() => page.getByRole('list', { name: 'Teams' }).getByRole('listitem').elements())
       .toHaveLength(1)
-    await userEvent.fill(page.getByRole('textbox', { name: 'Find a team' }), 'zzz')
-    await expect.element(page.getByText('No team matches')).toBeVisible()
+    await userEvent.fill(page.getByRole('textbox', { name: 'Find teams' }), 'zzz')
+    await expect.element(page.getByText('No teams match “zzz”.')).toBeVisible()
   })
 
   it("opens a team's settings from its row, owners and admins on General", async () => {

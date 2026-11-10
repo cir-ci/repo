@@ -3,6 +3,7 @@ import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { inboxPath, teamPath } from '#lib/api-paths.ts'
+import { findParam } from '#lib/find.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
@@ -15,12 +16,37 @@ export const INBOX_TABS: readonly { value: Inbox.Tab; label: string }[] = [
 
 export interface InboxSearch {
   tab: Inbox.Tab
+  /** The find text. */
+  q?: string
+  /** The notification to select (from a search result). */
+  item?: string
 }
 
-/** The `?tab=` of the page: anything unknown is "For you". */
+/** The `?tab=` of the page (anything unknown is "For you"), the find text `?q=` and the `?item=` selected. */
 export function validateInboxSearch(search: Record<string, unknown>): InboxSearch {
   const tab = INBOX_TABS.find((t) => t.value === search['tab'])
-  return { tab: tab?.value ?? 'for-you' }
+  const q = findParam(search['q']).trim()
+  const item = search['item']
+  return {
+    tab: tab?.value ?? 'for-you',
+    ...(q ? { q } : {}),
+    ...(typeof item === 'string' && item ? { item } : {}),
+  }
+}
+
+/** What a find text is looked for in: the words of the row, the build, its branch, the team and who did it. */
+export const inboxFields = (item: Inbox.Item) => {
+  const { title, detail } = notificationText(item)
+  return [
+    title,
+    detail,
+    item.actor?.name,
+    item.team?.name,
+    item.build ? `Build #${item.build.number} #${item.build.number}` : undefined,
+    item.build?.name === 'default' ? undefined : item.build?.name,
+    item.build?.branch,
+    item.build?.commitSha,
+  ]
 }
 
 /** The tabs with the Snoozed count beside its name ("Snoozed 3"); nothing while nothing is snoozed. */
@@ -39,8 +65,17 @@ export const inboxQuery = (tab: Inbox.Tab) =>
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined
 
+/** What the words of a notification need: an inbox row has all of it, and so has a search result. */
+export interface NotificationWords {
+  kind: NotificationKind
+  actor: { name: string } | null
+  build: { number: number } | null
+  team: { name: string } | null
+  payload: Record<string, unknown>
+}
+
 /** The words of a row: what happened, and (for a rejection or a mention) the detail under it. */
-export function notificationText(item: Inbox.Item): { title: string; detail?: string } {
+export function notificationText(item: NotificationWords): { title: string; detail?: string } {
   const who = item.actor?.name ?? 'Someone'
   const build = item.build ? ` build #${item.build.number}` : ' a build'
   const kinds: Record<NotificationKind, { title: string; detail?: string | undefined }> = {

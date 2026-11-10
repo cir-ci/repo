@@ -2,6 +2,7 @@ import type { Search, Sidebar, View } from '@circi/api'
 import type { ColorMode } from '@circi/ui'
 
 import { workspaceSettingsPath } from '#app/shell-model.ts'
+import { notificationText } from '#features/inbox/api.ts'
 import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 
 /**
@@ -20,6 +21,10 @@ export const GROUP_ORDER = [
   'Branches',
   'Teams',
   'Screenshots',
+  'Baselines',
+  'Triage',
+  'Inbox',
+  'Reviews',
 ] as const
 
 export interface Entry {
@@ -363,7 +368,134 @@ export function searchEntries(
       },
     })
   }
+  entries.push(...moreEntries(workspace, results))
   return entries
+}
+
+const KIND_NAME: Record<Search.Triage['kind'], string> = {
+  flaky: 'Flaky',
+  no_baseline: 'No baseline',
+  failed: 'Failed build',
+}
+
+const REVIEW_TAB_NAME: Record<Search.Review['tab'], string> = {
+  'for-you': 'Requested from you',
+  created: 'Created by you',
+  snoozed: 'Snoozed',
+}
+
+/** The path segments of a screenshot name (the baseline route's splat), each encoded. */
+const splat = (name: string) => name.split('/').map(enc).join('/')
+
+/** Baselines, triage items, notifications, review requests and saved views: labelled by their own name. */
+function moreEntries(workspace: string, results: Search.Results | undefined): Entry[] {
+  const entries: Entry[] = []
+  for (const b of results?.baselines ?? []) {
+    entries.push({
+      id: `baseline:${b.teamSlug}:${b.name}`,
+      group: 'Baselines',
+      label: b.name,
+      detail: b.teamName,
+      target: {
+        type: 'path',
+        path: `${teamPath(workspace, b.teamSlug)}/baselines/${splat(b.name)}`,
+      },
+      preview: {
+        title: b.name,
+        rows: [
+          { label: 'Team', value: b.teamName },
+          { label: 'From build', value: `#${b.buildNumber}` },
+        ],
+      },
+    })
+  }
+  for (const t of results?.triage ?? []) {
+    const title = t.snapshotName ?? `Build #${t.buildNumber} failed`
+    entries.push({
+      id: `triage:${t.teamSlug}:${t.kind}:${t.key}`,
+      group: 'Triage',
+      label: title,
+      detail: `${KIND_NAME[t.kind]} · ${t.teamName}`,
+      target: {
+        type: 'path',
+        path: `${teamPath(workspace, t.teamSlug)}/triage?item=${enc(`${t.kind}:${t.key}`)}`,
+      },
+      preview: {
+        title,
+        rows: [
+          { label: 'Kind', value: KIND_NAME[t.kind] },
+          { label: 'Team', value: t.teamName },
+          { label: 'Build', value: `#${t.buildNumber}` },
+          ...(t.branch ? [{ label: 'Branch', value: t.branch }] : []),
+        ],
+      },
+    })
+  }
+  for (const n of results?.notifications ?? []) {
+    const { title, detail } = notificationText(n)
+    entries.push({
+      id: `notification:${n.id}`,
+      group: 'Inbox',
+      label: title,
+      detail: n.team?.name ?? '',
+      target: { type: 'path', path: `/inbox?tab=${n.tab}&item=${enc(n.id)}` },
+      preview: {
+        title,
+        rows: [
+          ...(detail ? [{ label: 'Message', value: detail }] : []),
+          ...(n.team ? [{ label: 'Team', value: n.team.name }] : []),
+          ...(n.build ? [{ label: 'Build', value: `#${n.build.number}` }] : []),
+          ...(n.actor ? [{ label: 'From', value: n.actor.name }] : []),
+          { label: 'Status', value: n.read ? 'Read' : 'Unread' },
+        ],
+      },
+    })
+  }
+  for (const r of results?.reviews ?? []) {
+    const title = [
+      `Build #${r.build.number}`,
+      r.build.name === 'default' ? r.build.branch : r.build.name,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    entries.push({
+      id: `review:${r.id}`,
+      group: 'Reviews',
+      label: title,
+      detail: r.teamName,
+      target: {
+        type: 'path',
+        path: `/workspaces/${enc(workspace)}/reviews?tab=${r.tab}&review=${enc(r.id)}`,
+      },
+      preview: {
+        title,
+        rows: [
+          { label: 'Team', value: r.teamName },
+          ...(r.build.branch ? [{ label: 'Branch', value: r.build.branch }] : []),
+          { label: 'Reviewer', value: r.reviewer.name },
+          ...(r.requestedBy ? [{ label: 'Asked by', value: r.requestedBy.name }] : []),
+          { label: 'In', value: REVIEW_TAB_NAME[r.tab] },
+        ],
+      },
+    })
+  }
+  for (const v of results?.views ?? []) {
+    // The same entry as the one the menu already lists for the view, so it is not shown twice.
+    entries.push({
+      id: `view:${v.id}`,
+      group: 'Jump to',
+      label: v.name,
+      detail: 'Saved view',
+      target: { type: 'path', path: `/workspaces/${enc(workspace)}/views/${enc(v.id)}` },
+    })
+  }
+  return entries
+}
+
+/** The entries without repeats (the first of each id stays): a saved view is both a menu entry and a search result. */
+export function uniqueEntries(entries: readonly Entry[]): Entry[] {
+  const seen = new Set<string>()
+  return entries.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)))
 }
 
 /** Entries under their group headings, in `GROUP_ORDER`; empty groups are left out. */

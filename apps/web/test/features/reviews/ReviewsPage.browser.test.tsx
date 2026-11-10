@@ -450,3 +450,60 @@ describe('ReviewsPage requests you made', () => {
     expect(document.body.textContent).toContain('↵ open the review')
   })
 })
+
+const two = () =>
+  fakeApi({
+    'GET /api/reviews': {
+      body: {
+        tab: 'for-you',
+        requests: [
+          request('r1', 12),
+          request('r2', 13, {
+            requestedBy: { id: 'u3', name: 'Grace Hopper' },
+            team: { slug: 'docs', name: 'Docs' },
+          }),
+        ],
+      },
+    },
+  })
+
+describe('ReviewsPage find field', () => {
+  it('finds by build, branch, team or person, keeps the text in the address and clears it with Esc', async () => {
+    two()
+    const { router } = await show()
+    const find = page.getByRole('textbox', { name: 'Find reviews' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find reviews')
+    await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()
+    await userEvent.keyboard('/')
+    await expect.element(find).toHaveFocus()
+    await userEvent.type(find, 'grace')
+    await expect.element(page.getByRole('link', { name: /Build #13/ })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: /Build #12/ })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'grace' }))
+    await userEvent.fill(find, 'feature-12')
+    await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()
+    await userEvent.fill(find, 'docs')
+    await expect.element(page.getByRole('link', { name: /Build #13/ })).toBeVisible()
+    await userEvent.fill(find, 'nobody')
+    await expect.element(page.getByText('No reviews match “nobody”.')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
+  })
+
+  it('opens with the find text and the review of the address', async () => {
+    two()
+    await show('/workspaces/acme/reviews?q=docs&review=r2')
+    await expect.element(page.getByRole('textbox', { name: 'Find reviews' })).toHaveValue('docs')
+    await expect.element(page.getByRole('region', { name: 'Selected review' })).toBeVisible()
+    await expect
+      .element(
+        page
+          .getByRole('region', { name: 'Selected review' })
+          .getByText(/Build #13/)
+          .first(),
+      )
+      .toBeVisible()
+  })
+})

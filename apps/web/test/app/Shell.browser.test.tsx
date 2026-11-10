@@ -222,9 +222,22 @@ describe('Shell, wide', () => {
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav).toBeVisible()
-    await expect.element(nav.getByRole('button', { name: /Search/ })).toBeVisible()
+    // Search is an icon at the right of the workspace switcher, not an item of the list.
+    const search = nav.getByRole('button', { name: 'Search', exact: true })
+    await expect.element(search).toBeVisible()
+    expect(nav.getByText('Search', { exact: true }).elements()).toHaveLength(0)
+    expect(nav.getByText('⌘K').elements()).toHaveLength(0)
     await expect.element(nav.getByRole('link', { name: 'Teams', exact: true })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
+    const switcher = nav
+      .getByRole('button', { name: 'Workspace: Acme' })
+      .element()
+      .getBoundingClientRect()
+    const icon = search.element().getBoundingClientRect()
+    expect(icon.left).toBeGreaterThanOrEqual(switcher.right - 1)
+    expect(
+      Math.abs(icon.top + icon.height / 2 - (switcher.top + switcher.height / 2)),
+    ).toBeLessThan(4)
     // Settings open from the workspace menu above, not from the sidebar.
     expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
@@ -391,6 +404,22 @@ describe('Shell, wide', () => {
     const skip = page.getByRole('link', { name: 'Skip to content' })
     await expect.element(skip).toHaveAttribute('href', '#content')
     expect(document.getElementById('content')).not.toBeNull()
+  })
+})
+
+describe('Shell, search button', () => {
+  it('opens the command menu, and says ⌘K in its tooltip', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const search = page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('button', { name: 'Search', exact: true })
+    await search.hover()
+    await expect.element(page.getByText('⌘K')).toBeVisible()
+    await search.click()
+    await expect
+      .element(page.getByRole('combobox', { name: 'Search or run a command' }))
+      .toHaveFocus()
   })
 })
 
@@ -703,6 +732,20 @@ describe('Shell, narrow', () => {
     await expect
       .element(drawer.getByRole('link', { name: 'Reviews , 2 reviews waiting' }))
       .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('has the search button in the drawer, and it opens the command menu', async () => {
+    await page.viewport(390, 800)
+    await renderShell('/')
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Navigation' })
+    const search = drawer.getByRole('button', { name: 'Search', exact: true })
+    await expect.element(search).toBeVisible()
+    expect(drawer.getByText('⌘K').elements()).toHaveLength(0)
+    await search.click()
+    await expect
+      .element(page.getByRole('combobox', { name: 'Search or run a command' }))
+      .toBeVisible()
   })
 
   it('does not repeat "Settings" in the top bar above a settings page', async () => {

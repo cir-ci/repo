@@ -13,7 +13,7 @@ import {
   useAnnounce,
   visuallyHidden,
 } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
 import { buildState } from '#features/builds/build-state.ts'
@@ -30,6 +30,7 @@ import {
 } from '#features/teams/api/index.ts'
 import { useSaveView, viewsQuery, viewWithFilters } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
+import { NoMatches } from '#lib/FindField.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
@@ -39,7 +40,13 @@ import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import { BuildFilterBar } from './BuildFilterBar.tsx'
-import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
+import {
+  type BuildFilters,
+  type FilterField,
+  hasFilters,
+  parseFilters,
+  toSearch,
+} from './builds-filters.ts'
 import { BulkRejectDialog } from './BulkRejectDialog.tsx'
 import { type DisplayOptions, groupBuilds } from './display-options.ts'
 
@@ -68,13 +75,16 @@ export function BuildsBrowser({
   const scoped = team !== undefined
   // The server orders the list (and pages it in that order); grouping happens on the page.
   const display = useDisplayStore((s) => s.display)
+  // The list stays on screen while the next one loads, so the find field under typing is not remounted.
   const teamResult = useQuery({
     ...teamQuery(workspace, team ?? '', before, filters, display.order),
     enabled: scoped,
+    placeholderData: keepPreviousData,
   })
   const workspaceResult = useQuery({
     ...workspaceBuildsQuery(workspace, pageCursor, filters, display.order),
     enabled: !scoped,
+    placeholderData: keepPreviousData,
   })
   const query = scoped ? teamResult : workspaceResult
   const { data } = query
@@ -169,7 +179,9 @@ export function BuildsBrowser({
       >
         {() =>
           builds.length === 0 ? (
-            filtered ? (
+            filtered && Object.keys(parseFilters({ ...filters })).join() === 'q' ? (
+              <NoMatches noun="builds" query={filters.q ?? ''} />
+            ) : filtered ? (
               <EmptyState
                 icon={<CollectionsIcon size={32} />}
                 title="No builds match"

@@ -3,10 +3,7 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-}
-
-.search {
-  flex: 1 1 240px;
+  justify-content: space-between;
 }
 
 .list {

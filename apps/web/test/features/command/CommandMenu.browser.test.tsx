@@ -10,7 +10,17 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const api = (search: unknown = { query: '', builds: [], branches: [], teams: [], snapshots: [] }) =>
+const none = {
+  baselines: [],
+  triage: [],
+  notifications: [],
+  reviews: [],
+  views: [],
+}
+
+const api = (
+  search: unknown = { query: '', builds: [], branches: [], teams: [], snapshots: [], ...none },
+) =>
   fakeApi({
     'GET /api/teams': {
       body: {
@@ -52,6 +62,52 @@ const result = {
   branches: [],
   teams: [{ slug: 'web', name: 'Web' }],
   snapshots: [],
+  ...none,
+}
+
+const more = {
+  query: 'summary',
+  builds: [],
+  branches: [],
+  teams: [],
+  snapshots: [],
+  baselines: [{ teamSlug: 'web', teamName: 'Web', name: 'checkout/summary', buildNumber: 140 }],
+  triage: [
+    {
+      teamSlug: 'web',
+      teamName: 'Web',
+      kind: 'flaky',
+      key: 'checkout/summary',
+      snapshotName: 'checkout/summary',
+      buildNumber: 150,
+      branch: 'main',
+    },
+  ],
+  notifications: [
+    {
+      id: 'n1',
+      kind: 'mentioned',
+      tab: 'everything',
+      read: false,
+      createdAt: '2026-03-10T12:00:00.000Z',
+      actor: { name: 'Ada' },
+      build: { number: 148, name: 'default' },
+      team: { slug: 'web', name: 'Web' },
+      payload: { snippet: 'the summary is cut off' },
+    },
+  ],
+  reviews: [
+    {
+      id: 'r1',
+      tab: 'for-you',
+      teamSlug: 'web',
+      teamName: 'Web',
+      build: { number: 148, name: 'default', branch: 'main' },
+      reviewer: { name: 'Me' },
+      requestedBy: { name: 'Ada' },
+    },
+  ],
+  views: [],
 }
 
 const seen = async (target: { element?: unknown } & Parameters<typeof expect.element>[0]) => {
@@ -87,6 +143,49 @@ describe('the command menu', () => {
     expect(calls.calls.some((c) => c.path === '/api/workspaces/acme/search')).toBe(true)
     await userEvent.keyboard('{Enter}')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
+  })
+
+  it('lists baselines, triage items, notifications and reviews in groups named for them, with a peek at each', async () => {
+    await page.viewport(1200, 800)
+    api(more)
+    await show()
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await userEvent.type(page.getByRole('combobox'), 'summary')
+    for (const group of ['Baselines', 'Triage', 'Inbox', 'Reviews']) {
+      // eslint-disable-next-line no-await-in-loop -- one group after another
+      await seen(page.getByRole('group', { name: group }))
+    }
+    await seen(page.getByRole('option', { name: /^checkout\/summary Web$/ }).first())
+    await seen(page.getByRole('option', { name: /^Build #148 · main Web$/ }))
+    const peek = page.getByRole('complementary', { name: 'Peek' })
+    await page.getByRole('option', { name: /^Build #148 · main/ }).hover()
+    await expect.element(peek.getByText('Requested from you')).toBeVisible()
+    await page.getByRole('option', { name: /^Ada mentioned you/ }).hover()
+    await expect.element(peek.getByText('the summary is cut off')).toBeVisible()
+    await page.getByRole('option', { name: /Flaky/ }).hover()
+    await expect.element(peek.getByText('#150')).toBeVisible()
+  })
+
+  it.each([
+    ['a notification', /^Ada mentioned you/, '/inbox', '?tab=everything&item=n1'],
+    [
+      'a review request',
+      /^Build #148 · main/,
+      '/workspaces/acme/reviews',
+      '?tab=for-you&review=r1',
+    ],
+    ['a triage item', /Flaky/, '/acme/web/triage', '?item=flaky%3Acheckout%2Fsummary'],
+    ['a baseline', /^checkout\/summary Web$/, '/acme/web/baselines/checkout/summary', ''],
+  ])('opens %s with the item selected', async (_kind, name, pathname, search) => {
+    api(more)
+    const { router } = await show()
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await userEvent.type(page.getByRole('combobox'), 'summary')
+    await page.getByRole('option', { name }).click()
+    await vi.waitFor(() => {
+      expect(router.state.location.pathname).toBe(pathname)
+      expect(router.state.location.searchStr).toBe(search)
+    })
   })
 
   it('walks the results with the arrows, wrapping, and the peek pane follows the highlight', async () => {

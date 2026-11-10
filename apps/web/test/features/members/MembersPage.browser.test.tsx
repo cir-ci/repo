@@ -1,6 +1,6 @@
 import { AnnouncerProvider } from '@circi/ui'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
 vi.mock('#lib/auth-client.ts', () =>
@@ -412,5 +412,26 @@ describe('MembersPage', () => {
       organizationId: 'workspace1',
     })
     await vi.waitFor(() => expect(auth.getFullOrganization).toHaveBeenCalledTimes(2))
+  })
+
+  it('finds members by name, email or role, keeps the text in the address and clears it with Esc', async () => {
+    const { router } = await show()
+    const find = page.getByRole('textbox', { name: 'Find members' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find members')
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    await userEvent.keyboard('/')
+    await expect.element(find).toHaveFocus()
+    await userEvent.type(find, 'grace')
+    await expect.element(page.getByText('Ada Lovelace')).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'grace' }))
+    await userEvent.fill(find, 'owner')
+    await expect.element(page.getByText('Ada Lovelace')).toBeVisible()
+    await expect.element(page.getByText('Grace Hopper')).not.toBeInTheDocument()
+    await userEvent.fill(find, 'zzz')
+    await expect.element(page.getByText('No members match “zzz”.')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
   })
 })

@@ -7,16 +7,16 @@ import {
   ListRow,
   PlusIcon,
   Text,
-  TextField,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
-import { useState } from 'react'
 
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { MemberStack } from '#features/teams/AvatarStack.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -38,7 +38,7 @@ export function TeamsSettingsPage() {
   const query = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useFindParam()
   const canManage = caps?.manageableWorkspaces.some((w) => w.slug === workspace) === true
   const inWorkspace = (query.data?.teams ?? []).filter((o) => o.workspace.slug === workspace)
   const shown = findTeams(inWorkspace, search)
@@ -55,15 +55,7 @@ export function TeamsSettingsPage() {
       onRetry={() => void query.refetch()}
     >
       <div className={styles.toolbar}>
-        <TextField
-          className={styles.search}
-          label="Find a team"
-          hideLabel
-          placeholder="Find a team"
-          autoComplete="off"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <FindField noun="teams" value={search} onChange={setSearch} />
         {canManage ? (
           <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
             <PlusIcon size={14} />
@@ -71,10 +63,10 @@ export function TeamsSettingsPage() {
           </Button>
         ) : null}
       </div>
-      {shown.length === 0 ? (
-        <EmptyState title={search.trim() ? 'No team matches' : 'No teams yet'}>
-          {search.trim() ? `Nothing matches “${search.trim()}”.` : undefined}
-        </EmptyState>
+      {shown.length === 0 && search.trim() ? (
+        <NoMatches noun="teams" query={search} />
+      ) : shown.length === 0 ? (
+        <EmptyState title="No teams yet" />
       ) : (
         <ul aria-label="Teams" className={styles.list}>
           {shown.map(({ team, workspace: owner }) => (
