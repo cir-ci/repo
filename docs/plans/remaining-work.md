@@ -122,33 +122,40 @@ left is listed below by kind.
 - Run design-sync again after any change and do the **attended upload** to the design project
   (`DesignSync`): nothing has been uploaded, and no person has reviewed the grades.
 
-## 3. Product decisions still open
+## 3. Product decisions (decided 2026-11-10)
 
-Provisional specs were built; each of these needs a person (`docs/design-gaps.md`, "Needs a
-decision"):
+All of the open decisions were answered by the owner on 2026-11-10:
 
-1. Buttons: more than one `primary` per screen? `Kbd` hints on buttons?
-2. Forms: stacked labels everywhere or a label column on wide settings pages; save per section
-   or per page; instant-apply switches.
-3. No toasts, really? Invitation/address-change banners: in the panel or above the frame?
-4. Light-mode popup shadow: allowed despite "hairlines, not shadows"?
-5. Illustrations or icons only in empty states.
-6. Sidebar: recent vs alphabetical vs pinned teams; workspace switcher with one workspace; the mobile
-   drawer.
-7. Build review: list width, per-screenshot approve, after-approve behaviour.
-8. Status glyphs for added/removed/flaky (they share `needs-review`/`neutral` and differ only by
-   label; would mean extending `StatusIcon` with +, −, ~).
-9. Sortable columns for large member lists.
-10. Setup wizard: one page or steps.
-11. **The light palette itself** (derived, not designed): chrome vs panel contrast (`#f3efed` vs
-    `#fcfbfa`), accent clay `#b4573f`.
-12. **Logo and favicon** as SVG per scheme (maroon `#724039` disappears on the dark chrome),
-    plus the 32 px mark. The frame shows the word "CirCI" until then.
-13. Who signs off components, and whether a `Provisional` mark blocks a page from shipping.
-14. Reject now asks for confirmation (button and `r`): is that wanted? "Sign out everywhere
-    else" now also confirms. Removing a member, domain or SSO provider asks for confirmation
-    too (it acted immediately before): confirm this is wanted.
-15. Remembered workspace is kept in `localStorage`: should it live in the user's settings on the server?
+1. **Logo and favicon:** the existing logo (`apps/web/src/features/auth/logo.svg`, the maroon
+   tile) everywhere: favicon, the app frame where the word "CirCI" stands today, auth screens.
+2. **Light palette:** tune it on the canvas (chrome/panel separation, accent), with the same
+   contrast tests dark has; the owner approves before it is applied.
+3. **Toasts:** visible toasts for every action, success and error, everywhere (saves included);
+   reversible actions carry Undo in theirs.
+4. **Banners** (invitation, address change): inside the panel, under the sticky page header.
+5. **Primary buttons:** at most one primary per area: the page header, each dialog, each pane.
+6. **Forms:** label column (label and help left, control right) from about 900px wide; stacked
+   below that. Saving stays per the settings save rule.
+7. **Confirmations:** undo when reversible (approve, reject, dismiss, snooze...: act at once with
+   an Undo toast, plus the reason prompt where the team requires one); confirm when not
+   reversible and risky (remove a member, a domain or an SSO provider, delete anything).
+8. **Remembered workspace:** on the server, with the user's account, so every device opens the
+   workspace last used.
+9. **Sortable columns:** every table gets click-to-sort headers.
+10. **First-run setup:** steps (admin account, workspace, storage check, first team with its CI
+    snippet), with progress and Back.
+11. **Workspace switcher with one workspace:** shown, as a menu (settings, New workspace).
+12. **Component sign-off:** the owner approves on the canvas; `Provisional` is a label only and
+    never blocks shipping.
+13. **Light-mode popup shadow:** kept (light popups only; panels and cards stay hairline).
+14. **Empty states:** icons only (Lucide). Done.
+15. **Status glyphs** for added/removed/flaky: own glyphs and colours. Done.
+16. **After approving a screenshot:** move to the next one needing review; when none are left,
+    stay and offer Approve all.
+17. **Wording:** "commits", not "builds", where a count is of commits (Triage strip, flaky reason).
+18. **Apps:** an installable PWA on desktop and phones, with web push sent by each server itself
+    (VAPID, no central relay); a phone layout for every page; and in the PWA a **tabs** feature:
+    several pages of the app open at once as tabs. Design first, owner approves, then build.
 
 ## 4. Missing UI features (open)
 
