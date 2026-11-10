@@ -11,18 +11,12 @@ import styles from './TeamsEmpty.module.css'
  * Everyone else is told whom to ask, with no button.
  */
 export function TeamsEmpty({ canCreateTeam, canCreateWorkspace, hasWorkspace }: TeamsEmpty.Props) {
-  const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
 
   if (canCreateTeam) {
     return (
       <div className={styles.root}>
-        <EmptyState
-          icon={<LayersIcon />}
-          title="Create your first team"
-          className={styles.top}
-          action={<Button onClick={() => setNewTeamOpen(true)}>New team</Button>}
-        >
+        <EmptyState icon={<LayersIcon />} title="Create your first team" className={styles.top}>
           A team is one app or library whose screenshots your CI uploads.
         </EmptyState>
         <div className={styles.argos}>

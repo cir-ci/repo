@@ -41,6 +41,8 @@ export namespace IntegrationFrame {
     title: string
     /** The page shows its own visible `<h1>`; the current crumb is then plain text. */
     headingInPage?: boolean
+    /** The page's main button, in the header bar. */
+    actions?: ReactNode
     loading?: boolean
     error?: Error | null
     onRetry?: () => void

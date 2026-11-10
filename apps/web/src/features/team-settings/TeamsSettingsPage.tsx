@@ -52,19 +52,22 @@ export function TeamsSettingsPage() {
         [workspaceSettingsCrumb(workspace)],
       )}
       title="Teams"
+      find={<FindField noun="teams" value={search} onChange={setSearch} />}
+      actions={
+        canManage ? (
+          <Button
+            variant="primary"
+            leading={<PlusIcon size={14} />}
+            onClick={() => setNewTeamOpen(true)}
+          >
+            New team
+          </Button>
+        ) : undefined
+      }
       loading={query.isPending}
       error={query.error}
       onRetry={() => void query.refetch()}
     >
-      <div className={styles.toolbar}>
-        <FindField noun="teams" value={search} onChange={setSearch} />
-        {canManage ? (
-          <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
-            <PlusIcon size={14} />
-            New team
-          </Button>
-        ) : null}
-      </div>
       {shown.length === 0 && search.trim() ? (
         <NoResults noun="team" query={search} onClear={() => setSearch('')} size="section" />
       ) : shown.length === 0 ? (

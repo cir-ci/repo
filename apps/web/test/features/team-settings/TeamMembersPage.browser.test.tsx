@@ -10,6 +10,7 @@ import { TeamMembersPage } from '#features/team-settings/TeamMembersPage.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { overview } from '#test/support/fixtures.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const API = '/api/teams/acme/web'
@@ -147,6 +148,17 @@ describe('a team Members tab', () => {
     await expect.element(list.getByText('Owner')).toBeVisible()
     await expect.element(list.getByText('Admin')).toBeVisible()
     await expect.element(list.getByText('· you')).toBeVisible()
+  })
+
+  it('puts Add members and the find field in the page header', async () => {
+    await page.viewport(1280, 800)
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Team members' })).toBeVisible()
+    const header = pageHeader()
+    expect(header.contains(page.getByRole('button', { name: 'Add members' }).element())).toBe(true)
+    expect(header.contains(page.getByRole('textbox', { name: 'Find members' }).element())).toBe(
+      true,
+    )
   })
 
   it('adds workspace members who are not in the team, then posts their IDs', async () => {

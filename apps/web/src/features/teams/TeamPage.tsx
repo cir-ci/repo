@@ -7,10 +7,12 @@ import { Fragment } from 'react'
 import { baselineLink } from '#features/baselines/links.ts'
 import {
   type BuildFilters,
+  hasFilters,
   parseBuildsSearch,
   toSearch,
 } from '#features/builds/list/builds-filters.ts'
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
+import { BuildsFind } from '#features/builds/list/BuildsFind.tsx'
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { flakyQuery, settingsQuery, teamQuery } from '#features/teams/api/index.ts'
@@ -63,6 +65,11 @@ export function TeamPage() {
           workspace: { slug: workspace, name: data?.team.workspaceName ?? workspace },
         })}
         title={data?.team.name ?? team}
+        find={
+          data && (data.builds.length > 0 || hasFilters(filters)) ? (
+            <BuildsFind filters={filters} onFiltersChange={setFilters} />
+          ) : null
+        }
         actions={
           <>
             {pinned === undefined ? null : (

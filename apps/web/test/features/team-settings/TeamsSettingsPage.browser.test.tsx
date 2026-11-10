@@ -5,6 +5,7 @@ import { TeamsSettingsPage } from '#features/team-settings/TeamsSettingsPage.tsx
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { overview } from '#test/support/fixtures.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const caps = (manageable: boolean) => ({
@@ -76,6 +77,29 @@ describe('Settings, Teams', () => {
     await expectEmptyState('No team matches “zzz”', { action: 'Clear search' })
     await page.getByRole('button', { name: 'Clear search' }).click()
     await expect.element(page.getByRole('textbox', { name: 'Find teams' })).toHaveValue('')
+  })
+
+  it('puts the find field and New team in the page header, on a desktop', async () => {
+    await page.viewport(1280, 800)
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Teams' })).toBeVisible()
+    const header = pageHeader()
+    expect(header.contains(page.getByRole('textbox', { name: 'Find teams' }).element())).toBe(true)
+    expect(header.contains(page.getByRole('button', { name: 'New team' }).element())).toBe(true)
+  })
+
+  it('puts the find field in a full-width row under the header on a phone, New team in the header', async () => {
+    await page.viewport(390, 844)
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Teams' })).toBeVisible()
+    const header = pageHeader()
+    const find = page.getByRole('textbox', { name: 'Find teams' }).element()
+    expect(header.contains(find)).toBe(false)
+    expect(find.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      header.getBoundingClientRect().bottom - 1,
+    )
+    expect(find.getBoundingClientRect().height).toBeLessThanOrEqual(36.5)
+    expect(header.contains(page.getByRole('button', { name: 'New team' }).element())).toBe(true)
   })
 
   it('invites an owner or admin to create the first team', async () => {

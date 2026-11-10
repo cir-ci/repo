@@ -2,7 +2,6 @@ import type { ReviewRule, Triage } from '@circi/api'
 import {
   Avatar,
   Banner,
-  Button,
   Checkbox,
   CheckboxGroup,
   ConfirmDialog,
@@ -11,7 +10,6 @@ import {
   IconButton,
   ListChecksIcon,
   Menu,
-  PlusIcon,
   RowMenuIcon,
   Select,
   SettingsSection,
@@ -47,6 +45,12 @@ type Editing = { id: string | null; draft: RuleDraft } | null
 export function RulesSection(props: RulesSection.Props) {
   const actions = useRuleActions(props.workspace, props.team)
   const [editing, setEditing] = useState<Editing>(null)
+  // The page header's "Add rule" counts up; each new count opens the dialog for a new rule.
+  const [seenAddRequests, setSeenAddRequests] = useState(props.addRequests ?? 0)
+  if ((props.addRequests ?? 0) !== seenAddRequests) {
+    setSeenAddRequests(props.addRequests ?? 0)
+    setEditing({ id: null, draft: emptyDraft() })
+  }
   const [deleting, setDeleting] = useState<ReviewRule.Item | null>(null)
   const failure = actions.remove.error ?? actions.reorder.error
   const person = (id: string, name: string): Person =>
@@ -74,18 +78,7 @@ export function RulesSection(props: RulesSection.Props) {
     >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       {props.rules.length === 0 ? (
-        <EmptyState
-          icon={<ListChecksIcon />}
-          size="section"
-          title="No review rules"
-          action={
-            props.canManage ? (
-              <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>
-                Add rule
-              </Button>
-            ) : undefined
-          }
-        >
+        <EmptyState icon={<ListChecksIcon />} size="section" title="No review rules">
           {props.canManage
             ? 'Add a rule to ask people to review changed screenshots automatically.'
             : 'Nobody is asked to review automatically.'}
@@ -184,16 +177,6 @@ export function RulesSection(props: RulesSection.Props) {
           </li>
         </ul>
       )}
-      {props.canManage && props.rules.length > 0 ? (
-        <div>
-          <Button
-            leading={<PlusIcon size={12} />}
-            onClick={() => setEditing({ id: null, draft: emptyDraft() })}
-          >
-            Add rule
-          </Button>
-        </div>
-      ) : null}
       {editing ? (
         <RuleDialog
           key={editing.id ?? 'new'}
@@ -330,5 +313,7 @@ export namespace RulesSection {
     rotation: Triage.Rotation
     people: Person[]
     canManage: boolean
+    /** How often the page header's "Add rule" was pressed: each press opens the dialog for a new rule. */
+    addRequests?: number
   }
 }

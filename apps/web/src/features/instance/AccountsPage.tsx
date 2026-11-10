@@ -26,6 +26,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { FindField } from '#lib/FindField.tsx'
 import { numberOf, textOf } from '#lib/number-field.ts'
 import { toast } from '#lib/toast.ts'
 
@@ -96,6 +97,7 @@ export function AccountsPage() {
           Create account
         </Button>
       }
+      find={<FindField noun="accounts" value={typed} onChange={setTyped} />}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -106,17 +108,6 @@ export function AccountsPage() {
         bare
         description={
           data ? `${data.total} ${data.total === 1 ? 'account' : 'accounts'}` : undefined
-        }
-        actions={
-          <TextField
-            className={styles.search}
-            label="Search accounts"
-            placeholder="Search by name or email"
-            type="search"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            autoComplete="off"
-          />
         }
       >
         <div className={styles.box}>

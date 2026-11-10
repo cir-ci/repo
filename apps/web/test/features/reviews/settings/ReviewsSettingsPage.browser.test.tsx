@@ -9,6 +9,7 @@ vi.mock('#lib/auth-client.ts', () =>
 import { ReviewsSettingsPage } from '#features/reviews/settings/ReviewsSettingsPage.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 mockAuthClient()
@@ -324,6 +325,15 @@ describe('ReviewsSettingsPage', () => {
     await page.getByRole('checkbox', { name: 'Ada Lovelace' }).last().click()
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ memberIds: [] })
+  })
+
+  it('has Add rule once, in the page header, with no copy of it in the rules list', async () => {
+    api()
+    await show()
+    const add = page.getByRole('button', { name: 'Add rule' })
+    await expect.element(add).toBeVisible()
+    expect(add.elements()).toHaveLength(1)
+    expect(pageHeader().contains(add.element())).toBe(true)
   })
 
   it('adds, edits and deletes rules in dialogs, each applying when confirmed', async () => {

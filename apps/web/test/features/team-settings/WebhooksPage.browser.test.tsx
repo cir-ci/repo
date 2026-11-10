@@ -4,6 +4,7 @@ import { page } from 'vitest/browser'
 import { WebhooksPage } from '#features/team-settings/WebhooksPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
 
@@ -46,11 +47,19 @@ const show = () =>
     announcer: true,
     otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
   })
-// With no webhooks the empty state repeats the header's button: the first is the header's.
+// Add webhook is the page header's button; the empty state has none of its own.
 const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click()
 const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Add webhook' })
 
 describe('WebhooksPage', () => {
+  it('has Add webhook once, in the page header, even with no webhooks', async () => {
+    await show()
+    const add = page.getByRole('button', { name: 'Add webhook' })
+    await expect.element(add).toBeVisible()
+    expect(add.elements()).toHaveLength(1)
+    expect(pageHeader().contains(add.element())).toBe(true)
+  })
+
   it('sends a test event and lists recent deliveries', async () => {
     const withDeliveries = {
       ...hook('h1', 'https://a.test/hook'),

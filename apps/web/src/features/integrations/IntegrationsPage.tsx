@@ -1,5 +1,5 @@
 import type { Integration } from '@circi/api'
-import { Banner, Button, EmptyState, Heading, PlugIcon, Text } from '@circi/ui'
+import { Banner, Button, EmptyState, Heading, PlugIcon, PlusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -40,7 +40,17 @@ export function IntegrationsPage() {
     <IntegrationFrame
       workspace={workspace}
       title="Integrations"
-      headingInPage={Boolean(data) && !error}
+      actions={
+        data?.canManage ? (
+          <Button
+            variant="primary"
+            leading={<PlusIcon size={14} />}
+            onClick={() => setAdding(true)}
+          >
+            Add integration
+          </Button>
+        ) : undefined
+      }
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -49,18 +59,6 @@ export function IntegrationsPage() {
     >
       {data ? (
         <>
-          <div className={styles.sectionHead}>
-            <div>
-              <Heading level="title" as="h1">
-                Integrations
-              </Heading>
-            </div>
-            {data.canManage ? (
-              <Button variant="primary" onClick={() => setAdding(true)}>
-                Add integration
-              </Button>
-            ) : null}
-          </div>
           {note && search.connect !== 'connected' ? (
             <Banner tone={note.tone}>{note.text}</Banner>
           ) : null}

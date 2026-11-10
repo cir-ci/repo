@@ -18,6 +18,7 @@ export function PageFrame({
   headingInPage,
   header,
   actions,
+  find,
   after,
   width,
   loading,
@@ -34,6 +35,7 @@ export function PageFrame({
         title={title}
         headingInPage={headingInPage}
         {...(actions ? { actions } : {})}
+        {...(find ? { find } : {})}
         {...(after ? { after } : {})}
       />
       {header}
@@ -66,6 +68,8 @@ export namespace PageFrame {
     headingInPage?: boolean | undefined
     /** The page's main buttons, in the header bar on the title's line. */
     actions?: ReactNode
+    /** The page's find field, in the header bar (a full-width row under it on a phone). */
+    find?: ReactNode
     /** Beside the title in the header bar (a status line). */
     after?: ReactNode
     /** Between the page's header bar and its column: a team's header with its tabs. */

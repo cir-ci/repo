@@ -11,6 +11,7 @@ import { MembersPage } from '#features/members/MembersPage.tsx'
 import { ADA, mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
@@ -173,7 +174,13 @@ describe('MembersPage', () => {
   it('offers inviting to owners and admins, and keeps sign-in settings on their own page', async () => {
     await page.viewport(1000, 800)
     await show()
-    await expect.element(page.getByRole('heading', { name: 'Invite someone' })).toBeVisible()
+    const invite = page.getByRole('button', { name: 'Invite', exact: true })
+    await expect.element(invite).toBeVisible()
+    // The button is the page header's, and opens the dialog.
+    expect(pageHeader().contains(invite.element())).toBe(true)
+    await invite.click()
+    await expect.element(page.getByRole('dialog', { name: 'Invite someone' })).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
     for (const name of ['Sign-in methods', 'Email domains', 'Single sign-on']) {
       expect(page.getByRole('heading', { name }).elements()).toHaveLength(0)
     }
@@ -191,7 +198,7 @@ describe('MembersPage', () => {
     expect(page.getByRole('combobox').elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Actions for/ }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: 'Revoke' }).elements()).toHaveLength(0)
-    expect(page.getByRole('heading', { name: 'Invite someone' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Invite', exact: true }).elements()).toHaveLength(0)
   })
 
   it('says so when you are the only member', async () => {
@@ -362,11 +369,12 @@ describe('MembersPage', () => {
       error: null,
     })
     await show()
+    await page.getByRole('button', { name: 'Invite', exact: true }).click()
     await page.getByRole('textbox', { name: 'Email' }).fill('Alan@example.test')
     await page.getByRole('button', { name: 'Send invite' }).click()
     await expect
       .element(
-        page.getByText(
+        toastNamed(
           'Invitation sent to Alan@example.test. Replaced the earlier invitation (member) to Alan@example.test; its link no longer works.',
         ),
       )
@@ -380,24 +388,23 @@ describe('MembersPage', () => {
     expect(page.getByText('· you').elements()).toHaveLength(1)
   })
 
-  it('puts the invite form first, with an example address', async () => {
+  it('has the invite form in a dialog, with an example address', async () => {
     await page.viewport(1000, 800)
     await show()
+    await page.getByRole('button', { name: 'Invite', exact: true }).click()
     await expect
       .element(page.getByRole('textbox', { name: 'Email' }))
       .toHaveAttribute('placeholder', 'name@acme.dev')
+    await page.getByRole('button', { name: 'Cancel' }).click()
     const headings = page.getByRole('heading', { level: 2 }).elements()
-    expect(headings.map((h) => h.textContent)).toEqual([
-      'Invite someone',
-      'Members',
-      'Pending invitations',
-    ])
+    expect(headings.map((h) => h.textContent)).toEqual(['Members', 'Pending invitations'])
   })
 
-  it('invites someone from the form on the page, then lists again', async () => {
+  it('invites someone from the dialog, then lists again', async () => {
     await page.viewport(1000, 800)
     auth.inviteMember.mockResolvedValue({ data: {}, error: null })
     await show()
+    await page.getByRole('button', { name: 'Invite', exact: true }).click()
     await page.getByRole('textbox', { name: 'Email' }).fill('new@example.test')
     await page.getByRole('button', { name: 'Send invite' }).click()
     expect(auth.inviteMember).toHaveBeenCalledWith({

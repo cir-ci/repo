@@ -17,6 +17,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
@@ -700,6 +701,24 @@ describe('ViewPage', () => {
 })
 
 describe('the find field', () => {
+  it('is in the page header on a desktop and in a row under it on a phone', async () => {
+    api([build(3)])
+    await page.viewport(1280, 800)
+    await show()
+    const find = page.getByRole('textbox', { name: 'Find builds' })
+    await expect.element(find).toBeVisible()
+    expect(pageHeader().contains(find.element())).toBe(true)
+    await page.viewport(390, 844)
+    await expect
+      .poll(() =>
+        pageHeader().contains(page.getByRole('textbox', { name: 'Find builds' }).element()),
+      )
+      .toBe(false)
+    const box = page.getByRole('textbox', { name: 'Find builds' }).element().getBoundingClientRect()
+    expect(box.top).toBeGreaterThanOrEqual(pageHeader().getBoundingClientRect().bottom - 1)
+    expect(box.height).toBeLessThanOrEqual(36.5)
+  })
+
   it('sends the typed text as q, keeps it in the address and clears it with Esc', async () => {
     const fake = api([build(3), build(4, { branch: 'feature/octo' })])
     const { router } = await show()

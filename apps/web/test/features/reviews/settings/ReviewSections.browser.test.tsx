@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
@@ -22,9 +23,24 @@ const rule = (id: string, pattern: string, over: Record<string, unknown> = {}) =
 
 type Api = Record<string, ReplyHandler>
 
+/** The page's header holds "Add rule" and asks the section to open its dialog: a stand-in button does the same. */
+function WithHeaderButton(props: RulesSection.Props) {
+  const [requests, setRequests] = useState(0)
+  return (
+    <>
+      {props.canManage ? (
+        <button type="button" onClick={() => setRequests((n) => n + 1)}>
+          Add rule
+        </button>
+      ) : null}
+      <RulesSection {...props} addRequests={requests} />
+    </>
+  )
+}
+
 function showRules(props: Partial<RulesSection.Props> = {}, api: Api = {}) {
   return renderPage(
-    <RulesSection
+    <WithHeaderButton
       workspace="acme"
       team="web"
       teamName="Web App"
@@ -46,14 +62,8 @@ describe('RulesSection', () => {
     await showRules({ rules: [] })
     await expectEmptyState('No review rules', {
       body: 'Add a rule to ask people to review changed screenshots automatically.',
-      action: 'Add rule',
     })
-    // Not primary: the page's Save changes is.
-    expect(page.getByRole('button', { name: 'Add rule' }).element().dataset['variant']).not.toBe(
-      'primary',
-    )
-    // The one Add rule button is the state's; it opens the same dialog.
-    expect(page.getByRole('button', { name: 'Add rule' }).elements()).toHaveLength(1)
+    // No button of its own: the page header's Add rule opens the dialog.
     await page.getByRole('button', { name: 'Add rule' }).click()
     await expect.element(page.getByRole('dialog', { name: 'Add rule' })).toBeVisible()
   })

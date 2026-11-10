@@ -161,7 +161,7 @@ describe('TeamsPage', () => {
     expect(router.state.location.pathname).toBe('/acme/web-app')
   })
 
-  it('offers to create a team when you can, in the empty state and the header', async () => {
+  it('offers to create a team when you can, in the header only (the empty state has no button)', async () => {
     fakeApi({
       'GET /api/teams': { body: { teams: [] } },
       'GET /api/capabilities': {
@@ -171,7 +171,6 @@ describe('TeamsPage', () => {
     await show()
     await expectEmptyState('Create your first team', {
       body: 'A team is one app or library whose screenshots your CI uploads.',
-      action: 'New team',
       centred: true,
     })
     // The Argos hint is a footnote below the state, not a second action.
@@ -179,8 +178,10 @@ describe('TeamsPage', () => {
     await expect.element(page.getByText(/ARGOS_API_BASE_URL=/)).toBeVisible()
     await expect
       .poll(() => page.getByRole('button', { name: 'New team' }).elements().length)
-      .toBe(2)
-    // The header's New team is the primary one; the empty state's is secondary.
+      .toBe(1)
+    expect(pageHeader().contains(page.getByRole('button', { name: 'New team' }).element())).toBe(
+      true,
+    )
     expectOnePrimaryPerArea()
   })
 

@@ -12,7 +12,15 @@ import { isForbidden } from './api/admin.ts'
  * the state for someone who is not an instance admin (the server answers 403 to every
  * `/api/instance` read). The page's name is not repeated as a title in the column.
  */
-export function AdminFrame({ title, action, note, error, children, ...rest }: AdminFrame.Props) {
+export function AdminFrame({
+  title,
+  action,
+  find,
+  note,
+  error,
+  children,
+  ...rest
+}: AdminFrame.Props) {
   // The status line sits beside the title; a phone's header has no room for it, so it leads the page.
   const phone = usePhone()
   const status = note ? (
@@ -26,6 +34,7 @@ export function AdminFrame({ title, action, note, error, children, ...rest }: Ad
       title={title}
       error={error}
       {...(action ? { actions: action } : {})}
+      {...(find ? { find } : {})}
       {...(status && !phone ? { after: status } : {})}
       forbidden={
         isForbidden(error) ? (
@@ -48,6 +57,8 @@ export namespace AdminFrame {
     title: string
     /** The page's main button, in the header on the title's line. */
     action?: ReactNode
+    /** The page's find field, in the header. */
+    find?: ReactNode
     /** A status line beside the title (not an explanation of the page). */
     note?: ReactNode
     loading?: boolean

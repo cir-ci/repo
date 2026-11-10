@@ -5,6 +5,7 @@ import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialo
 import { IntegrationsPage } from '#features/integrations/IntegrationsPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { CATALOG, item } from './fixtures.ts'
@@ -95,13 +96,18 @@ describe('IntegrationsPage', () => {
     await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
   })
 
-  it('opens the same dialog from the empty state', async () => {
-    await page.viewport(1000, 800)
-    fakeApi({ [`GET ${LIST}`]: list() })
-    await show()
-    await page.getByRole('button', { name: 'Add integration' }).click()
-    await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
-  })
+  it.each([1280, 390])(
+    'has Add integration in the page header, not in the empty state, at %ipx',
+    async (width) => {
+      await page.viewport(width, 844)
+      fakeApi({ [`GET ${LIST}`]: list() })
+      await show()
+      const add = page.getByRole('button', { name: 'Add integration' })
+      await expect.element(add).toBeVisible()
+      expect(pageHeader().contains(add.element())).toBe(true)
+      expect(add.elements()).toHaveLength(1)
+    },
+  )
 })
 
 const APP = {

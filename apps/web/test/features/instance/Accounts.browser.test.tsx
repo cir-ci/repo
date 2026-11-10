@@ -92,7 +92,7 @@ describe('the accounts page', () => {
   it('searches from the first page, with the text in the request', async () => {
     const fake = fakeApi(LIST)
     await show()
-    await page.getByRole('searchbox', { name: 'Search accounts' }).fill('ron')
+    await page.getByRole('textbox', { name: 'Find accounts' }).fill('ron')
     await expect
       .poll(() => fake.calls.some((c) => c.path === '/api/instance/accounts' && c.method === 'GET'))
       .toBe(true)
@@ -121,10 +121,10 @@ describe('the accounts page', () => {
   it('shows the no-results state for a search with nothing found, and clears it', async () => {
     fakeApi({ 'GET /api/instance/accounts': { body: accountList([]) } })
     await show()
-    await page.getByRole('searchbox', { name: 'Search accounts' }).fill('dana')
+    await page.getByRole('textbox', { name: 'Find accounts' }).fill('dana')
     await expectEmptyState('No account matches “dana”', { action: 'Clear search' })
     await page.getByRole('button', { name: 'Clear search' }).click()
-    await expect.element(page.getByRole('searchbox', { name: 'Search accounts' })).toHaveValue('')
+    await expect.element(page.getByRole('textbox', { name: 'Find accounts' })).toHaveValue('')
   })
 })
 

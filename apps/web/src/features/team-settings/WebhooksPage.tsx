@@ -9,16 +9,18 @@ import {
   Dialog,
   EmptyState,
   ListRow,
+  PlusIcon,
   SecretBox,
   SettingsSection,
   Text,
   TextField,
   WebhookIcon,
 } from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 
-import { useAddWebhook, useDeleteWebhook } from '#features/teams/api/index.ts'
+import { settingsQuery, useAddWebhook, useDeleteWebhook } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 
@@ -32,13 +34,33 @@ import styles from './WebhooksPage.module.css'
 /** A team's webhooks: signed build events sent to its own services. */
 export function WebhooksPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/webhooks' })
+  // "Add webhook" is the header's button; its dialog and the list share this state.
+  const [adding, setAdding] = useState(false)
+  const { data: settings } = useQuery(settingsQuery(workspace, team))
   return (
-    <TeamSettingsFrame workspace={workspace} team={team} page="Webhooks">
+    <TeamSettingsFrame
+      workspace={workspace}
+      team={team}
+      page="Webhooks"
+      actions={
+        settings?.canManage ? (
+          <Button
+            variant="primary"
+            leading={<PlusIcon size={14} />}
+            onClick={() => setAdding(true)}
+          >
+            Add webhook
+          </Button>
+        ) : undefined
+      }
+    >
       {(data, name) => (
         <Webhooks
           workspace={workspace}
           team={team}
           name={name}
+          adding={adding}
+          onAdding={setAdding}
           hooks={data.webhooks}
           events={data.webhookEvents}
           canManage={data.canManage}
@@ -55,21 +77,23 @@ function Webhooks(props: Webhooks.Props) {
     queued: () => toast('Test event queued'),
     delivered: (d) => toast(`Webhook test delivered: ${deliveryAnswer(d).text}`),
   })
-  const [adding, setAdding] = useState(false)
+  const { adding, onAdding: setAdding } = props
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
   const [picked, setPicked] = useState<string[]>(props.events)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [eventsError, setEventsError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<Webhooks.Hook | null>(null)
 
-  function open() {
+  // Each time the dialog opens it starts empty.
+  useEffect(() => {
+    if (!adding) return
     add.reset()
     setSecret(null)
     setPicked(props.events)
     setUrlError(null)
     setEventsError(null)
-    setAdding(true)
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the opening matters
+  }, [adding])
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -96,13 +120,6 @@ function Webhooks(props: Webhooks.Props) {
       <SettingsSection
         title="Webhooks"
         description={`Send ${props.name}'s build events as signed JSON to your own services. Failed deliveries are retried 8 times with backoff.`}
-        actions={
-          props.canManage ? (
-            <Button variant="primary" onClick={open}>
-              Add webhook
-            </Button>
-          ) : undefined
-        }
         bare
       >
         {props.hooks.length === 0 ? (
@@ -378,6 +395,9 @@ namespace Webhooks {
     workspace: string
     team: string
     name: string
+    /** The header's "Add webhook" opens the dialog. */
+    adding: boolean
+    onAdding: (next: boolean) => void
     hooks: Hook[]
     events: string[]
     canManage: boolean

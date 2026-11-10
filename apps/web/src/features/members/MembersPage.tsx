@@ -9,6 +9,7 @@ import {
   ListRow,
   Menu,
   NoResults,
+  PlusIcon,
   RowMenuIcon,
   Select,
   SettingsPage,
@@ -70,6 +71,7 @@ export function MembersPage() {
   const result = useQuery(query)
   const { data } = result
   const [find, setFind] = useFindParam()
+  const [inviting, setInviting] = useState(false)
   const shownMembers = findIn(data?.members ?? [], find, (m) => [
     m.user.name,
     m.user.email,
@@ -136,6 +138,17 @@ export function MembersPage() {
         ])}
         title="Members"
         find={<FindField noun="members" value={find} onChange={setFind} />}
+        actions={
+          canManage ? (
+            <Button
+              variant="primary"
+              leading={<PlusIcon size={14} />}
+              onClick={() => setInviting(true)}
+            >
+              Invite
+            </Button>
+          ) : undefined
+        }
       />
       <SettingsPage>
         <QueryBoundary
@@ -145,7 +158,14 @@ export function MembersPage() {
         >
           {(loaded) => (
             <>
-              {canManage ? <InviteForm workspaceId={loaded.id} onInvited={refresh} /> : null}
+              {canManage ? (
+                <InviteForm
+                  workspaceId={loaded.id}
+                  open={inviting}
+                  onClose={() => setInviting(false)}
+                  onInvited={refresh}
+                />
+              ) : null}
               {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
               <SettingsSection
                 title="Members"

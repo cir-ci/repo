@@ -25,6 +25,8 @@ export function TeamSettingsFrame({
   page,
   width = 'default',
   managersOnly = true,
+  find,
+  actions,
   children,
 }: TeamSettingsFrame.Props) {
   const { data, error, refetch } = useQuery(settingsQuery(workspace, team))
@@ -46,6 +48,8 @@ export function TeamSettingsFrame({
         teamsSettingsCrumb(workspace),
       ])}
       title={teamName}
+      {...(find ? { find } : {})}
+      {...(actions ? { actions } : {})}
       headingInPage
       header={
         <>
@@ -90,6 +94,9 @@ export namespace TeamSettingsFrame {
     width?: 'default' | 'wide'
     /** Default: people who can't change the team's settings are sent to its Members tab. `false` for a page members may read. */
     managersOnly?: boolean
+    /** The page's find field and main button, in the header bar. */
+    find?: ReactNode
+    actions?: ReactNode
     children: (settings: Team.SettingsResponse, teamName: string) => ReactNode
   }
 }

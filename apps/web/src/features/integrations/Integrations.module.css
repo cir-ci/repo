@@ -4,17 +4,6 @@
   gap: 12px;
 }
 
-.sectionHead {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-}
-
-.sectionHead > :first-child {
-  flex: 1;
-  min-width: 0;
-}
-
 .groups {
   display: flex;
   flex-direction: column;

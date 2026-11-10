@@ -14,8 +14,6 @@ import { type FormEvent, useDeferredValue, useState } from 'react'
 
 import { workspaceQuery } from '#features/members/api.ts'
 import { branchesQuery, suggestionsQuery } from '#features/teams/api/index.ts'
-import { useFindText } from '#lib/find.ts'
-import { FindField } from '#lib/FindField.tsx'
 
 import {
   type BuildFilters,
@@ -69,14 +67,8 @@ export function BuildFilterBar({
     onFiltersChange(next)
     if (close) onOpenChange(undefined)
   }
-  // Free text: a build number, PR, commit, name, branch or author. It is a filter like the chips.
-  const [text, setText] = useFindText(filters.q ?? '', (q) => {
-    const { q: _previous, ...rest } = filters
-    onFiltersChange(q.trim() === '' ? rest : { ...rest, q: q.trim() })
-  })
   return (
     <div className={styles.bar} role="group" aria-label="Filters">
-      <FindField noun="builds" value={text} onChange={setText} />
       {FILTER_FIELDS.map(({ field, label }) => {
         const active = fieldValue(field, filters) !== undefined
         return (

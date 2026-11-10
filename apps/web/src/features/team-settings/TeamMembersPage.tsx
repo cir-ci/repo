@@ -11,7 +11,7 @@ import {
   Text,
   TextField,
 } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -39,20 +39,58 @@ import styles from './TeamMembersPage.module.css'
  */
 export function TeamMembersPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/members' })
+  // The find field and the Add members button are the page header's; the list below shares their state.
+  const query = useQuery(teamMembersQuery(workspace, team))
+  const [adding, setAdding] = useState(false)
+  const [find, setFind] = useFindParam()
   return (
-    <TeamSettingsFrame workspace={workspace} team={team} page="Members" managersOnly={false}>
-      {(_settings, teamName) => <Members workspace={workspace} team={team} teamName={teamName} />}
+    <TeamSettingsFrame
+      workspace={workspace}
+      team={team}
+      page="Members"
+      managersOnly={false}
+      find={<FindField noun="members" value={find} onChange={setFind} />}
+      actions={
+        query.data?.canManage ? (
+          <Button
+            variant="primary"
+            leading={<PlusIcon size={14} />}
+            onClick={() => setAdding(true)}
+          >
+            Add members
+          </Button>
+        ) : undefined
+      }
+    >
+      {(_settings, teamName) => (
+        <Members
+          workspace={workspace}
+          team={team}
+          teamName={teamName}
+          query={query}
+          find={find}
+          onFind={setFind}
+          adding={adding}
+          onAdding={setAdding}
+        />
+      )}
     </TeamSettingsFrame>
   )
 }
 
-function Members({ workspace, team, teamName }: Members.Props) {
-  const query = useQuery(teamMembersQuery(workspace, team))
+function Members({
+  workspace,
+  team,
+  teamName,
+  query,
+  find,
+  onFind: setFind,
+  adding,
+  onAdding: setAdding,
+}: Members.Props) {
   const { data: session } = authClient.useSession()
   const me = session?.user.id
   const navigate = useNavigate()
-  const [adding, setAdding] = useState(false)
-  const [find, setFind] = useFindParam()
   const [removing, setRemoving] = useState<Team.Member | null>(null)
   const remove = useRemoveTeamMember(workspace, team)
 
@@ -69,13 +107,6 @@ function Members({ workspace, team, teamName }: Members.Props) {
             <h2 id="team-members" className={styles.title}>
               Members
             </h2>
-            <FindField noun="members" value={find} onChange={setFind} />
-            {canManage ? (
-              <Button variant="primary" onClick={() => setAdding(true)}>
-                <PlusIcon size={14} />
-                Add members
-              </Button>
-            ) : null}
           </div>
           {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
           {shown(members).length === 0 ? (
@@ -261,6 +292,11 @@ namespace Members {
     workspace: string
     team: string
     teamName: string
+    query: UseQueryResult<Team.MemberList>
+    find: string
+    onFind: (next: string) => void
+    adding: boolean
+    onAdding: (next: boolean) => void
   }
 }
 

@@ -10,11 +10,12 @@ vi.mock('#lib/auth-client.ts', () =>
 import { InviteForm } from '#features/members/InviteForm.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const show = (onInvited = vi.fn<() => Promise<unknown>>(async () => {})) =>
   renderPage(
     <AnnouncerProvider>
-      <InviteForm workspaceId="workspace1" onInvited={onInvited} />
+      <InviteForm workspaceId="workspace1" open onClose={() => {}} onInvited={onInvited} />
     </AnnouncerProvider>,
   ).then(() => onInvited)
 
@@ -23,7 +24,7 @@ const auth = mockAuthClient().organization
 beforeEach(() => vi.resetAllMocks())
 
 describe('InviteForm', () => {
-  it('sends the address and the chosen role, clears the field, and says it was sent', async () => {
+  it('sends the address and the chosen role, and says it was sent', async () => {
     await page.viewport(1000, 800)
     auth.inviteMember.mockResolvedValue({ data: {}, error: null })
     const onInvited = await show()
@@ -36,8 +37,7 @@ describe('InviteForm', () => {
       role: 'admin',
       organizationId: 'workspace1',
     })
-    await expect.element(page.getByText('Invitation sent to ada@example.test.')).toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveValue('')
+    await expect.element(toastNamed('Invitation sent to ada@example.test')).toBeVisible()
     expect(onInvited).toHaveBeenCalledTimes(1)
   })
 
@@ -49,14 +49,14 @@ describe('InviteForm', () => {
     })
     await renderPage(
       <AnnouncerProvider>
-        <InviteForm workspaceId="workspace1" onInvited={async () => {}} />
+        <InviteForm workspaceId="workspace1" open onClose={() => {}} onInvited={async () => {}} />
       </AnnouncerProvider>,
     )
     await page.getByRole('textbox', { name: 'Email' }).fill('Grace@Example.test')
     await page.getByRole('button', { name: 'Send invite' }).click()
     await expect
       .element(
-        page.getByText(
+        toastNamed(
           'Invitation sent to Grace@Example.test. Replaced the earlier invitation (member) to Grace@Example.test; its link no longer works.',
         ),
       )
@@ -68,12 +68,12 @@ describe('InviteForm', () => {
     auth.inviteMember.mockResolvedValue({ data: { id: 'i3' }, error: null })
     await renderPage(
       <AnnouncerProvider>
-        <InviteForm workspaceId="workspace1" onInvited={async () => {}} />
+        <InviteForm workspaceId="workspace1" open onClose={() => {}} onInvited={async () => {}} />
       </AnnouncerProvider>,
     )
     await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.test')
     await page.getByRole('button', { name: 'Send invite' }).click()
-    await expect.element(page.getByText('Invitation sent to ada@example.test.')).toBeVisible()
+    await expect.element(toastNamed('Invitation sent to ada@example.test')).toBeVisible()
     expect(page.getByText(/Replaced the earlier/).elements()).toHaveLength(0)
   })
 
