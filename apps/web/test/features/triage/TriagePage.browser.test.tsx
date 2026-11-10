@@ -703,3 +703,65 @@ describe('TriagePage on a phone', () => {
     expect(page.getByRole('dialog').elements()).toHaveLength(0)
   })
 })
+
+const flakyRow = () => page.getByRole('list', { name: 'Flaky, 1 item' }).getByRole('listitem')
+
+describe('right-click menu on a triage row', () => {
+  it('offers the row quick actions, with Re-run only on a failed one', async () => {
+    server()
+    await show()
+    await expect.element(flakyRow()).toBeVisible()
+    await flakyRow().click({ button: 'right' })
+    expect(
+      page
+        .getByRole('menuitem')
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual([
+      'Open in build',
+      'Open in new tab',
+      'Copy link',
+      'Assign to me',
+      'Snooze until next push',
+      'Snooze until tomorrow',
+      'Snooze until next week',
+      'Dismiss',
+    ])
+  })
+
+  it('assigns the row to me at once with an Undo toast', async () => {
+    const api = server()
+    await show()
+    await flakyRow().click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Assign to me' }).click()
+    await expect.element(toastNamed('Assigned to you')).toBeVisible()
+    expect(api.of('POST').find((c) => c.path === `${BASE}/triage/assign`)?.body).toEqual({
+      kind: 'flaky',
+      key: 'home',
+      assigneeId: 'u1',
+    })
+    await toastNamed('Assigned to you').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+  })
+
+  it('dismisses the row, and Undo brings it back', async () => {
+    server()
+    await show()
+    await flakyRow().click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Dismiss' }).click()
+    await expect.element(toastNamed('Dismissed')).toBeVisible()
+    await toastNamed('Dismissed').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+  })
+
+  it('snoozes the row until tomorrow', async () => {
+    const api = server()
+    await show()
+    await flakyRow().click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Snooze until tomorrow' }).click()
+    await expect.element(toastNamed('Snoozed')).toBeVisible()
+    expect(api.of('POST').find((c) => c.path === `${BASE}/triage/snooze`)?.body).toMatchObject({
+      key: 'home',
+    })
+  })
+})

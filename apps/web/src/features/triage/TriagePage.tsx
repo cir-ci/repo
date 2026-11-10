@@ -4,6 +4,7 @@ import {
   Avatar,
   Badge,
   Button,
+  ContextMenu,
   EmptyState,
   ExpandMoreIcon,
   ListGroup,
@@ -15,7 +16,7 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { type NavigateOptions, useNavigate, useParams } from '@tanstack/react-router'
+import { type NavigateOptions, useNavigate, useParams, useRouter } from '@tanstack/react-router'
 import { type MouseEventHandler, type ReactNode, useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
@@ -31,6 +32,13 @@ import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { Age } from '#lib/RelativeTime.tsx'
+import {
+  copyLinkItem,
+  menuEntries,
+  openInNewTabItem,
+  separator,
+  snoozeItems,
+} from '#lib/row-menu.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
@@ -85,6 +93,7 @@ export function TriagePage() {
   useDocumentTitle('Triage', team)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const router = useRouter()
   const clientLink = useClientLink()
   const paneWidth = usePaneWidth('triage-pane')
   const query = useQuery(triageQuery(workspace, team))
@@ -161,6 +170,27 @@ export function TriagePage() {
     )
   }
   const open = (item: Triage.Item) => void navigate(openInBuild(workspace, team, item))
+
+  /** A row's right-click menu: what the pane's buttons and the keys do, for that item. */
+  const rowMenu = (item: Triage.Item) => {
+    const href = router.buildLocation(openInBuild(workspace, team, item)).href
+    const mine = me !== undefined && item.assignee?.id === me.id
+    return menuEntries([
+      { label: 'Open in build', onSelect: () => open(item) },
+      openInNewTabItem(href),
+      copyLinkItem(href),
+      separator,
+      item.kind === 'failed' && { label: 'Re-run comparison', onSelect: () => doRerun(item) },
+      me
+        ? {
+            label: mine ? 'Unassign me' : 'Assign to me',
+            onSelect: () => doAssign(item),
+          }
+        : null,
+      ...snoozeItems(true, (choice) => doSnooze(item, choice)),
+      { label: 'Dismiss', onSelect: () => doDismiss(item) },
+    ])
+  }
 
   useShortcutHandlers({
     // Enter on a row opens the item in its build; on a button or link elsewhere it keeps its meaning.
@@ -259,42 +289,47 @@ export function TriagePage() {
                                 {...rowProps(itemId(item))}
                                 onDoubleClick={() => open(item)}
                               >
-                                <ListRow
-                                  density="two-line"
-                                  selected={itemId(item) === (selected ? itemId(selected) : '')}
-                                  onClick={() => {
-                                    select(item)
-                                    setSheetFor(itemId(item))
-                                  }}
-                                  // Enter and a double click do the same; the chip says so (a mouse target only: on a phone the whole row is the tap target).
-                                  action={{ label: 'Open in build ↗', onAction: () => open(item) }}
-                                  title={<span aria-hidden="true">{itemTitle(item)}</span>}
-                                  subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
-                                  trailing={
-                                    <>
-                                      {item.assignee ? (
-                                        <Avatar
-                                          type="user"
-                                          id={item.assignee.id}
-                                          name={item.assignee.name}
-                                          image={item.assignee.image}
-                                          size={20}
-                                        />
-                                      ) : (
-                                        <span
-                                          className={styles.unassigned}
-                                          role="img"
-                                          aria-label="Unassigned"
-                                        />
-                                      )}
-                                      <span className={styles.age} aria-hidden="true">
-                                        <Age iso={item.build.createdAt} />
-                                      </span>
-                                    </>
-                                  }
-                                >
-                                  <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
-                                </ListRow>
+                                <ContextMenu items={rowMenu(item)}>
+                                  <ListRow
+                                    density="two-line"
+                                    selected={itemId(item) === (selected ? itemId(selected) : '')}
+                                    onClick={() => {
+                                      select(item)
+                                      setSheetFor(itemId(item))
+                                    }}
+                                    // Enter and a double click do the same; the chip says so (a mouse target only: on a phone the whole row is the tap target).
+                                    action={{
+                                      label: 'Open in build ↗',
+                                      onAction: () => open(item),
+                                    }}
+                                    title={<span aria-hidden="true">{itemTitle(item)}</span>}
+                                    subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
+                                    trailing={
+                                      <>
+                                        {item.assignee ? (
+                                          <Avatar
+                                            type="user"
+                                            id={item.assignee.id}
+                                            name={item.assignee.name}
+                                            image={item.assignee.image}
+                                            size={20}
+                                          />
+                                        ) : (
+                                          <span
+                                            className={styles.unassigned}
+                                            role="img"
+                                            aria-label="Unassigned"
+                                          />
+                                        )}
+                                        <span className={styles.age} aria-hidden="true">
+                                          <Age iso={item.build.createdAt} />
+                                        </span>
+                                      </>
+                                    }
+                                  >
+                                    <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
+                                  </ListRow>
+                                </ContextMenu>
                               </li>
                             ))}
                           </ul>

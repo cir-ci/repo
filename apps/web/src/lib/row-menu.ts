@@ -1,6 +1,7 @@
 import type { Menu } from '@circi/ui'
 
 import { clipboard } from '#lib/clipboard.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
 import { toast } from '#lib/toast.ts'
 
 /** Items a row's right-click menu shares: the ones about the row's address. */
@@ -49,3 +50,23 @@ export function menuEntries(
 }
 
 export const separator: Menu.Separator = { type: 'separator' }
+
+const SNOOZE_LABEL = {
+  next_push: 'Snooze until next push',
+  tomorrow: 'Snooze until tomorrow',
+  next_week: 'Snooze until next week',
+} as const
+
+/** The snooze menu's common choices as items (the custom date stays with the Snooze button's own menu). */
+export function snoozeItems(
+  allowNextPush: boolean,
+  onSnooze: (choice: SnoozeChoice) => void,
+): Menu.Item[] {
+  const kinds = (['next_push', 'tomorrow', 'next_week'] as const).filter(
+    (kind) => allowNextPush || kind !== 'next_push',
+  )
+  return kinds.map((kind) => ({
+    label: SNOOZE_LABEL[kind],
+    onSelect: () => onSnooze({ kind }),
+  }))
+}
