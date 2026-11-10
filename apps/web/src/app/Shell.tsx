@@ -3,6 +3,7 @@ import { Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
+import { Logo } from '#features/auth/Logo.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
@@ -137,8 +138,13 @@ function SignedInFrame({ user }: { user: SessionUser }) {
                 "Instance" or the workspace): repeating "Settings" above it is noise. */}
             {isSettingsSection(section) ? (
               <span className={styles.barTitle} />
+            ) : sectionLabel(section) ? (
+              <span className={styles.barTitle}>{sectionLabel(section)}</span>
             ) : (
-              <span className={styles.barTitle}>{sectionLabel(section) ?? 'CirCI'}</span>
+              <span className={styles.barTitle}>
+                <Logo size={20} className={styles.barLogo} />
+                CirCI
+              </span>
             )}
           </div>
         }

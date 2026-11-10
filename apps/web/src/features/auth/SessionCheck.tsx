@@ -1,6 +1,6 @@
 import { Delayed } from '@circi/ui'
 
-import logo from './logo.svg'
+import { Logo } from './Logo.tsx'
 
 import styles from './AuthPage.module.css'
 
@@ -14,7 +14,7 @@ export function SessionCheck() {
     <div className={styles.page}>
       <main id="content" tabIndex={-1} className={styles.column} aria-busy="true">
         <div className={styles.head}>
-          <img src={logo} alt="CirCI" width={56} height={56} className={styles.logo} />
+          <Logo size={56} alt="CirCI" className={styles.logo} />
           <Delayed>
             <p role="status" className={styles.subtitle}>
               Checking your session…

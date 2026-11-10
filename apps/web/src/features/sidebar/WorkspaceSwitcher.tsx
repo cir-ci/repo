@@ -2,6 +2,7 @@ import { Avatar, ChevronsUpDownIcon, Menu, PlusIcon, SlidersIcon } from '@circi/
 import { useNavigate } from '@tanstack/react-router'
 
 import { workspaceSettingsPath, type WorkspaceRef } from '#app/shell-model.ts'
+import { Logo } from '#features/auth/Logo.tsx'
 
 import styles from './WorkspaceSwitcher.module.css'
 
@@ -20,7 +21,13 @@ export function WorkspaceSwitcher({
   canManage,
 }: WorkspaceSwitcher.Props) {
   const navigate = useNavigate()
-  if (!current) return <div className={styles.brand}>CirCI</div>
+  if (!current)
+    return (
+      <div className={styles.brand}>
+        <Logo size={20} />
+        CirCI
+      </div>
+    )
   return (
     <Menu
       size="md"

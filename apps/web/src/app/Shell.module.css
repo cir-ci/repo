@@ -13,6 +13,11 @@
   font-weight: 600;
 }
 
+.barLogo {
+  margin-right: 8px;
+  vertical-align: -5px;
+}
+
 .drawerNav {
   display: flex;
   flex: 1;

@@ -46,12 +46,15 @@ export function buildStyle(css: string = readFileSync(FILE, 'utf8')): string {
 
 const STYLE = buildStyle()
 
+/** The logo as the page's favicon, a data URI (the CSP allows `img-src data:` and nothing else). */
+const FAVICON = `data:image/svg+xml;base64,${Buffer.from(LOGO_SVG).toString('base64')}`
+
 /**
  * The Content-Security-Policy for these pages: nothing may load, and the one inline stylesheet is
  * allowed by its hash (the logo carries presentation attributes only, so no inline style
  * attributes are needed). Safe to send on any response that is a `standalonePage`.
  */
-export const PAGE_CSP = `default-src 'none'; style-src 'sha256-${createHash('sha256').update(STYLE).digest('base64')}'; base-uri 'none'; form-action 'none'`
+export const PAGE_CSP = `default-src 'none'; style-src 'sha256-${createHash('sha256').update(STYLE).digest('base64')}'; img-src data:; base-uri 'none'; form-action 'none'`
 
 const escapeHtml = (text: string): string =>
   text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
@@ -63,7 +66,7 @@ const escapeHtml = (text: string): string =>
  */
 export function standalonePage(title: string, bodyHtml: string): string {
   const safeTitle = escapeHtml(title)
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeTitle} · CirCI</title><style>${STYLE}</style></head><body><main id="content">${LOGO_SVG}<div><h1>${safeTitle}</h1><p>${bodyHtml}</p></div></main><footer>Self-hosted CirCI</footer></body></html>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeTitle} · CirCI</title><link rel="icon" href="${FAVICON}"><style>${STYLE}</style></head><body><main id="content">${LOGO_SVG}<div><h1>${safeTitle}</h1><p>${bodyHtml}</p></div></main><footer>Self-hosted CirCI</footer></body></html>`
 }
 
 /** A page for server-side notices (dashboard off, app not built): `body` may hold `<code>`. */

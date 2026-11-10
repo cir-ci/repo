@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import logo from './logo.svg'
+import { Logo } from './Logo.tsx'
 
 import styles from './AuthPage.module.css'
 
@@ -15,7 +15,7 @@ export function AuthPage({ title, subtitle, children }: AuthPage.Props) {
     <div className={styles.page}>
       <main id="content" tabIndex={-1} className={styles.column}>
         <header className={styles.head}>
-          <img src={logo} alt="" width={56} height={56} className={styles.logo} />
+          <Logo size={56} className={styles.logo} />
           <div>
             <h1 className={styles.title}>{title}</h1>
             {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}

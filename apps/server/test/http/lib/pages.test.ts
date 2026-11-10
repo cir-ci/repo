@@ -19,8 +19,15 @@ describe('noticePage', () => {
     const html = standalonePage('Site not found', 'Gone.')
     expect(html).toContain('<svg')
     expect(html).toContain('Self-hosted CirCI')
-    expect(html).not.toMatch(/<(script|link|img|iframe)\b|src=|href=|url\(|@import/)
+    // The one `link` is the logo as a data: favicon.
+    const withoutFavicon = html.replace(
+      /<link rel="icon" href="data:image\/svg\+xml;base64,[\w+/=]+">/,
+      '',
+    )
+    expect(withoutFavicon).not.toBe(html)
+    expect(withoutFavicon).not.toMatch(/<(script|link|img|iframe)\b|src=|href=|url\(|@import/)
     expect(PAGE_CSP).toContain("default-src 'none'")
+    expect(PAGE_CSP).toContain('img-src data:')
   })
 })
 

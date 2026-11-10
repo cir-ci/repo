@@ -51,6 +51,7 @@ describe('WorkspaceSwitcher', () => {
   it('falls back to the product name when no workspace is open', async () => {
     await show({ current: undefined }).ready
     await expect.element(page.getByText('CirCI')).toBeVisible()
+    expect(document.querySelector('img[src*="logo"]')).not.toBeNull()
     expect(page.getByRole('button').elements()).toHaveLength(0)
   })
 
