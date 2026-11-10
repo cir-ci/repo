@@ -18,6 +18,7 @@ const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/packag
 const reactDeps = ['react', 'react/jsx-dev-runtime', 'react/jsx-runtime', 'vitest-browser-react']
 const baseUiDeps = [
   'alert-dialog',
+  'autocomplete',
   'avatar',
   'button',
   'checkbox',
@@ -29,6 +30,7 @@ const baseUiDeps = [
   'fieldset',
   'input',
   'menu',
+  'number-field',
   'popover',
   'select',
   'slider',
