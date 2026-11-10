@@ -65,18 +65,7 @@ export function IntegrationsPage() {
             <Banner tone={note.tone}>{note.text}</Banner>
           ) : null}
           {groups.length === 0 ? (
-            <EmptyState
-              title="No integrations yet"
-              {...(data.canManage
-                ? {
-                    action: (
-                      <Button variant="primary" onClick={() => setAdding(true)}>
-                        Add integration
-                      </Button>
-                    ),
-                  }
-                : {})}
-            >
+            <EmptyState title="No integrations yet">
               Add a git host so pull requests show their visual review status.
             </EmptyState>
           ) : (

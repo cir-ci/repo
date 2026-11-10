@@ -65,8 +65,8 @@ describe('IntegrationsPage', () => {
       .element(page.getByRole('heading', { level: 1, name: 'Integrations' }))
       .toBeVisible()
     expect(page.getByRole('heading', { level: 1 }).elements()).toHaveLength(1)
-    // The empty state has its own Add button, besides the header's.
-    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(2)
+    // One Add button, in the header: the empty state doesn't repeat it.
+    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(1)
   })
 
   it('sends members to Members instead of showing the list', async () => {
@@ -88,7 +88,7 @@ describe('IntegrationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({ [`GET ${LIST}`]: list() })
     await show()
-    await page.getByRole('button', { name: 'Add integration' }).first().click()
+    await page.getByRole('button', { name: 'Add integration' }).click()
     await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
   })
 })

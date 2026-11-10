@@ -50,7 +50,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/workspaces/${workspaceSlug}/settings/integrations`)
     // The page header's button (an empty list shows a second one).
-    await page.getByRole('button', { name: 'Add integration' }).first().click()
+    await page.getByRole('button', { name: 'Add integration' }).click()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
     await page.getByRole('button', { name: 'Advanced: connect by installation ID' }).click()
     // An installation of its own: one installation belongs to one workspace, and the other
