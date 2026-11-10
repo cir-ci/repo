@@ -226,12 +226,6 @@ export function TriagePage() {
                             {group.items.map((item) => (
                               <li
                                 key={itemId(item)}
-                                className={styles.row}
-                                data-selected={
-                                  itemId(item) === (selected ? itemId(selected) : '')
-                                    ? ''
-                                    : undefined
-                                }
                                 {...rowProps(itemId(item))}
                                 onDoubleClick={() => open(item)}
                               >
@@ -239,19 +233,12 @@ export function TriagePage() {
                                   density="two-line"
                                   selected={itemId(item) === (selected ? itemId(selected) : '')}
                                   onClick={() => select(item)}
+                                  // Enter and a double click do the same; the chip says so (and is a click target for a mouse).
+                                  action={{ label: 'Open in build ↗', onAction: () => open(item) }}
+                                  title={<span aria-hidden="true">{itemTitle(item)}</span>}
+                                  subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
                                   trailing={
                                     <>
-                                      {/* Enter and a double click do the same; the chip says so (and is a click target for a mouse). */}
-                                      <span
-                                        className={styles.openChip}
-                                        aria-hidden="true"
-                                        onClick={(event) => {
-                                          event.stopPropagation()
-                                          open(item)
-                                        }}
-                                      >
-                                        Open in build ↗
-                                      </span>
                                       {item.assignee ? (
                                         <Avatar type="user" {...item.assignee} size={20} />
                                       ) : (
@@ -268,14 +255,6 @@ export function TriagePage() {
                                   }
                                 >
                                   <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
-                                  <span className={styles.title} aria-hidden="true">
-                                    <Text truncate>{itemTitle(item)}</Text>
-                                  </span>
-                                  <span className={listStyles['meta']} aria-hidden="true">
-                                    <Text truncate variant="small" tone="tertiary">
-                                      {itemSubtitle(item)}
-                                    </Text>
-                                  </span>
                                 </ListRow>
                               </li>
                             ))}

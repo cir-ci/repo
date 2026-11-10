@@ -142,17 +142,17 @@ export function ReviewList({
                             <RelativeTime iso={r.createdAt} />
                           </span>
                         }
-                      >
-                        <span className={styles.item}>
-                          <span className={styles.itemTitle} title={requestName(r)}>
-                            {requestTitle(r)}
-                          </span>
+                        title={<span title={requestName(r)}>{requestTitle(r)}</span>}
+                        subtitle={
                           <span className={styles.itemSub}>
                             {teamMark(r.team.slug, r.team.name)}
                             <span>{r.team.name}</span>
                             <span aria-hidden="true">·</span>
                             <span className={styles.branch}>{requestRef(r.build)}</span>
                           </span>
+                        }
+                      >
+                        <>
                           {overdue || r.snoozedUntil || why || decision ? (
                             <span className={styles.chips}>
                               {decision ? (
@@ -182,7 +182,7 @@ export function ReviewList({
                               ) : null}
                             </span>
                           ) : null}
-                        </span>
+                        </>
                       </ListRow>
                     </li>
                   )

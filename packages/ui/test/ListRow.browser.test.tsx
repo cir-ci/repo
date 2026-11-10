@@ -89,3 +89,68 @@ describe('ListRow focus, selection and density', () => {
     expect(heights).toEqual(['32px', '44px', '56px'])
   })
 })
+
+describe('ListRow title, subtitle and action', () => {
+  it('is two-line (56px) with a subtitle, and styles the title 13/500 and the subtitle 12 tertiary', async () => {
+    await render(
+      <ListRow
+        href="/a"
+        title="checkout/payment"
+        subtitle="Build #12"
+        trailing={<span>2d</span>}
+      />,
+    )
+    const row = page.getByRole('link')
+    expect(getComputedStyle(row.element()).minHeight).toBe('56px')
+    const title = getComputedStyle(page.getByText('checkout/payment').element())
+    expect(title.fontSize).toBe('13px')
+    expect(title.fontWeight).toBe('500')
+    const subtitle = getComputedStyle(page.getByText('Build #12').element())
+    expect(subtitle.fontSize).toBe('12px')
+    await expect.element(row).toHaveTextContent('checkout/paymentBuild #122d')
+  })
+
+  it('cuts a long title with an ellipsis instead of growing the row', async () => {
+    await render(
+      <div style={{ width: 240 }}>
+        <ListRow href="/a" title={'long '.repeat(40)} subtitle={'sub '.repeat(40)} />
+      </div>,
+    )
+    const title = page.getByText(/^long/).element()
+    expect(getComputedStyle(title).textOverflow).toBe('ellipsis')
+    expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
+    expect(page.getByRole('link').element().getBoundingClientRect().height).toBeLessThan(80)
+  })
+
+  it('shows the action chip on hover and selection only, and runs it without activating the row', async () => {
+    const onClick = vi.fn<(event: MouseEvent<HTMLElement>) => void>()
+    const onAction = vi.fn<() => void>()
+    await render(
+      <>
+        <ListRow onClick={onClick} title="Hovered" action={{ label: 'Open ↗', onAction }} />
+        <ListRow selected onClick={onClick} title="Chosen" action={{ label: 'Go ↗', onAction }} />
+      </>,
+    )
+    const hidden = page.getByText('Open ↗').element()
+    expect(getComputedStyle(hidden).display).toBe('none')
+    expect(getComputedStyle(page.getByText('Go ↗').element()).display).not.toBe('none')
+    await page.getByRole('button', { name: /Hovered/ }).hover()
+    expect(getComputedStyle(hidden).display).not.toBe('none')
+    await page.getByText('Open ↗').click()
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('paints the hover wash on an interactive row', async () => {
+    await render(<ListRow href="/a" title="Row" />)
+    const row = page.getByRole('link')
+    await row.hover()
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--circi-action-hover)'
+    document.body.append(probe)
+    expect(getComputedStyle(row.element()).backgroundColor).toBe(
+      getComputedStyle(probe).backgroundColor,
+    )
+    probe.remove()
+  })
+})

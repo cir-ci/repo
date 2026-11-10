@@ -277,11 +277,27 @@ function Row({
       selected={selected}
       onClick={onSelect}
       leading={
-        item.readAt ? (
-          <span className={styles.read} />
-        ) : (
-          <span className={styles.unread} aria-hidden="true" />
-        )
+        <span className={styles.lead}>
+          {item.readAt ? (
+            <span className={styles.read} />
+          ) : (
+            <span className={styles.unread} aria-hidden="true" />
+          )}
+          <span className={styles.who}>
+            {item.actor ? (
+              <Avatar type="user" {...item.actor} size={28} />
+            ) : (
+              <span className={styles.system} aria-hidden="true">
+                <BellIcon size={16} />
+              </span>
+            )}
+            {glyph ? (
+              <span className={styles.event} aria-hidden="true">
+                <StatusIcon status={glyph} size={12} decorative />
+              </span>
+            ) : null}
+          </span>
+        </span>
       }
       trailing={
         <span className={styles.trailing}>
@@ -291,33 +307,18 @@ function Row({
           </Text>
         </span>
       }
-    >
-      <span className={styles.rowBody}>
-        <span className={styles.who}>
-          {item.actor ? (
-            <Avatar type="user" {...item.actor} size={28} />
-          ) : (
-            <span className={styles.system} aria-hidden="true">
-              <BellIcon size={16} />
-            </span>
-          )}
-          {glyph ? (
-            <span className={styles.event} aria-hidden="true">
-              <StatusIcon status={glyph} size={12} decorative />
-            </span>
-          ) : null}
+      title={
+        <span {...(item.readAt ? { 'data-read': '' } : {})} className={styles.rowTitle}>
+          {item.readAt ? null : <span style={visuallyHidden}>Unread. </span>}
+          <span>{title}</span>
         </span>
-        <span className={styles.rowText}>
-          <span className={styles.rowTitle} {...(item.readAt ? {} : { 'data-unread': '' })}>
-            {item.readAt ? null : <span style={visuallyHidden}>Unread. </span>}
-            <span>{title}</span>
-          </span>
-          <span className={styles.rowMeta}>
-            {detail ? <span>{detail}</span> : null}
-            {item.team ? <span>{item.team.name}</span> : null}
-          </span>
+      }
+      subtitle={
+        <span className={styles.rowMeta}>
+          {detail ? <span>{detail}</span> : null}
+          {item.team ? <span>{item.team.name}</span> : null}
         </span>
-      </span>
-    </ListRow>
+      }
+    />
   )
 }

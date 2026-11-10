@@ -14,80 +14,12 @@
   min-height: 320px;
 }
 
-.cols {
-  display: flex;
-  gap: 12px;
-  /* 44px on the left: the status dot of a row sits before its name, so the headers line up. */
-  padding: 8px 16px 8px 44px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-  color: var(--circi-text-tertiary);
-  font-size: 12px;
-}
-
-.snapshot {
-  flex: 1;
-  min-width: 0;
-}
-
-.build {
-  flex: none;
-  width: 56px;
-  color: var(--circi-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 .age {
   flex: none;
-  width: 36px;
+  width: 28px;
   color: var(--circi-text-tertiary);
   font-size: 12px;
   text-align: right;
-}
-
-.flag {
-  display: inline-flex;
-  flex: none;
-  justify-content: center;
-  width: 20px;
-}
-
-/* A row is two links side by side: the name opens the baseline page, the build number its build. */
-.item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-right: 16px;
-}
-
-.item:hover {
-  background: var(--circi-action-hover);
-}
-
-.rowLink {
-  flex: 1;
-  min-width: 0;
-}
-
-.rowLink:hover {
-  background: transparent;
-}
-
-.buildLink {
-  flex: none;
-  width: 56px;
-  color: var(--circi-text-secondary);
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-}
-
-.buildLink:hover {
-  color: var(--circi-text-primary);
-  text-decoration: underline;
-}
-
-.buildLink:focus-visible {
-  outline: 2px solid var(--circi-accent-text);
-  outline-offset: 2px;
 }
 
 .buildName {

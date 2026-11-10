@@ -50,7 +50,6 @@
 .who {
   position: relative;
   flex: none;
-  margin-top: 2px;
 }
 
 .system {
@@ -77,37 +76,21 @@
   background: var(--circi-surface-panel);
 }
 
-.rowBody {
+.lead {
   display: flex;
+  flex: none;
   gap: 10px;
-  align-items: flex-start;
-  min-width: 0;
+  align-items: center;
 }
 
-.rowText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.rowTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rowTitle[data-unread] {
-  font-weight: 500;
+.rowTitle[data-read] {
+  font-weight: 400;
 }
 
 .rowMeta {
   display: flex;
   gap: 10px;
   overflow: hidden;
-  color: var(--circi-text-tertiary);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .rowMeta > span {

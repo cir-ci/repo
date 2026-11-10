@@ -251,18 +251,17 @@ export function BuildsBrowser({
                                   </span>
                                 ) : undefined
                               }
-                            >
-                              <span className={styles.title}>
-                                {checked ? <span style={visuallyHidden}>Selected, </span> : null}
-                                Build #{b.number}
-                                {b.name !== 'default' ? (
-                                  <span className={styles.name}> · {b.name}</span>
-                                ) : null}
-                              </span>
-                              <div className={styles.meta}>
-                                <RowMeta build={b} show={display.show} />
-                              </div>
-                            </ListRow>
+                              title={
+                                <>
+                                  {checked ? <span style={visuallyHidden}>Selected, </span> : null}
+                                  Build #{b.number}
+                                  {b.name !== 'default' ? (
+                                    <span className={styles.name}> · {b.name}</span>
+                                  ) : null}
+                                </>
+                              }
+                              subtitle={<RowMeta build={b} show={display.show} />}
+                            />
                           </li>
                         )
                       })}
@@ -467,32 +466,32 @@ function RowMeta({ build, show }: { build: Row; show: DisplayOptions['show'] }) 
   return (
     <span className={styles.metaLine}>
       {build.team ? (
-        <Text variant="small" tone="secondary">
+        <Text variant="small" tone="tertiary">
           {build.team.name}
         </Text>
       ) : null}
       {build.prNumber ? (
-        <Text variant="small" tone="secondary">
+        <Text variant="small" tone="tertiary">
           PR #{build.prNumber}
         </Text>
       ) : null}
       {show.branch && build.branch ? (
-        <Text variant="mono" tone="secondary">
+        <Text variant="mono" tone="tertiary">
           {build.branch}
         </Text>
       ) : null}
       {show.branch ? (
-        <Text variant="mono" tone="secondary" title={build.commitSha}>
+        <Text variant="mono" tone="tertiary" title={build.commitSha}>
           {build.commitSha.slice(0, 7)}
         </Text>
       ) : null}
       {show.author && build.author ? (
-        <Text variant="small" tone="secondary">
+        <Text variant="small" tone="tertiary">
           {build.author.name ?? build.author.login}
         </Text>
       ) : null}
       {show.date ? (
-        <Text variant="small" tone="secondary">
+        <Text variant="small" tone="tertiary">
           <RelativeTime iso={build.createdAt} />
         </Text>
       ) : null}

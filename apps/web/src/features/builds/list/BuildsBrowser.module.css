@@ -29,24 +29,24 @@
 }
 
 /* The row itself is the link (see ListRow): it highlights on hover and shows the focus ring. */
-.title {
-  font-weight: 600;
-}
-
 .name {
-  color: var(--circi-text-secondary);
+  color: var(--circi-text-tertiary);
   font-weight: 400;
-}
-
-.meta {
-  margin-top: 2px;
 }
 
 .metaLine {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  min-width: 0;
+}
+
+.metaLine > * {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trailing {

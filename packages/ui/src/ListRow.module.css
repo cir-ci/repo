@@ -47,3 +47,38 @@
   flex: 1;
   min-width: 0;
 }
+
+.title {
+  display: block;
+  font-weight: 500;
+}
+
+.subtitle {
+  display: block;
+}
+
+.action {
+  display: none;
+  flex: none;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.root:hover .action,
+.root:focus-visible .action,
+.root[data-selected] .action {
+  display: inline-flex;
+}
+
+.action:hover {
+  border-color: var(--circi-accent-main);
+  color: var(--circi-accent-text);
+}

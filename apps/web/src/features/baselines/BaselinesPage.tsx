@@ -1,7 +1,7 @@
 import type { Baseline } from '@circi/api'
 import { EmptyState, ImagesIcon, ListGroup, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
+import { useParams, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { flakyQuery } from '#features/teams/api/index.ts'
@@ -32,6 +32,7 @@ export function BaselinesPage() {
   const names = useCrumbNames(workspace, team)
   useDocumentTitle('Baselines', team)
   const clientLink = useClientLink()
+  const router = useRouter()
   const query = useQuery(baselinesQuery(workspace, team))
   const { data } = query
   const flaky = useQuery(flakyQuery(workspace, team))
@@ -85,12 +86,6 @@ export function BaselinesPage() {
               </div>
             ) : (
               <>
-                <div className={styles.cols} aria-hidden="true">
-                  <span className={styles.snapshot}>Screenshot</span>
-                  <span className={styles.build}>Build</span>
-                  <span className={styles.age}>Age</span>
-                  <span className={styles.flag} />
-                </div>
                 {items.length === 0 ? (
                   <div className={styles.empty}>
                     <NoResults noun="baseline" query={filter} onClear={() => setFilter('')} />
@@ -105,15 +100,9 @@ export function BaselinesPage() {
                           <ListGroup id={id} label={title} count={group.items.length} />
                           <ul className={styles.list}>
                             {group.items.map((item) => (
-                              <li
-                                key={baselineId(item)}
-                                className={styles.item}
-                                {...rowProps(baselineId(item))}
-                              >
+                              <li key={baselineId(item)} {...rowProps(baselineId(item))}>
                                 <ListRow
-                                  density="compact"
                                   selected={baselineId(item) === selectedId}
-                                  className={styles.rowLink}
                                   {...clientLink(baselineLink(workspace, team, item.name))}
                                   leading={
                                     <StatusIcon
@@ -121,35 +110,44 @@ export function BaselinesPage() {
                                       label={`Baseline on ${loaded.team.defaultBranch}`}
                                     />
                                   }
-                                >
-                                  <Text truncate>
-                                    {item.name}
-                                    {item.buildName === 'default' ? null : (
-                                      <span className={styles.buildName}> · {item.buildName}</span>
-                                    )}
-                                  </Text>
-                                </ListRow>
-                                <a
-                                  className={styles.buildLink}
-                                  aria-label={`Build #${item.buildNumber}, the build this baseline came from`}
-                                  {...clientLink({
-                                    to: '/$workspace/$team/builds/$number',
-                                    params: { workspace, team, number: String(item.buildNumber) },
-                                  })}
-                                >
-                                  #{item.buildNumber}
-                                </a>
-                                <span className={styles.age}>
-                                  <Age iso={item.approvedAt} />
-                                </span>
-                                <span className={styles.flag}>
-                                  {flakyOf.has(item.name) ? (
-                                    <StatusIcon
-                                      status="flaky"
-                                      label={`Flaky: ${flakyOf.get(item.name)}`}
-                                    />
-                                  ) : null}
-                                </span>
+                                  title={
+                                    <>
+                                      {item.name}
+                                      {item.buildName === 'default' ? null : (
+                                        <span className={styles.buildName}>
+                                          {' '}
+                                          · {item.buildName}
+                                        </span>
+                                      )}
+                                    </>
+                                  }
+                                  subtitle={`Build #${item.buildNumber}`}
+                                  action={{
+                                    label: `Open build #${item.buildNumber} ↗`,
+                                    onAction: () =>
+                                      void router.navigate({
+                                        to: '/$workspace/$team/builds/$number',
+                                        params: {
+                                          workspace,
+                                          team,
+                                          number: String(item.buildNumber),
+                                        },
+                                      }),
+                                  }}
+                                  trailing={
+                                    <>
+                                      {flakyOf.has(item.name) ? (
+                                        <StatusIcon
+                                          status="flaky"
+                                          label={`Flaky: ${flakyOf.get(item.name)}`}
+                                        />
+                                      ) : null}
+                                      <span className={styles.age}>
+                                        <Age iso={item.approvedAt} />
+                                      </span>
+                                    </>
+                                  }
+                                />
                               </li>
                             ))}
                           </ul>

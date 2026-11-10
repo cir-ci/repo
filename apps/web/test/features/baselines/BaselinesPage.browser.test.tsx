@@ -45,15 +45,14 @@ describe('BaselinesPage', () => {
       ]),
       [`GET ${FLAKY}`]: noFlaky,
     })
-    await open()
+    const { router } = await open()
     await expect.element(page.getByRole('heading', { name: /checkout/ })).toBeVisible()
     await expect.element(page.getByRole('heading', { name: /Ungrouped/ })).toBeVisible()
     await expect.element(page.getByText('3 on main')).toBeVisible()
     const link = page.getByRole('link', { name: /checkout\/payment/ })
     await expect.element(link).toHaveAttribute('href', '/acme/web/baselines/checkout/payment')
-    await expect
-      .element(page.getByRole('link', { name: /^Build #12/ }))
-      .toHaveAttribute('href', '/acme/web/builds/12')
+    // The subtitle names the build; the hover chip opens it.
+    await expect.element(page.getByText('Build #12')).toBeVisible()
 
     const search = page.getByRole('textbox', { name: 'Find baselines' })
     await expect.element(search).toHaveAttribute('placeholder', 'Find baselines')
@@ -66,6 +65,10 @@ describe('BaselinesPage', () => {
     await page.getByRole('button', { name: 'Clear search' }).click()
     await expect.element(search).toHaveValue('')
     await expect.element(page.getByRole('link', { name: /checkout/ }).first()).toBeVisible()
+
+    await link.hover()
+    await page.getByText('Open build #12 ↗').click()
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/12'))
   })
 
   it('keeps the find text in the address, focuses it with / and clears it with Esc', async () => {
@@ -102,7 +105,7 @@ describe('BaselinesPage', () => {
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
   })
 
-  it('marks a flaky screenshot in the last column, and shows the age compactly', async () => {
+  it('marks a flaky screenshot at the end of its row, and shows the age compactly', async () => {
     fakeFetch({
       [`GET ${PATH}`]: list([
         {

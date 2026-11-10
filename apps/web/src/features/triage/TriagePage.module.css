@@ -6,13 +6,6 @@
   min-width: 0;
 }
 
-.title {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  min-width: 0;
-}
-
 .chip {
   display: inline-flex;
   gap: 6px;
@@ -161,37 +154,6 @@
   color: var(--circi-text-tertiary);
   font-size: 12px;
   text-align: right;
-}
-
-/* The chip on a row: hidden until the row is hovered, focused or selected. */
-.row {
-  position: relative;
-}
-
-.openChip {
-  display: none;
-  flex: none;
-  align-items: center;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid var(--circi-line-strong);
-  border-radius: 6px;
-  background: var(--circi-surface-raised);
-  color: var(--circi-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.row:hover .openChip,
-.row:focus-within .openChip,
-.row[data-selected] .openChip {
-  display: inline-flex;
-}
-
-.openChip:hover {
-  border-color: var(--circi-accent-main);
-  color: var(--circi-accent-text);
 }
 
 /* The screenshot as a preview: the width of the pane, 16:9, linking to the build. */

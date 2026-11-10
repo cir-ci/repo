@@ -1,4 +1,4 @@
-import { Badge, EmptyState, ListRow, SquareDashedIcon, Text } from '@circi/ui'
+import { Badge, EmptyState, ListRow, SquareDashedIcon } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -43,16 +43,14 @@ function Overview({ workspace, team }: Overview.Props) {
             <li key={s.name}>
               <ListRow
                 {...clientLink(ignoreRegionLink(workspace, team, s.name))}
+                title={s.name}
+                density="two-line"
                 trailing={
                   <Badge aria-label={`${s.regions} ${s.regions === 1 ? 'region' : 'regions'}`}>
                     {s.regions}
                   </Badge>
                 }
-              >
-                <Text variant="mono" truncate>
-                  {s.name}
-                </Text>
-              </ListRow>
+              />
             </li>
           ))}
         </ul>
