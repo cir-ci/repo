@@ -392,7 +392,10 @@ describe('the sites domain', () => {
     expect(res.body).toContain('<h1>Site not found</h1>')
     expect(res.body).toContain('No site is published at this address.')
     // Nothing from the dashboard domain: no link, no script, no request; only its inline style.
-    expect(res.body).not.toMatch(/<(a|script|link|img)\b|href=|src=/)
+    // The logo as a data: favicon is the only link, and loads nothing.
+    expect(
+      res.body.replace(/<link rel="icon" href="data:image\/svg\+xml;base64,[\w+/=]+">/, ''),
+    ).not.toMatch(/<(a|script|link|img)\b|href=|src=/)
     expect(res.body).not.toContain(DASH)
     expect(res.headers['content-security-policy']).toMatch(
       /^default-src 'none'; style-src 'sha256-/,
