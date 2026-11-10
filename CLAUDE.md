@@ -137,7 +137,9 @@ A namespace must contain only types. Never put a value in one.
   rules and targets, sign-in methods, members and roles, tokens, webhooks, and slugs, which break
   links) waits for an explicit Save (or a confirmation), with Discard to revert. Don't mix the two in
   one form: an instant-save control never sits under a Save/Discard footer it isn't part of. Use a
-  `Switch` for an instant setting and a `Checkbox` for one that waits for Save.
+  `Switch` for an instant setting and a `Checkbox` for one that waits for Save. A one-off action
+  confirmed in its own dialog (add, edit or delete a review rule, change a role, add or remove a
+  webhook, rotate a token) applies when confirmed: Save/Discard is for page-level settings forms.
 
 ## Tests
 
