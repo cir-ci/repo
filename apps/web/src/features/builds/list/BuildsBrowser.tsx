@@ -4,7 +4,7 @@ import {
   CheckIcon,
   CommandBlock,
   EmptyState,
-  ImagesIcon,
+  ConstructionIcon,
   NoFilterResults,
   NoResults,
   ListRow,
@@ -189,10 +189,10 @@ export function BuildsBrowser({
                 onClear={() => onFiltersChange({})}
               />
             ) : before ? (
-              <EmptyState icon={<ImagesIcon />} title="No older builds" />
+              <EmptyState icon={<ConstructionIcon />} title="No older builds" />
             ) : (
               <EmptyState
-                icon={<ImagesIcon />}
+                icon={<ConstructionIcon />}
                 title="No builds yet"
                 action={
                   scoped ? (
