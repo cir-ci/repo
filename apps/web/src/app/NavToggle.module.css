@@ -1,7 +1,0 @@
-/* Below 820px the navigation is a drawer opened from the top bar: no second button. */
-@media (max-width: 819.98px) {
-  .show,
-  .hide {
-    display: none;
-  }
-}

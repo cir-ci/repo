@@ -2,7 +2,7 @@ import { Breadcrumbs, PanelHeader, visuallyHidden } from '@circi/ui'
 import type { ReactNode } from 'react'
 
 import { ShowNavButton } from '#app/NavToggle.tsx'
-import { OpenNavButton, PhoneEnd } from '#app/PhoneHeader.tsx'
+import { PhoneEnd } from '#app/PhoneHeader.tsx'
 
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
@@ -54,7 +54,6 @@ export function PageHeading({
           </>
         }
       >
-        <OpenNavButton />
         <ShowNavButton />
         <Breadcrumbs
           currentIsHeading={!headingInPage}

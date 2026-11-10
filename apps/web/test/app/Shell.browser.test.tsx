@@ -119,7 +119,7 @@ function asInstanceAdmin() {
   }
 }
 
-// Every page of the app has a header (`PageHeading`): on a phone it carries the menu and search
+// Every page of the app has a header (`PageHeading`): on a phone it carries the search
 // buttons. The test pages are only that header, titled with their text.
 const text = (content: string) => () => <PageHeading title={content} />
 
@@ -787,45 +787,62 @@ describe('Shell, outside the dashboard', () => {
   })
 })
 
+async function openMore(path: string) {
+  await page.viewport(390, 844)
+  const shell = await renderShell(path)
+  await page.getByRole('button', { name: 'More' }).click()
+  const sheet = page.getByRole('dialog', { name: 'More' })
+  await expect.element(sheet).toBeVisible()
+  return { ...shell, sheet }
+}
+
 describe('Shell, narrow', () => {
-  it('replaces the sidebar with a top bar and a menu button that opens it as a drawer', async () => {
+  const PHONE_PAGES = [
+    '/',
+    '/inbox',
+    '/workspaces/acme/reviews',
+    '/acme/web-app',
+    '/headed',
+    '/account/profile',
+    '/workspaces/acme/settings',
+    '/instance/accounts',
+  ]
+
+  it.each(PHONE_PAGES)('has no burger, no drawer and no sidebar buttons on %s', async (path) => {
+    await page.viewport(390, 844)
+    asInstanceAdmin()
+    await renderShell(path)
+    await expect.element(page.getByRole('main')).toBeVisible()
+    expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
+    expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
+    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    for (const name of [
+      'Open navigation',
+      'Hide sidebar',
+      'Show sidebar',
+      'Hide settings navigation',
+      'Show settings navigation',
+    ]) {
+      expect(page.getByRole('button', { name }).elements()).toHaveLength(0)
+    }
+  })
+
+  it('has the phone tab bar, with More, instead of the sidebar', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/reviews')
-    // The sidebar is the drawer's: the page has the phone's tab bar instead.
-    expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('heading', { name: 'Reviews page' })).toBeVisible()
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    const drawer = page.getByRole('dialog', { name: 'Navigation' })
-    await expect.element(drawer).toBeVisible()
-    await expect
-      .element(drawer.getByRole('link', { name: 'Reviews , 2 reviews waiting' }))
-      .toHaveAttribute('aria-current', 'page')
+    await expect.element(tabs().getByRole('link', { name: /^Reviews/ })).toBeVisible()
+    await expect.element(tabs().getByRole('button', { name: 'More' })).toBeVisible()
   })
 
-  it('has the search button in the drawer, and it opens the command menu', async () => {
-    await page.viewport(390, 800)
-    await renderShell('/')
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    const drawer = page.getByRole('dialog', { name: 'Navigation' })
-    const search = drawer.getByRole('button', { name: 'Search', exact: true })
-    await expect.element(search).toBeVisible()
-    expect(drawer.getByText('⌘K').elements()).toHaveLength(0)
-    await search.click()
-    await expect
-      .element(page.getByRole('combobox', { name: 'Search or run a command' }))
-      .toBeVisible()
-  })
-
-  it('has no top bar: the menu and search buttons are in the page header, one sticky row', async () => {
+  it('has no top bar: the search button is in the page header, one sticky row', async () => {
     await page.viewport(390, 844)
     await renderShell('/headed')
-    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Search' })).toBeVisible()
     const header = pageHeader()
-    for (const name of ['Open navigation', 'Search']) {
-      const button = headerButton(name)
-      expect(button).toBeDefined()
-      expect(button!.getBoundingClientRect().height).toBeLessThanOrEqual(36.5)
-    }
+    const button = headerButton('Search')
+    expect(button).toBeDefined()
+    expect(button!.getBoundingClientRect().height).toBeLessThanOrEqual(36.5)
     // The header is the first thing in the window, and the page's name is not repeated above it.
     // (The panel's own 1px top border is all that is above it.)
     expect(header.getBoundingClientRect().top).toBeLessThanOrEqual(1)
@@ -833,48 +850,206 @@ describe('Shell, narrow', () => {
     expect(document.querySelectorAll('header')).toHaveLength(1)
   })
 
-  it('has the Close of a settings page in its header, and no "Settings" bar above it', async () => {
+  it('has the sections and Close buttons of a settings page in its header, and no "Settings" bar above it', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/settings')
     await expect.element(page.getByRole('main')).toHaveTextContent('Workspace settings page')
-    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    await expect.poll(() => headerButton('Settings sections')).toBeDefined()
     await expect.poll(() => headerButton('Close settings, back to Inbox')).toBeDefined()
     expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
+  })
+
+  it('opens the settings pages in a sheet from the header and reaches every section', async () => {
+    await page.viewport(390, 844)
+    asInstanceAdmin()
+    const { router } = await renderShell('/workspaces/acme/settings')
+    await expect.poll(() => headerButton('Settings sections')).toBeDefined()
+    headerButton('Settings sections')!.click()
+    const sheet = page.getByRole('dialog', { name: 'Settings sections' })
+    await expect.element(sheet).toBeVisible()
+    const links = sheet.getByRole('link').elements()
+    expect(links.map((el) => el.textContent)).toEqual([
+      'Profile',
+      'Notifications',
+      'Appearance',
+      'General',
+      'Members',
+      'Teams',
+      'Sign-in and domains',
+      'Integrations',
+      'Storage and retention',
+      'Accounts',
+      'Workspaces',
+      'Instance settings',
+      'Health',
+    ])
+    // No way back to the app from the list: the header's Close is the one way out.
+    expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
+    await sheet.getByRole('link', { name: 'Members' }).click()
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('closes the sections sheet when the page already shown is chosen', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/workspaces/acme/settings')
+    await expect.poll(() => headerButton('Settings sections')).toBeDefined()
+    headerButton('Settings sections')!.click()
+    await page
+      .getByRole('dialog', { name: 'Settings sections' })
+      .getByRole('link', { name: 'General' })
+      .click()
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('leaves settings with the header Close, back to the page the person came from', async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderShell('/workspaces/acme/settings')
+    await expect.poll(() => headerButton('Close settings, back to Inbox')).toBeDefined()
+    headerButton('Close settings, back to Inbox')!.click()
+    await expect.poll(() => router.state.location.pathname).toBe('/inbox')
+    await expect
+      .element(
+        page.getByRole('navigation', { name: 'Pages' }).getByRole('link', { name: /^Inbox/ }),
+      )
+      .toBeVisible()
+  })
+
+  describe('More', () => {
+    it('starts with the workspace switcher, which switches workspace', async () => {
+      const { sheet } = await openMore('/')
+      const trigger = sheet.getByRole('button', { name: 'Workspace: Acme' })
+      await expect.element(trigger).toBeVisible()
+      // The switcher is the first thing in the sheet's body, above the lists.
+      const list = sheet.getByRole('navigation', { name: 'More' }).element()
+      expect(
+        trigger.element().compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      await trigger.click()
+      await page.getByRole('menuitem', { name: /Globex/ }).click()
+      await expect.element(sheet.getByRole('button', { name: 'Workspace: Globex' })).toBeVisible()
+      await expect.element(sheet.getByRole('link', { name: /^portal/ })).toBeVisible()
+      expect(sheet.getByRole('link', { name: /^web-app/ }).elements()).toHaveLength(0)
+    })
+
+    it('offers New workspace where it is allowed', async () => {
+      API['/api/capabilities'] = {
+        canCreateWorkspace: true,
+        instanceAdmin: false,
+        manageableWorkspaces: [],
+        refusingWorkspaces: [],
+      }
+      const { sheet } = await openMore('/')
+      await sheet.getByRole('button', { name: 'Workspace: Acme' }).click()
+      await page.getByRole('menuitem', { name: 'New workspace' }).click()
+      await expect.poll(() => page.getByRole('dialog', { name: 'More' }).elements().length).toBe(0)
+    })
+
+    it('does not offer New workspace otherwise', async () => {
+      const { sheet } = await openMore('/')
+      await sheet.getByRole('button', { name: 'Workspace: Acme' }).click()
+      await expect.element(page.getByRole('menuitem', { name: /Acme/ })).toBeVisible()
+      expect(page.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
+    })
+
+    it('lists the teams, pinned first, with their triage counts, and opens one', async () => {
+      const { sheet, router } = await openMore('/')
+      const list = sheet.getByRole('navigation', { name: 'More' })
+      const teams = ['web-app', 'api', 'storybook'].map((name) =>
+        list.getByRole('link', { name: new RegExp(`^${name}`) }),
+      )
+      const tops = teams.map((team) => team.element().getBoundingClientRect().top)
+      expect(tops).toEqual(tops.toSorted((x, y) => x - y))
+      await expect
+        .element(list.getByRole('link', { name: 'web-app 4 items to triage' }))
+        .toBeVisible()
+      await teams[1]!.click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/api')
+      await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    })
+
+    it('shows the first few teams and an All teams link to the Teams tab', async () => {
+      const original = API['/api/workspaces/acme/sidebar']
+      API['/api/workspaces/acme/sidebar'] = {
+        ...SIDEBAR_ACME,
+        teams: Array.from({ length: 8 }, (_, i) => ({
+          slug: `team-${i}`,
+          name: `team-${i}`,
+          pinned: false,
+          triage: 0,
+          color: 'olive',
+          icon: null,
+        })),
+      }
+      try {
+        const { sheet, router } = await openMore('/acme/team-3')
+        const list = sheet.getByRole('navigation', { name: 'More' })
+        await expect.element(list.getByRole('link', { name: 'All teams (8)' })).toBeVisible()
+        // Five, and the open one stays reachable.
+        expect(list.getByRole('link', { name: /^team-\d/ }).elements()).toHaveLength(6)
+        await list.getByRole('link', { name: 'All teams (8)' }).click()
+        await expect.poll(() => router.state.location.pathname).toBe('/')
+      } finally {
+        API['/api/workspaces/acme/sidebar'] = original
+      }
+    })
+
+    it('keeps the rest: Insights, Baselines, Sites, pinned views, settings and the account', async () => {
+      const { sheet } = await openMore('/')
+      const list = sheet.getByRole('navigation', { name: 'More' })
+      const names = list
+        .getByRole('link')
+        .elements()
+        .map((el) => el.textContent)
+      expect(names).toEqual(
+        expect.arrayContaining([
+          'Insights',
+          'Baselines',
+          'Sites',
+          'Failing on main',
+          'Acme settings',
+          'Account settings',
+        ]),
+      )
+      expect(list.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
+    })
+
+    it('signs out from the account entry', async () => {
+      const { sheet } = await openMore('/')
+      await sheet.getByRole('button', { name: 'Sign out' }).click()
+      await expect.poll(() => auth.signOut.mock.calls.length).toBe(1)
+    })
   })
 
   it('leaves the desktop header without the phone buttons', async () => {
     await page.viewport(1280, 800)
     await renderShell('/headed')
     await expect.element(page.getByRole('main')).toBeVisible()
-    expect(headerButton('Open navigation')).toBeUndefined()
     expect(headerButton('Search')).toBeUndefined()
+    expect(headerButton('Settings sections')).toBeUndefined()
   })
 
-  it('keeps the drawer open when a team is chosen, so its pages show, and closes it on a page', async () => {
-    await page.viewport(390, 800)
-    const { router } = await renderShell('/')
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    const drawer = page.getByRole('dialog', { name: 'Navigation' })
-    await drawer.getByRole('link', { name: /^web-app/ }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
-    // The team expanded in place: the drawer stays until a page (or the backdrop) dismisses it.
-    await expect.element(drawer.getByRole('link', { name: /^Triage/ })).toBeVisible()
-    await drawer.getByRole('link', { name: /^Triage/ }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  it('keeps the desktop sidebar: Main navigation with the workspace, the teams and the hide button', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/inbox')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav).toBeVisible()
+    await expect.element(nav.getByRole('button', { name: 'Workspace: Acme' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
+    await expect.element(hide()).toBeVisible()
+    expect(page.getByRole('navigation', { name: 'Pages' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'More' }).elements()).toHaveLength(0)
   })
 
-  it('closes the drawer once a page is chosen, even the one already shown', async () => {
-    await page.viewport(390, 800)
-    const { router } = await renderShell('/acme/web-app')
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    await page
-      .getByRole('dialog', { name: 'Navigation' })
-      .getByRole('link', { name: /^Builds/ })
-      .click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
-    expect(router.state.location.pathname).toBe('/acme/web-app')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Builds page')
+  it('keeps the desktop settings navigation, with its Back link and no sections button', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/workspaces/acme/settings')
+    const nav = page.getByRole('navigation', { name: 'Settings' })
+    await expect.element(nav.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Members' })).toBeVisible()
+    expect(headerButton('Settings sections')).toBeUndefined()
   })
 })
 
@@ -981,11 +1156,12 @@ describe('Shell, collapsing the navigation', () => {
     expect(usePaneStore.getState().collapsed).toEqual({ sidebar: false, 'settings-nav': true })
   })
 
-  it('keeps the drawer and the hamburger below 820px, with no handle', async () => {
+  it('has no sidebar buttons below 820px, and no handle', async () => {
     await page.viewport(700, 800)
     usePaneStore.getState().setCollapsed('sidebar', true)
     await renderShell('/headed')
-    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Search' })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Open navigation' }).elements()).toHaveLength(0)
     expect(page.getByRole('separator').elements()).toHaveLength(0)
     expect(show().elements()).toHaveLength(0)
   })
@@ -1065,7 +1241,9 @@ describe('Shell, phone', () => {
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
-    expect(rows).toEqual([
+    // The teams come first (the sidebar's counts), then the rest.
+    expect(rows).toHaveLength(9)
+    expect(rows.slice(3)).toEqual([
       'Insights',
       'Baselines',
       'Sites',
@@ -1090,11 +1268,12 @@ describe('Shell, phone', () => {
       .getByRole('link', { name: 'Account settings' })
       .click()
     await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
-    // Settings has its own navigation: no tab bar, a Close in the top bar, the list in the drawer.
+    // Settings has its own navigation: no tab bar, a Close in the header, the list in a sheet.
     expect(tabs().elements()).toHaveLength(0)
-    await page.getByRole('button', { name: 'Open navigation' }).click()
-    const drawer = page.getByRole('dialog', { name: 'Navigation' })
-    await expect.element(drawer.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
+    await page.getByRole('button', { name: 'Settings sections' }).click()
+    const sections = page.getByRole('dialog', { name: 'Settings sections' })
+    await expect.element(sections.getByRole('link', { name: 'Profile' })).toBeVisible()
+    expect(sections.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await userEvent.keyboard('{Escape}')
     await page.getByRole('button', { name: /^Close settings/ }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/inbox')

@@ -38,7 +38,9 @@ import styles from './SettingsNav.module.css'
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
  * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, Teams, ...) and, for the people
  * who run the instance, Instance. A team's own settings are not listed here: Teams opens them (a
- * team header with tabs). The workspace is the one in the address, else the last chosen.
+ * team header with tabs). The workspace is the one in the address, else the last chosen. On a
+ * phone it is the body of the settings sections sheet (`SettingsSections`): no Back row (the
+ * header's Close is the way out) and no Hide button.
  */
 export function SettingsNav() {
   const phone = usePhone()
@@ -58,23 +60,25 @@ export function SettingsNav() {
 
   return (
     <>
-      <div className={styles.header}>
-        <div className={styles.back}>
-          <NavItem
-            href={back.path}
-            icon={<ChevronLeftIcon />}
-            onClick={(e) => {
-              // A plain click goes through the router (no reload); a new-tab click keeps the link.
-              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-              e.preventDefault()
-              router.history.push(back.path)
-            }}
-          >
-            {`Back to ${back.label}`}
-          </NavItem>
+      {phone ? null : (
+        <div className={styles.header}>
+          <div className={styles.back}>
+            <NavItem
+              href={back.path}
+              icon={<ChevronLeftIcon />}
+              onClick={(e) => {
+                // A plain click goes through the router (no reload); a new-tab click keeps the link.
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+                e.preventDefault()
+                router.history.push(back.path)
+              }}
+            >
+              {`Back to ${back.label}`}
+            </NavItem>
+          </div>
+          <HideNavButton />
         </div>
-        <HideNavButton />
-      </div>
+      )}
       <NavSection label="Account">
         <NavLink to="/account/profile" icon={<UserIcon />}>
           Profile

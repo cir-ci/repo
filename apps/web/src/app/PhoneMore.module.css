@@ -4,6 +4,17 @@
   padding-bottom: 8px;
 }
 
+.switcher {
+  padding: 4px 8px 8px;
+}
+
+.heading {
+  padding: 8px 16px 4px;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .row {
   display: flex;
   align-items: center;
@@ -21,6 +32,20 @@
   outline-offset: -2px;
 }
 
+.row[data-more] {
+  padding-left: 54px;
+  color: var(--circi-text-secondary);
+}
+
+button.row {
+  width: 100%;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .icon {
   display: inline-flex;
   color: var(--circi-text-secondary);
@@ -29,6 +54,26 @@
 .icon svg {
   width: 20px;
   height: 20px;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--circi-text-secondary);
+}
+
+.count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .rule {

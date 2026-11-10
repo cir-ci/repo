@@ -10,13 +10,15 @@ import {
   SunIcon,
   UserIcon,
 } from '@circi/ui'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
 import { useInstall } from '#features/pwa/use-install.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
-import { authClient, type SessionUser } from '#lib/auth-client.ts'
+import type { SessionUser } from '#lib/auth-client.ts'
 import { usePhone } from '#lib/use-phone.ts'
+
+import { useSignOut } from './use-sign-out.ts'
 
 import styles from './UserMenu.module.css'
 
@@ -27,17 +29,12 @@ import styles from './UserMenu.module.css'
  * sign out. A Base UI menu: Escape closes it and focus returns to the button.
  */
 export function UserMenu({ user }: UserMenu.Props) {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: caps } = useQuery(capabilitiesQuery())
   const { canInstall, install } = useInstall()
   const phone = usePhone()
 
-  async function signOut() {
-    await authClient.signOut()
-    // Forget everything fetched as this person, so the next one never sees it.
-    queryClient.clear()
-  }
+  const signOut = useSignOut()
 
   return (
     <Menu

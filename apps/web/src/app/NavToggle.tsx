@@ -3,10 +3,9 @@ import { useRouterState } from '@tanstack/react-router'
 
 import { type NavPaneId } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { currentSection, isSettingsSection } from './shell-model.ts'
-
-import styles from './NavToggle.module.css'
 
 /** The navigation the current page shows: Settings has its own, the rest share the main sidebar. */
 export function useNavPaneId(): NavPaneId {
@@ -40,9 +39,10 @@ export function useNavPane() {
 
 const noun = (id: NavPaneId) => (id === 'sidebar' ? 'sidebar' : 'settings navigation')
 
-/** In the navigation's header: hides it. */
+/** In the navigation's header: hides it. Desktop only: a phone has no sidebar to hide. */
 export function HideNavButton() {
   const { id, collapse } = useNavPane()
+  if (usePhone()) return null
   return (
     <Tooltip
       content={
@@ -56,7 +56,6 @@ export function HideNavButton() {
         label={id === 'sidebar' ? 'Hide sidebar' : 'Hide settings navigation'}
         aria-keyshortcuts="Meta+\"
         data-hide-nav=""
-        className={styles.hide}
         onClick={collapse}
       >
         <PanelLeftCloseIcon size={16} />
@@ -68,7 +67,7 @@ export function HideNavButton() {
 /** At the left of the page header while the navigation is collapsed: brings it back. */
 export function ShowNavButton() {
   const { id, collapsed, expand } = useNavPane()
-  if (!collapsed) return null
+  if (usePhone() || !collapsed) return null
   return (
     <Tooltip
       content={
@@ -82,7 +81,6 @@ export function ShowNavButton() {
         label={id === 'sidebar' ? 'Show sidebar' : 'Show settings navigation'}
         aria-keyshortcuts="Meta+\"
         data-show-nav=""
-        className={styles.show}
         onClick={expand}
       >
         <PanelLeftOpenIcon size={16} />

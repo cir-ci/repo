@@ -1,4 +1,4 @@
-import { CloseIcon, IconButton, MenuIcon, SearchIcon } from '@circi/ui'
+import { CloseIcon, IconButton, SearchIcon, SlidersIcon } from '@circi/ui'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
@@ -12,31 +12,35 @@ import { returnTarget } from './settings-return.ts'
 import { currentSection, isSettingsSection } from './shell-model.ts'
 
 /**
- * At the left of the page header on a phone: opens the navigation drawer (the sidebar is not on
- * screen there). The drawer belongs to the page it was opened on (`drawerAt`).
+ * At the right of the page header on a phone: search, or in settings the sections button (the
+ * settings pages, in a sheet) and the Close that leaves them. There is no menu button: the bottom
+ * tabs are the phone's navigation.
  */
-export function OpenNavButton() {
-  const phone = usePhone()
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const setDrawerAt = useOverlayStore((s) => s.setDrawerAt)
-  if (!phone) return null
-  return (
-    <IconButton label="Open navigation" onClick={() => setDrawerAt(pathname)}>
-      <MenuIcon />
-    </IconButton>
-  )
-}
-
-/** At the right of the page header on a phone: search, or in settings the Close that leaves it. */
 export function PhoneEnd() {
   const phone = usePhone()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   if (!phone) return null
-  if (isSettingsSection(currentSection(pathname))) return <CloseSettings />
+  if (isSettingsSection(currentSection(pathname)))
+    return (
+      <>
+        <SettingsSectionsButton />
+        <CloseSettings />
+      </>
+    )
   return (
     <IconButton label="Search" onClick={() => setCommandMenuOpen(true)}>
       <SearchIcon />
+    </IconButton>
+  )
+}
+
+/** Opens the sheet that lists the settings pages (`SettingsSections`). */
+function SettingsSectionsButton() {
+  const setOpen = useOverlayStore((s) => s.setSettingsNavOpen)
+  return (
+    <IconButton label="Settings sections" onClick={() => setOpen(true)}>
+      <SlidersIcon />
     </IconButton>
   )
 }

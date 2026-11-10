@@ -18,25 +18,24 @@ import {
   Avatar,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import { useParams, useRouterState } from '@tanstack/react-router'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useSwitchWorkspace } from '#features/sidebar/use-switch-workspace.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
-import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
-import { useWorkspaceStore, useChosenWorkspace } from '#lib/stores/workspace-store.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { NavLink } from './NavLink.tsx'
 import { HideNavButton } from './NavToggle.tsx'
 import {
   countOrUndefined,
   currentSection,
-  type WorkspaceRef,
   pinnedViews,
-  switchWorkspacePath,
   SIDEBAR_TEAM_LIMIT,
   sidebarTeams,
 } from './shell-model.ts'
@@ -49,20 +48,18 @@ import styles from './Sidebar.module.css'
  * Triage, Baselines and Sites), "Your views", and the account button. With no teams the Teams
  * section says "No teams yet"; creating a team lives on the Teams page. No settings links:
  * workspace settings (and from there each team's) open from the workspace menu above, account
- * settings from the account menu. `AppFrame` wraps this in the Main navigation on wide screens;
- * the `Drawer` does on narrow ones.
+ * settings from the account menu. `AppFrame` wraps this in the Main navigation; below 820px it is
+ * not rendered (the bottom tabs and the More sheet are the phone's navigation).
  */
 export function Sidebar({ user }: Sidebar.Props) {
-  const navigate = useNavigate()
   const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
   const chosen = useChosenWorkspace()
-  const choose = useWorkspaceStore((s) => s.choose)
+  const switchWorkspace = useSwitchWorkspace()
   const { workspaces, workspace } = useWorkspaces(chosen)
-  const { data: overview } = useQuery(teamsQuery())
   const { data: model } = useSidebarModel(workspace?.slug)
   const { data: caps } = useQuery(capabilitiesQuery())
   const { shown, total } = sidebarTeams(model?.teams, SIDEBAR_TEAM_LIMIT, params.team)
@@ -70,18 +67,6 @@ export function Sidebar({ user }: Sidebar.Props) {
   const others = shown.filter((team) => !team.pinned)
   const views = pinnedViews(model?.views)
   const openTeam = params.workspace === workspace?.slug ? params.team : undefined
-
-  function switchWorkspace(next: WorkspaceRef) {
-    choose(next.slug)
-    // The same page in the new workspace; a team page goes to its last-used or first team there.
-    const target = switchWorkspacePath(pathname, next.slug, (slug) => {
-      const slugs = (overview?.teams ?? [])
-        .filter((o) => o.workspace.slug === slug)
-        .map((o) => o.team.slug)
-      return slugs[0]
-    })
-    if (target) void navigate({ href: target })
-  }
 
   const teamEntries = (list: SidebarModel.Team[]) =>
     workspace
@@ -221,7 +206,6 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
         to="/$workspace/$team"
         params={params}
         selected={false}
-        expands
         icon={
           <Avatar
             type="team"

@@ -19,7 +19,7 @@ import { countOrUndefined, currentSection, goPath, phoneTeam } from './shell-mod
 
 /**
  * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Reviews, Triage, Teams and
- * More, with the sidebar's counts. The drawer stays for switching workspace and team. Each tab is a
+ * More, with the sidebar's counts. Workspace and team switching live in the More sheet. Each tab is a
  * real link that navigates through the router; More opens the sheet of the rest (`PhoneMore`).
  */
 export function PhoneTabs() {

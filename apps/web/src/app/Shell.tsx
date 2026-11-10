@@ -1,7 +1,7 @@
-import { AnnouncerProvider, AppFrame, Drawer, PanelNotices, SkipLink } from '@circi/ui'
+import { AnnouncerProvider, AppFrame, PanelNotices, SkipLink } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Outlet, useRouterState } from '@tanstack/react-router'
-import { lazy, type ReactNode, Suspense, useEffect } from 'react'
+import { lazy, type ReactNode, Suspense } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
@@ -13,20 +13,18 @@ import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
-import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
-import { COMPACT_QUERY, usePhone } from '#lib/use-phone.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { useNavPane } from './NavToggle.tsx'
 import { PhoneMore } from './PhoneMore.tsx'
 import { PhoneTabs } from './PhoneTabs.tsx'
+import { SettingsSections } from './SettingsSections.tsx'
 import { currentSection, isBuildPage, isOutsideFrame, isSettingsSection } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
 import { WindowTitleBar } from './WindowTitleBar.tsx'
-
-import styles from './Shell.module.css'
 
 // Only people who aren't signed in need the sign-in form, so it's its own chunk.
 const LoginPage = lazy(() =>
@@ -39,7 +37,7 @@ const SetupContinue = lazy(() =>
 
 /**
  * The frame around every page. Signed in: the sidebar and one panel (`AppFrame`), with a top bar
- * and a drawer instead of the sidebar below 820px. Not signed in: the sign-in page. A site's
+ * and the bottom tabs instead of the sidebar below 820px (no drawer). Not signed in: the sign-in page. A site's
  * sign-in handoff is its own full-viewport page, without the sidebar or banners. Pages only render (and fetch) once there is a session.
  */
 export function Shell() {
@@ -122,28 +120,13 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const section = currentSection(pathname)
   // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
   const inSettings = isSettingsSection(section)
-  const nav = inSettings ? <SettingsNav /> : <Sidebar user={user} />
-  const navLabel = inSettings ? 'Settings' : 'Main'
   const phone = usePhone()
+  // A phone has no sidebar: the bottom tabs and the More sheet (and, in settings, the sections
+  // sheet) are its navigation.
+  const nav = phone ? null : inSettings ? <SettingsNav /> : <Sidebar user={user} />
+  const navLabel = inSettings ? 'Settings' : 'Main'
   const pane = useNavPane()
   const sidebarWidth = usePaneWidth(pane.id)
-  // The drawer belongs to the page it was opened on: choosing another page closes it (an entry
-  // that only expands, a team, moves it along instead: `NavLink`'s `expands`).
-  const openedAt = useOverlayStore((s) => s.drawerAt)
-  const setOpenedAt = useOverlayStore((s) => s.setDrawerAt)
-  const drawerOpen = openedAt === pathname
-  const setDrawerOpen = (open: boolean) => setOpenedAt(open ? pathname : undefined)
-
-  // The window grew past the drawer's width: close it.
-  useEffect(() => {
-    const query = window.matchMedia(COMPACT_QUERY)
-    const onChange = () => {
-      if (!query.matches) setOpenedAt(undefined)
-    }
-    query.addEventListener('change', onChange)
-    return () => query.removeEventListener('change', onChange)
-  }, [setOpenedAt])
-
   return (
     <ShortcutLayer>
       <AppFrame
@@ -172,11 +155,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       <WindowTitleBar />
       <AddToHomeScreenSheet />
       {phone && !inSettings ? <PhoneMore /> : null}
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
-        <nav aria-label={navLabel} className={styles.drawerNav}>
-          {nav}
-        </nav>
-      </Drawer>
+      {phone && inSettings ? <SettingsSections /> : null}
     </ShortcutLayer>
   )
 }

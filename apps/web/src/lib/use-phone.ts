@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-/** The width below which the sidebar is a drawer and the app is a phone: `AppFrame`'s stacking breakpoint. */
+/** The width below which the sidebar is gone and the app is a phone: `AppFrame`'s stacking breakpoint. */
 export const COMPACT_QUERY = '(max-width: 819.98px)'
 
 /** `usePhone()` outside a component: for plain functions that build a list (the command menu's). */
@@ -15,7 +15,7 @@ function subscribe(onChange: () => void): () => void {
 }
 
 /**
- * Whether the window is phone-sized (under 820px, where the drawer starts). Pages use it to give a
+ * Whether the window is phone-sized (under 820px, where the bottom tabs replace the sidebar). Pages use it to give a
  * detail pane a sheet instead of a split; layout that can be CSS stays CSS (media and container queries).
  */
 export function usePhone(): boolean {
