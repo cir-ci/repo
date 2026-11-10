@@ -174,7 +174,8 @@ describe('flaky screenshots', () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
-    await page.getByText('Builds uploaded from CI.').waitFor()
+    // The team page has loaded once its build list is there.
+    await page.getByRole('heading', { name: team.name }).first().waitFor()
     expect(await page.getByText('keep changing on').count()).toBe(0)
   })
 })

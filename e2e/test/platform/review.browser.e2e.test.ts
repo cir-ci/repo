@@ -85,8 +85,13 @@ describe('upload, diff and review (local-disk storage)', () => {
     await dialog.waitFor({ state: 'hidden' })
     expect((await detail()).build.reviewStatus).toBe('pending')
 
+    // The team asks for a reason on reject (off by default): submitting without one keeps the
+    // dialog open.
+    await setup.session.patch(`/api/teams/${setup.workspace.slug}/${team.slug}/settings`, {
+      requireRejectReason: true,
+    })
+    await page.reload()
     await page.getByRole('button', { name: 'Reject', exact: true }).click()
-    // A reason is required: submitting without one keeps the dialog open.
     await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
     await dialog.getByRole('alert').waitFor()
     expect((await detail()).build.reviewStatus).toBe('pending')

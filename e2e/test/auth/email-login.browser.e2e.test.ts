@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  addTeamMembers,
   createTeam,
   createUserViaCli,
   extractCode,
@@ -252,6 +253,9 @@ describe('email-code sign-in', () => {
     const sam = await member('sam')
     const viaPassword = await signIn(stack, sam.email, sam.password)
     const viaCode = await signInWithCode(stack.url, stack.mail, sam.email)
+    // Teams have their own members: put Sam in this one.
+    const me = await viaPassword.get<{ user: { id: string } }>('/api/auth/get-session')
+    await addTeamMembers(setup.session, workspace(), team.slug, [me.user.id])
     const slugs = async (s: typeof viaCode) =>
       (await s.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
         (p) => p.team.slug,
