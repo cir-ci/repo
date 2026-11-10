@@ -4,6 +4,7 @@ import { useDisplayStore } from './display-store.ts'
 import { useListStore } from './list-store.ts'
 import { useOverlayStore } from './overlay-store.ts'
 import { RECENT_KEY, useRecentStore } from './recent-store.ts'
+import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
 import { useShortcutStore } from './shortcut-store.ts'
 import { useUndoStore } from './undo-store.ts'
 import { useWorkspaceStore } from './workspace-store.ts'
@@ -21,6 +22,12 @@ export function resetStores(): void {
     // No storage to clear.
   }
   useRecentStore.getState().reset()
+  try {
+    sessionStorage.removeItem(SETTINGS_RETURN_KEY)
+  } catch {
+    // No storage to clear.
+  }
+  useSettingsReturnStore.getState().reset()
   try {
     localStorage.removeItem(DISPLAY_KEY)
   } catch {

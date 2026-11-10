@@ -1,83 +1,78 @@
 import { create } from 'zustand'
 
-/** How long a change waits for Undo before it is sent. */
+import { HttpError } from '#lib/http.ts'
+
+/** How long a toast with Undo stays. The server keeps the undo for longer (30 seconds). */
 export const UNDO_MS = 6000
 /** How long a confirmation without Undo stays. */
 const CONFIRM_MS = 4000
 
-/** What a toast was shown for. `commit` is what the change really does; it is sent unless Undo comes first. */
+/** What a toast says, and how to take back the change it confirms. */
 export interface ToastInput {
   message: string
-  /** The change that Undo cancels. Left out: the toast is only a confirmation. */
-  commit?: () => Promise<unknown>
-  /** What to say when `commit` fails. */
-  failed?: string
+  /**
+   * Takes the change back on the server (`POST …/undo/:id` with the token the action returned).
+   * Left out: the change is not undoable and the toast only confirms it.
+   */
+  undo?: () => Promise<unknown>
+  /** What to say when the undo fails for no reason the server gave. */
+  undoFailed?: string
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined
-let pending: ToastInput | undefined
-
-/** Sends the waiting change now (the next toast, leaving the page and closing the tab all do). */
-function settle(): Promise<void> {
-  clearTimeout(timer)
-  const change = pending
-  pending = undefined
-  if (!change?.commit) return Promise.resolve()
-  return change.commit().then(
-    () => undefined,
-    () => {
-      useUndoStore.getState().show({ message: change.failed ?? "Couldn't save that change" })
-    },
-  )
-}
+let current: ToastInput | undefined
 
 /**
  * The toast at the foot of the page: a confirmation (`Approved build #148`), with Undo when the
- * change can still be taken back. The server has no way to revoke a decision, so an undoable change
- * is held back for `UNDO_MS` and sent when that passes, when another one comes, or when the page is
- * left; Undo drops it unsent.
+ * change can still be taken back. The change has already happened; Undo asks the server to revert
+ * it, and says why when it can't (somebody changed the same thing since, or it took too long).
  */
-export const useUndoStore = create<UndoStore.State & UndoStore.Actions>()((set) => ({
+export const useUndoStore = create<UndoStore.State & UndoStore.Actions>()((set, get) => ({
   toast: undefined,
   show: (input) => {
-    void settle()
-    pending = input
+    clearTimeout(timer)
+    current = input
     set({
       toast: {
         id: Date.now() + Math.random(),
         message: input.message,
-        undoable: input.commit !== undefined,
+        undoable: input.undo !== undefined,
       },
     })
     timer = setTimeout(
       () => {
-        void settle()
+        current = undefined
         set({ toast: undefined })
       },
-      input.commit ? UNDO_MS : CONFIRM_MS,
+      input.undo ? UNDO_MS : CONFIRM_MS,
     )
   },
-  undo: () => {
+  undo: async () => {
+    const input = current
     clearTimeout(timer)
-    pending = undefined
+    current = undefined
     set({ toast: undefined })
+    if (!input?.undo) return
+    try {
+      await input.undo()
+      get().show({ message: 'Undone' })
+    } catch (error) {
+      // A refusal carries its reason (409: "Someone changed this review since…").
+      const reason = error instanceof HttpError && error.status < 500 ? error.message : undefined
+      get().show({ message: reason ?? input.undoFailed ?? "Couldn't undo that" })
+    }
   },
   dismiss: () => {
-    void settle()
+    clearTimeout(timer)
+    current = undefined
     set({ toast: undefined })
   },
-  flush: () => settle(),
   reset: () => {
     clearTimeout(timer)
-    pending = undefined
+    current = undefined
     set({ toast: undefined })
   },
 }))
-
-if (typeof window !== 'undefined') {
-  // A change still waiting for Undo is sent when the tab is hidden or closed.
-  window.addEventListener('pagehide', () => void settle())
-}
 
 export namespace UndoStore {
   export interface State {
@@ -85,9 +80,8 @@ export namespace UndoStore {
   }
   export interface Actions {
     show: (input: ToastInput) => void
-    undo: () => void
+    undo: () => Promise<void>
     dismiss: () => void
-    flush: () => Promise<void>
     reset: () => void
   }
 }

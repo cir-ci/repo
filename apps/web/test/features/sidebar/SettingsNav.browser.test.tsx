@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { overview, sidebarModel } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -11,9 +12,14 @@ function show(
     route?: string
     instanceAdmin?: boolean
     canManage?: boolean
+    /** The app page the person came from. */
+    from?: string
   } = {},
 ) {
   return renderPage(<SettingsNav />, {
+    beforeRender: () => {
+      if (options.from) useSettingsReturnStore.getState().noteAppPage(options.from)
+    },
     route: options.route ?? '/$workspace/$team/settings/reviews',
     url: options.url ?? '/acme/web/settings/reviews',
     viewport: [1000, 900],
@@ -60,7 +66,7 @@ describe('SettingsNav', () => {
 
   it('follows the sidebar numbers: 32px rows, 14px text, 18px icons at stroke 2, 13px secondary labels', async () => {
     await show()
-    const link = page.getByRole('link', { name: 'Back to app' })
+    const link = page.getByRole('link', { name: 'Back to Inbox' })
     await expect.element(link).toBeVisible()
     const row = getComputedStyle(link.element())
     expect([row.height, row.fontSize]).toEqual(['32px', '14px'])
@@ -87,9 +93,24 @@ describe('SettingsNav', () => {
     expect(names(workspace.getByRole('link'))).toEqual(['Members', 'Teams'])
   })
 
+  it('goes back to the page you came from, named for it', async () => {
+    const { router } = await show({ from: '/acme/web/builds/148' })
+    const link = page.getByRole('link', { name: 'Back to Build #148' })
+    await expect.element(link).toHaveAttribute('href', '/acme/web/builds/148')
+    await link.click()
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
+  })
+
+  it('names a team page by the team, and falls to the Inbox when there is no page to return to', async () => {
+    await show({ from: '/acme/web' })
+    await expect
+      .element(page.getByRole('link', { name: 'Back to Web App' }))
+      .toHaveAttribute('href', '/acme/web')
+  })
+
   it('goes back to the app and lists the account pages', async () => {
     await show()
-    await expect.element(page.getByRole('link', { name: 'Back to app' })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
     const account = page.getByRole('region', { name: 'Account' })
     await expect.element(account).toBeVisible()
     expect(names(account.getByRole('link'))).toEqual([

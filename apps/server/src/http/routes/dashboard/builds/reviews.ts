@@ -80,7 +80,11 @@ export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
 }
 
 const snapshotsBody = z.object({
-  snapshotNames: z.array(z.string().min(1).max(500)).min(1).max(1000),
+  /** Some screenshots by name, or `undecided`: every changed one with no decision yet. */
+  snapshotNames: z.union([
+    z.array(z.string().min(1).max(500)).min(1).max(1000),
+    z.literal('undecided'),
+  ]),
   decision: z.enum(['approved', 'rejected']),
   reason: z.string().trim().max(2000).optional(),
 })

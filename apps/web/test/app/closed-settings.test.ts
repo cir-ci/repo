@@ -131,14 +131,17 @@ describe('settings is a closed area', () => {
       '/instance/health',
     ]) {
       for (const query of ['', 'a', 'build', '148']) {
-        const view = buildList({ ...base, pathname }, { ...typed, query })
+        const view = buildList(
+          { ...base, pathname, leave: { path: '/acme/web/builds/148', label: 'Build #148' } },
+          { ...typed, query },
+        )
         const targets = view.groups.flatMap((g) => g.entries.map((e) => e.target))
         expect(targets.filter((t) => t.type !== 'path')).toEqual([])
         const paths = targets.map((t) => (t.type === 'path' ? t.path : ''))
-        // Settings pages, or the frame's own way back (Back to app).
+        // Settings pages, or the frame's own way back (the page you came from).
         const outside = paths.filter(
           (p) =>
-            p !== '/inbox' &&
+            p !== '/acme/web/builds/148' &&
             !/^\/(account|instance)(\/|$)|^\/workspaces\/[^/]+\/settings(\/|$)|^\/[^/]+\/[^/]+\/settings(\/|$)/.test(
               p,
             ),

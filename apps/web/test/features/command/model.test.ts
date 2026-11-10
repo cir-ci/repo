@@ -720,7 +720,7 @@ describe('nested lists', () => {
 })
 
 describe('row actions', () => {
-  it('offers a build Approve all, Reject, Copy link and Open in new tab', () => {
+  it('offers a build Approve all, Reject, Request review…, Copy link and Open in new tab', () => {
     const rows = rowActionEntries(
       entryOf({
         subject: {
@@ -735,6 +735,7 @@ describe('row actions', () => {
     expect(rows.map((e) => e.label)).toEqual([
       'Approve all',
       'Reject',
+      'Request review…',
       'Copy link',
       'Open in new tab',
     ])
@@ -786,7 +787,7 @@ describe('settings is closed', () => {
     )
     expect(sections.find((e) => e.label === 'Members')?.detail).toBe('Workspace · Current')
     expect(view.groups[1]?.entries[0]).toMatchObject({
-      label: 'Back to app',
+      label: 'Back to Inbox',
       target: { type: 'path', path: '/inbox' },
     })
     expect(labels(view)).not.toContain('Inbox')

@@ -9,7 +9,7 @@ vi.mock('#lib/auth-client.ts', () =>
 import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { RECENT_CAP, RECENT_KEY, useRecentStore } from '#lib/stores/recent-store.ts'
-import { useUndoStore } from '#lib/stores/undo-store.ts'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam } from '#test/support/fixtures.ts'
@@ -586,10 +586,38 @@ describe('the footer', () => {
   })
 })
 
-const buildAndTeam = () =>
+const token = (id: string) => ({ id, expiresAt: '2026-03-10T12:00:30.000Z' })
+const decided = (undo: ReturnType<typeof token> | null) => ({
+  build: {
+    number: 148,
+    status: 'complete',
+    conclusion: 'changes_detected',
+    reviewStatus: 'approved',
+  },
+  undo,
+})
+
+const buildAndTeam = (extra: Record<string, ReplyHandler> = {}) =>
   api(found({ builds: [build()] }), {
-    'POST /api/teams/acme/web/builds/148/review': { body: {} },
+    'POST /api/teams/acme/web/builds/148/review': { body: decided(token('u1')) },
+    'POST /api/teams/acme/web/builds/148/snapshots/review': { body: decided(token('u2')) },
+    'POST /api/teams/acme/web/undo/u1': { body: { undone: true } },
+    'POST /api/teams/acme/web/undo/u2': { body: { undone: true } },
+    'GET /api/teams/acme/web/settings': { body: { settings: { requireRejectReason: false } } },
+    ...extra,
   })
+
+/** The build row's ⌘. list. */
+async function openBuildActions() {
+  await openMenu()
+  await userEvent.type(field(), '148')
+  await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
+  await userEvent.keyboard('{Meta>}.{/Meta}')
+  await expect.element(page.getByText('Actions', { exact: true })).toBeVisible()
+}
+
+const posts = (calls: { of: (m: string) => { path: string; body: unknown }[] }) =>
+  calls.of('POST').map((c) => [c.path, c.body])
 
 describe('row actions', () => {
   it('opens the highlighted row in a new tab with ⌘↵, and copies its link with ⌘⇧C', async () => {
@@ -616,51 +644,180 @@ describe('row actions', () => {
     await expect.element(toast().getByText('Link copied')).toBeVisible()
   })
 
-  it('lists the row actions with ⌘., and Approve all acts with a toast and Undo that drops it', async () => {
+  it('sends Approve all at once, and Undo reverts it on the server', async () => {
     const calls = buildAndTeam()
     await show()
-    await openMenu()
-    await userEvent.type(field(), '148')
-    await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
-    await userEvent.keyboard('{Meta>}.{/Meta}')
-    await expect.element(page.getByText('Actions', { exact: true })).toBeVisible()
-    for (const name of ['Approve all', 'Reject', 'Copy link', 'Open in new tab']) {
+    await openBuildActions()
+    for (const name of [
+      'Approve all',
+      'Reject',
+      'Request review…',
+      'Copy link',
+      'Open in new tab',
+    ]) {
       // eslint-disable-next-line no-await-in-loop -- one after another
       await expect.element(page.getByRole('option', { name })).toBeVisible()
     }
     await page.getByRole('option', { name: 'Approve all' }).click()
     await expect.element(toast().getByText('Approved build #148')).toBeVisible()
     await expect.element(field()).not.toBeInTheDocument()
+    // Sent already: no waiting for the toast to run out.
+    expect(posts(calls)).toEqual([['/api/teams/acme/web/builds/148/review', { state: 'approved' }]])
     await page.getByRole('button', { name: 'Undo' }).click()
-    await expect.element(toast()).not.toBeInTheDocument()
-    await useUndoStore.getState().flush()
-    expect(calls.of('POST')).toEqual([])
-  })
-
-  it('sends the decision when Undo is not pressed', async () => {
-    const calls = buildAndTeam()
-    await show()
-    await openMenu()
-    await userEvent.type(field(), '148')
-    await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
-    await userEvent.keyboard('{Meta>}.{/Meta}')
-    await page.getByRole('option', { name: 'Reject' }).click()
-    await expect.element(toast().getByText('Rejected build #148')).toBeVisible()
-    await useUndoStore.getState().flush()
-    expect(calls.of('POST')).toEqual([
-      {
-        method: 'POST',
-        path: '/api/teams/acme/web/builds/148/review',
-        body: { state: 'rejected' },
-      },
+    await expect.element(toast().getByText('Undone')).toBeVisible()
+    expect(posts(calls)).toEqual([
+      ['/api/teams/acme/web/builds/148/review', { state: 'approved' }],
+      ['/api/teams/acme/web/undo/u1', {}],
     ])
   })
 
-  it('assigns a triage item to you, snoozes it, and marks a notice as read', async () => {
+  it('says why when the server refuses the undo (409)', async () => {
+    buildAndTeam({
+      'POST /api/teams/acme/web/undo/u1': {
+        status: 409,
+        body: { error: "Someone changed this review since, so it can't be undone" },
+      },
+    })
+    await show()
+    await openBuildActions()
+    await page.getByRole('option', { name: 'Approve all' }).click()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect
+      .element(toast().getByText("Someone changed this review since, so it can't be undone"))
+      .toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('rejects the screenshots with no decision at once when no reason is required, with Undo', async () => {
+    const calls = buildAndTeam()
+    await show()
+    await openBuildActions()
+    await page.getByRole('option', { name: 'Reject', exact: true }).click()
+    await expect.element(toast().getByText('Rejected build #148')).toBeVisible()
+    expect(posts(calls)).toEqual([
+      [
+        '/api/teams/acme/web/builds/148/snapshots/review',
+        { snapshotNames: 'undecided', decision: 'rejected' },
+      ],
+    ])
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toast().getByText('Undone')).toBeVisible()
+    expect(calls.of('POST').at(-1)?.path).toBe('/api/teams/acme/web/undo/u2')
+  })
+
+  it('asks for the reason first when the team requires one, then rejects with it', async () => {
+    const calls = buildAndTeam({
+      'GET /api/teams/acme/web/settings': { body: { settings: { requireRejectReason: true } } },
+    })
+    await show()
+    await openBuildActions()
+    await page.getByRole('option', { name: 'Reject', exact: true }).click()
+    await expect.element(field()).toHaveAttribute('placeholder', 'Why are you rejecting this?')
+    await expect
+      .element(page.getByRole('option', { name: 'Type a reason to reject' }))
+      .toBeVisible()
+    // Enter on the empty step sends nothing.
+    await userEvent.keyboard('{Enter}')
+    expect(calls.of('POST')).toEqual([])
+    await userEvent.type(field(), '#nav is clipped')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(toast().getByText('Rejected build #148')).toBeVisible()
+    expect(posts(calls)).toEqual([
+      [
+        '/api/teams/acme/web/builds/148/snapshots/review',
+        { snapshotNames: 'undecided', decision: 'rejected', reason: '#nav is clipped' },
+      ],
+    ])
+  })
+
+  it('runs the build page actions from the menu: Reject takes the screenshot in the address', async () => {
+    const calls = buildAndTeam()
+    await show('/acme/web/builds/148?shot=checkout%2Fsummary', '/$workspace/$team/builds/$number')
+    await openMenu()
+    await page.getByRole('option', { name: 'Reject screenshot' }).click()
+    await expect.element(toast().getByText('Rejected checkout/summary')).toBeVisible()
+    expect(posts(calls)).toEqual([
+      [
+        '/api/teams/acme/web/builds/148/snapshots/review',
+        { snapshotNames: ['checkout/summary'], decision: 'rejected' },
+      ],
+    ])
+  })
+
+  describe('Request review', () => {
+    const people = {
+      members: [
+        { id: 'u1', name: 'Ada', email: 'ada@example.com', image: null },
+        { id: 'u2', name: 'Dana Levi', email: 'dana@example.com', image: null },
+        { id: 'u3', name: 'Lou Reed', email: 'lou@example.com', image: null },
+        { id: 'u4', name: 'Ann Author', email: 'ann@example.com', image: null },
+      ],
+      canManage: true,
+    }
+    const setup = () =>
+      buildAndTeam({
+        'GET /api/teams/acme/web/members': { body: people },
+        'GET /api/teams/acme/web/builds/148': {
+          body: { build: { id: 'b-148', author: { login: 'ann', name: 'Ann Author' } } },
+        },
+        'POST /api/teams/acme/web/builds/request-review': {
+          body: { requests: [], undo: token('u3') },
+        },
+        'POST /api/teams/acme/web/undo/u3': { body: { undone: true } },
+      })
+
+    it('lists the team without you and the author, and asks one person at once, with Undo', async () => {
+      const calls = setup()
+      await show()
+      await openBuildActions()
+      await page.getByRole('option', { name: 'Request review…' }).click()
+      await expect.element(field()).toHaveAttribute('placeholder', 'Find a person')
+      await expect.element(page.getByRole('option', { name: /Dana Levi/ })).toBeVisible()
+      await expect.element(page.getByRole('option', { name: /Lou Reed/ })).toBeVisible()
+      await expect.element(page.getByRole('option', { name: /Ada/ })).not.toBeInTheDocument()
+      await expect.element(page.getByRole('option', { name: /Ann Author/ })).not.toBeInTheDocument()
+      await page.getByRole('option', { name: /Dana Levi/ }).click()
+      await expect.element(toast().getByText('Asked Dana Levi to review build #148')).toBeVisible()
+      expect(posts(calls)).toEqual([
+        ['/api/teams/acme/web/builds/request-review', { buildIds: ['b-148'], reviewerIds: ['u2'] }],
+      ])
+      await page.getByRole('button', { name: 'Undo' }).click()
+      await expect.element(toast().getByText('Undone')).toBeVisible()
+      expect(calls.of('POST').at(-1)?.path).toBe('/api/teams/acme/web/undo/u3')
+    })
+
+    it('picks several people with ⇧↵ and asks them together', async () => {
+      const calls = setup()
+      await show()
+      await openBuildActions()
+      await page.getByRole('option', { name: 'Request review…' }).click()
+      await expect.element(page.getByRole('option', { name: /Dana Levi/ })).toBeVisible()
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}')
+      await expect
+        .element(page.getByRole('option', { name: 'Request review from Dana Levi' }))
+        .toBeVisible()
+      await userEvent.keyboard('{ArrowDown}{ArrowDown}{Shift>}{Enter}{/Shift}')
+      await expect
+        .element(page.getByRole('option', { name: 'Request review from 2 people' }))
+        .toBeVisible()
+      await page.getByRole('option', { name: 'Request review from 2 people' }).click()
+      await expect.element(toast().getByText('Asked 2 people to review build #148')).toBeVisible()
+      expect(posts(calls)).toEqual([
+        [
+          '/api/teams/acme/web/builds/request-review',
+          { buildIds: ['b-148'], reviewerIds: ['u2', 'u3'] },
+        ],
+      ])
+    })
+  })
+
+  it('assigns a triage item to you, snoozes it and marks a notice as read, each with Undo', async () => {
     const calls = api(more, {
-      'POST /api/teams/acme/web/triage/assign': { body: {} },
-      'POST /api/teams/acme/web/triage/snooze': { body: {} },
-      'POST /api/inbox/n1/read': { body: {} },
+      'POST /api/teams/acme/web/triage/assign': { body: { undo: token('t1') } },
+      'POST /api/teams/acme/web/triage/snooze': { body: { undo: token('t2') } },
+      'POST /api/teams/acme/web/undo/t1': { body: { undone: true } },
+      'POST /api/inbox/n1/read': { body: { undo: token('n-u1') } },
+      'POST /api/inbox/undo/n-u1': { body: { undone: true } },
     })
     await show()
     await openMenu()
@@ -669,31 +826,56 @@ describe('row actions', () => {
     await userEvent.keyboard('{Meta>}.{/Meta}')
     await page.getByRole('option', { name: 'Assign to me' }).click()
     await expect.element(toast().getByText('Assigned to you')).toBeVisible()
-    await useUndoStore.getState().flush()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toast().getByText('Undone')).toBeVisible()
     await openMenu()
     await userEvent.type(field(), 'summary')
     await page.getByRole('option', { name: /^Triage checkout\/summary/ }).hover()
     await userEvent.keyboard('{Meta>}.{/Meta}')
     await page.getByRole('option', { name: 'Snooze until tomorrow' }).click()
     await expect.element(toast().getByText('Snoozed until tomorrow')).toBeVisible()
-    await useUndoStore.getState().flush()
     await openMenu()
     await userEvent.type(field(), 'summary')
     await page.getByRole('option', { name: /^Inbox Ada mentioned you/ }).hover()
     await userEvent.keyboard('{Meta>}.{/Meta}')
     await page.getByRole('option', { name: 'Mark as read' }).click()
-    await useUndoStore.getState().flush()
-    const posts = calls.of('POST').map((c) => [c.path, c.body])
-    expect(posts).toEqual([
+    await expect.element(toast().getByText('Marked as read')).toBeVisible()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toast().getByText('Undone')).toBeVisible()
+    expect(posts(calls)).toEqual([
       [
         '/api/teams/acme/web/triage/assign',
         { kind: 'flaky', key: 'checkout/summary', assigneeId: 'u1' },
       ],
+      ['/api/teams/acme/web/undo/t1', {}],
       [
         '/api/teams/acme/web/triage/snooze',
         { kind: 'flaky', key: 'checkout/summary', choice: 'tomorrow' },
       ],
       ['/api/inbox/n1/read', { read: true }],
+      ['/api/inbox/undo/n-u1', {}],
+    ])
+  })
+
+  it('snoozes a review request, with Undo', async () => {
+    const calls = api(more, {
+      'POST /api/teams/acme/web/review-requests/r1/snooze': {
+        body: { id: 'r1', snoozeKind: 'tomorrow', snoozedUntil: null, undo: token('s1') },
+      },
+      'POST /api/teams/acme/web/undo/s1': { body: { undone: true } },
+    })
+    await show()
+    await openMenu()
+    await userEvent.type(field(), 'summary')
+    await page.getByRole('option', { name: /^Review request Review #148/ }).hover()
+    await userEvent.keyboard('{Meta>}.{/Meta}')
+    await page.getByRole('option', { name: 'Snooze until tomorrow' }).click()
+    await expect.element(toast().getByText('Snoozed until tomorrow')).toBeVisible()
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toast().getByText('Undone')).toBeVisible()
+    expect(posts(calls)).toEqual([
+      ['/api/teams/acme/web/review-requests/r1/snooze', { kind: 'tomorrow' }],
+      ['/api/teams/acme/web/undo/s1', {}],
     ])
   })
 })
@@ -741,6 +923,41 @@ describe('settings is closed', () => {
     await userEvent.type(field(), 'back')
     await userEvent.keyboard('{Enter}')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/inbox'))
+  })
+
+  it('remembers the app page while you are on it, and leaves settings back to it', async () => {
+    api()
+    const { router } = await show('/acme/web/builds/148', '/$workspace/$team/builds/$number')
+    await vi.waitFor(() =>
+      expect(useSettingsReturnStore.getState().app).toBe('/acme/web/builds/148'),
+    )
+    // Entering settings keeps it: only app pages are remembered.
+    router.history.push('/workspaces/acme/settings/members')
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/workspaces/acme/settings/members'),
+    )
+    expect(useSettingsReturnStore.getState().app).toBe('/acme/web/builds/148')
+  })
+
+  it('names the page you came from in Leave settings, and goes there', async () => {
+    api()
+    const { router } = await renderPage(
+      <ShortcutLayer>
+        <Opener />
+      </ShortcutLayer>,
+      {
+        announcer: true,
+        viewport: [1200, 800],
+        route: '/workspaces/$workspace/settings/members',
+        url: '/workspaces/acme/settings/members',
+        beforeRender: () => useSettingsReturnStore.getState().noteAppPage('/acme/web/builds/148'),
+      },
+    )
+    await openMenu()
+    await expect.element(page.getByRole('option', { name: /^Back to Build #148/ })).toBeVisible()
+    await userEvent.type(field(), 'back')
+    await userEvent.keyboard('{Enter}')
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
   })
 
   it('opens the same section list from a section name typed in the app', async () => {

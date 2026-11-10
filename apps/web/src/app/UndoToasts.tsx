@@ -33,7 +33,7 @@ export function UndoToasts() {
     >
       <span>{toast.message}</span>
       {toast.undoable ? (
-        <Button size="sm" variant="secondary" onClick={undo}>
+        <Button size="sm" variant="secondary" onClick={() => void undo()}>
           Undo
         </Button>
       ) : null}

@@ -7,6 +7,7 @@ import {
   DatabaseIcon,
   KeyboardIcon,
   LayersIcon,
+  NavItem,
   NavSection,
   ServerIcon,
   ShieldCheckIcon,
@@ -17,12 +18,14 @@ import {
   UsersIcon,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useRouterState } from '@tanstack/react-router'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { NavLink } from '#app/NavLink.tsx'
+import { returnTarget } from '#app/settings-return.ts'
 import { currentSection } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { useWorkspaces } from './use-workspaces.ts'
@@ -31,7 +34,7 @@ import styles from './SettingsNav.module.css'
 
 /**
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
- * sidebar: Back to app, then Account, Workspace (General, Members, Teams, ...) and, for the people
+ * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, Teams, ...) and, for the people
  * who run the instance, Instance. A team's own settings are not listed here: Teams opens them (a
  * team header with tabs). The workspace is the one in the address, else the last chosen.
  */
@@ -40,6 +43,11 @@ export function SettingsNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const { data: model } = useSidebarModel(workspace?.slug)
+  const router = useRouter()
+  const back = returnTarget(
+    useSettingsReturnStore((s) => s.app),
+    model?.teams,
+  )
   // A team's settings (`/<workspace>/<team>/settings/...`) belong to the Teams entry.
   const teamsSelected = currentSection(pathname) === 'team-settings'
   // Settings only owners and admins can change are left out for everyone else (their pages send them away).
@@ -47,9 +55,18 @@ export function SettingsNav() {
 
   return (
     <>
-      <NavLink to="/inbox" icon={<ChevronLeftIcon />} selected={false}>
-        Back to app
-      </NavLink>
+      <NavItem
+        href={back.path}
+        icon={<ChevronLeftIcon />}
+        onClick={(e) => {
+          // A plain click goes through the router (no reload); a new-tab click keeps the link.
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+          e.preventDefault()
+          router.history.push(back.path)
+        }}
+      >
+        {`Back to ${back.label}`}
+      </NavItem>
       <NavSection label="Account">
         <NavLink to="/account/profile" icon={<UserIcon />}>
           Profile

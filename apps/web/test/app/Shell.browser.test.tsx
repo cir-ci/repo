@@ -474,13 +474,13 @@ describe('Shell, keyboard', () => {
 })
 
 describe('Shell, settings', () => {
-  it('replaces the sidebar with the settings nav: Back to app, Account, Workspace', async () => {
+  it('replaces the sidebar with the settings nav: Back to Inbox, Account, Workspace', async () => {
     await page.viewport(1280, 800)
     await renderShell('/workspaces/acme/settings/members')
     const nav = page.getByRole('navigation', { name: 'Settings' })
     await expect.element(nav).toBeVisible()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
-    await expect.element(nav.getByRole('link', { name: 'Back to app' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
     await expect.element(nav.getByRole('region', { name: 'Account' })).toBeVisible()
     const workspace = nav.getByRole('region', { name: 'Workspace · Acme' })
     await expect.element(workspace).toBeVisible()

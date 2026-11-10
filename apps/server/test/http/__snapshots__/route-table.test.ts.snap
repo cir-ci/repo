@@ -170,6 +170,7 @@ POST /api/inbox/:id/read
 POST /api/inbox/:id/snooze
 POST /api/inbox/:id/unsnooze
 POST /api/inbox/read-all
+POST /api/inbox/undo/:id
 POST /api/instance/accounts
 POST /api/instance/accounts/:id/ban
 POST /api/instance/accounts/:id/reset-password
@@ -203,6 +204,7 @@ POST /api/teams/:workspace/:team/triage/assign
 POST /api/teams/:workspace/:team/triage/dismiss
 POST /api/teams/:workspace/:team/triage/rerun
 POST /api/teams/:workspace/:team/triage/snooze
+POST /api/teams/:workspace/:team/undo/:id
 POST /api/teams/:workspace/:team/webhooks
 POST /api/teams/:workspace/:team/webhooks/:id/test
 POST /api/workspaces

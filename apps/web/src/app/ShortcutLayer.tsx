@@ -9,9 +9,11 @@ import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentStore } from '#lib/stores/recent-store.ts'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useCopy } from '#lib/use-copy.ts'
 
+import { isAppPage } from './settings-return.ts'
 import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 import { UndoToasts } from './UndoToasts.tsx'
@@ -35,6 +37,12 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     select: (s) => ({ pathname: s.location.pathname, search: s.location.searchStr }),
   })
   const record = useRecentStore((s) => s.record)
+  const noteAppPage = useSettingsReturnStore((s) => s.noteAppPage)
+
+  // Settings' way back: the last page of the app, remembered while the person is on one.
+  useEffect(() => {
+    if (isAppPage(address.pathname)) noteAppPage(address.pathname + address.search)
+  }, [address.pathname, address.search, noteAppPage])
 
   // Recent: what was visited, per workspace, in this browser only.
   useEffect(() => {

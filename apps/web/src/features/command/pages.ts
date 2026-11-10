@@ -2,8 +2,17 @@ import type { Sidebar } from '@circi/api'
 import type { ColorMode } from '@circi/ui'
 
 import { switchWorkspacePath, type WorkspaceRef } from '#app/shell-model.ts'
+import { SHORTCUTS } from '#lib/shortcuts.ts'
 
-import type { Entry, IconKey, PageId, RowAction, Subject } from './entry.ts'
+import type {
+  Entry,
+  IconKey,
+  PageId,
+  Reviewer,
+  ReviewSubject,
+  RowAction,
+  Subject,
+} from './entry.ts'
 import { matchScore, THEME_CHOICES, wordsOf } from './model.ts'
 
 /**
@@ -17,6 +26,11 @@ export interface PageState {
   page: PageId
   /** The row whose actions are listed (page `row`). */
   entry?: Entry
+  /** The rejection that waits for its reason (page `reason`). */
+  action?: RowAction
+  /** The build a review is asked for, and who is ticked so far (page `reviewers`). */
+  subject?: ReviewSubject
+  picked?: Reviewer[]
 }
 
 export const PAGE_META: Record<
@@ -31,6 +45,8 @@ export const PAGE_META: Record<
   },
   theme: { chip: 'Theme', placeholder: 'Choose a theme', noun: ['theme', 'themes'] },
   row: { chip: 'Actions', placeholder: 'Find an action', noun: ['action', 'actions'] },
+  reason: { chip: 'Reject', placeholder: 'Why are you rejecting this?', noun: ['row', 'rows'] },
+  reviewers: { chip: 'Request review', placeholder: 'Find a person', noun: ['person', 'people'] },
 }
 
 export interface PageInput {
@@ -41,6 +57,10 @@ export interface PageInput {
   /** The team of the address, which is the current choice of Switch team. */
   routeTeam: string | undefined
   theme: ColorMode
+  /** The team's people (page `reviewers`), who is signed in, and the build author's name, both left out of the list. */
+  members?: readonly Reviewer[] | undefined
+  meId?: string | undefined
+  authorName?: string | null | undefined
 }
 
 const enc = encodeURIComponent
@@ -137,7 +157,93 @@ export function pageEntries(state: PageState, input: PageInput, query: string): 
       ),
     ).filter(keep)
   }
+  if (state.page === 'reason') return reasonEntries(state.action, query)
+  if (state.page === 'reviewers') return reviewerEntries(state, input).filter(keep)
   return state.entry ? rowActionEntries(state.entry).filter(keep) : []
+}
+
+/** The one row of the reason step: Enter rejects with what is typed (nothing happens while it is empty). */
+function reasonEntries(rejection: RowAction | undefined, query: string): Entry[] {
+  if (rejection?.type !== 'review') return []
+  const reason = query.trim()
+  if (reason === '') {
+    return [
+      {
+        id: 'reason:empty',
+        group: '',
+        kind: 'action',
+        label: 'Type a reason to reject',
+        icon: 'reject',
+        target: { type: 'noop' },
+        peek: {
+          kind: 'Action',
+          title: 'Reject',
+          lines: [`${rejection.subject.label} needs a reason to be rejected.`],
+          rows: [],
+        },
+      },
+    ]
+  }
+  return [
+    {
+      id: 'reason:reject',
+      group: '',
+      kind: 'action',
+      label: 'Reject with this reason',
+      detail: reason,
+      icon: 'reject',
+      target: { type: 'run', action: { ...rejection, reason } },
+      peek: {
+        kind: 'Action',
+        title: 'Reject',
+        lines: [`Rejects ${rejection.subject.label} with your reason.`],
+        rows: [{ label: 'Reason', value: reason }],
+      },
+    },
+  ]
+}
+
+/** The people a review can be asked of: the team, without you and the build's author; ticked ones are checked. */
+function reviewerEntries(state: PageState, input: PageInput): Entry[] {
+  const subject = state.subject
+  if (!subject) return []
+  const picked = state.picked ?? []
+  const author = input.authorName?.toLowerCase()
+  const rows: Entry[] = (input.members ?? [])
+    .filter((m) => m.id !== input.meId && m.name.toLowerCase() !== author)
+    .map((m) => {
+      const ticked = picked.some((p) => p.id === m.id)
+      return choice(
+        `reviewer:${m.id}`,
+        m.name,
+        false,
+        { type: 'reviewer', reviewer: { id: m.id, name: m.name }, subject },
+        'person',
+        picked.length > 0
+          ? `Press Enter to ${ticked ? 'untick' : 'tick'} ${m.name}.`
+          : `Asks ${m.name} to review ${subject.label}. Press ⇧↵ to pick several people.`,
+        ticked ? { checked: true, detail: 'Selected' } : {},
+      )
+    })
+  if (picked.length === 0) return rows
+  const names = picked.map((p) => p.name).join(', ')
+  return [
+    {
+      id: 'reviewers:ask',
+      group: '',
+      kind: 'action',
+      label: `Request review from ${picked.length === 1 ? names : `${picked.length} people`}`,
+      icon: 'person',
+      target: { type: 'run', action: { type: 'requestReview', subject, reviewers: picked } },
+      peek: {
+        kind: 'Action',
+        title: 'Request review',
+        lines: [`Asks ${names} to review ${subject.label}.`],
+        rows: [],
+      },
+    },
+    ...rows,
+  ]
 }
 
 // Row actions ------------------------------------------------------------------------------
@@ -170,10 +276,41 @@ export function rowActionEntries(entry: Entry): Entry[] {
         'reject',
         'Reject',
         'reject',
-        { type: 'review', subject, decision: 'rejected' },
-        `Rejects ${name}.`,
+        { type: 'review', subject, decision: 'rejected', names: 'undecided' },
+        `Rejects the screenshots of ${name} that have no decision yet.`,
       ),
     )
+    if (subject.type === 'build') {
+      rows.push({
+        ...action(
+          'request-review',
+          'Request review…',
+          'person',
+          { type: 'requestReview', subject, reviewers: [] },
+          `Asks someone to review ${name}.`,
+        ),
+        target: { type: 'page', page: 'reviewers', subject },
+        chevron: true,
+      })
+    }
+    if (subject.type === 'review') {
+      rows.push(
+        action(
+          'snooze-request-tomorrow',
+          'Snooze until tomorrow',
+          'snooze',
+          { type: 'snoozeRequest', subject, choice: 'tomorrow' },
+          'Hides the request until tomorrow.',
+        ),
+        action(
+          'snooze-request-week',
+          'Snooze until next week',
+          'snooze',
+          { type: 'snoozeRequest', subject, choice: 'next_week' },
+          'Hides the request until next week.',
+        ),
+      )
+    }
   }
   if (subject?.type === 'triage') {
     rows.push(
@@ -256,3 +393,30 @@ export function rowActionEntries(entry: Entry): Entry[] {
 /** Whether ⌘. has anything to list for a row. */
 export const hasRowActions = (entry: Entry | undefined): boolean =>
   entry !== undefined && (entry.path !== undefined || entry.subject !== undefined)
+
+/**
+ * What a build page's registry action does when run from the menu: the decision (on the screenshot
+ * in the address, else the ones with no decision yet), or `page` for the people list of Request
+ * review. Undefined for keys that are not one of those, which the page handles itself.
+ */
+export function buildPageAction(
+  key: string,
+  build: { workspace: string; team: string; number: number; shot?: string | undefined },
+): RowAction | { page: 'reviewers'; subject: ReviewSubject } | undefined {
+  const type = SHORTCUTS.find((s) => s.key === key)?.action.type
+  const subject: ReviewSubject = {
+    type: 'build',
+    workspace: build.workspace,
+    team: build.team,
+    number: build.number,
+    label: `build #${build.number}`,
+  }
+  const names = build.shot ? [build.shot] : 'undecided'
+  if (type === 'approve') return { type: 'review', subject, decision: 'approved', names }
+  if (type === 'approveAll') {
+    return { type: 'review', subject, decision: 'approved', names: 'undecided' }
+  }
+  if (type === 'reject') return { type: 'review', subject, decision: 'rejected', names }
+  if (type === 'requestReview') return { page: 'reviewers', subject }
+  return undefined
+}

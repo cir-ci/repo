@@ -85,7 +85,8 @@ export namespace Build {
 
   /** `POST …/builds/:number/snapshots/review`. */
   export interface SnapshotReviewInput {
-    snapshotNames: string[]
+    /** Some screenshots by name, or `undecided` for every changed one with no decision yet. */
+    snapshotNames: string[] | 'undecided'
     decision: ReviewState
     reason?: string
   }

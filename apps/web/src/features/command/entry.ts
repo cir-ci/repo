@@ -80,7 +80,7 @@ export type ChipKind =
 export type Chip = { type: 'kind'; kind: ChipKind } | { type: 'team'; slug: string; name: string }
 
 /** The nested lists a row with a chevron opens, and the actions of one row. */
-export type PageId = 'team' | 'workspace' | 'theme' | 'row'
+export type PageId = 'team' | 'workspace' | 'theme' | 'row' | 'reason' | 'reviewers'
 
 /** What a row's actions work on: what the search result knows about the thing. */
 export type Subject =
@@ -105,12 +105,32 @@ export type Subject =
   | { type: 'link'; label: string }
 
 export type ReviewSubject = Extract<Subject, { type: 'build' | 'review' }>
+export type RequestSubject = Extract<Subject, { type: 'review' }>
+
+/** Someone a review can be asked of. */
+export interface Reviewer {
+  id: string
+  name: string
+}
 export type TriageSubject = Extract<Subject, { type: 'triage' }>
 export type NoticeSubject = Extract<Subject, { type: 'notice' }>
 
 /** One thing a row's actions list (⌘.) can do. */
 export type RowAction =
-  | { type: 'review'; subject: ReviewSubject; decision: 'approved' | 'rejected' }
+  | {
+      type: 'review'
+      subject: ReviewSubject
+      decision: 'approved' | 'rejected'
+      /**
+       * Which screenshots: some by name, or the ones with no decision yet. Left out: the whole
+       * build, replacing earlier decisions.
+       */
+      names?: string[] | 'undecided'
+      /** Why it is rejected; a team that requires one asks for it first. */
+      reason?: string
+    }
+  | { type: 'requestReview'; subject: ReviewSubject; reviewers: Reviewer[] }
+  | { type: 'snoozeRequest'; subject: RequestSubject; choice: SnoozeUntil }
   | { type: 'assignMe'; subject: TriageSubject }
   | { type: 'snoozeTriage'; subject: TriageSubject; choice: SnoozeUntil }
   | { type: 'dismissTriage'; subject: TriageSubject }
@@ -172,7 +192,9 @@ export namespace Entry {
     | { type: 'path'; path: string }
     | { type: 'key'; key: string }
     | { type: 'theme'; mode: ColorMode }
-    | { type: 'page'; page: PageId }
+    | { type: 'page'; page: PageId; subject?: ReviewSubject; action?: RowAction }
+    | { type: 'reviewer'; reviewer: Reviewer; subject: ReviewSubject }
+    | { type: 'noop' }
     | { type: 'chip'; chip: Chip }
     | { type: 'widen' }
     | { type: 'clear' }

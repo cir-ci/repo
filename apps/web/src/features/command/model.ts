@@ -715,6 +715,8 @@ export interface ListInput {
   now: number
   /** How many screenshots changed in the build on screen, when it has been loaded. */
   changed?: number | undefined
+  /** Where Leave settings goes: the page of the app the person came from (the Inbox without one). */
+  leave?: { path: string; label: string } | undefined
 }
 
 export interface TypedState {
@@ -1062,18 +1064,19 @@ function settingsList(
     words.length === 0
       ? rows
       : rows.filter((e) => matchScore({ label: e.label, keywords: e.keywords ?? [] }, words) > 0)
+  const back = input.leave ?? { path: LEAVE_PATH, label: 'Inbox' }
   const leave: Entry = {
     id: 'settings:leave',
     group: LEAVE_SETTINGS,
     kind: 'action',
-    label: 'Back to app',
+    label: `Back to ${back.label}`,
     icon: 'back',
-    target: { type: 'path', path: LEAVE_PATH },
-    keywords: ['leave', 'exit', 'close', 'settings'],
+    target: { type: 'path', path: back.path },
+    keywords: ['leave', 'exit', 'close', 'settings', 'back'],
     peek: {
       kind: 'Action',
-      title: 'Back to app',
-      lines: ['Leaves settings and goes back to the app.'],
+      title: `Back to ${back.label}`,
+      lines: [`Leaves settings and goes back to ${back.label}.`],
       rows: [],
     },
   }

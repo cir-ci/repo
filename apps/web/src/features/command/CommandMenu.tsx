@@ -4,11 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
+import { returnTarget } from '#app/settings-return.ts'
 import { currentSection, isSettingsSection, type WorkspaceRef } from '#app/shell-model.ts'
+import { buildQuery } from '#features/builds/api/index.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
+import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { keys } from '#lib/query-keys.ts'
 import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useUndoStore } from '#lib/stores/undo-store.ts'
 import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
@@ -16,7 +20,7 @@ import { clipboard } from '#lib/use-copy.ts'
 import { NARROWED_LIMIT, useDebounced, useSearchResults } from './api.ts'
 import { CommandPeek } from './CommandPeek.tsx'
 import { CommandRow } from './CommandRow.tsx'
-import type { Chip, Entry } from './entry.ts'
+import type { Chip, Entry, RowAction } from './entry.ts'
 import {
   buildList,
   flatten,
@@ -31,6 +35,7 @@ import {
   wrapIndex,
 } from './model.ts'
 import {
+  buildPageAction,
   hasRowActions,
   PAGE_META,
   type PageState,
@@ -47,7 +52,7 @@ import {
   sameChip,
   withoutLastChip,
 } from './query.ts'
-import { performAction } from './row-actions.ts'
+import { needsReason, performAction, rejectNeedsReason } from './row-actions.ts'
 
 import styles from './CommandMenu.module.css'
 
@@ -88,6 +93,7 @@ export function CommandMenu({
   const { data: session } = authClient.useSession()
   const chooseWorkspace = useWorkspaceStore((s) => s.choose)
   const recents = useRecentStore((s) => (workspace ? s.byWorkspace[workspace] : undefined))
+  const returnedApp = useSettingsReturnStore((s) => s.app)
 
   const [text, setText] = useState('')
   const [chips, setChips] = useState<Chip[]>([])
@@ -100,6 +106,21 @@ export function CommandMenu({
   const page = stack.at(-1)
   const now = Date.now()
   const [tip, setTip] = useState(0)
+
+  const search = useRouterState({ select: (s) => s.location.search })
+  const reviewersFor = page?.page === 'reviewers' ? page.subject : undefined
+  const { data: members } = useQuery({
+    ...teamMembersQuery(reviewersFor?.workspace ?? '', reviewersFor?.team ?? ''),
+    enabled: reviewersFor !== undefined,
+  })
+  const { data: reviewedBuild } = useQuery({
+    ...buildQuery(
+      reviewersFor?.workspace ?? '',
+      reviewersFor?.team ?? '',
+      reviewersFor?.number ?? 0,
+    ),
+    enabled: reviewersFor !== undefined,
+  })
 
   const inSettings = isSettingsSection(currentSection(pathname))
   const input: ListInput = {
@@ -116,6 +137,7 @@ export function CommandMenu({
     recents: recents ?? NO_RECENTS,
     now,
     changed: changedCount(queryClient.getQueryData(buildKey(params)), params),
+    leave: returnTarget(returnedApp, teams),
   }
   const q = text.trim()
   const kind = kindChip(chips)
@@ -152,6 +174,9 @@ export function CommandMenu({
               workspaces,
               routeTeam: view.context.team?.slug ?? params.team,
               theme: mode,
+              members: members?.members,
+              meId: session?.user.id,
+              authorName: reviewedBuild?.build.author?.name,
             },
             text,
           ),
@@ -219,7 +244,7 @@ export function CommandMenu({
     onOpenChange(false)
   }
 
-  function runAction(entry: Entry & { target: { type: 'run' } }) {
+  function perform(action: RowAction) {
     const ctx = {
       queryClient,
       me: session?.user,
@@ -234,10 +259,61 @@ export function CommandMenu({
       },
       openTab: (url: string) => window.open(url, '_blank', 'noopener'),
     }
-    void performAction(entry.target.action, ctx).then((toast) => {
+    void performAction(action, ctx).then((toast) => {
       if (toast.message) useUndoStore.getState().show(toast)
     })
     onOpenChange(false)
+  }
+
+  /** Rejecting asks for a reason first when the team requires one; everything else goes at once. */
+  function runAction(action: RowAction) {
+    if (!needsReason(action)) {
+      perform(action)
+      return
+    }
+    void rejectNeedsReason(queryClient, action.subject).then((required) => {
+      if (!required) {
+        perform(action)
+        return
+      }
+      setStack((s) => [...s, { page: 'reason', action }])
+      setText('')
+      setActive(0)
+    })
+  }
+
+  function toggleReviewer(reviewer: { id: string; name: string }) {
+    setStack((s) =>
+      s.map((p, i) => {
+        if (i !== s.length - 1 || p.page !== 'reviewers') return p
+        const picked = p.picked ?? []
+        return {
+          ...p,
+          picked: picked.some((r) => r.id === reviewer.id)
+            ? picked.filter((r) => r.id !== reviewer.id)
+            : [...picked, reviewer],
+        }
+      }),
+    )
+  }
+
+  /** The build page's own actions run here, so they undo like the rest (and Reject asks for a reason). */
+  function buildPageRun(key: string): boolean {
+    if (!params.workspace || !params.team || !params.number) return false
+    const shot = typeof search.shot === 'string' ? search.shot : undefined
+    const found = buildPageAction(key, {
+      workspace: params.workspace,
+      team: params.team,
+      number: Number(params.number),
+      shot,
+    })
+    if (!found) return false
+    if ('page' in found) {
+      setStack((s) => [...s, { page: found.page, subject: found.subject }])
+      setText('')
+      setActive(0)
+    } else runAction(found)
+    return true
   }
 
   function choose(entry: Entry) {
@@ -270,6 +346,7 @@ export function CommandMenu({
         onOpenChange(false)
         return
       case 'key': {
+        if (buildPageRun(target.key)) return
         // A registry action runs through the shortcut layer once the menu has closed, so a dialog
         // it opens is not closed again by the menu giving focus back. The keys are sent from the
         // page body: sent to the window they are judged by the focused element, which is still
@@ -289,7 +366,14 @@ export function CommandMenu({
         onOpenChange(false)
         return
       case 'page':
-        setStack((s) => [...s, { page: target.page }])
+        setStack((s) => [
+          ...s,
+          {
+            page: target.page,
+            ...(target.subject ? { subject: target.subject } : {}),
+            ...(target.action ? { action: target.action } : {}),
+          },
+        ])
         setText('')
         setActive(0)
         return
@@ -309,7 +393,18 @@ export function CommandMenu({
         retry()
         return
       case 'run':
-        runAction({ ...entry, target })
+        runAction(target.action)
+        return
+      case 'reviewer':
+        if ((page?.picked ?? []).length > 0) toggleReviewer(target.reviewer)
+        else
+          runAction({
+            type: 'requestReview',
+            subject: target.subject,
+            reviewers: [target.reviewer],
+          })
+        return
+      case 'noop':
         return
     }
   }
@@ -321,6 +416,12 @@ export function CommandMenu({
   }
 
   function type(value: string) {
+    if (page?.page === 'reason') {
+      // The text is the reason, whatever it starts with.
+      setText(value)
+      setActive(0)
+      return
+    }
     const typed = readTyped(value, chips, teams)
     setChips(typed.chips)
     setText(typed.text)
@@ -339,7 +440,9 @@ export function CommandMenu({
     else if (e.key === 'Enter') {
       e.preventDefault()
       if (!highlighted) return
-      if (!mod) choose(highlighted)
+      if (e.shiftKey && highlighted.target.type === 'reviewer') {
+        toggleReviewer(highlighted.target.reviewer)
+      } else if (!mod) choose(highlighted)
       else if (highlighted.kind === 'widen' || (!highlighted.path && scope && q !== '')) widen()
       else if (highlighted.path) openTab(highlighted.path)
       else choose(highlighted)
@@ -347,10 +450,7 @@ export function CommandMenu({
       e.preventDefault()
       e.stopPropagation()
       if (highlighted?.path) {
-        runAction({
-          ...highlighted,
-          target: { type: 'run', action: { type: 'copyLink', path: highlighted.path } },
-        })
+        runAction({ type: 'copyLink', path: highlighted.path })
       }
     } else if (mod && e.key === '.') {
       e.preventDefault()
