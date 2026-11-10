@@ -314,7 +314,6 @@ function RegionComposer({
 }: RegionComposer.Props) {
   const [body, setBody] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
-  const errorId = useId()
   const text = body.trim()
   const empty = text === '' && !sending
 
@@ -359,18 +358,14 @@ function RegionComposer({
         members={members}
         inputRef={field}
         className={styles.field}
-        aria-label="Comment"
-        aria-describedby={error ? errorId : undefined}
+        label="Comment"
+        hideLabel
+        error={error}
         placeholder="Leave a comment. @ mentions a member."
         rows={2}
         value={body}
         onChange={setBody}
       />
-      {error ? (
-        <span id={errorId} role="alert" className={styles.error}>
-          {error}
-        </span>
-      ) : null}
       <div className={styles.actions}>
         <PopoverClose size="sm" variant="ghost">
           Cancel <Kbd>Esc</Kbd>

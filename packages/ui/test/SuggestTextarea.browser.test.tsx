@@ -123,4 +123,45 @@ describe('SuggestTextarea', () => {
     expect(box.top).toBeGreaterThanOrEqual(0)
     expect(box.bottom).toBeLessThanOrEqual(window.innerHeight)
   })
+
+  it('with a label it is a Field: named by the label, described, and invalid with an announced error', async () => {
+    await render(
+      <SuggestTextarea
+        label="Comment"
+        description="Plain text."
+        listLabel="Members"
+        value=""
+        onChange={() => {}}
+        suggestions={[]}
+        open={false}
+        onDismiss={() => {}}
+        onPick={() => {}}
+      />,
+    )
+    const field = page.getByRole('textbox', { name: 'Comment' })
+    await expect.element(field).toHaveAccessibleDescription('Plain text.')
+    await expect.element(field).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows an error in place of the description, announced, with aria-invalid', async () => {
+    await render(
+      <SuggestTextarea
+        label="Comment"
+        hideLabel
+        description="Plain text."
+        error="Couldn't send"
+        listLabel="Members"
+        value=""
+        onChange={() => {}}
+        suggestions={[]}
+        open={false}
+        onDismiss={() => {}}
+        onPick={() => {}}
+      />,
+    )
+    const field = page.getByRole('textbox', { name: 'Comment' })
+    await expect.element(field).toBeInvalid()
+    await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't send")
+    await expect.element(field).toHaveAccessibleDescription("Couldn't send")
+  })
 })

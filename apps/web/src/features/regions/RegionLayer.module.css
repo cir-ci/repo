@@ -148,11 +148,6 @@
   outline-offset: 2px;
 }
 
-.error {
-  color: var(--circi-text-secondary);
-  font-size: 12px;
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;

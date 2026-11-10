@@ -1,5 +1,5 @@
-import { FormDialog, Text } from '@circi/ui'
-import { type ReactNode, useId, useRef, useState } from 'react'
+import { FormDialog, TextArea } from '@circi/ui'
+import { type ReactNode, useRef, useState } from 'react'
 
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
@@ -24,9 +24,7 @@ export function ReasonDialog({
 }: ReasonDialog.Props) {
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
-  const fieldId = useId()
   const field = useRef<HTMLTextAreaElement>(null)
-  const errorId = `${fieldId}-error`
   const trimmed = reason.trim()
   const invalid = required && touched && trimmed === ''
 
@@ -59,18 +57,14 @@ export function ReasonDialog({
       initialFocus={field}
       formClassName={styles.form}
     >
-      <label htmlFor={fieldId} className={styles.label}>
-        <Text variant="small">{required ? 'Reason' : 'Reason (optional)'}</Text>
-      </label>
-      <textarea
-        id={fieldId}
-        ref={field}
-        className={styles.textarea}
+      <TextArea
+        label={required ? 'Reason' : 'Reason (optional)'}
+        inputRef={field}
         value={reason}
         rows={4}
         aria-required={required ? true : undefined}
-        aria-invalid={invalid ? true : undefined}
-        aria-describedby={invalid ? errorId : undefined}
+        error={invalid ? invalidMessage : undefined}
+        description={hint}
         placeholder="What needs to change?"
         onChange={(e) => setReason(e.target.value)}
         onBlur={() => setTouched(true)}
@@ -81,15 +75,6 @@ export function ReasonDialog({
           }
         }}
       />
-      {invalid ? (
-        <Text id={errorId} variant="small" tone="failed" role="alert">
-          {invalidMessage}
-        </Text>
-      ) : hint ? (
-        <Text variant="small" tone="secondary">
-          {hint}
-        </Text>
-      ) : null}
     </FormDialog>
   )
 }

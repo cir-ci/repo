@@ -1,4 +1,5 @@
 import { Autocomplete as BaseAutocomplete } from '@base-ui/react/autocomplete'
+import { Field } from '@base-ui/react/field'
 import {
   type ComponentPropsWithoutRef,
   type KeyboardEvent,
@@ -6,6 +7,9 @@ import {
   type Ref,
   useRef,
 } from 'react'
+
+import { cx } from './cx.ts'
+import { visuallyHidden } from './theme.ts'
 
 import styles from './SuggestTextarea.module.css'
 
@@ -19,6 +23,10 @@ import styles from './SuggestTextarea.module.css'
  *
  * The caller owns the text and what is suggested (it finds the word being completed and narrows
  * the options itself): the control does no filtering and writes nothing into the text on a pick.
+ *
+ * With a `label` the textarea sits in Base UI's `Field`, like `TextField`: the label, the
+ * description and the error are wired to it (`for`, `aria-describedby`, `aria-invalid`), and an
+ * `error` is announced and makes the field invalid. Without one, name it with `aria-label`.
  */
 export function SuggestTextarea({
   suggestions,
@@ -31,12 +39,18 @@ export function SuggestTextarea({
   onKeyDown,
   inputRef,
   className,
+  label,
+  hideLabel,
+  description,
+  error,
+  above,
+  fieldClassName,
   ...rest
 }: SuggestTextarea.Props) {
   const highlighted = useRef<SuggestTextarea.Suggestion | undefined>(undefined)
   const shown = open && suggestions.length > 0
 
-  return (
+  const picker = (
     <BaseAutocomplete.Root
       items={suggestions}
       itemToStringValue={(s) => s.id}
@@ -103,6 +117,23 @@ export function SuggestTextarea({
       </BaseAutocomplete.Portal>
     </BaseAutocomplete.Root>
   )
+  if (label === undefined) return picker
+  return (
+    <Field.Root invalid={error ? true : undefined} className={cx(styles.field, fieldClassName)}>
+      <Field.Label className={styles.label} style={hideLabel ? visuallyHidden : undefined}>
+        {label}
+      </Field.Label>
+      {above}
+      {picker}
+      {error ? (
+        <Field.Error match role="alert" className={styles.error}>
+          {error}
+        </Field.Error>
+      ) : description ? (
+        <Field.Description className={styles.description}>{description}</Field.Description>
+      ) : null}
+    </Field.Root>
+  )
 }
 
 export namespace SuggestTextarea {
@@ -130,6 +161,18 @@ export namespace SuggestTextarea {
     /** Names the list for assistive tech. */
     listLabel: string
     inputRef?: Ref<HTMLTextAreaElement> | undefined
+    /** Names the field and puts it in a `Field` (with `description` and `error`). */
+    label?: ReactNode
+    /** Hide the label visually; it still names the field for assistive tech. */
+    hideLabel?: boolean
+    /** Help under the field; hidden while there is an `error`. */
+    description?: ReactNode
+    /** Makes the field invalid and replaces the description. */
+    error?: ReactNode
+    /** Something between the label and the field (the thing being replied to). */
+    above?: ReactNode
+    /** On the `Field` wrapper, for layout. */
+    fieldClassName?: string
     className?: string | undefined
   }
 }

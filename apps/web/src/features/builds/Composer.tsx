@@ -43,14 +43,11 @@ export function Composer(props: Composer.Props) {
 
   return (
     <div className={styles.composer}>
-      <label htmlFor={id}>
-        <Text variant="small" tone="secondary">
-          {label}
-        </Text>
-      </label>
-      {props.context}
       <MentionField
         id={id}
+        label={label}
+        above={props.context}
+        error={props.error}
         members={members}
         inputRef={inputRef}
         className={styles.textarea}
@@ -67,11 +64,6 @@ export function Composer(props: Composer.Props) {
           }
         }}
       />
-      {props.error ? (
-        <Text variant="small" tone="failed" role="alert">
-          {props.error}
-        </Text>
-      ) : null}
       <div className={styles.actions}>
         <Button
           variant="primary"

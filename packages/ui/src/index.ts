@@ -10,6 +10,7 @@ export { Sheet } from './Sheet.js'
 export { BottomBar, BottomBarItem } from './BottomBar.js'
 export { CommandDialog } from './CommandDialog.js'
 export { TextField } from './TextField.js'
+export { TextArea } from './TextArea.js'
 export { NumberField } from './NumberField.js'
 export { STATUS_LABEL, type Status, StatusIcon } from './StatusIcon.js'
 export {

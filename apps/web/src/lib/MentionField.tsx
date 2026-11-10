@@ -71,10 +71,13 @@ export function MentionField(props: MentionField.Props) {
 }
 
 export namespace MentionField {
-  export interface Props extends Omit<
-    React.ComponentPropsWithoutRef<'textarea'>,
-    'value' | 'onChange' | 'onKeyDown' | 'role' | 'ref'
-  > {
+  export interface Props
+    extends
+      Omit<
+        React.ComponentPropsWithoutRef<'textarea'>,
+        'value' | 'onChange' | 'onKeyDown' | 'role' | 'ref'
+      >,
+      Pick<SuggestTextarea.Props, 'label' | 'hideLabel' | 'description' | 'error' | 'above'> {
     members: readonly Mention.Member[]
     value: string
     onChange: (value: string) => void

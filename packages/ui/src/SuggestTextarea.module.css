@@ -38,3 +38,32 @@
 .item[data-highlighted] {
   background: var(--circi-accent-subtle);
 }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.description,
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.description {
+  color: var(--circi-text-tertiary);
+}
+
+.error {
+  color: var(--circi-state-failed-text);
+}
