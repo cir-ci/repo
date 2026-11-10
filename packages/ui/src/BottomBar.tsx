@@ -1,4 +1,4 @@
-import type { MouseEventHandler, ReactNode } from 'react'
+import type { ComponentPropsWithRef, MouseEventHandler, ReactNode } from 'react'
 
 import styles from './BottomBar.module.css'
 
@@ -16,7 +16,18 @@ export function BottomBar({ label, children }: BottomBar.Props) {
 }
 
 /** One tab: an icon over a label, a count badge, `selected` for the current page. A link with `href`, else a button. */
-export function BottomBarItem(props: BottomBarItem.Props) {
+export function BottomBarItem({
+  children,
+  icon,
+  href,
+  onClick,
+  selected,
+  count,
+  countLabel,
+  opensSheet,
+  ...rest
+}: BottomBarItem.Props) {
+  const props = { children, icon, count, countLabel }
   const content = (
     <>
       <span className={styles.icon} aria-hidden="true">
@@ -35,16 +46,17 @@ export function BottomBarItem(props: BottomBarItem.Props) {
   )
   const common = {
     className: styles.item,
-    onClick: props.onClick,
-    'aria-current': props.selected ? ('page' as const) : undefined,
-    'data-selected': props.selected ? '' : undefined,
+    onClick,
+    'aria-current': selected ? ('page' as const) : undefined,
+    'data-selected': selected ? '' : undefined,
   }
-  return props.href ? (
-    <a {...common} href={props.href}>
+  return href ? (
+    <a {...common} href={href}>
       {content}
     </a>
   ) : (
-    <button {...common} type="button" aria-haspopup={props.opensSheet ? 'dialog' : undefined}>
+    // A button tab passes the rest on, so it can be a menu's trigger (`render`).
+    <button type="button" aria-haspopup={opensSheet ? 'dialog' : undefined} {...rest} {...common}>
       {content}
     </button>
   )
@@ -59,7 +71,10 @@ export namespace BottomBar {
 }
 
 export namespace BottomBarItem {
-  export interface Props {
+  export interface Props extends Omit<
+    ComponentPropsWithRef<'button'>,
+    'children' | 'onClick' | 'className'
+  > {
     children: ReactNode
     icon: ReactNode
     href?: string

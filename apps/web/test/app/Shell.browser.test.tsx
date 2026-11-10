@@ -985,7 +985,7 @@ describe('Shell, narrow', () => {
           'Account settings',
         ]),
       )
-      // What the Teams sheet and the team page's tabs now hold is not repeated here.
+      // What the Teams menu and the team page's tabs now hold is not repeated here.
       expect(list.getByRole('link', { name: 'Baselines' }).elements()).toHaveLength(0)
       expect(list.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
       expect(list.getByRole('link', { name: /^(web-app|api|storybook)/ }).elements()).toHaveLength(
@@ -1045,49 +1045,41 @@ describe('Shell, narrow', () => {
       expect(tab.element().getBoundingClientRect().width).toBeLessThanOrEqual(390 / 5 + 1)
     })
 
-    it('opens a sheet of your teams: pinned first, grouped by workspace, with triage counts', async () => {
+    it('opens a menu of your teams: pinned first, then by workspace, with triage counts', async () => {
       await page.viewport(390, 844)
       await renderShell('/inbox')
       await tabs().getByRole('button', { name: 'Teams' }).click()
-      const sheet = page.getByRole('dialog', { name: 'Teams' })
-      await expect.element(sheet).toBeVisible()
-      await expect.element(sheet.getByText('Pinned', { exact: true })).toBeVisible()
-      await expect
-        .element(
-          sheet.getByRole('group', { name: 'Pinned' }).getByRole('link', { name: /^web-app/ }),
-        )
-        .toBeVisible()
-      await expect
-        .element(sheet.getByRole('link', { name: /^web-app.* 4 items to triage$/ }))
-        .toBeVisible()
-      const names = sheet
-        .getByRole('link')
+      const menu = page.getByRole('menu')
+      await expect.element(menu).toBeVisible()
+      const names = menu
+        .getByRole('menuitem')
         .elements()
-        .map((el) => el.getAttribute('href'))
-      expect(names).toEqual([
-        '/acme/web-app',
-        '/acme/api',
-        '/acme/storybook',
-        '/globex/portal',
-        '/',
-      ])
-      // One group per workspace, after Pinned.
-      await expect.element(sheet.getByRole('group', { name: 'Acme' })).toBeVisible()
-      await expect.element(sheet.getByRole('group', { name: 'Globex' })).toBeVisible()
-      for (const row of sheet.getByRole('link').elements())
-        expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+        .map((el) => el.textContent?.trim())
+      expect(
+        names.map((n) =>
+          n
+            ?.split(/[0-9·]/)[0]
+            ?.replace('Acme', '')
+            .trim(),
+        ),
+      ).toEqual(['web-app', 'api', 'storybook', 'portal', 'All teams'])
+      // The pinned team from a workspace of several names its workspace, with its count.
+      await expect.element(menu.getByRole('menuitem', { name: /^web-app/ })).toHaveTextContent(/4/)
+      // A separator between the groups and before All teams.
+      expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(3)
     })
 
-    it('lists one workspace flat, with no group names', async () => {
+    it('lists one workspace with no separators between teams', async () => {
       API['/api/teams'] = {
         teams: [overview('acme', 'Acme', 'web-app'), overview('acme', 'Acme', 'api')],
       }
       await page.viewport(390, 844)
       await renderShell('/inbox')
       await tabs().getByRole('button', { name: 'Teams' }).click()
-      const sheet = page.getByRole('dialog', { name: 'Teams' })
-      await expect.element(sheet.getByRole('link', { name: /^api/ })).toBeVisible()
-      expect(sheet.getByRole('group').elements()).toHaveLength(0)
+      const menu = page.getByRole('menu')
+      await expect.element(menu.getByRole('menuitem', { name: /^api/ })).toBeVisible()
+      // Only the one before All teams.
+      expect(menu.getByRole('separator').elements()).toHaveLength(1)
     })
 
     it('opens the chosen team and closes', async () => {
@@ -1095,21 +1087,18 @@ describe('Shell, narrow', () => {
       const { router } = await renderShell('/inbox')
       await tabs().getByRole('button', { name: 'Teams' }).click()
       await page
-        .getByRole('dialog', { name: 'Teams' })
-        .getByRole('link', { name: /^portal/ })
+        .getByRole('menu')
+        .getByRole('menuitem', { name: /^portal/ })
         .click()
       await expect.poll(() => router.state.location.pathname).toBe('/globex/portal')
-      await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+      await expect.poll(() => page.getByRole('menu').elements().length).toBe(0)
     })
 
-    it('keeps an All teams link to the Teams page', async () => {
+    it('keeps an All teams item that opens the Teams page', async () => {
       await page.viewport(390, 844)
       const { router } = await renderShell('/acme/web-app/triage')
       await tabs().getByRole('button', { name: 'Teams' }).click()
-      await page
-        .getByRole('dialog', { name: 'Teams' })
-        .getByRole('link', { name: 'All teams' })
-        .click()
+      await page.getByRole('menu').getByRole('menuitem', { name: 'All teams' }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/')
       await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
     })
@@ -1118,7 +1107,7 @@ describe('Shell, narrow', () => {
       await page.viewport(1280, 800)
       await renderShell('/inbox')
       await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
-      expect(page.getByRole('dialog', { name: 'Teams' }).elements()).toHaveLength(0)
+      expect(page.getByRole('navigation', { name: 'Pages' }).elements()).toHaveLength(0)
     })
   })
 

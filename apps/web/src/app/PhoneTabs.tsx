@@ -5,6 +5,7 @@ import {
   FolderOpenIcon,
   InboxIcon,
   ListChecksIcon,
+  Menu,
   RowMenuIcon,
   ReviewIcon,
 } from '@circi/ui'
@@ -22,6 +23,7 @@ import {
   currentSection,
   goPath,
   phoneTeam,
+  teamSections,
   TEAM_STACK_LIMIT,
   teamsTabLabel,
   type YourTeam,
@@ -33,7 +35,7 @@ import styles from './PhoneTabs.module.css'
  * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Reviews, Triage, Teams and
  * More, with the sidebar's counts. Inbox, Reviews and Triage are real links that navigate through
  * the router. Teams shows up to three of your teams' tiles (its label is the team's name when
- * you are in exactly one) and opens the sheet of your teams (`PhoneTeams`); More opens the sheet
+ * you are in exactly one) and opens a menu of your teams; More opens the sheet
  * of the rest, with the workspace switcher (`PhoneMore`).
  */
 export function PhoneTabs() {
@@ -49,6 +51,7 @@ export function PhoneTabs() {
   const teams = useYourTeams()
   const teamsOpen = useOverlayStore((s) => s.teamsOpen)
   const setTeamsOpen = useOverlayStore((s) => s.setTeamsOpen)
+  const teamItems = teamMenuItems(teams, (href) => void navigate({ href }))
 
   const reviews = goPath('reviews', { workspace: workspace?.slug })
   const triage = goPath('triage', {
@@ -93,20 +96,27 @@ export function PhoneTabs() {
       >
         Triage
       </BottomBarItem>
-      <BottomBarItem
-        icon={<TeamStack teams={teams} />}
-        opensSheet
-        selected={
-          teamsOpen ||
-          section === 'teams' ||
-          section === 'builds' ||
-          section === 'baselines' ||
-          section === 'sites'
+      <Menu
+        open={teamsOpen}
+        onOpenChange={setTeamsOpen}
+        size="md"
+        align="center"
+        items={teamItems}
+        trigger={
+          <BottomBarItem
+            icon={<TeamStack teams={teams} />}
+            selected={
+              teamsOpen ||
+              section === 'teams' ||
+              section === 'builds' ||
+              section === 'baselines' ||
+              section === 'sites'
+            }
+          >
+            {teamsTabLabel(teams)}
+          </BottomBarItem>
         }
-        onClick={() => setTeamsOpen(true)}
-      >
-        {teamsTabLabel(teams)}
-      </BottomBarItem>
+      />
       <BottomBarItem
         icon={<RowMenuIcon />}
         opensSheet
@@ -140,4 +150,45 @@ function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
       ))}
     </span>
   )
+}
+
+/**
+ * The Teams tab's menu: your teams (pinned first, then by workspace when there are several, a
+ * separator between the groups; the workspace's name beside a pinned team from another), each
+ * with its triage count, then All teams.
+ */
+function teamMenuItems(
+  teams: readonly YourTeam[],
+  go: (href: string) => void,
+): (Menu.Item | Menu.Separator)[] {
+  const items: (Menu.Item | Menu.Separator)[] = []
+  for (const section of teamSections(teams)) {
+    if (items.length > 0) items.push({ type: 'separator' })
+    for (const t of section.teams) {
+      const triage = countOrUndefined(t.triage)
+      const note = [section.showWorkspace ? t.workspace.name : undefined, triage]
+        .filter((part) => part !== undefined)
+        .join(' · ')
+      items.push({
+        label: t.name,
+        icon: (
+          <Avatar
+            type="team"
+            aria-hidden
+            slug={t.slug}
+            name={t.name}
+            color={t.color}
+            icon={t.icon}
+            size={18}
+          />
+        ),
+        ...(note === '' ? {} : { trailing: note }),
+        onSelect: () =>
+          go(`/${encodeURIComponent(t.workspace.slug)}/${encodeURIComponent(t.slug)}`),
+      })
+    }
+  }
+  if (items.length > 0) items.push({ type: 'separator' })
+  items.push({ label: 'All teams', onSelect: () => go('/') })
+  return items
 }
