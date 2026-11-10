@@ -30,6 +30,11 @@
   min-width: 0;
 }
 
+.members {
+  flex: 0 1 150px;
+  min-width: 0;
+}
+
 .latest {
   display: flex;
   flex: 0 1 200px;

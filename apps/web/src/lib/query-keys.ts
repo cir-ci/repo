@@ -17,6 +17,7 @@ export const keys = {
   teamSettings: (workspace: string, team: string) => ['settings', workspace, team] as const,
   /** Every team's settings (the prefix of `teamSettings`). */
   allTeamSettings: () => ['settings'] as const,
+  teamMembers: (workspace: string, team: string) => ['team-members', workspace, team] as const,
   token: (workspace: string, team: string) => ['token', workspace, team] as const,
   ignoreRegions: (workspace: string, team: string) => ['ignore-regions', workspace, team] as const,
   flaky: (workspace: string, team: string) => ['flaky', workspace, team] as const,
@@ -41,6 +42,8 @@ export const keys = {
   // Workspaces.
   workspace: (workspace: string) => ['workspace', workspace] as const,
   workspaceGeneral: (workspace: string) => ['workspace-general', workspace] as const,
+  /** The teams each workspace member is in. */
+  memberTeams: (workspace: string) => ['member-teams', workspace] as const,
   memberSignIn: (workspace: string) => ['member-sign-in', workspace] as const,
   workspaceStorage: (workspace: string) => ['workspace-storage', workspace] as const,
   workspaceAuth: (workspace: string) => ['workspace-auth', workspace] as const,

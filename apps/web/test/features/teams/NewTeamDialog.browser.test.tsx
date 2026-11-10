@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
+
+// The auth client is the edge to better-auth: a fake stands in for it.
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { TeamsPage } from '#features/teams/TeamsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { ADA, mockAuthClient } from '#test/support/auth-client.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -49,6 +55,32 @@ const routes = () => ({
   },
 })
 
+const workspaceMember = (id: string, name: string) => ({
+  id: `m-${id}`,
+  userId: id,
+  role: id === ADA.id ? 'owner' : 'member',
+  user: { id, name, email: `${name.split(' ')[0]?.toLowerCase()}@acme.test`, image: null },
+})
+
+const auth = mockAuthClient().organization
+
+beforeEach(() => {
+  auth.getFullOrganization.mockResolvedValue({
+    data: {
+      id: 'ws1',
+      name: 'Acme',
+      slug: 'acme',
+      members: [
+        workspaceMember(ADA.id, ADA.name),
+        workspaceMember('u2', 'Grace Hopper'),
+        workspaceMember('u3', 'Alan Turing'),
+      ],
+      invitations: [],
+    },
+    error: null,
+  })
+})
+
 const show = () =>
   renderPage(
     <>
@@ -87,6 +119,28 @@ describe('New team dialog', () => {
     await page.getByRole('textbox', { name: 'Name' }).fill('Checkout flows')
     await expect.element(page.getByText('/acme/checkout-flows')).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
+  })
+
+  it('puts you in the team, fixed, and posts the people picked besides you', async () => {
+    const { api } = await open()
+    await page.getByRole('textbox', { name: 'Name' }).fill('Checkout flows')
+    const field = page.getByRole('group', { name: /Members/ })
+    await expect.element(field).toMatchTextContent(/Ada Lovelace\s*· you/)
+    // You can't be removed here: there is no Remove for your own chip.
+    expect(field.getByRole('button', { name: /^Remove / }).elements()).toHaveLength(0)
+
+    await field.getByRole('button', { name: 'Add members' }).click()
+    const choices = page.getByRole('list', { name: 'Workspace members' })
+    // Never yourself among the choices.
+    expect(choices.getByRole('checkbox', { name: /Ada Lovelace/ }).elements()).toHaveLength(0)
+    await choices.getByRole('checkbox', { name: /Grace Hopper/ }).click()
+    await expect.element(field.getByRole('button', { name: 'Remove Grace Hopper' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Create team' }).click()
+    await expect.element(page.getByRole('dialog', { name: 'Team created' })).toBeVisible()
+    expect(api.of('POST')[0]).toMatchObject({
+      body: { name: 'Checkout flows', memberIds: ['u2'] },
+    })
   })
 
   it('creates the team, then shows the token once with a tab per CI system', async () => {

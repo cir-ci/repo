@@ -57,6 +57,14 @@ const SETTINGS = {
       { userId: 'u2', methods: ['github', 'google', 'oidc'] },
     ],
   },
+  'GET /api/workspaces/%24workspace/member-teams': {
+    teams: {
+      u1: [
+        { slug: 'web', name: 'web-app', color: 'slate', icon: null },
+        { slug: 'docs', name: 'docs', color: 'plum', icon: null },
+      ],
+    },
+  },
   'GET /api/workspaces/%24workspace/domains': { domains: [] },
   'GET /api/workspaces/%24workspace/sso': { providers: [] },
 }
@@ -77,6 +85,13 @@ beforeEach(() => {
   fakeFetch(SETTINGS)
 })
 describe('MembersPage', () => {
+  it("shows each person's teams: marble avatars and a count", async () => {
+    await show()
+    await expect.element(page.getByText('2 teams')).toBeVisible()
+    await expect.element(page.getByText('0 teams')).toBeVisible()
+    expect(document.querySelectorAll('[data-type="team"]')).toHaveLength(2)
+  })
+
   it('shows a skeleton while loading, announces it, and the header names the workspace after', async () => {
     await page.viewport(1000, 800)
     auth.getFullOrganization.mockReturnValue(new Promise(() => {}))

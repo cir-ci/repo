@@ -124,6 +124,10 @@ import {
   Blocks,
   Building2,
   ChevronLeft,
+  Hammer,
+  Image as ImageGlyph,
+  Layers,
+  ListChecks,
   Database,
   Keyboard,
   KeyRound,
@@ -146,6 +150,10 @@ export const BlocksIcon = icon(Blocks, 'BlocksIcon')
 export const BuildingIcon = icon(Building2, 'BuildingIcon')
 export const ChevronLeftIcon = icon(ChevronLeft, 'ChevronLeftIcon')
 export const DatabaseIcon = icon(Database, 'DatabaseIcon')
+export const HammerIcon = icon(Hammer, 'HammerIcon')
+export const ImageIcon = icon(ImageGlyph, 'ImageIcon')
+export const LayersIcon = icon(Layers, 'LayersIcon')
+export const ListChecksIcon = icon(ListChecks, 'ListChecksIcon')
 export const KeyboardIcon = icon(Keyboard, 'KeyboardIcon')
 export const KeyIcon = icon(KeyRound, 'KeyIcon')
 export const LockIcon = icon(Lock, 'LockIcon')

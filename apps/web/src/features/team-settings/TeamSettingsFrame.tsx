@@ -3,15 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
+import { TEAM_SETTINGS_PAGES } from '#app/shell-model.ts'
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { settingsQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { crumbsFor, teamSettingsCrumb } from '#lib/crumbs.ts'
+import { crumbsFor, teamsSettingsCrumb, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
+import { PageTitle } from '#lib/PageHeading.tsx'
+
+import { TeamHeader } from './TeamHeader.tsx'
 
 /**
- * What every team settings page shares: the breadcrumb (workspace, team, Settings, this page: see
- * `lib/crumbs.ts`), one column, the team's settings loaded once (the other pages read the same cache), its
+ * What every team settings page shares: the breadcrumb (workspace, Settings, Teams, the team: see
+ * `lib/crumbs.ts`), the team's header with its tabs, one column, the team's settings loaded once (the other pages read the same cache), its
  * loading and error states, and, for the pages only owners and admins may use, a redirect to the team's builds for everyone else
  * (`managersOnly={false}` keeps a page that members may read).
  */
@@ -24,24 +28,42 @@ export function TeamSettingsFrame({
   children,
 }: TeamSettingsFrame.Props) {
   const { data, error, refetch } = useQuery(settingsQuery(workspace, team))
-  // The settings don't carry the workspace's name, but the teams list (cached by the sidebar) does.
+  // The settings carry neither the workspace's name nor the member count, but the teams list (cached by the sidebar) does.
   const { data: overview } = useQuery(teamsQuery())
-  const found = overview?.teams.find((p) => p.workspace.slug === workspace)
-  const workspaceName = found?.workspace.name ?? workspace
+  const inWorkspace = overview?.teams.filter((p) => p.workspace.slug === workspace)
+  const found = inWorkspace?.find((p) => p.team.slug === team)
+  const workspaceName = inWorkspace?.[0]?.workspace.name ?? workspace
   const teamName = data?.settings.name ?? team
+  // The tile follows the team's appearance; until the settings say, the default colour.
+  const appearance: Partial<Team.Appearance> | undefined = data?.appearance
   useDocumentTitle(page, team)
   useLoadingAnnouncement(!data && !error, `Loading ${page.toLowerCase()}`)
 
   return (
     <PageFrame
-      crumbs={crumbsFor(
-        {
-          workspace: { slug: workspace, name: workspaceName },
-          team: { slug: team, name: teamName },
-        },
-        page === 'Settings' ? [] : [teamSettingsCrumb(workspace, team)],
-      )}
-      title={page}
+      crumbs={crumbsFor({ workspace: { slug: workspace, name: workspaceName } }, [
+        workspaceSettingsCrumb(workspace),
+        teamsSettingsCrumb(workspace),
+      ])}
+      title={teamName}
+      headingInPage
+      header={
+        <>
+          <PageTitle>{page}</PageTitle>
+          {data ? (
+            <TeamHeader
+              workspace={workspace}
+              team={team}
+              name={teamName}
+              color={appearance?.color ?? 'slate'}
+              icon={appearance?.icon ?? null}
+              memberCount={found?.team.memberCount}
+              canManage={data.canManage}
+              active={TEAM_SETTINGS_PAGES.find((p) => p.label === page)?.key}
+            />
+          ) : null}
+        </>
+      }
       width={width}
       loading={!data}
       error={error}

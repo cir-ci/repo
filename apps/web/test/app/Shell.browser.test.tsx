@@ -283,6 +283,18 @@ describe('Shell, wide', () => {
     await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Sites' })).toBeVisible()
+    // Each nested link has its Lucide icon (hammer, list-checks, image, globe), in the stroke the app uses.
+    for (const [name, icon] of [
+      ['Builds', 'lucide-hammer'],
+      ['Triage', 'lucide-list-checks'],
+      ['Baselines', 'lucide-image'],
+      ['Sites', 'lucide-globe'],
+    ] as const) {
+      const link = nav.getByRole('link', { name: new RegExp(`^${name}\\b`) }).element()
+      const svg = link.querySelector('svg')
+      expect(svg?.classList.contains(icon), `${name} has the ${icon} icon`).toBe(true)
+      expect(svg?.getAttribute('stroke-width')).toBe('1.75')
+    }
     // No Settings under the team: team settings open from the workspace menu's settings.
     expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
     // Other teams stay collapsed.
@@ -441,6 +453,7 @@ describe('Shell, settings', () => {
     expect(names).toEqual([
       'General',
       'Members',
+      'Teams',
       'Sign-in and domains',
       'Integrations',
       'Storage and retention',
@@ -467,39 +480,15 @@ describe('Shell, settings', () => {
       .toHaveAttribute('aria-current', 'page')
   })
 
-  it('shows the Team section for the team in the address, with its five pages', async () => {
+  it("lists no team in the nav: a team's settings sit under Teams, which stays marked", async () => {
     await page.viewport(1280, 800)
     await renderShell('/acme/web-app/settings')
-    const team = page
-      .getByRole('navigation', { name: 'Settings' })
-      .getByRole('region', { name: 'Team · web-app' })
-    await expect.element(team).toBeVisible()
-    const names = team
-      .getByRole('link')
-      .elements()
-      .map((el) => el.textContent)
-    expect(names).toEqual([
-      'General',
-      'CI token',
-      'Reviews and triage',
-      'Webhooks',
-      'Ignore regions',
-    ])
+    const nav = page.getByRole('navigation', { name: 'Settings' })
+    await expect.element(nav.getByRole('region', { name: 'Workspace · Acme' })).toBeVisible()
+    expect(nav.getByRole('region', { name: /^Team · / }).elements()).toHaveLength(0)
     await expect
-      .element(team.getByRole('link', { name: 'General' }))
+      .element(nav.getByRole('link', { name: 'Teams' }))
       .toHaveAttribute('aria-current', 'page')
-  })
-
-  it('keeps a team in the Team section off its own pages: the first team, or the last one used', async () => {
-    await page.viewport(1280, 800)
-    await renderShell('/account/profile')
-    await expect
-      .element(
-        page
-          .getByRole('navigation', { name: 'Settings' })
-          .getByRole('region', { name: 'Team · web-app' }),
-      )
-      .toBeVisible()
   })
 
   it('shows the Instance section only to instance admins', async () => {
@@ -526,36 +515,6 @@ describe('Shell, settings', () => {
     await expect
       .element(section.getByRole('link', { name: 'Accounts' }))
       .toHaveAttribute('aria-current', 'page')
-  })
-
-  it('switches team from the section header and stays on the same settings page', async () => {
-    await page.viewport(1280, 800)
-    const { router } = await renderShell('/acme/web-app/settings/reviews')
-    await page.getByRole('button', { name: 'Switch team' }).click()
-    const panel = page.getByRole('dialog', { name: 'Switch team' })
-    await expect
-      .element(panel.getByRole('link', { name: 'web-app' }))
-      .toHaveAttribute('aria-current', 'true')
-    await panel.getByRole('searchbox', { name: 'Find a team' }).fill('stor')
-    expect(panel.getByRole('link').elements()).toHaveLength(1)
-    await panel.getByRole('link', { name: 'storybook' }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/storybook/settings/reviews')
-  })
-
-  it('moves through the team switcher with the arrow keys and closes it with Escape', async () => {
-    await page.viewport(1280, 800)
-    await renderShell('/acme/web-app/settings')
-    const trigger = page.getByRole('button', { name: 'Switch team' })
-    await trigger.click()
-    const panel = page.getByRole('dialog', { name: 'Switch team' })
-    panel.getByRole('searchbox', { name: 'Find a team' }).element().focus()
-    await userEvent.keyboard('{ArrowDown}')
-    await expect.element(panel.getByRole('link', { name: 'web-app' })).toHaveFocus()
-    await userEvent.keyboard('{ArrowDown}')
-    await expect.element(panel.getByRole('link', { name: 'api' })).toHaveFocus()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('dialog', { name: 'Switch team' })).not.toBeInTheDocument()
-    await expect.element(trigger).toHaveFocus()
   })
 
   it('has no settings nav on other pages', async () => {

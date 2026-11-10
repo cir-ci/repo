@@ -11,7 +11,17 @@ import { build } from './support.tsx'
 
 const overview = (workspace: string, team: string, latestBuild: unknown = null) => ({
   workspace: { slug: workspace, name: workspace.toUpperCase() },
-  team: { slug: team, name: team, defaultBranch: 'main' },
+  team: {
+    slug: team,
+    name: team,
+    defaultBranch: 'main',
+    memberCount: 2,
+    memberPreview: [
+      { id: 'u1', name: 'Ada Lovelace', image: null },
+      { id: 'u2', name: 'Grace Hopper', image: null },
+    ],
+    youAreMember: true,
+  },
   latestBuild,
 })
 

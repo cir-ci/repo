@@ -12,7 +12,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const auth = mockAuthClient().organization
+mockAuthClient()
 
 const request = (id: string, number: number, over: Record<string, unknown> = {}) => ({
   id,
@@ -331,30 +331,33 @@ describe('ReviewsPage', () => {
   it('asks a member for a review with shift+R', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
+      'GET /api/teams/acme/web/members': {
+        body: {
+          members: [
+            {
+              id: 'u2',
+              name: 'Ada Lovelace',
+              email: 'a@x.io',
+              image: null,
+              role: 'member',
+              addedAt: '2026-11-01T00:00:00.000Z',
+            },
+            {
+              id: 'u3',
+              name: 'Grace Hopper',
+              email: 'g@x.io',
+              image: null,
+              role: 'member',
+              addedAt: '2026-11-01T00:00:00.000Z',
+            },
+          ],
+          canManage: false,
+        },
+      },
       'POST /api/teams/acme/web/builds/12/review-requests': {
         status: 201,
         body: { id: 'q1', state: 'open', dueAt: null, created: true },
       },
-    })
-    auth.getFullOrganization.mockResolvedValue({
-      data: {
-        id: 'workspace1',
-        members: [
-          {
-            id: 'm1',
-            userId: 'u2',
-            role: 'member',
-            user: { name: 'Ada Lovelace', email: 'a@x.io' },
-          },
-          {
-            id: 'm2',
-            userId: 'u3',
-            role: 'member',
-            user: { name: 'Grace Hopper', email: 'g@x.io' },
-          },
-        ],
-      },
-      error: null,
     })
     await show('/workspaces/acme/reviews?review=r1')
     await expect.element(page.getByRole('heading', { name: 'Build #12' })).toBeVisible()

@@ -48,11 +48,11 @@ export function crumbsFor(
   ]
 }
 
-/** A team's "Settings" crumb, for pages below the settings home. */
-export function teamSettingsCrumb(workspace: string, team: string): Crumb {
+/** The workspace's Teams settings, the parent of a team's own settings. */
+export function teamsSettingsCrumb(workspace: string): Crumb {
   return {
-    label: 'Settings',
-    link: { to: '/$workspace/$team/settings', params: { workspace, team } },
+    label: 'Teams',
+    link: { to: '/workspaces/$workspace/settings/teams', params: { workspace } },
   }
 }
 

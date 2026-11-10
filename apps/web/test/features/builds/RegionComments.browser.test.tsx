@@ -5,8 +5,6 @@ vi.mock('#lib/auth-client.ts', () =>
   import('#test/support/auth-client.ts').then((m) => m.authClientModule),
 )
 
-import { mockAuthClient } from '#test/support/auth-client.ts'
-
 import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
 
 beforeEach(async () => {
@@ -314,12 +312,8 @@ describe('@mentions in the region popover', () => {
   const max = { id: 'm3', userId: 'u3', user: { name: 'Max Member', email: 'member@example.test' } }
 
   async function openWithMembers() {
-    // The auth client is faked in this file: the members come from it.
-    mockAuthClient().organization.getFullOrganization.mockResolvedValue({
-      data: { members: [max] },
-      error: null,
-    })
     const api = fakeBuildApi(detail())
+    api.members = [max]
     await ready(api)
     await drag('This build')
     const box = popover().getByRole('combobox', { name: 'Comment' })

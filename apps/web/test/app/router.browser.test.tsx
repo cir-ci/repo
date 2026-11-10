@@ -55,4 +55,17 @@ describe('the app router', () => {
     const router = await open('/acme/web/settings/ignore-regions')
     expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/settings/ignore-regions')
   })
+
+  it.each([
+    ['/acme/web/settings', '/$workspace/$team/settings'],
+    ['/acme/web/settings/token', '/$workspace/$team/settings/token'],
+    ['/acme/web/settings/reviews', '/$workspace/$team/settings/reviews'],
+    ['/acme/web/settings/webhooks', '/$workspace/$team/settings/webhooks'],
+    ['/acme/web/settings/members', '/$workspace/$team/settings/members'],
+    ['/workspaces/acme/settings/teams', '/workspaces/$workspace/settings/teams'],
+  ])('keeps %s working: it opens %s', async (url, routeId) => {
+    const router = await open(url)
+    expect(router.state.location.pathname).toBe(url)
+    expect(router.state.matches.at(-1)?.routeId).toBe(routeId)
+  })
 })

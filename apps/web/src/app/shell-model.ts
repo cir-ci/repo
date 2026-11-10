@@ -255,9 +255,10 @@ export function switchWorkspacePath(
 
 const GLOBAL_ROOTS = new Set(['inbox', 'account', 'instance', 'integrations', '_sso'])
 
-/** The settings pages of a team, in the order of the settings nav: `path` is what follows `/settings`. */
+/** The settings pages of a team, in the order of its tabs (Sites, the last tab, is the team's own page): `path` is what follows `/settings`. */
 export const TEAM_SETTINGS_PAGES = [
   { key: 'general', label: 'General', path: '' },
+  { key: 'members', label: 'Members', path: '/members' },
   { key: 'token', label: 'CI token', path: '/token' },
   { key: 'reviews', label: 'Reviews and triage', path: '/reviews' },
   { key: 'webhooks', label: 'Webhooks', path: '/webhooks' },
@@ -273,108 +274,4 @@ export function teamSettingsKey(pathname: string): TeamSettingsKey | undefined {
     return undefined
   if (parts[2] !== 'settings') return undefined
   return TEAM_SETTINGS_PAGES.find((p) => p.path === (parts[3] ? `/${parts[3]}` : ''))?.key
-}
-
-/**
- * The same settings page of another team: switching teams in the settings nav stays on the page
- * you are on (CI token stays CI token), and lands on General when the current address is not
- * a team settings page.
- */
-export function teamSettingsPath(workspace: string, team: string, pathname: string): string {
-  const key = teamSettingsKey(pathname)
-  const page = TEAM_SETTINGS_PAGES.find((p) => p.key === key)
-  return `/${encodeURIComponent(workspace)}/${encodeURIComponent(team)}/settings${page?.path ?? ''}`
-}
-
-/** The teams whose name contains what was typed in the team switcher. */
-export function matchTeams<T extends { name: string }>(teams: readonly T[], query: string): T[] {
-  const needle = query.trim().toLowerCase()
-  return needle ? teams.filter((t) => t.name.toLowerCase().includes(needle)) : [...teams]
-}
-
-/**
- * The team the Team part of the settings nav is about: the one in the address, else the one
- * last used in settings (if it is still there), else the first. Nothing when there are no teams.
- */
-export function pickSettingsTeam<T extends { slug: string }>(
-  teams: readonly T[],
-  routeTeam: string | undefined,
-  remembered: string | undefined,
-): T | undefined {
-  return (
-    teams.find((t) => t.slug === routeTeam) ?? teams.find((t) => t.slug === remembered) ?? teams[0]
-  )
-}
-
-/**
- * The teams the settings nav may offer for a workspace: the sidebar's teams, kept to those the
- * teams list (refreshed on a rename) also knows in that workspace. A slug that was renamed, or a
- * team of another workspace in a stale cache, is never offered. When the teams list knows nothing
- * of the workspace (a manager with no team of their own) the sidebar's teams stand as they are.
- */
-export function settingsTeams<T extends { slug: string }>(
-  inSidebar: readonly T[],
-  overview: readonly Team.Overview[] | undefined,
-  workspace: string,
-): T[] {
-  const known = (overview ?? []).filter((o) => o.workspace.slug === workspace)
-  if (known.length === 0) return [...inSidebar]
-  const slugs = new Set(known.map((o) => o.team.slug))
-  return inSidebar.filter((t) => slugs.has(t.slug))
-}
-
-/**
- * `settingsTeams`, plus the team whose settings are open (`routeTeam`) whenever either list knows
- * it. After a slug rename the sidebar and the teams list refresh one after the other, so for a
- * moment only one of them has the new slug; the label of the open team must not turn into another
- * team meanwhile.
- */
-export function settingsNavTeams(
-  inSidebar: readonly Sidebar.Team[],
-  overview: readonly Team.Overview[] | undefined,
-  workspace: string,
-  routeTeam: string | undefined,
-): Sidebar.Team[] {
-  const teams = settingsTeams(inSidebar, overview, workspace)
-  if (routeTeam === undefined || teams.some((t) => t.slug === routeTeam)) return teams
-  const fromSidebar = inSidebar.find((t) => t.slug === routeTeam)
-  const known = (overview ?? []).find(
-    (o) => o.workspace.slug === workspace && o.team.slug === routeTeam,
-  )?.team
-  const open: Sidebar.Team | undefined =
-    fromSidebar ??
-    (known
-      ? {
-          slug: known.slug,
-          name: known.name,
-          color: known.color,
-          icon: known.icon,
-          pinned: false,
-          triage: 0,
-        }
-      : undefined)
-  return open ? [...teams, open] : teams
-}
-
-const REMEMBERED_TEAM_KEY = 'circi-settings-team'
-
-export function readRememberedTeam(workspace: string): string | undefined {
-  try {
-    return localStorage.getItem(`${REMEMBERED_TEAM_KEY}:${workspace}`) ?? undefined
-  } catch {
-    return undefined
-  }
-}
-
-export function rememberTeam(workspace: string, team: string): void {
-  try {
-    localStorage.setItem(`${REMEMBERED_TEAM_KEY}:${workspace}`, team)
-  } catch {
-    // Storage blocked: the choice lasts until the page reloads.
-  }
-}
-
-/** A team's slug changed: what was remembered under the old one now points at the new one. */
-export function renameRememberedTeam(workspace: string, from: string, to: string): void {
-  if (readRememberedTeam(workspace) === from) rememberTeam(workspace, to)
 }

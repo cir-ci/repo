@@ -26,7 +26,7 @@ import styles from './Discussion.module.css'
 export function CommentsTab(props: CommentsTab.Props) {
   const { workspace, team, number, snapshotName, focusedId } = props
   const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
-  const members = useMentionMembers(workspace)
+  const members = useMentionMembers(workspace, team)
   const add = useAddComment(workspace, team, number)
   const announce = useAnnounce()
 

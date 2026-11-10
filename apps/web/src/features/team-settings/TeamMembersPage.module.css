@@ -1,0 +1,86 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.title {
+  flex: 1 1 240px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.list,
+.candidates {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+  list-style: none;
+}
+
+.row,
+.candidates > li {
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.row:last-child,
+.candidates > li:last-child {
+  border-bottom: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 16px;
+}
+
+.who {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nameLine {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.role {
+  flex: 0 0 64px;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.candidates {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.candidate {
+  padding: 8px 16px;
+}
+
+.candidate:hover {
+  background: var(--circi-action-hover);
+}

@@ -8,24 +8,28 @@ import {
   isOutsideFrame,
   isSettingsSection,
   listWorkspaces,
-  matchTeams,
   orderTeams,
-  pickSettingsTeam,
   pickWorkspace,
   pinnedViews,
   sectionLabel,
-  settingsNavTeams,
-  settingsTeams,
   sidebarTeams,
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
-  teamSettingsPath,
   switchWorkspacePath,
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
   workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null },
-  team: { slug: team, name: team, defaultBranch: 'main', color: 'slate', icon: null },
+  team: {
+    slug: team,
+    name: team,
+    defaultBranch: 'main',
+    color: 'slate',
+    icon: null,
+    memberCount: 1,
+    memberPreview: [],
+    youAreMember: true,
+  },
   latestBuild: null,
 })
 
@@ -69,6 +73,9 @@ const sidebarTeam = (slug: string, over: Partial<Sidebar.Team> = {}): Sidebar.Te
   icon: null,
   pinned: false,
   triage: 0,
+  memberCount: 1,
+  memberPreview: [],
+  youAreMember: true,
   ...over,
 })
 
@@ -215,9 +222,10 @@ describe('isOutsideFrame', () => {
 })
 
 describe('team settings pages', () => {
-  it('lists the five pages in the nav order', () => {
+  it('lists the pages in the tab order, before the Sites tab', () => {
     expect(TEAM_SETTINGS_PAGES.map((p) => p.key)).toEqual([
       'general',
+      'members',
       'token',
       'reviews',
       'webhooks',
@@ -226,6 +234,7 @@ describe('team settings pages', () => {
   })
   it.each([
     ['/acme/web/settings', 'general'],
+    ['/acme/web/settings/members', 'members'],
     ['/acme/web/settings/token', 'token'],
     ['/acme/web/settings/reviews', 'reviews'],
     ['/acme/web/settings/webhooks', 'webhooks'],
@@ -237,73 +246,6 @@ describe('team settings pages', () => {
     ['/instance/settings', undefined],
   ] as const)('%s is %s', (path, key) => {
     expect(teamSettingsKey(path)).toBe(key)
-  })
-  it('switches team on the same settings page, General elsewhere', () => {
-    expect(teamSettingsPath('acme', 'api', '/acme/web/settings/webhooks')).toBe(
-      '/acme/api/settings/webhooks',
-    )
-    expect(teamSettingsPath('acme', 'api', '/acme/web/settings')).toBe('/acme/api/settings')
-    expect(teamSettingsPath('acme', 'api', '/account/profile')).toBe('/acme/api/settings')
-    expect(teamSettingsPath('acme', 'a b', '/inbox')).toBe('/acme/a%20b/settings')
-  })
-  it('finds teams by what is typed, ignoring case', () => {
-    const teams = [{ name: 'web-app' }, { name: 'Storybook' }, { name: 'api' }]
-    expect(matchTeams(teams, 'STORY')).toEqual([{ name: 'Storybook' }])
-    expect(matchTeams(teams, '  ')).toHaveLength(3)
-    expect(matchTeams(teams, 'zzz')).toEqual([])
-  })
-  it('is about the team in the address, else the last used, else the first', () => {
-    const teams = [{ slug: 'api' }, { slug: 'web' }]
-    expect(pickSettingsTeam(teams, 'web', 'api')?.slug).toBe('web')
-    expect(pickSettingsTeam(teams, undefined, 'web')?.slug).toBe('web')
-    expect(pickSettingsTeam(teams, 'gone', 'gone')?.slug).toBe('api')
-    expect(pickSettingsTeam([], 'web', 'web')).toBeUndefined()
-  })
-})
-
-describe('settingsTeams', () => {
-  const teams = [{ slug: 'qa-team' }, { slug: 'web' }]
-
-  it('keeps the sidebar teams the teams list knows in that workspace', () => {
-    const known = [overview('acme', 'web'), overview('other', 'qa-team')]
-    expect(settingsTeams(teams, known, 'acme')).toEqual([{ slug: 'web' }])
-  })
-
-  it('trusts the sidebar when the teams list knows nothing of the workspace', () => {
-    expect(settingsTeams(teams, [overview('other', 'qa')], 'acme')).toEqual(teams)
-    expect(settingsTeams(teams, undefined, 'acme')).toEqual(teams)
-  })
-})
-
-const side = (slug: string) => ({
-  slug,
-  name: slug,
-  color: 'slate' as const,
-  icon: null,
-  pinned: false,
-  triage: 0,
-})
-
-describe('settingsNavTeams', () => {
-  it('adds the open team from the teams list when the sidebar has not caught up', () => {
-    const result = settingsNavTeams([side('web')], [overview('acme', 'web2')], 'acme', 'web2')
-    expect(result.map((t) => t.slug)).toEqual(['web2'])
-  })
-
-  it('keeps the open team from the sidebar when the teams list has not caught up', () => {
-    const result = settingsNavTeams(
-      [side('web2'), side('api')],
-      [overview('acme', 'web'), overview('acme', 'api')],
-      'acme',
-      'web2',
-    )
-    expect(result.map((t) => t.slug)).toEqual(['api', 'web2'])
-  })
-
-  it('adds nothing for a team neither list knows', () => {
-    expect(settingsNavTeams([side('api')], [overview('acme', 'api')], 'acme', 'gone')).toEqual([
-      side('api'),
-    ])
   })
 })
 

@@ -118,7 +118,7 @@ export interface FakeApi {
   commentPosts: Comment.Create[]
   /** The bodies of the review-request POSTs, in order. */
   requests: unknown[]
-  /** The workspace's members, as better-auth returns them. */
+  /** The team's members: `GET …/members` answers with these. */
   members: { id: string; userId: string; user: { name: string; email: string } }[]
   /** `GET …/settings`: owners and admins can manage ignore regions, members can't. */
   canManage: boolean
@@ -218,6 +218,18 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           invitations: [],
         })
       const team = '/api/teams/acme/web-app'
+      if (url.pathname === `${team}/members`)
+        return json({
+          members: api.members.map((m) => ({
+            id: m.userId,
+            name: m.user.name,
+            email: m.user.email,
+            image: null,
+            role: 'member',
+            addedAt: '2026-11-01T00:00:00.000Z',
+          })),
+          canManage: false,
+        })
       if (url.pathname === `${team}/settings`) return json({ canManage: api.canManage })
       if (url.pathname === `${team}/ignore-regions` && method === 'POST') {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')

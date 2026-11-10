@@ -25,6 +25,7 @@ import {
   repoHelp,
   slugify,
 } from './new-team.ts'
+import { NewTeamMembers } from './NewTeamMembers.tsx'
 
 import styles from './NewTeamDialog.module.css'
 
@@ -48,6 +49,7 @@ export function NewTeamDialog({
   const [branch, setBranch] = useState(DEFAULT_BRANCH)
   const [repoValue, setRepoValue] = useState(NO_REPOSITORY)
   const [nameError, setNameError] = useState<string | null>(null)
+  const [memberIds, setMemberIds] = useState<string[]>([])
   const preferred = workspaces.find((w) => w.slug === initialWorkspace)?.slug
   const workspace = pickedWorkspace ?? preferred ?? workspaces[0]?.slug ?? ''
   const repos = useRepoChoices(workspace, open && !created)
@@ -61,6 +63,7 @@ export function NewTeamDialog({
     setRepoValue(NO_REPOSITORY)
     setPickedWorkspace(null)
     setNameError(null)
+    setMemberIds([])
     create.reset()
     onClose()
     if (next)
@@ -78,7 +81,7 @@ export function NewTeamDialog({
     }
     setNameError(null)
     create.mutate(
-      { workspace, name: trimmed, defaultBranch: branch, repo },
+      { workspace, name: trimmed, defaultBranch: branch, repo, memberIds },
       { onSuccess: setCreated },
     )
   }
@@ -126,6 +129,7 @@ export function NewTeamDialog({
           onValueChange={(next) => {
             setPickedWorkspace(next)
             setRepoValue(NO_REPOSITORY)
+            setMemberIds([])
           }}
         />
       ) : null}
@@ -163,6 +167,7 @@ export function NewTeamDialog({
         onValueChange={setRepoValue}
         description={repoHelp(repo !== undefined)}
       />
+      <NewTeamMembers workspace={workspace} value={memberIds} onChange={setMemberIds} />
       {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
     </FormDialog>
   )

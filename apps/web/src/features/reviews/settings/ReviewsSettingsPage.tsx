@@ -2,8 +2,8 @@ import type { Team } from '@circi/api'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { workspaceQuery } from '#features/members/api.ts'
 import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
+import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
@@ -23,11 +23,9 @@ export function ReviewsSettingsPage() {
 
 function Reviews({ workspace, team, settings }: Reviews.Props) {
   const rules = useQuery(rulesQuery(workspace, team))
-  const workspaceInfo = useQuery(workspaceQuery(workspace))
-  const people = (workspaceInfo.data?.members ?? []).map((m) => ({
-    id: m.userId,
-    name: m.user.name,
-  }))
+  // Rules, targets and the triage rotation draw their people from the team's members.
+  const teamMembers = useQuery(teamMembersQuery(workspace, team))
+  const people = (teamMembers.data?.members ?? []).map((m) => ({ id: m.id, name: m.name }))
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   if (!rules.data) {
     return <QuerySkeleton />

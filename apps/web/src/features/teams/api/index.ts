@@ -1,7 +1,6 @@
 import type { Flaky, IgnoreRegion, Review, Workspace, WorkspaceBuilds, Team } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { renameRememberedTeam } from '#app/shell-model.ts'
 import { isActive } from '#features/builds/api/index.ts'
 import {
   type BuildFilters,
@@ -76,10 +75,8 @@ export function useSaveSettings(workspace: string, team: string) {
       send<{ settings: Team.Settings }>('PATCH', teamPath(workspace, team, 'settings'), patch),
     onSuccess: (result) => {
       // After a rename the old address is gone: refetching its queries would only 404. The sidebar
-      // and the settings nav list teams by slug, so they refresh either way; the remembered
-      // "last team in settings" follows the rename.
+      // and the Teams lists show teams by slug, so they refresh either way.
       if (result.settings.slug !== team) {
-        renameRememberedTeam(workspace, team, result.settings.slug)
         return invalidateAll(queryClient, keys.teams(), keys.sidebar(workspace))
       }
       return invalidateAll(

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { crumbsFor, teamCrumb, teamSettingsCrumb, workspaceCrumb } from '#lib/crumbs.ts'
+import {
+  crumbsFor,
+  teamCrumb,
+  teamsSettingsCrumb,
+  workspaceCrumb,
+  workspaceSettingsCrumb,
+} from '#lib/crumbs.ts'
 
 const acme = { slug: 'acme', name: 'Acme' }
 const web = { slug: 'web-app', name: 'Web app' }
@@ -26,18 +32,25 @@ describe('breadcrumb rule', () => {
     expect(crumbsFor({ workspace: acme }).map((c) => c.label)).toEqual(['Acme'])
   })
 
-  it("starts a team-level page with the workspace and team crumbs, then the page's own", () => {
-    const crumbs = crumbsFor({ workspace: acme, team: web }, [teamSettingsCrumb('acme', 'web-app')])
-    expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Web app', 'Settings'])
+  it("starts a team's settings with the workspace, its Settings and Teams, then the team", () => {
+    const crumbs = crumbsFor({ workspace: acme }, [
+      workspaceSettingsCrumb('acme'),
+      teamsSettingsCrumb('acme'),
+    ])
+    expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Settings', 'Teams'])
     expect(crumbs.map((c) => c.link?.to)).toEqual([
       '/inbox',
-      '/$workspace/$team',
-      '/$workspace/$team/settings',
+      '/workspaces/$workspace/settings',
+      '/workspaces/$workspace/settings/teams',
     ])
+  })
+
+  it('starts a team-level page with the workspace and team crumbs', () => {
+    const crumbs = crumbsFor({ workspace: acme, team: web })
+    expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Web app'])
     expect(crumbs.map((c) => c.tooltip)).toEqual([
       'Workspace: opens the Inbox',
       'Team: opens its Builds page',
-      undefined,
     ])
   })
 })

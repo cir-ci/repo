@@ -30,6 +30,8 @@ export interface CreateTeamInput {
   name: string
   defaultBranch: string
   repo: RepoChoice | undefined
+  /** People to add besides you (the creator is always in). CONTRACT (team membership): `memberIds` on the create route. */
+  memberIds?: string[]
 }
 
 export interface CreatedTeam {
@@ -55,6 +57,7 @@ export function useCreateTeam() {
         {
           name: input.name,
           ...(branch ? { defaultBranch: branch } : {}),
+          ...(input.memberIds?.length ? { memberIds: input.memberIds } : {}),
           ...(input.repo
             ? {
                 repository: {

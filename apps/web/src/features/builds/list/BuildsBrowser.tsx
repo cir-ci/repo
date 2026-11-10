@@ -364,6 +364,7 @@ export function BuildsBrowser({
       />
       <MemberPicker
         workspace={workspace}
+        team={team}
         open={picking}
         onOpenChange={setPicking}
         onPick={(member) =>

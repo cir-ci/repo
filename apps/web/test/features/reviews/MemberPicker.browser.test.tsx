@@ -42,4 +42,44 @@ describe('MemberPicker', () => {
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
     expect(onPick).toHaveBeenCalledWith({ id: 'u2', name: 'Grace Hopper' })
   })
+
+  it("offers only the team's members when it is asked for a team", async () => {
+    const onPick = vi.fn<(m: { id: string; name: string }) => void>()
+    await renderPage(
+      <MemberPicker workspace="acme" team="web" open onOpenChange={() => {}} onPick={onPick} />,
+      {
+        api: {
+          'GET /api/teams/acme/web/members': {
+            body: {
+              members: [
+                {
+                  id: 'u1',
+                  name: 'Ada Lovelace',
+                  email: 'a@x.test',
+                  image: null,
+                  role: 'owner',
+                  addedAt: '2026-11-01T00:00:00.000Z',
+                },
+                {
+                  id: 'u3',
+                  name: 'Alan Turing',
+                  email: 't@x.test',
+                  image: null,
+                  role: 'member',
+                  addedAt: '2026-11-01T00:00:00.000Z',
+                },
+              ],
+              canManage: false,
+            },
+          },
+        },
+      },
+    )
+    const dialog = page.getByRole('dialog', { name: 'Request a review from' })
+    await expect.element(dialog.getByRole('button', { name: /Alan Turing/ })).toBeVisible()
+    // Grace is in the workspace but not the team: never offered.
+    expect(dialog.getByRole('button', { name: /Grace Hopper/ }).elements()).toHaveLength(0)
+    await dialog.getByRole('button', { name: /Alan Turing/ }).click()
+    expect(onPick).toHaveBeenCalledWith({ id: 'u3', name: 'Alan Turing' })
+  })
 })

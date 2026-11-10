@@ -90,7 +90,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
   const ignore = useIgnoreMode(team.workspaceSlug, team.slug, selected)
-  const members = useMentionMembers(team.workspaceSlug)
+  const members = useMentionMembers(team.workspaceSlug, team.slug)
   const { data: session } = authClient.useSession()
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
   if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
@@ -219,6 +219,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               trigger={<Button variant="ghost">Request review</Button>}
               workspace={team.workspaceSlug}
               team={team.slug}
+              teamName={team.name}
               number={build.number}
             />
             {isReviewable(build) ? (

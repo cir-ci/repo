@@ -60,6 +60,11 @@ export namespace Team {
     canManage: boolean
   }
 
+  /** `POST /api/teams/:workspace/:team/members`. */
+  export interface AddMembersInput {
+    userIds: string[]
+  }
+
   export interface Info {
     id: string
     slug: string

@@ -254,30 +254,30 @@ describe('selecting and peeking', () => {
   })
 
   it('requests a review of the selection with one request', async () => {
-    auth.getFullOrganization.mockResolvedValue({
-      data: {
-        id: 'o1',
-        name: 'Acme',
-        slug: 'acme',
-        members: [
-          {
-            id: 'm1',
-            userId: 'u1',
-            role: 'owner',
-            user: { name: 'Ada Lovelace', email: 'a@x.test' },
-          },
-          {
-            id: 'm2',
-            userId: 'u2',
-            role: 'member',
-            user: { name: 'Grace Hopper', email: 'g@x.test' },
-          },
-        ],
-        invitations: [],
-      },
-      error: null,
-    })
     const fake = api([build(8), build(7), build(6)], {
+      'GET /api/teams/acme/web/members': {
+        body: {
+          members: [
+            {
+              id: 'u1',
+              name: 'Ada Lovelace',
+              email: 'a@x.test',
+              image: null,
+              role: 'owner',
+              addedAt: '2026-11-01T00:00:00.000Z',
+            },
+            {
+              id: 'u2',
+              name: 'Grace Hopper',
+              email: 'g@x.test',
+              image: null,
+              role: 'member',
+              addedAt: '2026-11-01T00:00:00.000Z',
+            },
+          ],
+          canManage: false,
+        },
+      },
       'POST /api/teams/acme/web/builds/request-review': { body: { requests: [] } },
     })
     await show()

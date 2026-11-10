@@ -16,6 +16,7 @@ export function PageFrame({
   crumbs,
   title,
   headingInPage,
+  header,
   width,
   loading,
   error,
@@ -27,6 +28,7 @@ export function PageFrame({
   return (
     <>
       <PageHeading crumbs={crumbs} title={title} headingInPage={headingInPage} />
+      {header}
       <SettingsPage {...(width ? { width } : {})}>
         {forbidden ? (
           forbidden
@@ -54,6 +56,8 @@ export namespace PageFrame {
     title: string
     /** The page puts its own visible `<h1>` in the body, so the current crumb is not one. */
     headingInPage?: boolean | undefined
+    /** Between the page's header bar and its column: a team's header with its tabs. */
+    header?: ReactNode
     /** `wide` is 1040px, for editors that need the room. */
     width?: 'default' | 'wide' | undefined
     loading?: boolean | undefined

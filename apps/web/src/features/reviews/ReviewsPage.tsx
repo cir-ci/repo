@@ -247,6 +247,7 @@ export function ReviewsPage() {
       </QueryBoundary>
       <MemberPicker
         workspace={workspace}
+        team={selected?.team.slug}
         open={picking}
         onOpenChange={setPicking}
         onPick={(member) => {

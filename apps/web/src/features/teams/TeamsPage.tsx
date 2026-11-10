@@ -12,6 +12,7 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
+import { MemberStack } from './AvatarStack.tsx'
 import { changesCell } from './list.ts'
 import { TeamsEmpty } from './TeamsEmpty.tsx'
 
@@ -74,6 +75,7 @@ export function TeamsPage() {
               <>
                 <div className={styles.head} aria-hidden="true">
                   <span className={styles.nameCol}>Name</span>
+                  <span className={styles.members}>Members</span>
                   <span className={styles.latest}>Latest build</span>
                   <span className={styles.changes}>Changes</span>
                   <span className={styles.updated}>Updated</span>
@@ -108,6 +110,9 @@ export function TeamsPage() {
                                   {owner.slug}/{team.slug}
                                 </span>
                               </span>
+                            </span>
+                            <span className={styles.members}>
+                              <MemberStack count={team.memberCount} people={team.memberPreview} />
                             </span>
                             <span className={styles.latest}>
                               {latestBuild && state ? (

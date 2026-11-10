@@ -4,7 +4,7 @@ import type { View } from './view.ts'
 type TeamColor = TeamTypes.Color
 
 export namespace Sidebar {
-  export interface Team {
+  export interface Team extends TeamTypes.MemberSummary {
     slug: string
     name: string
     color: TeamColor

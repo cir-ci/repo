@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
@@ -11,7 +11,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const auth = mockAuthClient().organization
+mockAuthClient()
 
 const API = '/api/teams/acme/web'
 
@@ -46,6 +46,19 @@ const rules = (over: Record<string, unknown> = {}) => ({
 function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
   return fakeApi({
     [`GET ${API}/settings`]: { body: { canManage: true, settings } },
+    [`GET ${API}/members`]: {
+      body: {
+        members: [ada, grace].map((m) => ({
+          id: m.id,
+          name: m.name,
+          email: `${m.id}@x.test`,
+          image: null,
+          role: 'member',
+          addedAt: '2026-11-01T00:00:00.000Z',
+        })),
+        canManage: true,
+      },
+    },
     [`GET ${API}/rules`]: { body: rules(over) },
     [`GET ${API}/triage`]: {
       body: {
@@ -67,21 +80,6 @@ const show = async () => {
   })
 }
 
-beforeEach(() => {
-  auth.getFullOrganization.mockResolvedValue({
-    data: {
-      id: 'o1',
-      name: 'Acme',
-      slug: 'acme',
-      members: [
-        { id: 'm1', userId: 'u1', role: 'owner', user: { name: ada.name, email: 'a@x.test' } },
-        { id: 'm2', userId: 'u2', role: 'member', user: { name: grace.name, email: 'g@x.test' } },
-      ],
-      invitations: [],
-    },
-    error: null,
-  })
-})
 describe('ReviewsSettingsPage', () => {
   it('shows the target, the rules and who is on triage', async () => {
     api()

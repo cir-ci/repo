@@ -1,0 +1,37 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.search {
+  flex: 1 1 240px;
+}
+
+.list {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+  list-style: none;
+}
+
+.list > li:last-child > * {
+  border-bottom: 0;
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trailing {
+  display: inline-flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--circi-text-tertiary);
+}

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 vi.mock('#lib/auth-client.ts', () =>
@@ -11,31 +11,26 @@ import { RequestReviewPicker } from '#features/builds/RequestReviewPicker.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const auth = mockAuthClient().organization
+mockAuthClient()
 
 const member = (id: string, name: string, email: string) => ({
-  id: `m-${id}`,
-  userId: id,
+  id,
+  name,
+  email,
+  image: null,
   role: 'member',
-  user: { name, email },
+  addedAt: '2026-11-01T00:00:00.000Z',
 })
 
-beforeEach(() => {
-  auth.getFullOrganization.mockResolvedValue({
-    data: {
-      id: 'o1',
-      name: 'Acme',
-      slug: 'acme',
-      members: [
-        member('u1', 'Ada Lovelace', 'ada@example.test'),
-        member('u2', 'Grace Hopper', 'grace@example.test'),
-        member('u3', 'Alan Turing', 'alan@example.test'),
-      ],
-      invitations: [],
-    },
-    error: null,
-  })
-})
+// The team's own members: the picker never offers anyone outside the team.
+const TEAM_MEMBERS = {
+  members: [
+    member('u1', 'Ada Lovelace', 'ada@example.test'),
+    member('u2', 'Grace Hopper', 'grace@example.test'),
+    member('u3', 'Alan Turing', 'alan@example.test'),
+  ],
+  canManage: false,
+}
 
 const ENDPOINT = 'POST /api/teams/acme/web/builds/7/review-requests'
 
@@ -48,6 +43,7 @@ function show(
   const ready = renderPage(
     <RequestReviewPicker
       open={open}
+      teamName="web-app"
       onOpenChange={onOpenChange}
       trigger={<Button variant="ghost">Request review</Button>}
       workspace="acme"
@@ -56,18 +52,24 @@ function show(
     />,
     {
       announcer: true,
-      api: { [ENDPOINT]: reply, 'GET /api/teams/acme/web/builds/7/activity': { body: { events } } },
+      api: {
+        [ENDPOINT]: reply,
+        'GET /api/teams/acme/web/members': { body: TEAM_MEMBERS },
+        'GET /api/teams/acme/web/builds/7/activity': { body: { events } },
+      },
     },
   )
   return { ready, onOpenChange }
 }
 
-const picker = () => page.getByRole('dialog', { name: 'Request review from' })
+const picker = () => page.getByRole('dialog', { name: 'Request review from web-app members' })
 
 describe('RequestReviewPicker', () => {
-  it('is a popover headed "Request review from" listing the members, with no search field', async () => {
+  it('is a popover headed "Request review from web-app members" listing the members, with no search field', async () => {
     await show().ready
-    await expect.element(picker().getByText('Request review from').first()).toBeVisible()
+    await expect
+      .element(picker().getByText('Request review from web-app members').first())
+      .toBeVisible()
     await expect.element(picker().getByRole('button', { name: /Grace Hopper/ })).toBeVisible()
     expect(picker().getByRole('textbox').elements()).toHaveLength(0)
     // Anchored, not a modal: the trigger stays in the page.
@@ -89,8 +91,8 @@ describe('RequestReviewPicker', () => {
   })
 
   it('does not load members while closed', async () => {
-    await show(undefined, false).ready
-    expect(auth.getFullOrganization).not.toHaveBeenCalled()
+    const { calls } = await show(undefined, false).ready
+    expect(calls.filter((c) => c.path.endsWith('/members'))).toHaveLength(0)
   })
 
   it('labels someone already asked "Requested" and choosing them does nothing', async () => {

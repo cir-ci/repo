@@ -59,7 +59,11 @@ const show = () =>
     route: '/$workspace/$team/settings',
     url: '/acme/web/settings',
     announcer: true,
-    otherRoutes: ['/$workspace/$team'],
+    otherRoutes: [
+      '/$workspace/$team',
+      '/workspaces/$workspace/settings',
+      '/workspaces/$workspace/settings/teams',
+    ],
   })
 const heading = (name: string) => page.getByRole('heading', { name })
 
@@ -73,19 +77,29 @@ describe('TeamSettingsPage', () => {
     hangingFetch()
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.poll(() => crumbs.element().textContent).toBe('acmewebSettingsGeneral')
+    await expect.poll(() => crumbs.element().textContent).toBe('acmeSettingsTeamsweb')
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
   })
 
   it("links the breadcrumb to the team's Builds page and shows its name once loaded", async () => {
     api()
     await show()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
     await expect
-      .element(page.getByRole('link', { name: 'Web App' }))
-      .toHaveAttribute('href', '/acme/web')
+      .element(crumbs.getByRole('link', { name: 'Settings' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings')
     await expect
-      .element(page.getByRole('link', { name: 'Settings' }))
-      .toHaveAttribute('href', '/acme/web/settings')
+      .element(crumbs.getByRole('link', { name: 'Teams' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings/teams')
+    await expect.element(crumbs.getByText('Web App')).toBeVisible()
+    // The team header: back to Teams, the name and the tabs, General open.
+    await expect
+      .element(
+        page
+          .getByRole('navigation', { name: 'Web App settings' })
+          .getByRole('link', { name: 'General' }),
+      )
+      .toHaveAttribute('aria-current', 'page')
     expect(document.title).toBe('General · web · CirCI')
   })
 
@@ -134,8 +148,7 @@ describe('TeamSettingsPage', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
   })
 
-  it('follows a slug rename in the settings nav: the remembered team and the sidebar', async () => {
-    localStorage.setItem('circi-settings-team:acme', 'web')
+  it('follows a slug rename: the sidebar refreshes', async () => {
     api(
       {},
       {
@@ -144,7 +157,7 @@ describe('TeamSettingsPage', () => {
       },
     )
     const { queryClient } = await show()
-    // The settings nav has read the sidebar of the workspace: a rename makes it stale.
+    // The sidebar has read the sidebar of the workspace: a rename makes it stale.
     await queryClient.fetchQuery({
       queryKey: ['sidebar', 'acme'],
       queryFn: () => fetch('/api/workspaces/acme/sidebar').then((r) => r.json()),
@@ -153,7 +166,6 @@ describe('TeamSettingsPage', () => {
     await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
     await page.getByRole('textbox', { name: 'Slug' }).fill('web-app')
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect.poll(() => localStorage.getItem('circi-settings-team:acme')).toBe('web-app')
     await expect
       .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
       .toBe(true)

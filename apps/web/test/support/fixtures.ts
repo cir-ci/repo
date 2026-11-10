@@ -23,6 +23,9 @@ export const sidebarTeam = (over: Partial<Sidebar.Team> = {}): Sidebar.Team => (
   icon: null,
   pinned: false,
   triage: 0,
+  memberCount: 3,
+  memberPreview: [],
+  youAreMember: true,
   ...over,
 })
 
@@ -34,6 +37,31 @@ export const sidebarModel = (over: Partial<Sidebar.Model> = {}): Sidebar.Model =
   reviews: 0,
   canManage: true,
   ...over,
+})
+
+/** One entry of `GET /api/teams`: a team of a workspace, with its people (three members, you among them). */
+export const overview = (
+  workspace: string,
+  team: string,
+  over: Partial<Team.Overview['team']> = {},
+): Team.Overview => ({
+  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null },
+  team: {
+    slug: team,
+    name: team,
+    defaultBranch: 'main',
+    color: 'slate',
+    icon: null,
+    memberCount: 3,
+    memberPreview: [
+      { id: 'u1', name: 'Ada Lovelace', image: null },
+      { id: 'u2', name: 'Grace Hopper', image: null },
+      { id: 'u3', name: 'Alan Turing', image: null },
+    ],
+    youAreMember: true,
+    ...over,
+  },
+  latestBuild: null,
 })
 
 /** The session of `user`, as better-auth's `useSession` returns it. */

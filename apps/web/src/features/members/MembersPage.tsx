@@ -19,6 +19,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { memberTeamsQuery } from '#features/teams/api/members.ts'
+import { TeamStack } from '#features/teams/AvatarStack.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -108,6 +110,8 @@ export function MembersPage() {
   // Only owners and admins may see how people sign in; the tags are left out while loading or on error.
   const signIn = useQuery({ ...memberSignInQuery(workspace), enabled: canManage })
   const methodsOf = new Map((signIn.data?.members ?? []).map((m) => [m.userId, m.methods]))
+  // The teams each person is in, beside their role.
+  const memberTeams = useQuery(memberTeamsQuery(workspace))
   const pending = pendingInvitations(data?.invitations ?? [])
   const failure = cancel.error ?? resend.error ?? remove.error ?? changeRole.error
 
@@ -176,6 +180,9 @@ export function MembersPage() {
                             className={styles.controls}
                             data-editable={editable ? '' : undefined}
                           >
+                            {memberTeams.data ? (
+                              <TeamStack teams={memberTeams.data.teams[m.userId] ?? []} />
+                            ) : null}
                             {editable && m.role !== 'owner' ? (
                               <Select
                                 className={styles.role}

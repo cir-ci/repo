@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 
 import { activityQuery, useRequestReview } from '#features/builds/api/discussion.ts'
-import { workspaceQuery } from '#features/members/api.ts'
+import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 
 import { openReviewers } from './review-model.ts'
@@ -11,7 +11,7 @@ import { openReviewers } from './review-model.ts'
 import styles from './RequestReviewPicker.module.css'
 
 /**
- * "Request review from": a popover anchored to its trigger, listing the workspace's members.
+ * "Request review from": a popover anchored to its trigger, listing the team's members.
  * Someone already asked shows "Requested" and choosing them again does nothing. Never yourself.
  */
 export function RequestReviewPicker({
@@ -25,7 +25,7 @@ export function RequestReviewPicker({
       open={open}
       onOpenChange={onOpenChange}
       trigger={trigger}
-      label="Request review from"
+      label={heading(build.teamName)}
       align="end"
       className={styles.popup}
     >
@@ -35,8 +35,12 @@ export function RequestReviewPicker({
   )
 }
 
-function Choices({ workspace, team, number, onClose }: Choices.Props) {
-  const members = useQuery(workspaceQuery(workspace))
+/** The popover's name and heading: the team's own members are who can be asked. */
+const heading = (teamName: string | undefined) =>
+  teamName ? `Request review from ${teamName} members` : 'Request review from'
+
+function Choices({ workspace, team, teamName, number, onClose }: Choices.Props) {
+  const members = useQuery(teamMembersQuery(workspace, team))
   const activity = useQuery(activityQuery(workspace, team, number))
   const request = useRequestReview(workspace, team, number)
   const announce = useAnnounce()
@@ -46,8 +50,8 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
 
   // You can't ask yourself: you are never one of the choices.
   const people = (members.data?.members ?? [])
-    .filter((m) => m.userId !== me)
-    .map((m) => ({ userId: m.userId, name: m.user.name, image: m.user.image ?? null }))
+    .filter((m) => m.id !== me)
+    .map((m) => ({ userId: m.id, name: m.name, image: m.image }))
 
   function choose(person: { userId: string; name: string; image: string | null }) {
     if (requested.has(person.userId)) return
@@ -66,7 +70,7 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
   return (
     <>
       <Text variant="small" tone="tertiary" className={styles.heading}>
-        Request review from
+        {heading(teamName)}
       </Text>
       {request.error ? <Banner tone="danger">{request.error.message}</Banner> : null}
       {members.isPending ? (
@@ -74,7 +78,7 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
           Loading members…
         </Text>
       ) : people.length === 0 ? (
-        <Text tone="secondary">No one else is in this workspace.</Text>
+        <Text tone="secondary">No one else is in this team.</Text>
       ) : (
         <ul className={styles.people} aria-label="Members">
           {people.map((p) => {
@@ -112,6 +116,7 @@ namespace Choices {
   export interface Props {
     workspace: string
     team: string
+    teamName?: string | undefined
     number: number
     onClose: () => void
   }
@@ -125,6 +130,8 @@ export namespace RequestReviewPicker {
     trigger: ReactElement<Record<string, unknown>>
     workspace: string
     team: string
+    /** The team's display name, for the heading ("Request review from web-app members"). */
+    teamName?: string | undefined
     number: number
   }
 }

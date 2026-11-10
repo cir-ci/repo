@@ -1,20 +1,20 @@
 import type { Activity, Comment, Review } from '@circi/api'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { workspaceQuery } from '#features/members/api.ts'
+import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import type { Mention } from '#lib/mentions.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
-/** The workspace's members as @mention candidates (empty while they load). */
-export function useMentionMembers(workspace: string): Mention.Member[] {
-  const { data } = useQuery(workspaceQuery(workspace))
+/** The team's members as @mention candidates (empty while they load). */
+export function useMentionMembers(workspace: string, team: string): Mention.Member[] {
+  const { data } = useQuery(teamMembersQuery(workspace, team))
   return (data?.members ?? []).map((m) => ({
-    userId: m.userId,
-    name: m.user.name,
-    email: m.user.email,
-    image: m.user.image ?? null,
+    userId: m.id,
+    name: m.name,
+    email: m.email,
+    image: m.image,
   }))
 }
 

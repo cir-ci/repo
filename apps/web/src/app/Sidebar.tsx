@@ -1,9 +1,13 @@
 import type { Sidebar as SidebarModel } from '@circi/api'
 import {
   FolderOpenIcon,
+  GlobeIcon,
+  HammerIcon,
+  ImageIcon,
   InboxIcon,
   InsightsIcon,
   Kbd,
+  ListChecksIcon,
   ListFilterIcon,
   NavItem,
   NavSection,
@@ -30,7 +34,6 @@ import {
   currentSection,
   type WorkspaceRef,
   pinnedViews,
-  readRememberedTeam,
   switchWorkspacePath,
   SIDEBAR_TEAM_LIMIT,
   sidebarTeams,
@@ -73,8 +76,7 @@ export function Sidebar({ user }: Sidebar.Props) {
       const slugs = (overview?.teams ?? [])
         .filter((o) => o.workspace.slug === slug)
         .map((o) => o.team.slug)
-      const remembered = readRememberedTeam(slug)
-      return remembered && slugs.includes(remembered) ? remembered : slugs[0]
+      return slugs[0]
     })
     if (target) void navigate({ href: target })
   }
@@ -215,13 +217,20 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
       </NavLink>
       {open ? (
         <>
-          <NavLink to="/$workspace/$team" params={params} sub selected={section === 'builds'}>
+          <NavLink
+            to="/$workspace/$team"
+            params={params}
+            sub
+            icon={<HammerIcon />}
+            selected={section === 'builds'}
+          >
             Builds
           </NavLink>
           <NavLink
             to="/$workspace/$team/triage"
             params={params}
             sub
+            icon={<ListChecksIcon />}
             selected={section === 'triage'}
             {...(triage === undefined
               ? {}
@@ -233,11 +242,18 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             to="/$workspace/$team/baselines"
             params={params}
             sub
+            icon={<ImageIcon />}
             selected={section === 'baselines'}
           >
             Baselines
           </NavLink>
-          <NavLink to="/$workspace/$team/sites" params={params} sub selected={section === 'sites'}>
+          <NavLink
+            to="/$workspace/$team/sites"
+            params={params}
+            sub
+            icon={<GlobeIcon />}
+            selected={section === 'sites'}
+          >
             Sites
           </NavLink>
         </>
