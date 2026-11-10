@@ -17,6 +17,7 @@ import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
+import { AppContextMenu } from './AppContextMenu.tsx'
 import { useNavPane } from './NavToggle.tsx'
 import { PhoneMore } from './PhoneMore.tsx'
 import { PhoneTabs } from './PhoneTabs.tsx'
@@ -159,6 +160,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       </AppFrame>
       <TeamDialogs />
       <WindowTitleBar />
+      <AppContextMenu />
       <AddToHomeScreenSheet />
       {phone && !inSettings ? <PhoneMore /> : null}
       {phone ? <PhoneTabSwitcher /> : null}
