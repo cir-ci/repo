@@ -13,8 +13,18 @@ const item = (id: string, over: Record<string, unknown> = {}) => ({
   readAt: null,
   snoozedUntil: null,
   payload: {},
-  actor: { id: 'u2', name: 'Ada' },
-  build: { number: 12, branch: 'main', prNumber: null, commitSha: 'abcdef1234567' },
+  actor: { id: 'u2', name: 'Ada', image: null },
+  build: {
+    number: 12,
+    name: 'default',
+    branch: 'main',
+    prNumber: null,
+    commitSha: 'abcdef1234567',
+    status: 'complete',
+    reviewStatus: 'pending',
+  },
+  changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
+  request: { dueAt: null, overdueByMs: 0 },
   team: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   alsoInReviews: false,
@@ -40,7 +50,15 @@ describe('InboxPage', () => {
         item('n1', { alsoInReviews: true }),
         item('n2', {
           kind: 'build_rejected',
-          build: { number: 13, branch: 'x', prNumber: null, commitSha: 'abc' },
+          build: {
+            number: 13,
+            name: 'default',
+            branch: 'x',
+            prNumber: null,
+            commitSha: 'abc',
+            status: 'complete',
+            reviewStatus: 'rejected',
+          },
           payload: { reason: 'Logo moved' },
           readAt: '2026-11-08T11:00:00.000Z',
         }),
@@ -114,39 +132,137 @@ describe('InboxPage', () => {
       },
     })
     await show()
-    await expect.element(page.getByText('Ada requested your review of build #12')).toBeVisible()
+    await expect
+      .element(
+        page
+          .getByRole('list', { name: 'For you' })
+          .getByText('Ada requested your review of build #12'),
+      )
+      .toBeVisible()
     await userEvent.keyboard('{Backspace}')
     await expect
-      .element(page.getByText('Ada requested your review of build #12'))
+      .element(
+        page
+          .getByRole('list', { name: 'For you' })
+          .getByText('Ada requested your review of build #12'),
+      )
       .not.toBeInTheDocument()
     expect(api.of('DELETE')).toHaveLength(1)
-    await expect.element(page.getByRole('link', { name: /mentioned you/ })).toHaveFocus()
+    await expect.element(page.getByRole('button', { name: /mentioned you/ })).toHaveFocus()
   })
 
-  it('marks read when a row is opened and refreshes the sidebar count', async () => {
+  it('selects a row into the pane and marks it read; Open goes to the build', async () => {
     const api = fakeApi({
-      'GET /api/inbox': list([item('n1')]),
+      'GET /api/inbox': list([item('n1'), item('n2', { kind: 'build_approved' })]),
+      'POST /api/inbox/n2/read': { body: { id: 'n2', readAt: 'x', snoozedUntil: null } },
       'POST /api/inbox/n1/read': { body: { id: 'n1', readAt: 'x', snoozedUntil: null } },
     })
     const { router, queryClient } = await show()
     await queryClient.prefetchQuery({ queryKey: ['sidebar', 'acme'], queryFn: () => ({}) })
-    await page.getByRole('link', { name: /requested your review/ }).click()
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await expect.element(pane.getByText('Ada requested your review of build #12')).toBeVisible()
+    await page.getByRole('button', { name: /approved build #12/ }).click()
+    await expect.element(pane.getByText('Ada approved build #12')).toBeVisible()
     await expect.poll(() => api.of('POST')[0]?.body).toEqual({ read: true })
     await expect
       .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
       .toBe(true)
+    expect(router.state.location.pathname).toBe('/inbox')
+    await pane.getByRole('link', { name: 'Open build' }).click()
     expect(router.state.location.pathname).toBe('/acme/web/builds/12')
   })
 
-  it('marks everything read, and peeks with space', async () => {
+  it('moves through the list with j and k, and Enter opens the build', async () => {
+    fakeApi({
+      'GET /api/inbox': list([item('n1'), item('n2', { kind: 'build_approved' })]),
+      'POST /api/inbox/n1/read': { body: { id: 'n1', readAt: 'x', snoozedUntil: null } },
+    })
+    const { router } = await show()
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await userEvent.keyboard('j')
+    await expect.element(pane.getByText('Ada approved build #12')).toBeVisible()
+    await userEvent.keyboard('k')
+    await expect.element(pane.getByText('Ada requested your review of build #12')).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
+  })
+
+  it('shows the details table, the note, and "Also in Reviews" in the pane', async () => {
+    fakeApi({
+      'GET /api/inbox': list([
+        item('n1', {
+          alsoInReviews: true,
+          kind: 'build_rejected',
+          payload: { reason: 'Logo moved' },
+          request: { dueAt: '2026-11-08T08:00:00.000Z', overdueByMs: 2 * 3600_000 },
+        }),
+      ]),
+    })
+    await show()
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await expect.element(pane.getByText('Also in Reviews')).toBeVisible()
+    await expect.element(pane.getByText('Logo moved')).toBeVisible()
+    await expect.element(pane.getByText('Branch')).toBeVisible()
+    await expect.element(pane.getByText('4 changed, 1 added')).toBeVisible()
+    await expect.element(pane.getByText('38 same')).toBeVisible()
+    await expect.element(pane.getByText(/Overdue 2h/)).toBeVisible()
+  })
+
+  it('approves everything from the pane while the build awaits your review, with shift+A', async () => {
+    let approved = false
+    const api = fakeApi({
+      'GET /api/inbox': () => list(approved ? [] : [item('n1', { readAt: 'x' })]),
+      'POST /api/teams/acme/web/builds/12/review': () => {
+        approved = true
+        return { body: { build: {} } }
+      },
+    })
+    await show()
+    await expect.element(page.getByRole('button', { name: /Approve all/ })).toBeVisible()
+    await userEvent.keyboard('{Shift>}A{/Shift}')
+    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ state: 'approved' })
+    await expect.element(page.getByText('Select a notification')).toBeVisible()
+  })
+
+  it('has no Approve all for a notice without your open request', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1', { request: null })]) })
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Snooze' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: /Approve all/ })).not.toBeInTheDocument()
+  })
+
+  it('replies to a mention from the pane', async () => {
+    const api = fakeApi({
+      'GET /api/inbox': list([
+        item('n1', { kind: 'mentioned', payload: { snippet: 'Is it 2px?', commentId: 'c1' } }),
+      ]),
+      'POST /api/teams/acme/web/builds/12/comments': { status: 201, body: { id: 'c2' } },
+    })
+    await show()
+    await page.getByRole('textbox', { name: 'Reply' }).fill('Yes, 2px')
+    await page.getByRole('button', { name: 'Reply', exact: true }).click()
+    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ body: 'Yes, 2px', parentId: 'c1' })
+  })
+
+  it('has no reply box on a notice that is not a mention', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Reply' })).not.toBeInTheDocument()
+  })
+
+  it('counts the Snoozed tab beside its name', async () => {
+    // Both tabs answer with the same two notifications here: the count is the snoozed tab's.
+    fakeApi({ 'GET /api/inbox': list([item('n1'), item('n2')]) })
+    await show()
+    await expect.element(page.getByRole('tab', { name: 'Snoozed 2' })).toBeVisible()
+  })
+
+  it('marks everything read', async () => {
     const api = fakeApi({
       'GET /api/inbox': list([item('n1'), item('n2')]),
       'POST /api/inbox/read-all': { body: { marked: 2 } },
     })
     await show()
-    await userEvent.keyboard('j')
-    await userEvent.keyboard(' ')
-    await expect.element(page.getByRole('region', { name: 'Preview' })).toBeVisible()
     await page.getByRole('button', { name: 'Mark all read' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
   })
@@ -166,5 +282,6 @@ describe('InboxPage', () => {
     fakeApi({ 'GET /api/inbox': list([]) })
     await show()
     await expect.element(page.getByRole('heading', { name: "You're all caught up" })).toBeVisible()
+    await expect.element(page.getByText('Select a notification')).toBeVisible()
   })
 })

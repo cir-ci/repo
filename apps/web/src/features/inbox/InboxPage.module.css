@@ -1,0 +1,283 @@
+/* The Inbox: the list of notifications and, beside it, the selected one (420px). */
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.listColumn {
+  display: flex;
+  flex: 999 1 380px;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.paneColumn {
+  display: flex;
+  flex: 1 1 340px;
+  max-width: 420px;
+  min-width: 0;
+  padding: 8px 8px 8px 0;
+}
+
+.paneColumn > * {
+  flex: 1;
+  max-width: none;
+}
+
+.count {
+  display: block;
+  padding: 8px 16px;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.who {
+  position: relative;
+  flex: none;
+  margin-top: 2px;
+}
+
+.system {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--circi-action-selected);
+  color: var(--circi-text-secondary);
+}
+
+.event {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--circi-surface-panel);
+}
+
+.rowBody {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowTitle[data-unread] {
+  font-weight: 500;
+}
+
+.rowMeta {
+  display: flex;
+  gap: 10px;
+  overflow: hidden;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rowMeta > span {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trailing {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+}
+
+.unread {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--circi-accent-main);
+}
+
+.read {
+  flex: none;
+  width: 6px;
+  height: 6px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.paneBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.paneTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.also {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--circi-text-secondary);
+}
+
+.quote {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+  background: var(--circi-surface-raised);
+}
+
+.quoteText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.quoteBy {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.quoteWhen {
+  color: var(--circi-text-tertiary);
+  font-weight: 400;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--circi-line-subtle);
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
+}
+
+.row dt {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.row dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.value {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mono {
+  font-family: var(--circi-font-mono, ui-monospace, monospace);
+}
+
+.counts {
+  display: inline-flex;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--circi-text-tertiary);
+}
+
+.late {
+  color: var(--circi-state-review-text, var(--circi-state-review));
+}
+
+.reply {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.reply > :first-child {
+  flex: 1;
+}
+
+.systemText {
+  margin: 0;
+  color: var(--circi-text-secondary);
+}
+
+.emptyPane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  color: var(--circi-text-tertiary);
+}
+
+.emptyList {
+  margin: auto;
+}
+
+@media (max-width: 1100px) {
+  .split {
+    flex-direction: column;
+  }
+
+  .paneColumn {
+    max-width: none;
+    padding: 0 8px 8px;
+  }
+}

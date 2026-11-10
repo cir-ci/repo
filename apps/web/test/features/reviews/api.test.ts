@@ -34,6 +34,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   requestedBy: { id: 'u2', name: 'Ada Lovelace', image: null },
   build: {
     number: 12,
+    name: 'default',
     branch: 'main',
     prNumber: null,
     commitSha: 'abcdef1234567',

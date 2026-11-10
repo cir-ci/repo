@@ -2,10 +2,14 @@ import type { Inbox } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  awaitsYourReview,
   inboxCount,
+  inboxTabs,
   notificationName,
   notificationTarget,
   notificationText,
+  openLabel,
+  replyTarget,
   snoozeBody,
   validateInboxSearch,
 } from '#features/inbox/api.ts'
@@ -17,8 +21,18 @@ const item = (over: Partial<Inbox.Item> = {}): Inbox.Item => ({
   readAt: null,
   snoozedUntil: null,
   payload: {},
-  actor: { id: 'u2', name: 'Ada' },
-  build: { number: 12, branch: 'main', prNumber: null, commitSha: 'abcdef1234567' },
+  actor: { id: 'u2', name: 'Ada', image: null },
+  build: {
+    number: 12,
+    name: 'default',
+    branch: 'main',
+    prNumber: null,
+    commitSha: 'abcdef1234567',
+    status: 'complete',
+    reviewStatus: 'pending',
+  },
+  changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
+  request: { dueAt: null, overdueByMs: 0 },
   team: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   alsoInReviews: false,
@@ -118,5 +132,35 @@ describe('inbox tabs and snoozing', () => {
       date: '2026-12-01T09:00:00.000Z',
     })
     expect(snoozeBody({ kind: 'next_push' })).toEqual({ choice: 'tomorrow' })
+  })
+})
+
+describe('the pane', () => {
+  it('offers Approve all only while the build waits for your review', () => {
+    expect(awaitsYourReview(item())).toBe(true)
+    expect(awaitsYourReview(item({ request: null }))).toBe(false)
+    const decided = item().build
+    expect(
+      awaitsYourReview(item({ build: decided && { ...decided, reviewStatus: 'approved' } })),
+    ).toBe(false)
+    expect(awaitsYourReview(item({ build: null }))).toBe(false)
+  })
+
+  it('replies only to a mention that names its comment', () => {
+    expect(replyTarget(item({ kind: 'mentioned', payload: { commentId: 'c1' } }))).toBe('c1')
+    expect(replyTarget(item({ kind: 'mentioned' }))).toBeUndefined()
+    expect(replyTarget(item({ payload: { commentId: 'c1' } }))).toBeUndefined()
+  })
+
+  it('names the Open button for what it opens', () => {
+    expect(openLabel(item())).toBe('Open review')
+    expect(openLabel(item({ kind: 'mentioned' }))).toBe('Open thread')
+    expect(openLabel(item({ kind: 'build_rejected' }))).toBe('Open build')
+    expect(openLabel(item({ kind: 'connection_needs_attention', build: null }))).toBe('Open team')
+  })
+
+  it('counts the Snoozed tab only when something is snoozed', () => {
+    expect(inboxTabs(0).map((t) => t.label)).toEqual(['For you', 'Everything', 'Snoozed'])
+    expect(inboxTabs(3).map((t) => t.label)).toEqual(['For you', 'Everything', 'Snoozed 3'])
   })
 })

@@ -1,7 +1,8 @@
-import type { Inbox, NotificationKind } from '@circi/api'
+import type { Comment, Inbox, NotificationKind } from '@circi/api'
+import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { inboxPath } from '#lib/api-paths.ts'
+import { inboxPath, teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
@@ -20,6 +21,13 @@ export interface InboxSearch {
 export function validateInboxSearch(search: Record<string, unknown>): InboxSearch {
   const tab = INBOX_TABS.find((t) => t.value === search['tab'])
   return { tab: tab?.value ?? 'for-you' }
+}
+
+/** The tabs with the Snoozed count beside its name ("Snoozed 3"); nothing while nothing is snoozed. */
+export function inboxTabs(snoozed: number): readonly { value: Inbox.Tab; label: string }[] {
+  return INBOX_TABS.map((t) =>
+    t.value === 'snoozed' && snoozed > 0 ? { ...t, label: `${t.label} ${snoozed}` } : t,
+  )
 }
 
 export const inboxQuery = (tab: Inbox.Tab) =>
@@ -143,5 +151,91 @@ export function useMarkAllRead() {
   return useMutation({
     mutationFn: () => post<{ marked: number }>('/api/inbox/read-all', {}),
     onSuccess: refresh,
+  })
+}
+
+/** The glyph on a row's avatar, for what the notification is about; none for a mention. */
+export function notificationGlyph(kind: NotificationKind): Status | undefined {
+  const glyphs: Partial<Record<NotificationKind, Status>> = {
+    review_requested: 'needs-review',
+    review_re_requested: 'needs-review',
+    review_overdue: 'needs-review',
+    build_approved: 'approved',
+    build_rejected: 'rejected',
+    flaky_detected: 'flaky',
+  }
+  return glyphs[kind]
+}
+
+/** What the Open button says: the review, the thread, the build, or (without a build) the team. */
+export function openLabel(item: Inbox.Item): string {
+  if (item.kind === 'mentioned') return 'Open thread'
+  if (item.kind === 'connection_needs_attention') return 'Open team'
+  if (item.kind === 'review_requested' || item.kind === 'review_re_requested') return 'Open review'
+  if (item.kind === 'review_overdue') return 'Open review'
+  return item.build ? 'Open build' : 'Open team'
+}
+
+/** The sentence after the title in the pane for notices that say something beyond who did what. */
+export function systemText(item: Inbox.Item): string | undefined {
+  if (item.kind === 'connection_needs_attention') {
+    return "Pull requests may no longer wait for visual review until it's reconnected."
+  }
+  if (item.kind === 'flaky_detected') {
+    return 'They change with no code change. Triage them so they stop blocking reviews.'
+  }
+  return undefined
+}
+
+/** The words someone left with the notification: a rejection's reason or the mention's text. */
+export function notificationNote(item: Inbox.Item): string | undefined {
+  return notificationText(item).detail
+}
+
+/** Whether the build still waits for your review, so the pane can approve it: "Approve all". */
+export function awaitsYourReview(item: Inbox.Item): boolean {
+  return (
+    item.request !== null &&
+    item.build !== null &&
+    item.build.status === 'complete' &&
+    item.build.reviewStatus === 'pending'
+  )
+}
+
+/** The comment a mention is about, when it can be replied to. */
+export function replyTarget(item: Inbox.Item): string | undefined {
+  return item.kind === 'mentioned' ? text(item.payload['commentId']) : undefined
+}
+
+/** Approves the build a notification is about; every list that shows the same facts is refetched. */
+export function useApproveBuild() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (item: Inbox.Item) => {
+      if (!item.workspace || !item.team || !item.build) throw new Error('Build not found')
+      return post(
+        teamPath(item.workspace.slug, item.team.slug, 'builds', item.build.number, 'review'),
+        { state: 'approved' },
+      )
+    },
+    onSuccess: () =>
+      invalidateAll(queryClient, keys.inbox(), keys.reviews(), keys.sidebar(), keys.teams()),
+  })
+}
+
+/** Replies to the comment a mention is about, in its thread. */
+export function useReplyToMention() {
+  return useMutation({
+    mutationFn: ({ item, body }: { item: Inbox.Item; body: string }) => {
+      const parentId = replyTarget(item)
+      if (!item.workspace || !item.team || !item.build || !parentId) {
+        throw new Error('Comment not found')
+      }
+      const input: Comment.Create = { body, parentId }
+      return post<{ id: string }>(
+        teamPath(item.workspace.slug, item.team.slug, 'builds', item.build.number, 'comments'),
+        input,
+      )
+    },
   })
 }

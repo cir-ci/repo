@@ -33,14 +33,22 @@ export function validateReviewsSearch(search: Record<string, unknown>): ReviewsS
 }
 
 /** A build the worker is still comparing: nothing to review yet. */
-export const isProcessing = (build: Review.Request['build']) =>
+export const isProcessing = (build: Pick<Review.Request['build'], 'status'>) =>
   build.status !== 'complete' && build.status !== 'error' && build.status !== 'expired'
 
 /** The glyph and word for a request's build: processing, needs review, approved or rejected. */
 export function requestStatus(r: Review.Request): { status: Status; label: string } {
-  if (isProcessing(r.build)) return { status: 'processing', label: 'Processing' }
-  if (r.build.reviewStatus === 'approved') return { status: 'approved', label: 'Approved' }
-  if (r.build.reviewStatus === 'rejected') return { status: 'rejected', label: 'Rejected' }
+  return buildStatus(r.build)
+}
+
+/** The same for any build with its status and review status (a request's, a notification's). */
+export function buildStatus(build: Pick<Review.Request['build'], 'status' | 'reviewStatus'>): {
+  status: Status
+  label: string
+} {
+  if (isProcessing(build)) return { status: 'processing', label: 'Processing' }
+  if (build.reviewStatus === 'approved') return { status: 'approved', label: 'Approved' }
+  if (build.reviewStatus === 'rejected') return { status: 'rejected', label: 'Rejected' }
   return { status: 'needs-review', label: 'Needs review' }
 }
 
