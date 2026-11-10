@@ -1,0 +1,15 @@
+/* A finding's value of several parts (the disk path, then its free space), under the detail. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  color: var(--circi-text-secondary);
+  font-family: var(--circi-font-mono);
+}
+
+/* One part per line; a path never wraps: it ends in an ellipsis (full text on hover) if too long. */
+.fact {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

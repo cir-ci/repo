@@ -34,6 +34,8 @@ import {
   useDismissChecklist,
 } from './api/admin.ts'
 
+import styles from './HealthPage.module.css'
+
 /** The doctor's checks in groups, the address-change checklist, the job queues and the setup code. */
 export function HealthPage() {
   useDocumentTitle('Health', 'Instance')
@@ -180,12 +182,38 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
   )
 }
 
+/**
+ * A finding's value, under its detail in every row (only the badge sits on the right), one part
+ * per line: the disk check's path, then its free space. The column is wide enough for a path, which
+ * never wraps (an ellipsis and a tooltip if it's ever too long).
+ */
+function valueParts(value: string | null | undefined): string[] {
+  return value ? value.split(' · ') : []
+}
+
 function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
+  const parts = valueParts(f.value)
+  // Every value under the detail, the same in every row; a path has room there for one line.
+  const detail = f.fix ? `${f.detail} How to fix: ${f.fix}` : f.detail
   return (
     <SettingsRow
       label={f.label}
-      detail={f.fix ? `${f.detail} How to fix: ${f.fix}` : f.detail}
-      value={f.value ?? undefined}
+      detail={
+        parts.length > 0 ? (
+          <>
+            <span>{detail}</span>
+            <span className={styles.facts}>
+              {parts.map((part) => (
+                <span key={part} className={styles.fact} title={part}>
+                  {part}
+                </span>
+              ))}
+            </span>
+          </>
+        ) : (
+          detail
+        )
+      }
       status={
         <Badge shape="tag" tone="state" state={FINDING_LEVEL[f.level].state}>
           {FINDING_LEVEL[f.level].label}

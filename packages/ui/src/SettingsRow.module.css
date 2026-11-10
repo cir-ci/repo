@@ -64,6 +64,23 @@
   text-align: right;
 }
 
+/* The value and the badge together: up to 55% of the row, so the label keeps its room and a long
+   value wraps inside its own column instead of pushing the badge onto a new line. */
+.side {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  max-width: 55%;
+  margin-left: auto;
+}
+
+.side > .value {
+  max-width: none;
+}
+
 .control {
   display: flex;
   flex: none;
@@ -95,6 +112,12 @@
 
 /* Narrow: the right side stacks under the label, left-aligned. */
 @media (max-width: 520px) {
+  .side {
+    flex-basis: 100%;
+    max-width: none;
+    justify-content: space-between;
+  }
+
   .value {
     flex-basis: 100%;
     max-width: none;

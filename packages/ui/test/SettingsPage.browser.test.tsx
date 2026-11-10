@@ -94,6 +94,27 @@ describe('SettingsSection and SettingsRow', () => {
     await expect.element(page.getByRole('region', { name: 'Danger zone' })).toBeVisible()
   })
 
+  it('keeps a status badge on the line of its value, even with a long value', async () => {
+    await render(
+      <div style={{ width: 672 }}>
+        <SettingsRow
+          label="Disk space"
+          detail="The storage disk has room."
+          value="/Users/someone/Work/circi/repo/.dev/files · 463 GB free of 926 GB (50%)"
+          status={<Badge shape="tag">Passing</Badge>}
+        />
+      </div>,
+    )
+    const value = page
+      .getByText(/463 GB free/)
+      .element()
+      .getBoundingClientRect()
+    const badge = page.getByText('Passing').element().getBoundingClientRect()
+    // Beside its value (level with it), not on a line of its own under the row.
+    expect(badge.left).toBeGreaterThan(value.right)
+    expect(badge.top).toBeLessThan(value.bottom)
+  })
+
   it('a row stacks its value under the label at phone width', async () => {
     await render(
       <div style={{ width: 360 }}>

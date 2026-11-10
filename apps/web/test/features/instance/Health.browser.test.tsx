@@ -288,6 +288,10 @@ describe('the health page', () => {
     const text = services.element().textContent ?? ''
     expect(text.indexOf('Not usable')).toBeLessThan(text.indexOf('running low'))
     expect(text.indexOf('running low')).toBeLessThan(text.indexOf('Migrations are current'))
+    // The disk value: its path on top, the free space on the line under it.
+    const path = services.getByText('/data', { exact: true }).element().getBoundingClientRect()
+    const free = services.getByText('1.0 GB free of 8.0 GB (13%)').element().getBoundingClientRect()
+    expect(free.top).toBeGreaterThanOrEqual(path.bottom - 1)
   })
 
   it('dismisses the move checklist, and brings it back with a link', async () => {

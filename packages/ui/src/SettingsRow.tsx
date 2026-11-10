@@ -32,9 +32,19 @@ export function SettingsRow({
           {env ? <span className={styles.env}>{env}</span> : null}
         </div>
       ) : null}
-      {value ? <span className={styles.value}>{value}</span> : null}
-      {children ? <div className={styles.control}>{children}</div> : null}
-      {status ? <span className={styles.status}>{status}</span> : null}
+      {children ? (
+        <>
+          {value ? <span className={styles.value}>{value}</span> : null}
+          <div className={styles.control}>{children}</div>
+          {status ? <span className={styles.status}>{status}</span> : null}
+        </>
+      ) : value || status ? (
+        // The value and its badge wrap as one: a badge never drops to a line of its own.
+        <span className={styles.side}>
+          {value ? <span className={styles.value}>{value}</span> : null}
+          {status ? <span className={styles.status}>{status}</span> : null}
+        </span>
+      ) : null}
     </div>
   )
 }
