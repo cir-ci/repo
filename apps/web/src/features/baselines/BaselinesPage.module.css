@@ -46,3 +46,32 @@
 .list > li:last-child > * {
   border-bottom: 0;
 }
+
+/* A flaky screenshot's chip: the glyph and the reason, on a tint of the flaky colour. It opens the
+   item in Triage. */
+.flakyChip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 320px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--circi-state-flaky) 16%, transparent);
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.flakyChip:hover {
+  background: color-mix(in srgb, var(--circi-state-flaky) 26%, transparent);
+}
+
+.flakyText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

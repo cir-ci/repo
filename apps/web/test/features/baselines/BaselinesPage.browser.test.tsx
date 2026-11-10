@@ -105,7 +105,7 @@ describe('BaselinesPage', () => {
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
   })
 
-  it('marks a flaky screenshot at the end of its row, and shows the age compactly', async () => {
+  it('marks a flaky screenshot with a chip saying why, which opens it in Triage, and shows the age compactly', async () => {
     fakeFetch({
       [`GET ${PATH}`]: list([
         {
@@ -131,19 +131,19 @@ describe('BaselinesPage', () => {
         ],
       }),
     })
-    await open()
+    const { router } = await open()
     await expect.element(page.getByText('2d')).toBeVisible()
     await expect.element(page.getByText('1h')).toBeVisible()
-    const marks = page.getByRole('img', { name: 'Flaky' })
-    await expect.element(marks).toBeVisible()
-    expect(marks.elements()).toHaveLength(1)
-    // The reason is text in the row, not only in the icon's label.
-    await expect
-      .element(
-        page.getByText('Build #12 · Flaky: differed across 2 runs of one commit', { exact: true }),
-      )
-      .toBeVisible()
+    // The flaky mark is a chip with the reason in words, on that row only.
+    const chip = page.getByText('Differed across 2 runs of one commit', { exact: true })
+    await expect.element(chip).toBeVisible()
+    expect(chip.elements()).toHaveLength(1)
+    await expect.element(page.getByText('Build #12', { exact: true })).toBeVisible()
     await expect.element(page.getByText('Build #11', { exact: true })).toBeVisible()
+    // It opens the screenshot's item in Triage, not the baseline the row leads to.
+    await chip.click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/triage')
+    expect(router.state.location.search).toEqual({ item: 'flaky:checkout/payment' })
   })
 
   it('says so when there are none, centred in the content area, with no find field', async () => {

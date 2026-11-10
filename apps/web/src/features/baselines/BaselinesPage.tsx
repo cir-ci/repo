@@ -122,7 +122,7 @@ export function BaselinesPage() {
                                       )}
                                     </>
                                   }
-                                  subtitle={subtitleOf(item, flakyOf.get(item.name))}
+                                  subtitle={`Build #${item.buildNumber}`}
                                   action={{
                                     label: `Open build #${item.buildNumber} ↗`,
                                     onAction: () =>
@@ -138,7 +138,14 @@ export function BaselinesPage() {
                                   trailing={
                                     <>
                                       {flakyOf.has(item.name) ? (
-                                        <StatusIcon status="flaky" label="Flaky" />
+                                        <FlakyChip
+                                          reason={flakyOf.get(item.name)!}
+                                          onOpen={() =>
+                                            void router.navigate({
+                                              href: triageItemHref(workspace, team, item.name),
+                                            })
+                                          }
+                                        />
                                       ) : null}
                                       <span className={styles.age}>
                                         <Age iso={item.approvedAt} />
@@ -163,8 +170,29 @@ export function BaselinesPage() {
   )
 }
 
-/** "Build #148", and for a flaky screenshot why: "Build #148 · Flaky: came back to an earlier image 3 times". */
-function subtitleOf(item: Baseline.Item, reason: Flaky.Reason | undefined): string {
-  const build = `Build #${item.buildNumber}`
-  return reason ? `${build} · Flaky: ${flakyReasonText(reason, { inline: true })}` : build
+/** The Triage page with this screenshot's flaky item selected. */
+const triageItemHref = (workspace: string, team: string, name: string) =>
+  `/${encodeURIComponent(workspace)}/${encodeURIComponent(team)}/triage?item=${encodeURIComponent(`flaky:${name}`)}`
+
+/**
+ * A flaky screenshot's chip: the flaky glyph and why it was marked. It opens the screenshot's item
+ * in Triage. Inside the row's link it can't be a link of its own, so like the row's action chip it
+ * takes the click (the item is also reachable from Triage itself).
+ */
+function FlakyChip({ reason, onOpen }: { reason: Flaky.Reason; onOpen: () => void }) {
+  const text = flakyReasonText(reason)
+  return (
+    <span
+      className={styles.flakyChip}
+      title={`Flaky: ${text}. Open in Triage`}
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        onOpen()
+      }}
+    >
+      <StatusIcon status="flaky" size={12} decorative />
+      <span className={styles.flakyText}>{text}</span>
+    </span>
+  )
 }
