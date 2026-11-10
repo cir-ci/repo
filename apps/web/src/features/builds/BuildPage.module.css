@@ -31,9 +31,9 @@
 /* Its own scroll: the list stays in view while the viewer's column scrolls with the page. */
 .list {
   position: sticky;
-  top: 0;
+  top: var(--circi-page-top, 0px);
   box-sizing: border-box;
-  max-height: calc(100dvh - 16px);
+  max-height: calc(100dvh - 16px - var(--circi-page-top, 0px));
   padding: 8px;
   overflow-y: auto;
 }
@@ -56,6 +56,11 @@
   .body {
     grid-template-columns: var(--circi-rail-width, 240px) minmax(0, 1fr);
     grid-template-rows: minmax(min-content, 1fr) auto;
+  }
+
+  /* The sidebar's row runs under the list here: a sticky list would ride over it. */
+  .list {
+    position: static;
   }
 
   .body > :nth-child(2) {

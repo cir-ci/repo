@@ -28,7 +28,9 @@
   flex-direction: column;
   min-width: 0;
   margin: 0 8px 8px;
-  overflow: hidden;
+  /* Clip, not hidden: hidden makes the panel a scroll container, and the page header (and the
+     build page's list, toolbar and sidebar) could then never stick to the window as it scrolls. */
+  overflow: clip;
   border: 1px solid var(--circi-line-subtle);
   border-radius: var(--circi-radius-panel);
   background: var(--circi-surface-panel);

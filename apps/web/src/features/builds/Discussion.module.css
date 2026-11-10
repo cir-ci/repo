@@ -1,11 +1,11 @@
 /* The review sidebar: tabs, the timeline, comments, and the dialogs' text fields. */
 .sidebar {
   position: sticky;
-  top: 0;
+  top: var(--circi-page-top, 0px);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  max-height: calc(100dvh - 16px);
+  max-height: calc(100dvh - 16px - var(--circi-page-top, 0px));
   min-width: 0;
   background: var(--circi-surface-panel);
 }
