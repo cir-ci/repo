@@ -9,7 +9,7 @@ const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member' } as const
 
 /**
  * The workspace the sidebar is about, at its top: a menu of the workspaces the person can see
- * (228px wide, 32px rows, the person's role at the right of each, the open one highlighted), a way to its settings and, when allowed, "New workspace". A Base UI
+ * (228px wide, 36px rows, the person's role at the right of each, the open one highlighted), a way to its settings and, when allowed, "New workspace". A Base UI
  * menu: arrow keys move, Escape closes and focus returns to the button.
  */
 export function WorkspaceSwitcher({
@@ -33,6 +33,7 @@ export function WorkspaceSwitcher({
             slug={current.slug}
             name={current.name}
             picture={current.picture ?? null}
+            size={24}
           />
           <span className={styles.name}>{current.name}</span>
           <ChevronsUpDownIcon size={12} />

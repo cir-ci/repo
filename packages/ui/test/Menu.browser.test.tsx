@@ -51,18 +51,30 @@ describe('Menu', () => {
     expect(getComputedStyle(page.getByRole('menuitem').first().element()).height).toBe('28px')
   })
 
-  it('has 32px items with size="md"', async () => {
+  it('has 36px items, 14px text and 18px icons at stroke 2 with size="md"', async () => {
     await page.viewport(800, 600)
     await render(
       <Menu
         size="md"
         trigger={<IconButton label="Row actions">x</IconButton>}
-        items={[{ label: 'Account' }]}
+        items={[
+          {
+            label: 'Account',
+            icon: <svg data-testid="glyph" width="16" height="16" strokeWidth="1.75" />,
+          },
+        ]}
       />,
     )
     await page.getByRole('button', { name: 'Row actions' }).click()
     await expect.element(page.getByRole('menu')).toBeVisible()
-    expect(getComputedStyle(page.getByRole('menuitem').first().element()).height).toBe('32px')
+    const item = getComputedStyle(page.getByRole('menuitem').first().element())
+    expect([item.height, item.fontSize]).toEqual(['36px', '14px'])
+    const glyph = page.getByTestId('glyph').element()
+    expect([getComputedStyle(glyph).width, getComputedStyle(glyph).height]).toEqual([
+      '18px',
+      '18px',
+    ])
+    expect(getComputedStyle(glyph).strokeWidth).toBe('2px')
   })
 
   it('moves with the arrow keys, runs the item on Enter and closes', async () => {

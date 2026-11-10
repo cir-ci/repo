@@ -5,13 +5,17 @@ import { Badge } from './Badge.tsx'
 import styles from './NavItem.module.css'
 
 /**
- * One entry of the sidebar (28px; a `sub` item is 26px and indented). `selected` marks the
+ * One entry of the sidebar (32px, 14px text, an 18px icon at stroke 2; a `sub` item is 28px, 13px text, a 16px icon, and indented). A Lucide icon passed as `icon` is sized here, whatever size it was drawn at. `selected` marks the
  * current page. A `count` is announced as part of the name ("Inbox, 3 unread").
  */
 export function NavItem(props: NavItem.Props) {
   const content = (
     <>
-      {props.icon}
+      {props.icon ? (
+        <span className={styles.icon} aria-hidden="true">
+          {props.icon}
+        </span>
+      ) : null}
       <span className={styles.label}>
         {props.children}
         {props.count === undefined ? null : (
@@ -62,7 +66,7 @@ export namespace NavItem {
     /** Gets the click event, so a router can `preventDefault` and navigate without a reload. */
     onClick?: MouseEventHandler<HTMLElement>
     selected?: boolean
-    /** A sub-item: 26px tall, indented under its parent. */
+    /** A sub-item: 28px tall, indented under its parent. */
     sub?: boolean
   }
 }

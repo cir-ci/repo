@@ -74,7 +74,7 @@ export function SettingsNav() {
                 slug={workspace.slug}
                 name={workspace.name}
                 picture={workspace.picture ?? null}
-                size={16}
+                size={20}
               />
               {`Workspace · ${workspace.name}`}
             </>

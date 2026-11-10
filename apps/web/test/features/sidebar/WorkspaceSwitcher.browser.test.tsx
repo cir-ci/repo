@@ -30,14 +30,14 @@ describe('WorkspaceSwitcher', () => {
     expect(page.getByRole('menuitem', { name: 'Globex' }).element().querySelector('img')).toBeNull()
   })
 
-  it('is 228px wide with 32px rows, a 20px tile and your role at the right of each workspace', async () => {
+  it('is 228px wide with 36px rows, a 20px tile and your role at the right of each workspace', async () => {
     await show().ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
     const menu = page.getByRole('menu')
     await expect.element(menu).toBeVisible()
     await expect.poll(() => menu.element().getBoundingClientRect().width).toBe(228)
     const globexItem = page.getByRole('menuitem', { name: 'Globex' })
-    expect(getComputedStyle(globexItem.element()).height).toBe('32px')
+    expect(getComputedStyle(globexItem.element()).height).toBe('36px')
     expect(globexItem.element().textContent).toContain('Member')
     expect(page.getByRole('menuitem', { name: 'Acme' }).element().textContent).toContain('Owner')
     expect(

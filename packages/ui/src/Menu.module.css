@@ -46,8 +46,24 @@
   outline-offset: -2px;
 }
 
+.popup[data-size='md'] {
+  font-size: 14px;
+}
+
 .popup[data-size='md'] .item {
-  height: 32px;
+  gap: 10px;
+  height: 36px;
+  padding-inline: 10px;
+}
+
+.popup[data-size='md'] .icon > svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.popup[data-size='md'] .trailing {
+  font-size: 13px;
 }
 
 .item[data-highlighted] {

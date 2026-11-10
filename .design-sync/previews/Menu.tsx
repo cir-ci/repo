@@ -38,3 +38,19 @@ export const Closed = () => (
     />
   </Both>
 )
+
+/** The sidebar's menus: 36px rows, 14px text, 18px icons at stroke 2. */
+export const Medium = () => (
+  <Both>
+    <Menu
+      size="md"
+      trigger={<Button>Account</Button>}
+      items={[
+        { label: 'Profile and sessions' },
+        { label: 'Notifications' },
+        { type: 'separator' },
+        { label: 'Sign out' },
+      ]}
+    />
+  </Both>
+)

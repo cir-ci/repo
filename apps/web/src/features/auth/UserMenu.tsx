@@ -19,7 +19,7 @@ import styles from './UserMenu.module.css'
 
 /**
  * The account button at the bottom of the sidebar and the menu it opens: who you are, profile
- * and sessions (a 28px avatar beside your name and email; 228px wide, 32px rows), notifications, the theme (System, Light, Dark in a segmented picker under its own line; the page
+ * and sessions (a 28px avatar beside your name and email; 228px wide, 36px rows), notifications, the theme (System, Light, Dark in a segmented picker under its own line; the page
  * changes at once), keyboard shortcuts, the instance's admin pages when you run it, and
  * sign out. A Base UI menu: Escape closes it and focus returns to the button.
  */
@@ -45,7 +45,7 @@ export function UserMenu({ user }: UserMenu.Props) {
           className={styles.trigger}
           aria-label={`Account menu for ${user.name}`}
         >
-          <Avatar type="user" id={user.id} name={user.name} image={user.image} size={20} />
+          <Avatar type="user" id={user.id} name={user.name} image={user.image} size={24} />
           <span className={styles.name}>{user.name}</span>
         </button>
       }

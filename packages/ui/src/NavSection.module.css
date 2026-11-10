@@ -19,8 +19,8 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 4px 8px 6px;
-  color: var(--circi-text-tertiary);
-  font-size: 12px;
+  padding: 4px 10px 6px;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
   font-weight: 500;
 }

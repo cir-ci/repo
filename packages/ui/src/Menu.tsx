@@ -9,7 +9,7 @@ import styles from './Menu.module.css'
 /**
  * Provisional (docs/design-gaps.md §4): a dropdown on Base UI's `Menu`. Arrow keys move, type-
  * ahead jumps, Enter or Space picks, Escape closes and focus returns to the trigger. Items are
- * 28px high (`size="md"`: 32px, the sidebar's workspace and account menus); an item may show shortcut text on the right (`Kbd`-style, display only: it does
+ * 28px high (`size="md"`: 36px rows, 14px text, 18px icons at stroke 2: the sidebar's workspace and account menus); an item may show shortcut text on the right (`Kbd`-style, display only: it does
  * not bind the key).
  *
  * `trigger` is the element that opens it (a `Button`, `IconButton`, avatar button…); it keeps its
@@ -121,7 +121,7 @@ export namespace Menu {
     type?: 'item'
     label: string
     onSelect?: () => void
-    /** A 16px icon before the label. */
+    /** An icon before the label: 16px in `sm`, 18px at stroke 2 in `md`. */
     icon?: ReactNode
     /** Shortcut text shown on the right ("⌘K"); hidden from the item's name, exposed as `aria-keyshortcuts`. */
     shortcut?: string
@@ -164,7 +164,7 @@ export namespace Menu {
     trigger: ReactElement<Record<string, unknown>>
     items: ReadonlyArray<Entry>
     align?: 'start' | 'center' | 'end'
-    /** Item height: `sm` 28px, `md` 32px. */
+    /** Item height: `sm` 28px, `md` 36px (14px text, 18px icons). */
     size?: 'sm' | 'md'
     className?: string
   }

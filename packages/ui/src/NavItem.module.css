@@ -4,14 +4,14 @@
   justify-content: flex-start;
   gap: 10px;
   box-sizing: border-box;
-  height: 28px;
-  padding: 0 8px;
+  height: 32px;
+  padding: 0 10px;
   border: 0;
   border-radius: var(--circi-radius-control);
   background: transparent;
-  color: var(--circi-text-secondary);
+  color: var(--circi-text-primary);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   text-decoration: none;
@@ -37,9 +37,35 @@
 }
 
 .root[data-sub] {
-  height: 26px;
-  padding-left: 26px;
+  height: 28px;
+  padding-left: 30px;
+  font-size: 13px;
   font-weight: 400;
+}
+
+/* The icon is sized here, once: a Lucide glyph is 18px at stroke 2 (16px in a sub item). Avatars and other marks are not direct svg children, so they keep their own size. */
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.icon > svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.root[data-sub] .icon > svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Touch: the hit area is 44px (the row looks the same, the target grows). */
+@media (pointer: coarse) {
+  .root {
+    min-height: 44px;
+  }
 }
 
 .hidden {

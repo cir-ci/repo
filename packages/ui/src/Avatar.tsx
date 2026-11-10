@@ -9,7 +9,7 @@ import type { TeamColor } from './team-icons.ts'
 import styles from './Avatar.module.css'
 
 /** Icon size per team avatar size. */
-const TEAM_ICON_SIZE = { 16: 12, 20: 14, 24: 16, 40: 24 } as const
+const TEAM_ICON_SIZE = { 16: 12, 18: 13, 20: 14, 24: 16, 40: 24 } as const
 
 // Loaded on demand, so the app's first script carries none of Lucide's icon map (see TeamGlyph).
 const TeamGlyph = lazy(() => import('./TeamGlyph.tsx'))
@@ -161,8 +161,8 @@ export namespace Avatar {
     color: TeamColor
     /** The team's icon name (any Lucide icon name), drawn on the marble, loaded on demand; null: none. */
     icon: string | null
-    /** 16 in the sidebar, 20 in menus, 24 in the settings header, 40 on the team page. */
-    size?: 16 | 20 | 24 | 40
+    /** 18 in the sidebar, 16 in compact lists, 20 in menus, 24 in the settings header, 40 on the team page. */
+    size?: 16 | 18 | 20 | 24 | 40
   }
 
   export interface WorkspaceProps extends Base {

@@ -16,10 +16,14 @@ describe('NavItem', () => {
     await expect.element(link).toHaveAttribute('aria-current', 'page')
   })
 
-  it('is a 28px button without an href, with icon and trailing content', async () => {
+  it('is a 32px button of 14px primary-colour text without an href, with icon and trailing content', async () => {
     const onClick = vi.fn<() => void>()
     await render(
-      <NavItem onClick={onClick} icon={<svg data-testid="icon" />} trailing={<span>3</span>}>
+      <NavItem
+        onClick={onClick}
+        icon={<svg data-testid="icon" width="16" height="16" strokeWidth="1.75" />}
+        trailing={<span>3</span>}
+      >
         Search
       </NavItem>,
     )
@@ -27,7 +31,13 @@ describe('NavItem', () => {
     await button.click()
     expect(onClick).toHaveBeenCalledTimes(1)
     await expect.element(page.getByTestId('icon')).toBeInTheDocument()
-    expect(getComputedStyle(button.element()).height).toBe('28px')
+    const style = getComputedStyle(button.element())
+    expect([style.height, style.fontSize, style.fontWeight]).toEqual(['32px', '14px', '500'])
+    expect(style.color).toBe(getComputedStyle(document.body).color)
+    const icon = page.getByTestId('icon').element()
+    expect(icon.getBoundingClientRect().width).toBe(18)
+    expect(getComputedStyle(icon).strokeWidth).toBe('2px')
+    expect(style.paddingLeft).toBe('10px')
     expect(button.element()).not.toHaveAttribute('aria-current')
   })
 
@@ -41,13 +51,15 @@ describe('NavItem', () => {
     await expect.element(link).toBeVisible()
   })
 
-  it('is 26px tall and indented as a sub item', async () => {
+  it('is 28px tall, 13px text, a 16px icon and indented as a sub item', async () => {
     await render(
-      <NavItem href="/a" sub>
+      <NavItem href="/a" sub icon={<svg data-testid="sub-icon" width="16" height="16" />}>
         Child
       </NavItem>,
     )
     const style = getComputedStyle(page.getByRole('link', { name: 'Child' }).element())
-    expect([style.height, style.paddingLeft]).toEqual(['26px', '26px'])
+    expect([style.height, style.paddingLeft, style.fontSize]).toEqual(['28px', '30px', '13px'])
+    expect(page.getByTestId('sub-icon').element().getBoundingClientRect().width).toBe(16)
+    expect(getComputedStyle(page.getByTestId('sub-icon').element()).strokeWidth).toBe('2px')
   })
 })

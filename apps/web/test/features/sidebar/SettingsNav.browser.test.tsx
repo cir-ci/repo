@@ -58,6 +58,20 @@ describe('SettingsNav', () => {
       .toHaveAttribute('href', '/workspaces/acme/settings/teams')
   })
 
+  it('follows the sidebar numbers: 32px rows, 14px text, 18px icons at stroke 2, 13px secondary labels', async () => {
+    await show()
+    const link = page.getByRole('link', { name: 'Back to app' })
+    await expect.element(link).toBeVisible()
+    const row = getComputedStyle(link.element())
+    expect([row.height, row.fontSize]).toEqual(['32px', '14px'])
+    const icon = link.element().querySelector('svg')!
+    expect(icon.getBoundingClientRect().width).toBe(18)
+    expect(getComputedStyle(icon).strokeWidth).toBe('2px')
+    const label = page.getByRole('region', { name: 'Account' }).element()
+      .firstElementChild!.firstElementChild!
+    expect(getComputedStyle(label).fontSize).toBe('13px')
+  })
+
   it('has no section per team and no team switcher: the Teams page is the switcher', async () => {
     await show()
     await expect.element(page.getByRole('region', { name: /^Workspace/ })).toBeVisible()

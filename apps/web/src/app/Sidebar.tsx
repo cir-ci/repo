@@ -218,6 +218,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             name={team.name}
             color={team.color}
             icon={team.icon}
+            size={18}
           />
         }
         trailing={team.pinned ? <PinIcon size={12} className={styles.pin} /> : undefined}
