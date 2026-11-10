@@ -575,6 +575,34 @@
   width: 150px;
 }
 
+/* A wide comparison table (Teams, Reviewer load): the name takes about a quarter and every other
+   column an even share of the rest, instead of the figures packing against the right edge. Below
+   its minimum the wrapper scrolls sideways. */
+.table.spread {
+  min-width: 560px;
+  table-layout: fixed;
+}
+
+.table.spread thead th:first-child {
+  width: 26%;
+}
+
+.table.spread th.n,
+.table.spread td.n,
+.table.spread .bars150 {
+  width: auto;
+}
+
+.table.spread tbody th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table.spread .mini {
+  flex: 1 1 auto;
+  max-width: 160px;
+}
+
 .person {
   display: inline-flex;
   white-space: nowrap;

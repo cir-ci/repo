@@ -87,7 +87,7 @@ export function TeamsCard({ data, days }: { data: Insights.Report; days: number 
   return (
     <Card title="Teams" subtitle={rangeLabel(days)} wide>
       <TableWrap>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.spread}`}>
           <thead>
             <tr>
               <th scope="col">Team</th>
@@ -272,7 +272,7 @@ export function ReviewerLoadCard({ data, days }: { data: Insights.Report; days: 
       empty={data.reviewers.length === 0 ? 'No reviewers yet.' : undefined}
     >
       <TableWrap>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.spread}`}>
           <thead>
             <tr>
               <th scope="col">Reviewer</th>
