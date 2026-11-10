@@ -79,7 +79,9 @@ describe('Button', () => {
     const style = getComputedStyle(button.element())
     expect(style.borderTopWidth).toBe('0px')
     expect(style.paddingLeft).toBe('0px')
-    expect(style.textDecorationLine).toBe('none')
+    // The pointer may still sit where an earlier test left it, over this button: move it off first.
+    await userEvent.unhover(button)
+    await expect.poll(() => getComputedStyle(button.element()).textDecorationLine).toBe('none')
     await button.hover()
     await expect.poll(() => getComputedStyle(button.element()).textDecorationLine).toBe('underline')
   })
