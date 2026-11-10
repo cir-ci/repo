@@ -8,6 +8,8 @@ export namespace Insights {
     buildsReviewed: number
     /** Of those, how many waited longer than their team's review target. */
     reviewedOverTarget: number
+    /** Of the reviewed builds, how many belong to a team with a review target. */
+    reviewedWithTarget: number
     /** Finished builds in the range, and how many of them had changes. */
     buildsFinished: number
     buildsWithChanges: number
@@ -30,6 +32,8 @@ export namespace Insights {
     slug: string
     name: string
     colour: string
+    /** The team's icon name (Lucide), for its avatar; null shows only the marble. */
+    icon: string | null
   }
 
   /** One week (Monday to Sunday, UTC) of the charts; one day when `Report.bucket` is `day`. */
@@ -112,7 +116,7 @@ export namespace Insights {
 
   export interface Storage {
     /** Bytes of distinct stored files each team's builds refer to. */
-    teams: { slug: string; name: string; colour: string; bytes: number }[]
+    teams: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
     totalBytes: number
   }
 

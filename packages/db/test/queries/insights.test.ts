@@ -162,6 +162,7 @@ describe('getInsights', () => {
       p90ReviewHours: 26.4,
       buildsReviewed: 3,
       reviewedOverTarget: 1,
+      reviewedWithTarget: 3,
       // 8 finished builds in range (f1-f4, m1-m4), 7 with changes
       buildsFinished: 8,
       buildsWithChanges: 7,
@@ -177,6 +178,7 @@ describe('getInsights', () => {
       p90ReviewHours: 6,
       buildsReviewed: 1,
       reviewedOverTarget: 0,
+      reviewedWithTarget: 1,
       buildsFinished: 2,
       buildsWithChanges: 1,
       changeRate: 0.5,
@@ -212,8 +214,8 @@ describe('getInsights', () => {
     // and nav images of main (1 byte each: A, B, N)
     expect(r?.storage).toEqual({
       teams: [
-        { slug: 'docs', name: 'docs', colour: expect.any(String), bytes: 1000 },
-        { slug: 'web', name: 'web', colour: expect.any(String), bytes: 1153 },
+        { slug: 'docs', name: 'docs', colour: expect.any(String), icon: null, bytes: 1000 },
+        { slug: 'web', name: 'web', colour: expect.any(String), icon: null, bytes: 1153 },
       ],
       totalBytes: 2153,
     })
@@ -330,7 +332,7 @@ describe('getInsights', () => {
       changeRate: null,
     })
     expect(r?.storage.teams).toEqual([
-      { slug: 'docs', name: 'docs', colour: expect.any(String), bytes: 1000 },
+      { slug: 'docs', name: 'docs', colour: expect.any(String), icon: null, bytes: 1000 },
     ])
     expect(r?.weeks.map((w) => w.flaky)).toEqual([0, 0])
   })

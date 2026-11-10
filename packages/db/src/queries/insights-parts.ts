@@ -22,18 +22,21 @@ export interface TeamInfo {
   slug: string
   name: string
   color: string
+  icon: string | null
 }
 
 export interface TeamRefOut {
   slug: string
   name: string
   colour: string
+  icon: string | null
 }
 
 export const teamRef = (t: TeamInfo): TeamRefOut => ({
   slug: t.slug,
   name: t.name,
   colour: t.color,
+  icon: t.icon,
 })
 
 const ready = sql`coalesce(${builds.completedAt}, ${builds.createdAt})`
@@ -159,13 +162,13 @@ export async function mostChangedScreenshots(
   to: Date,
   limit = 5,
 ) {
-  const changed = sql<number>`count(*) filter (where ${screenshotDiffs.status} = 'changed')`
+  const changed = sql<string>`count(*) filter (where ${screenshotDiffs.status} = 'changed')`
   const rows = await db
     .select({
       teamId: builds.teamId,
       name: screenshotDiffs.name,
       changed,
-      total: sql<number>`count(*)`,
+      total: sql<string>`count(*)`,
     })
     .from(screenshotDiffs)
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
@@ -197,7 +200,7 @@ export async function mostRejectedScreenshots(
   to: Date,
   limit = 5,
 ) {
-  const count = sql<number>`count(*)`
+  const count = sql<string>`count(*)`
   const rows = await db
     .select({ teamId: builds.teamId, name: snapshotReviews.snapshotName, rejections: count })
     .from(snapshotReviews)

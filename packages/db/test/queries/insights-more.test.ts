@@ -87,9 +87,9 @@ async function history() {
     minutes: 8,
     names: ['home'],
   })
-  const w3 = await make(team.id, 'feature/c', '03-17T09:00', { minutes: 6 })
+  await make(team.id, 'feature/c', '03-17T09:00', { minutes: 6 })
   const w4 = await make(team.id, 'feature/d', '03-19T10:00', { minutes: 10 })
-  const main = { review: 'approved', minutes: 2, names: ['hero'] } as const
+  const main = { review: 'approved' as const, minutes: 2, names: ['hero'] }
   const a1 = await make(team.id, 'main', '03-11T12:00', main)
   const m2 = await make(team.id, 'main', '03-12T12:00', main)
   const m3 = await make(team.id, 'main', '03-13T12:00', main)

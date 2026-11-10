@@ -81,7 +81,9 @@ describe('palettes', () => {
     it(`${scheme}: state colours stand out at 3:1 on every surface (glyphs, not text; review included in light)`, () => {
       for (const surface of surfaces) {
         for (const [name, ink] of Object.entries(p.state)) {
-          if (name.endsWith('Text')) continue
+          // The muted failed fill (large bars) is the owner-approved exception to 3:1: it is read through
+          // tooltips, the table view and 2px gaps, and has its own check below.
+          if (name.endsWith('Text') || name === 'failedFill') continue
           expect(contrast(ink, surface), `${ink} on ${surface}`).toBeGreaterThanOrEqual(3)
         }
       }
@@ -103,6 +105,13 @@ describe('palettes', () => {
       }
     })
 
+    it(`${scheme}: the muted failed fill is crimson mixed 60% into the raised surface, and still reads against it`, () => {
+      expect(p.state.failedFill.toLowerCase()).toBe(
+        blend(p.state.failed, p.surface.raised, 0.6).toLowerCase(),
+      )
+      expect(contrast(p.state.failedFill, p.surface.raised)).toBeGreaterThanOrEqual(2.2)
+    })
+
     it(`${scheme}: tile text reads at 4.5:1 on every team colour`, () => {
       for (const [name, fill] of Object.entries(p.team)) {
         expect(contrast(p.other.tileText, fill), `tile text on ${name}`).toBeGreaterThanOrEqual(4.5)
@@ -112,7 +121,8 @@ describe('palettes', () => {
     it(`${scheme}: team colours are ΔE 15 from state colours, accent, annotation and each other`, () => {
       const others: [string, string][] = [
         ...Object.entries(p.state)
-          .filter(([name]) => !name.endsWith('Text'))
+          // The failed fill is crimson thinned for bars, not an identity of its own.
+          .filter(([name]) => !name.endsWith('Text') && name !== 'failedFill')
           .map(([name, hex]): [string, string] => [`state.${name}`, hex]),
         ['accent.main', p.accent.main],
         ['annotation', p.other.annotation],

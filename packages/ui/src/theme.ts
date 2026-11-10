@@ -40,6 +40,12 @@ const dark = {
     processing: '#9aa3f7',
     /** A build, screenshot or job that broke (and errors): crimson, a cross. */
     failed: '#ff0a1f',
+    /**
+     * Failed for large fills (bars, stacked segments): `failed` mixed 60% into the raised
+     * surface. The full crimson stays for glyphs and words; a fill is read through its tooltip
+     * and table view, so it is not held to 3:1.
+     */
+    failedFill: '#a30f1b',
     /** A person's decision to reject: rose, a disc with one bar. Never crimson, which is failure. */
     rejected: '#ff5fa8',
     /**
@@ -105,6 +111,7 @@ const light: typeof dark = {
     reviewText: '#6b4c00',
     processing: '#4f5bd5',
     failed: '#930028',
+    failedFill: '#be667e',
     rejected: '#b5126a',
     added: '#767c06',
     removed: '#b26300',

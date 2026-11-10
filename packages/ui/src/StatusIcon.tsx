@@ -4,6 +4,7 @@ import styles from './StatusIcon.module.css'
 
 export type Status =
   | 'approved'
+  | 'auto-approved'
   | 'needs-review'
   | 'processing'
   | 'failed'
@@ -15,6 +16,7 @@ export type Status =
 
 export const STATUS_LABEL: Record<Status, string> = {
   approved: 'Approved',
+  'auto-approved': 'Auto-approved',
   'needs-review': 'Needs review',
   processing: 'Processing',
   failed: 'Failed',
@@ -43,7 +45,7 @@ const PROCESSING_ARCS: readonly string[] = Array.from({ length: 8 }, (_, i) => {
 
 /**
  * A build or snapshot's state as a small glyph: a filled check (approved), half-filled ring
- * (needs review), dashed ring (processing), filled cross in crimson (failed: the build or
+ * (needs review), dashed ring (processing), a check on a dashed ring in grey (auto-approved: nobody decided), filled cross in crimson (failed: the build or
  * screenshot broke), filled disc with one diagonal bar in rose (rejected: a person's decision) or
  * plain ring (unchanged), and a ring with a plus (added), minus (removed) or tilde (flaky).
  * The shape differs per state, so it never relies on colour alone.
@@ -69,6 +71,27 @@ export function StatusIcon(props: StatusIcon.Props) {
             className={ink}
             d="M4 7.3l2 2 4-4.3"
             fill="none"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      )}
+      {status === 'auto-approved' && (
+        <>
+          <circle
+            cx="7"
+            cy="7"
+            r="6.25"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeDasharray="2.6 2.1"
+          />
+          <path
+            d="M4.3 7.3l1.9 1.9 3.5-3.9"
+            fill="none"
+            stroke="currentColor"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"

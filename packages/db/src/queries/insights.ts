@@ -90,6 +90,7 @@ export namespace getInsights {
     p90ReviewHours: number | null
     buildsReviewed: number
     reviewedOverTarget: number
+    reviewedWithTarget: number
     buildsFinished: number
     buildsWithChanges: number
     changeRate: number | null
@@ -103,6 +104,7 @@ export namespace getInsights {
     slug: string
     name: string
     colour: string
+    icon: string | null
   }
 
   export interface Outcomes {
@@ -161,7 +163,7 @@ export namespace getInsights {
     bucket: 'day' | 'week'
     weeks: getInsights.Week[]
     storage: {
-      teams: { slug: string; name: string; colour: string; bytes: number }[]
+      teams: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
       totalBytes: number
     }
     reviewers: getInsights.Reviewer[]
@@ -247,6 +249,7 @@ export async function getInsights(
       slug: teams.slug,
       name: teams.name,
       color: teams.color,
+      icon: teams.icon,
       defaultBranch: teams.defaultBranch,
       reviewTargetHours: teams.reviewTargetHours,
       retentionDays: teams.retentionDays,
@@ -275,14 +278,13 @@ export async function getInsights(
   const step = bucket === 'day' ? DAY_MS : WEEK_MS
 
   const empty = teamIds.length === 0
-  const [reviewed, decided, finished, personDecided, history, waits] = empty
-    ? [[], [], [], new Set<string>(), new Map<string, HistoryBuild[]>(), []]
+  const [reviewed, decided, finished, personDecided, waits] = empty
+    ? [[], [], [], new Set<string>(), []]
     : await Promise.all([
         firstReviews(db, teamIds, previousFrom, to),
         lastDecisions(db, teamIds, previousFrom, to),
         finishedBuilds(db, teamIds, previousFrom, to),
         personDecidedBuilds(db, teamIds, previousFrom, to),
-        defaultBranchHistory(db, scoped, to),
         waitCandidates(db, teamIds, from, to),
       ])
 
@@ -305,6 +307,9 @@ export async function getInsights(
         const due = reviewDueAt(r.readyAt, target ?? null)
         return due !== null && r.reviewedAt.getTime() > due.getTime()
       }).length,
+      reviewedWithTarget: inRange.filter(
+        (r) => targets.get(r.teamId) !== null && targets.get(r.teamId) !== undefined,
+      ).length,
       buildsFinished: done.length,
       buildsWithChanges: withChanges,
       changeRate: done.length === 0 ? null : withChanges / done.length,
@@ -620,7 +625,7 @@ async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: D
 /** Bytes of distinct files (screenshots, thumbnails and diffs) each team's builds refer to. */
 async function storageByTeam(
   db: Database,
-  scoped: { id: string; slug: string; name: string; color: string }[],
+  scoped: { id: string; slug: string; name: string; color: string; icon: string | null }[],
 ): Promise<getInsights.Report['storage']> {
   const ids = scoped.map((p) => p.id)
   const bytes = new Map<string, number>()
@@ -656,6 +661,7 @@ async function storageByTeam(
     slug: p.slug,
     name: p.name,
     colour: p.color,
+    icon: p.icon,
     bytes: bytes.get(p.id) ?? 0,
   }))
   return { teams: list, totalBytes: list.reduce((s, p) => s + p.bytes, 0) }

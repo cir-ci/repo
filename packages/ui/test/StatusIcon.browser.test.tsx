@@ -6,6 +6,7 @@ import { STATUS_LABEL, type Status, StatusIcon } from '#src/index.ts'
 
 const STATUSES: Status[] = [
   'approved',
+  'auto-approved',
   'needs-review',
   'processing',
   'failed',
@@ -26,6 +27,7 @@ describe('StatusIcon', () => {
       </>,
     )
     await expect.element(page.getByRole('img', { name: 'Approved' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Auto-approved' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Needs review' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Processing' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Failed' })).toBeVisible()
