@@ -15,6 +15,7 @@ import { MentionField } from '#lib/MentionField.tsx'
 import type { Mention } from '#lib/mentions.ts'
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
+import { withScrolled } from './auto-scroll.ts'
 import {
   type Box,
   describeRegion,
@@ -29,6 +30,7 @@ import {
 import type { Size } from './ignore-regions.ts'
 import { type Adjust, RegionHandles, useAdjustable } from './RegionAdjust.tsx'
 import { RegionBoxes } from './RegionBoxes.tsx'
+import { useAutoScroll } from './use-auto-scroll.ts'
 
 import styles from './RegionLayer.module.css'
 
@@ -99,6 +101,10 @@ export function useRegionGesture(annotations: Annotations | undefined): Gesture 
   const active = drawing || alwaysDraw
   const minPixels = alwaysDraw ? MIN_REGION_PX : 0
   const dragging = drag !== null
+  // Near an edge of the scroll area the drag scrolls it; the pointer is then measured in the
+  // coordinates of the press (`box` was read once), so the region's edge stays under it.
+  const auto = useAutoScroll()
+  const stopAuto = auto.stop
 
   useEffect(() => {
     if (!dragging) return undefined
@@ -109,13 +115,16 @@ export function useRegionGesture(annotations: Annotations | undefined): Gesture 
       e.preventDefault()
       e.stopPropagation()
       setDrag(null)
+      stopAuto()
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [dragging])
+  }, [dragging, stopAuto])
 
   return {
-    live: drag ? regionFromPoints(drag.box, drag.from, drag.to, minPixels) : null,
+    live: drag
+      ? regionFromPoints(drag.box, drag.from, withScrolled(drag.to, auto.scrolled), minPixels)
+      : null,
     bind: {
       onPointerDown(e) {
         if (!active || e.button !== 0) return
@@ -132,19 +141,27 @@ export function useRegionGesture(annotations: Annotations | undefined): Gesture 
         const at = { x: e.clientX, y: e.clientY }
         const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
         setDrag({ from: at, to: at, box: { left, top, width, height } })
+        auto.start(e.currentTarget, at)
       },
       onPointerMove(e) {
-        if (drag) setDrag({ ...drag, to: { x: e.clientX, y: e.clientY } })
+        if (!drag) return
+        const to = { x: e.clientX, y: e.clientY }
+        auto.move(to)
+        setDrag({ ...drag, to })
       },
       onPointerUp(e) {
         if (!drag) return
-        const to = { x: e.clientX, y: e.clientY }
+        const to = withScrolled({ x: e.clientX, y: e.clientY }, auto.read())
         const region = regionFromPoints(drag.box, drag.from, to, minPixels)
+        auto.stop()
         setDrag(null)
         if (region) annotations?.onDraw(region)
         else if (alwaysDraw) annotations?.onClick?.()
       },
-      onPointerCancel: () => setDrag(null),
+      onPointerCancel: () => {
+        auto.stop()
+        setDrag(null)
+      },
     },
   }
 }

@@ -1,7 +1,9 @@
 import type { Comment } from '@circi/api'
 import { type MouseEvent, type PointerEvent, useEffect, useRef, useState } from 'react'
 
+import { withScrolled } from './auto-scroll.ts'
 import { adjustRegion, CORNERS, type Grab, pastSlop, sameRegion } from './regions.ts'
+import { useAutoScroll } from './use-auto-scroll.ts'
 
 import styles from './RegionAdjust.module.css'
 
@@ -35,7 +37,8 @@ interface Drag {
   start: Comment.Region
   /** Past the slop: this is a drag, not a click. */
   moved: boolean
-  live: Comment.Region
+  /** The pointer now, in client pixels (the area may have scrolled since: see `useAutoScroll`). */
+  pointer: { x: number; y: number }
 }
 
 /**
@@ -60,6 +63,23 @@ export function useAdjustable(
   const dragged = useRef(false)
   const target = useRef<HTMLElement | null>(null)
   const dragging = drag !== null
+  // Near an edge of the scroll area the drag scrolls it, and the region follows the pointer in
+  // the image's coordinates: what scrolled since the press counts as pointer travel.
+  const auto = useAutoScroll()
+  const stopAuto = auto.stop
+  const travel = (d: Drag, scrolled: { x: number; y: number }) => {
+    const at = withScrolled(d.pointer, scrolled)
+    return { dx: at.x - d.from.x, dy: at.y - d.from.y }
+  }
+  const live = (() => {
+    if (!drag) return null
+    const { dx, dy } = travel(drag, auto.scrolled)
+    return {
+      ...drag,
+      moved: drag.moved || pastSlop(dx, dy),
+      region: adjustRegion(drag.start, drag.grab, dx, dy, drag.box),
+    }
+  })()
 
   useEffect(() => {
     if (!dragging) return undefined
@@ -70,10 +90,11 @@ export function useAdjustable(
       e.preventDefault()
       e.stopPropagation()
       setDrag(null)
+      stopAuto()
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [dragging])
+  }, [dragging, stopAuto])
 
   // The data moved on (the optimistic update or the refetch landed, or a failure rolled back): done holding.
   if (held && !sameRegion(region, held.base)) setHeld(null)
@@ -83,7 +104,7 @@ export function useAdjustable(
 
   const props: AdjustProps = {
     'data-adjustable': '',
-    ...(drag?.moved ? { 'data-adjusting': '' as const } : {}),
+    ...(live?.moved ? { 'data-adjusting': '' as const } : {}),
     onPointerDown(e) {
       if (e.button !== 0) return
       // The press is this region's: the layer under it must not start drawing a new one.
@@ -101,35 +122,43 @@ export function useAdjustable(
         box: { left, top, width, height },
         start: region,
         moved: false,
-        live: region,
+        pointer: { x: e.clientX, y: e.clientY },
       })
+      auto.start(e.currentTarget, { x: e.clientX, y: e.clientY })
     },
     onPointerMove(e) {
       if (!drag) return
-      const dx = e.clientX - drag.from.x
-      const dy = e.clientY - drag.from.y
-      if (!drag.moved && !pastSlop(dx, dy)) return
-      dragged.current = true
-      setDrag({ ...drag, moved: true, live: adjustRegion(drag.start, drag.grab, dx, dy, drag.box) })
+      const pointer = { x: e.clientX, y: e.clientY }
+      auto.move(pointer)
+      const { dx, dy } = travel({ ...drag, pointer }, auto.read())
+      const moved = drag.moved || pastSlop(dx, dy)
+      if (moved) dragged.current = true
+      setDrag({ ...drag, moved, pointer })
     },
     onPointerUp(e) {
       if (!drag) return
+      const { dx, dy } = travel({ ...drag, pointer: { x: e.clientX, y: e.clientY } }, auto.read())
+      const moved = drag.moved || pastSlop(dx, dy)
+      const dropped = adjustRegion(drag.start, drag.grab, dx, dy, drag.box)
+      auto.stop()
       setDrag(null)
       if (target.current?.hasPointerCapture(e.pointerId)) {
         target.current.releasePointerCapture(e.pointerId)
       }
-      if (!drag.moved) adjust.onClick?.()
-      else if (!sameRegion(drag.live, drag.start)) {
-        const saving = adjust.onCommit(drag.live)
+      if (moved) dragged.current = true
+      if (!moved) adjust.onClick?.()
+      else if (!sameRegion(dropped, drag.start)) {
+        const saving = adjust.onCommit(dropped)
         if (saving instanceof Promise) {
           // Cleared in the same batch as the drag, so no render shows the old region.
-          setHeld({ base: drag.start, to: drag.live })
+          setHeld({ base: drag.start, to: dropped })
           const release = () => setHeld(null)
           void saving.then(release, release)
         }
       }
     },
     onPointerCancel() {
+      auto.stop()
       setDrag(null)
     },
     onClickCapture(e) {
@@ -139,7 +168,7 @@ export function useAdjustable(
       e.stopPropagation()
     },
   }
-  return { region: drag?.moved ? drag.live : shown, props, adjusting: drag?.moved === true }
+  return { region: live?.moved ? live.region : shown, props, adjusting: live?.moved === true }
 }
 
 function cornerOf(element: HTMLElement): Grab {

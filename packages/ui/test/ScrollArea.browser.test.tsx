@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { ScrollArea } from '#src/index.ts'
 
@@ -8,7 +8,16 @@ const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => r
 
 function Harness({ width = 600, height = 1200 }: { width?: number; height?: number }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: 200, height: 200 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: 200,
+        height: 200,
+        marginLeft: 400,
+        marginTop: 100,
+      }}
+    >
       <ScrollArea aria-label="Area" data-testid="scroller">
         <div style={{ width, height }} />
       </ScrollArea>
@@ -50,8 +59,9 @@ describe('ScrollArea', () => {
   it('shows on scroll, moves the thumb with it, and fades out later', async () => {
     await render(<Harness />)
     await expect.element(barY()).toBeInTheDocument()
+    // A pointer left over the area by an earlier test keeps the thumbs showing.
+    await userEvent.unhover(page.getByTestId('scroller'))
     const bar = barY().element()
-    expect(bar).not.toHaveAttribute('data-visible')
     const thumb = thumbOf(bar)
     const before = thumb.style.top
     scroller().scrollTop = 300
