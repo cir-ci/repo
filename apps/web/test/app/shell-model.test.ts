@@ -14,6 +14,7 @@ import {
   sectionLabel,
   sidebarTeams,
   TEAM_SETTINGS_PAGES,
+  teamPageOf,
   teamSections,
   teamSettingsKey,
   teamsTabLabel,
@@ -369,5 +370,31 @@ describe('yourTeams, teamSections and teamsTabLabel', () => {
     expect(teamsTabLabel(yourTeams([overview('acme', 'web')], {}))).toBe('web')
     expect(teamsTabLabel(yourTeams(items, {}))).toBe('Teams')
     expect(teamsTabLabel([])).toBe('Teams')
+  })
+})
+
+describe('teamPageOf', () => {
+  it.each([
+    ['/acme/web', 'builds'],
+    ['/acme/web/triage', 'triage'],
+    ['/acme/web/baselines', 'baselines'],
+    ['/acme/web/sites', 'sites'],
+  ])('%s is the team’s %s page', (path, page) => {
+    expect(teamPageOf(path)).toBe(page)
+  })
+
+  it.each([
+    '/',
+    '/inbox',
+    '/account/profile',
+    '/instance/accounts',
+    '/workspaces/acme/reviews',
+    '/acme',
+    '/acme/web/settings',
+    '/acme/web/builds/7',
+    '/acme/web/baselines/home',
+    '/_sso/site',
+  ])('%s is not one of the four', (path) => {
+    expect(teamPageOf(path)).toBeUndefined()
   })
 })

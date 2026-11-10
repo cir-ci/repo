@@ -1,0 +1,8 @@
+/* A strip under the page header, not a panel host: the page below is the content. */
+.root {
+  flex: none;
+}
+
+.panel {
+  display: none;
+}

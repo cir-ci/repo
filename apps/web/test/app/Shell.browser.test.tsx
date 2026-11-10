@@ -970,7 +970,7 @@ describe('Shell, narrow', () => {
       expect(page.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
     })
 
-    it('keeps the rest: Insights, Baselines, Sites, pinned views, settings and the account', async () => {
+    it('keeps the rest: Insights, pinned views, settings and the account', async () => {
       const { sheet } = await openMore('/')
       const list = sheet.getByRole('navigation', { name: 'More' })
       const names = list
@@ -980,13 +980,18 @@ describe('Shell, narrow', () => {
       expect(names).toEqual(
         expect.arrayContaining([
           'Insights',
-          'Baselines',
-          'Sites',
           'Failing on main',
           'Acme settings',
           'Account settings',
         ]),
       )
+      // What the Teams sheet and the team page's tabs now hold is not repeated here.
+      expect(list.getByRole('link', { name: 'Baselines' }).elements()).toHaveLength(0)
+      expect(list.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
+      expect(list.getByRole('link', { name: /^(web-app|api|storybook)/ }).elements()).toHaveLength(
+        0,
+      )
+      expect(list.getByText('Teams', { exact: true }).elements()).toHaveLength(0)
       expect(list.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
     })
 
@@ -1114,6 +1119,91 @@ describe('Shell, narrow', () => {
       await renderShell('/inbox')
       await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
       expect(page.getByRole('dialog', { name: 'Teams' }).elements()).toHaveLength(0)
+    })
+  })
+
+  describe('team page tabs', () => {
+    it('sit under the page header with Builds, Triage, Baselines and Sites, the current one selected', async () => {
+      await page.viewport(390, 844)
+      await renderShell('/acme/web-app/triage')
+      await expect.element(strip()).toBeVisible()
+      await expect.poll(() => strip().getByRole('tab').elements().length).toBe(4)
+      expect(
+        strip()
+          .getByRole('tab')
+          .elements()
+          .map((el) => el.textContent),
+      ).toEqual(['Builds', 'Triage', 'Baselines', 'Sites'])
+      await expect
+        .element(strip().getByRole('tab', { name: 'Triage' }))
+        .toHaveAttribute('aria-selected', 'true')
+      await expect
+        .element(strip().getByRole('tab', { name: 'Builds' }))
+        .toHaveAttribute('aria-selected', 'false')
+      // Under the header, above the page.
+      const header = pageHeader().getBoundingClientRect()
+      expect(strip().element().getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        header.bottom - 1,
+      )
+      for (const tab of strip().getByRole('tab').elements())
+        expect(tab.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    })
+
+    it('select the team’s Builds page on its address', async () => {
+      await page.viewport(390, 844)
+      await renderShell('/acme/web-app')
+      await expect
+        .element(strip().getByRole('tab', { name: 'Builds' }))
+        .toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('go to the team’s pages when chosen', async () => {
+      await page.viewport(390, 844)
+      const { router } = await renderShell('/acme/web-app')
+      await strip().getByRole('tab', { name: 'Baselines' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/baselines')
+      await expect
+        .element(strip().getByRole('tab', { name: 'Baselines' }))
+        .toHaveAttribute('aria-selected', 'true')
+      await strip().getByRole('tab', { name: 'Sites' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/sites')
+      await strip().getByRole('tab', { name: 'Triage' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
+      await strip().getByRole('tab', { name: 'Builds' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
+    })
+
+    it('leave out Sites for a team that has none', async () => {
+      await page.viewport(390, 844)
+      await renderShell('/acme/api')
+      await expect.poll(() => strip().getByRole('tab').elements().length).toBe(3)
+      expect(strip().getByRole('tab', { name: 'Sites' }).elements()).toHaveLength(0)
+    })
+
+    it('are not on other pages: a build, team settings, Inbox', async () => {
+      await page.viewport(390, 844)
+      await renderShell('/acme/web-app/settings')
+      await expect.element(page.getByRole('main')).toHaveTextContent('Team settings page')
+      expect(strip().elements()).toHaveLength(0)
+    })
+
+    it('are not on the Inbox', async () => {
+      await page.viewport(390, 844)
+      await renderShell('/inbox')
+      await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+      expect(strip().elements()).toHaveLength(0)
+    })
+
+    it('are not on a wide screen, where the sidebar has the sub-items', async () => {
+      await page.viewport(1280, 800)
+      await renderShell('/acme/web-app/triage')
+      await expect.element(page.getByRole('main')).toHaveTextContent('Triage page')
+      expect(strip().elements()).toHaveLength(0)
+      await expect
+        .element(
+          page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Baselines/ }),
+        )
+        .toBeVisible()
     })
   })
 
@@ -1263,6 +1353,9 @@ describe('Shell, collapsing the navigation', () => {
 
 const tabs = () => page.getByRole('navigation', { name: 'Pages' })
 
+/** The tabs of a team's pages, under the page header. */
+const strip = () => page.getByRole('tablist', { name: 'Team pages' })
+
 /** The team tiles in the Teams tab's icon. */
 const tiles = () =>
   tabs()
@@ -1331,7 +1424,7 @@ describe('Shell, phone', () => {
     expect(style.borderLeftWidth).toBe('0px')
   })
 
-  it('opens More as a sheet with Insights, Baselines and the settings entries, and closes it on a choice', async () => {
+  it('opens More as a sheet with Insights, the views and the settings entries, and closes it on a choice', async () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/acme/web-app/triage')
     await tabs().getByRole('button', { name: 'More' }).click()
@@ -1341,20 +1434,13 @@ describe('Shell, phone', () => {
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
-    // The teams are in the Teams tab's sheet, not here.
-    expect(rows).toEqual([
-      'Insights',
-      'Baselines',
-      'Sites',
-      'Failing on main',
-      'Acme settings',
-      'Account settings',
-    ])
+    // The teams are in the Teams tab's sheet, and Baselines and Sites in the team page's tabs.
+    expect(rows).toEqual(['Insights', 'Failing on main', 'Acme settings', 'Account settings'])
     for (const row of sheet.getByRole('link').elements()) {
       expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
     }
-    await sheet.getByRole('link', { name: 'Baselines' }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/baselines')
+    await sheet.getByRole('link', { name: 'Insights' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/insights')
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
   })
 

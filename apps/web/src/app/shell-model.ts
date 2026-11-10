@@ -314,6 +314,26 @@ export function currentSection(pathname: string): Section | undefined {
   return TEAM_SECTIONS[parts[2] ?? '']
 }
 
+/** One of a team's four list pages. */
+export type TeamPage = 'builds' | 'triage' | 'baselines' | 'sites'
+
+/** The first address segments that are not a workspace's slug. */
+const NOT_TEAMS = new Set(['workspaces', 'account', 'instance', 'inbox', 'integrations', '_sso'])
+
+/**
+ * Which of a team's four pages an address is, when it is exactly one (a build, a baseline or a
+ * settings page is not): `/<workspace>/<team>` and its triage, baselines and sites lists.
+ */
+export function teamPageOf(pathname: string): TeamPage | undefined {
+  const parts = pathname.split('/').filter(Boolean)
+  const first = parts[0]
+  if (parts.length < 2 || parts.length > 3) return undefined
+  if (first && NOT_TEAMS.has(first)) return undefined
+  if (parts.length === 2) return 'builds'
+  const page = parts[2]
+  return page === 'triage' || page === 'baselines' || page === 'sites' ? page : undefined
+}
+
 /** Settings pages (account, workspace, team, instance) share one layout with the settings nav. */
 export const isSettingsSection = (section: Section | undefined): boolean =>
   section === 'account' ||

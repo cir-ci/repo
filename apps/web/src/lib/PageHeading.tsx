@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { ShowNavButton } from '#app/NavToggle.tsx'
 import { PhoneEnd } from '#app/PhoneHeader.tsx'
+import { PhoneTeamTabs } from '#app/PhoneTeamTabs.tsx'
 
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
@@ -68,6 +69,7 @@ export function PageHeading({
         />
         {after}
       </PanelHeader>
+      <PhoneTeamTabs />
       {phone && find ? <div className={styles.find}>{find}</div> : null}
     </>
   )
