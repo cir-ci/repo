@@ -440,7 +440,7 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
                     <TeamChip team={r.team} />
                   </td>
                 ) : null}
-                <td className={styles.n}>{r.changedBuilds} in the last 10 builds</td>
+                <td className={styles.n}>{r.flipFlops}</td>
                 <td className={styles.n}>
                   <Strip last10={r.last10} kind="flaky" />
                 </td>

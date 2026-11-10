@@ -72,6 +72,17 @@ export namespace Insights {
     last10: boolean[]
   }
 
+  /** A flaky screenshot: `last10` is oldest first, true where that commit's image differs from the one before. */
+  export interface FlakyScreenshot {
+    team: TeamRef
+    name: string
+    /** Times a commit's image came back to one it already had in the last 10 default-branch commits. */
+    flipFlops: number
+    /** Why it is flaky, in words. */
+    reason: string
+    last10: boolean[]
+  }
+
   export interface WaitingBuild {
     buildId: string
     number: number
@@ -160,7 +171,7 @@ export namespace Insights {
     /** The five that have waited longest. */
     oldestWaiting: WaitingBuild[]
     mostChanged: ScreenshotChange[]
-    flakiest: ScreenshotChange[]
+    flakiest: FlakyScreenshot[]
     rejections: Rejections
     mostRejected: { team: TeamRef; name: string; rejections: number }[]
     /** One row per team in view; empty when narrowed to one team. */

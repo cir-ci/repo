@@ -1,8 +1,10 @@
 import {
   addTestMember,
   createTestDb,
+  imageSha,
   seedBuild,
   seedDiff,
+  seedScreenshot,
   seedReview,
   seedTeam,
   seedUser,
@@ -34,7 +36,9 @@ const range = { from: at('03-09T00:00'), to: at('03-23T00:00'), now: at('03-20T0
  *  w3 feature 03-17 09:00 changes, waiting (past its target); w4 03-19 10:00 changes, waiting,
  *     with `hero` rejected on one screenshot and no reason
  *  main: a1 03-11, m2 03-12, m3 03-13 changes (`hero`), auto-approved; n1 03-14 no changes,
- *     auto-approved, with ignore-region hits on `hero` (40 px) and `home` (5 px)
+ *     auto-approved, with ignore-region hits on `hero` (40 px) and `home` (5 px). The hero image on
+ *     main goes A, B, A, B: two returns to an earlier image, and the team asks for two to call it
+ *     flaky.
  *  errors 03-13: two timed-out-shards messages and one upload-never-finished
  * docs: one no-change build 03-12 (auto-approved). Secret: a waiting build and a failed one.
  */
@@ -103,6 +107,21 @@ async function history() {
     review: 'approved',
     minutes: 2,
   })
+
+  // The hero image on main: A, B, A, B (a return to an earlier image at m3 and again at n1).
+  await Promise.all(
+    (
+      [
+        [a1, 'A'],
+        [m2, 'B'],
+        [m3, 'A'],
+        [n1, 'B'],
+      ] as const
+    ).map(([b, tag]) =>
+      seedScreenshot(t.db, { buildId: b.id, name: 'hero', fileSha256: imageSha(tag) }),
+    ),
+  )
+  await t.db.update(schema.teams).set({ flakyAfterChanges: 2 }).where(eq(schema.teams.id, team.id))
 
   await seedReview(t.db, { buildId: w1.id, userId: mia.id, createdAt: at('03-09T12:00') })
   await seedReview(t.db, {
@@ -286,21 +305,22 @@ describe('getInsights: screenshots', () => {
       ['hero', 3, 4],
       ['home', 2, 3],
     ])
-    // main builds oldest first: a1, m2, m3 changed hero; n1 did not
-    expect(r?.mostChanged[0]?.last10).toEqual([true, true, true, false])
+    // main commits oldest first, true where hero's image differs from the commit before:
+    // a1 has nothing before it; m2 (B), m3 (A) and n1 (B) each differ from it
+    expect(r?.mostChanged[0]?.last10).toEqual([false, true, true, true])
     expect(r?.mostChanged[0]?.team.slug).toBe('web')
   })
 
-  it('lists the flaky screenshots by the team rule', async () => {
+  it('lists the flaky screenshots by the shared rule, with flip-flops and the image-change strip', async () => {
     const { workspace, mia } = await history()
     const r = await ask(mia.id, workspace.slug)
     expect(r?.flakiest).toEqual([
       {
         team: expect.objectContaining({ slug: 'web' }),
         name: 'hero',
-        changedBuilds: 3,
-        builds: 4,
-        last10: [true, true, true, false],
+        flipFlops: 2,
+        reason: 'came back to an earlier image 2 times',
+        last10: [false, true, true, true],
       },
     ])
   })

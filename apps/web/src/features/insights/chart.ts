@@ -366,7 +366,7 @@ export function stripCells(last10: readonly boolean[]): (boolean | null)[] {
 
 /** "Changed in 6 of the last 10 builds". */
 export const stripLabel = (last10: readonly boolean[], kind: 'changed' | 'flaky' = 'changed') =>
-  `${kind === 'flaky' ? 'Flip-flopped' : 'Changed'} in ${last10.filter(Boolean).length} of the last ${Math.min(10, last10.length)} builds`
+  `${kind === 'flaky' ? 'Image changed' : 'Changed'} in ${last10.filter(Boolean).length} of the last ${Math.min(10, last10.length)} builds`
 
 /** The sentence a screen reader gets for the review chart. */
 export function reviewSummary(weeks: readonly Insights.Week[]): string {

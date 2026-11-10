@@ -446,9 +446,9 @@ describe('InsightsPage', () => {
       const c = card('Flakiest screenshots')
       await expect.element(c.getByText('default branch, last 10 builds')).toBeVisible()
       await expect.element(c.getByRole('columnheader', { name: 'Flip-flops' })).toBeVisible()
-      await expect.element(c.getByText('6 in the last 10 builds')).toBeVisible()
+      await expect.element(c.getByRole('cell', { name: '4' })).toBeVisible()
       await expect
-        .element(c.getByRole('img', { name: 'Flip-flopped in 6 of the last 10 builds' }))
+        .element(c.getByRole('img', { name: 'Image changed in 8 of the last 10 builds' }))
         .toBeVisible()
       await expect
         .element(c.getByRole('link', { name: 'home/hero' }))

@@ -146,11 +146,14 @@ export namespace getInsights {
     last10: boolean[]
   }
 
-  export interface FlakyScreenshot extends ScreenshotChange {
+  export interface FlakyScreenshot {
+    team: TeamRef
+    name: string
     /** Times a commit's image came back to one it already had in the last 10 commits. */
     flipFlops: number
     /** Why it is flaky, in words. */
     reason: string
+    last10: boolean[]
   }
 
   export interface Report {
@@ -396,18 +399,16 @@ export async function getInsights(
         return {
           team: refOf(p.id),
           name: v.name,
-          changedBuilds: strip.filter(Boolean).length,
-          builds: strip.length,
-          last10: strip,
           flipFlops: v.flipFlops,
           reason: v.reason,
+          last10: strip,
         }
       }),
     )
     .toSorted(
       (a, b) =>
         b.flipFlops - a.flipFlops ||
-        b.changedBuilds - a.changedBuilds ||
+        b.last10.filter(Boolean).length - a.last10.filter(Boolean).length ||
         a.team.name.localeCompare(b.team.name) ||
         a.name.localeCompare(b.name),
     )

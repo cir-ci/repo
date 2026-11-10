@@ -129,9 +129,9 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
     {
       team: docs,
       name: 'home/hero',
-      changedBuilds: 6,
-      builds: 10,
-      last10: [true, false, true, true, false, true, false, true, false, true],
+      flipFlops: 4,
+      reason: 'came back to an earlier image 4 times',
+      last10: [false, true, true, true, true, false, true, true, true, true],
     },
   ],
   rejections: {
