@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import type { Plugin } from 'vite'
 
 import { COLOR_SCHEME_ATTRIBUTE, monoFont, sansFont, tokenVariables } from './src/theme.ts'
@@ -57,6 +59,15 @@ export function circiTokensCss(): Plugin {
     transform(code, id) {
       if (!id.split('?')[0]?.endsWith('/global.css')) return null
       return { code: code.replace(MARKER, tokensCss()), map: null }
+    },
+    // The tokens come from theme.ts, read when the config loads: a dev server restarts when it
+    // changes, or the page keeps the old colours until someone restarts it by hand.
+    configureServer(server) {
+      const theme = fileURLToPath(new URL('./src/theme.ts', import.meta.url))
+      server.watcher.add(theme)
+      server.watcher.on('change', (file) => {
+        if (file === theme) void server.restart()
+      })
     },
   }
 }

@@ -1,16 +1,5 @@
 import type { Inbox } from '@circi/api'
-import {
-  Avatar,
-  Badge,
-  BellIcon,
-  Button,
-  Kbd,
-  Pane,
-  PanePlaceholder,
-  StatusIcon,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Avatar, Badge, Button, Kbd, Pane, StatusIcon, TextField, useAnnounce } from '@circi/ui'
 import { useState, type ReactNode } from 'react'
 
 import { buildStatus, changeSummary, overdueLabel } from '#features/reviews/api.ts'
@@ -254,11 +243,6 @@ function Reply({ item, onSent }: { item: Inbox.Item; onSent: () => void }) {
       </Button>
     </form>
   )
-}
-
-/** "Select a notification": the pane while nothing is selected. */
-export function EmptyPane() {
-  return <PanePlaceholder icon={<BellIcon />}>Select a notification</PanePlaceholder>
 }
 
 export namespace InboxPane {

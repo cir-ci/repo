@@ -100,7 +100,7 @@ export function ReviewList({
           <EmptyState
             icon={EMPTY[tab].icon}
             tone={tab === 'for-you' ? 'success' : 'neutral'}
-            size={tab === 'for-you' ? 'page' : 'section'}
+            size="page"
             title={EMPTY[tab].title}
           >
             {EMPTY[tab].text(workspace)}

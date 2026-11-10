@@ -1,7 +1,10 @@
+/* Fills the panel below the header, so a page empty state can centre in what is left. */
 .content {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
   padding: 16px;
 }
 

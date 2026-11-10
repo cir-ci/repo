@@ -46,7 +46,7 @@ import {
   useSnoozeNotification,
   useUnsnoozeNotification,
 } from './api.ts'
-import { EmptyPane, InboxPane } from './InboxPane.tsx'
+import { InboxPane } from './InboxPane.tsx'
 
 import styles from './InboxPage.module.css'
 
@@ -170,7 +170,7 @@ export function InboxPage() {
                     <EmptyState
                       icon={EMPTY[tab].icon}
                       tone={tab === 'for-you' ? 'success' : 'neutral'}
-                      size={tab === 'for-you' ? 'page' : 'section'}
+                      size="page"
                       title={EMPTY[tab].title}
                     >
                       {EMPTY[tab].text}
@@ -215,8 +215,9 @@ export function InboxPage() {
                     </>
                   )}
                 </div>
-                <div className={styles.paneColumn}>
-                  {selected ? (
+                {/* The pane only while something is selected: otherwise the list has the width. */}
+                {selected ? (
+                  <div className={styles.paneColumn}>
                     <InboxPane
                       item={selected}
                       snoozedTab={snoozedTab}
@@ -230,10 +231,8 @@ export function InboxPage() {
                       onApprove={doApprove}
                       approving={approve.isPending}
                     />
-                  ) : items.length > 0 ? (
-                    <EmptyPane />
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </QueryBoundary>
