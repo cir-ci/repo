@@ -86,7 +86,11 @@ export function changedText(history: Triage.Item['history']): string {
 
 /** The second line of a row: why the item is in the queue. */
 export function itemSubtitle(item: Triage.Item): string {
-  if (item.kind === 'flaky') return changedText(item.history)
+  if (item.kind === 'flaky') {
+    return item.reason
+      ? item.reason.charAt(0).toUpperCase() + item.reason.slice(1)
+      : changedText(item.history)
+  }
   if (item.kind === 'no_baseline') return `First seen in build #${item.build.number}`
   return item.error ?? 'The build failed'
 }

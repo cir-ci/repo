@@ -114,12 +114,21 @@ describe('BaselinesPage', () => {
           approvedAt: new Date(Date.now() - 3600_000).toISOString(),
         },
       ]),
-      [`GET ${FLAKY}`]: json({ builds: 10, flaky: [{ name: 'checkout/payment', changedIn: 4 }] }),
+      [`GET ${FLAKY}`]: json({
+        builds: 10,
+        flaky: [
+          {
+            name: 'checkout/payment',
+            changedIn: 4,
+            reason: 'differed across 2 runs of one commit',
+          },
+        ],
+      }),
     })
     await open()
     await expect.element(page.getByText('2d')).toBeVisible()
     await expect.element(page.getByText('1h')).toBeVisible()
-    const marks = page.getByRole('img', { name: 'Flaky: changed in 4 of the last 10 builds' })
+    const marks = page.getByRole('img', { name: 'Flaky: differed across 2 runs of one commit' })
     await expect.element(marks).toBeVisible()
     expect(marks.elements()).toHaveLength(1)
   })

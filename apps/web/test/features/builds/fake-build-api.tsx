@@ -107,7 +107,7 @@ export interface FakeApi {
   /** What `GET …/builds/7` returns now; the review route changes `reviewStatus` of it. */
   build: Build.Detail
   /** `GET …/flaky`. */
-  flaky: { name: string; changedIn: number }[]
+  flaky: { name: string; changedIn: number; reason: string }[]
   /** Answers the review POST with an error instead. */
   reviewError: string | null
   /** The bodies of the review POSTs, in order. */

@@ -63,7 +63,12 @@ function api(canManage: boolean, extra: Record<string, ReplyHandler> = {}, name 
         sitesConfigured: false,
       },
     },
-    [`GET ${API}/flaky`]: { body: { builds: 10, flaky: [{ name, changedIn: 4 }] } },
+    [`GET ${API}/flaky`]: {
+      body: {
+        builds: 10,
+        flaky: [{ name, changedIn: 4, reason: 'came back to an earlier image 2 times' }],
+      },
+    },
     [`GET ${API}/ignore-regions`]: {
       body: {
         regions: [region(ID1, name)],
@@ -131,7 +136,7 @@ describe('BaselinePage', () => {
     // The flaky marker sits beside the name, with the counts on hover.
     await expect
       .element(page.getByText('Flaky', { exact: true }))
-      .toHaveAttribute('title', 'Changed in 4 of the last 10 builds')
+      .toHaveAttribute('title', 'Flaky: came back to an earlier image 2 times')
     const regions = page.getByRole('list', { name: `Regions of ${NAME}` })
     await expect.element(regions.getByText(/Added by Dana Levi/)).toBeVisible()
     await expect.element(regions.getByText('100 x 50 at 10, 20')).toBeVisible()

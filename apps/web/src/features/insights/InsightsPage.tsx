@@ -151,8 +151,9 @@ export function InsightsPage() {
                     </div>
                     {data.flakyAfterChanges !== null ? (
                       <Text variant="small" tone="secondary">
-                        Flaky means changed in {data.flakyAfterChanges} of the last 10
-                        default-branch builds.
+                        Flaky means a screenshot came back to an earlier image{' '}
+                        {data.flakyAfterChanges} times in the last 10 default-branch builds, or
+                        differed across runs of one commit.
                       </Text>
                     ) : null}
                   </section>

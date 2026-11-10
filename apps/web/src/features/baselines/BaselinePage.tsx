@@ -96,11 +96,7 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
               {name}
             </Text>
             {flakyEntry ? (
-              <Text
-                variant="small"
-                className={styles.flaky}
-                title={`Changed in ${flakyEntry.changedIn} of the last ${flaky.data?.builds} builds`}
-              >
+              <Text variant="small" className={styles.flaky} title={`Flaky: ${flakyEntry.reason}`}>
                 <StatusIcon status="flaky" decorative />
                 Flaky
               </Text>

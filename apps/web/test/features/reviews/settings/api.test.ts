@@ -146,17 +146,18 @@ describe('the form values', () => {
     })
   })
 
-  it('wants a whole number of changes from 1 to the 10-build window, and allows no target', () => {
+  it('wants a whole number of returns from 2 to 8 (what the 10-build window allows), and allows no target', () => {
     expect(flakyProblem('3')).toBeNull()
-    expect(flakyProblem('10')).toBeNull()
-    expect(flakyProblem('0')).not.toBeNull()
-    expect(flakyProblem('11')).toBe('Enter a whole number of changes from 1 to 10')
+    expect(flakyProblem('2')).toBeNull()
+    expect(flakyProblem('8')).toBeNull()
+    expect(flakyProblem('1')).toBe('Enter a whole number from 2 to 8')
+    expect(flakyProblem('9')).toBe('Enter a whole number from 2 to 8')
     expect(flakyProblem('')).not.toBeNull()
     const values = formValuesOf(settings, rotation)
     expect(formProblems({ ...values, hours: '' })).toEqual({})
     expect(formProblems({ ...values, hours: '0', flakyAfter: '' })).toEqual({
       hours: 'Enter a whole number of hours from 1 to 720',
-      flakyAfter: 'Enter a whole number of changes from 1 to 10',
+      flakyAfter: 'Enter a whole number from 2 to 8',
     })
   })
 })

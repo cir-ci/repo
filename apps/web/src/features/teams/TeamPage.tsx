@@ -111,7 +111,7 @@ export function TeamPage() {
         {flaky && flaky.flaky.length > 0 ? (
           <Banner
             tone="warning"
-            title={`These screenshots keep changing on ${data?.team.defaultBranch ?? 'the default branch'}:`}
+            title={`These screenshots are flaky on ${data?.team.defaultBranch ?? 'the default branch'}:`}
           >
             {flaky.flaky.map((f, index) => (
               <Fragment key={f.name}>
@@ -121,7 +121,7 @@ export function TeamPage() {
                 ) : (
                   f.name
                 )}{' '}
-                ({f.changedIn} of the last {flaky.builds} builds)
+                ({f.reason})
               </Fragment>
             ))}
             . They are probably not stable (a clock, an animation, random content).{' '}

@@ -35,6 +35,7 @@ const item = (key: string, over: Record<string, unknown> = {}) => ({
   snoozeKind: null,
   snoozed: false,
   history: [],
+  reason: null,
   error: null,
   blocking: 0,
   ...over,
@@ -157,7 +158,7 @@ describe('TriagePage', () => {
     fakeApi({
       [`GET ${BASE}/triage`]: {
         body: queue([
-          item('home', { history: tenBuilds }),
+          item('home', { history: tenBuilds, reason: 'differed across 2 runs of one commit' }),
           item('pricing', {
             kind: 'no_baseline',
             assignee: { id: 'u2', name: 'Grace', image: null },
@@ -168,7 +169,7 @@ describe('TriagePage', () => {
     })
     await show()
     const flaky = page.getByRole('list', { name: 'Flaky, 1 item' })
-    await expect.element(flaky.getByText('Changed in 5 of the last 10 builds')).toBeVisible()
+    await expect.element(flaky.getByText('Differed across 2 runs of one commit')).toBeVisible()
     await expect.element(flaky.getByText('2d')).toBeVisible()
     await expect.element(flaky.getByRole('img', { name: 'Unassigned' })).toBeVisible()
     const none = page.getByRole('list', { name: 'No baseline, 1 item' })

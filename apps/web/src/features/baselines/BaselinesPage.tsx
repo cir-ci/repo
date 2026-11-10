@@ -35,7 +35,7 @@ export function BaselinesPage() {
   const query = useQuery(baselinesQuery(workspace, team))
   const { data } = query
   const flaky = useQuery(flakyQuery(workspace, team))
-  const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.changedIn]))
+  const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.reason]))
   const [filter, setFilter] = useFindParam()
   const [selectedId, setSelectedId] = useState<string>()
 
@@ -146,7 +146,7 @@ export function BaselinesPage() {
                                   {flakyOf.has(item.name) ? (
                                     <StatusIcon
                                       status="flaky"
-                                      label={`Flaky: changed in ${flakyOf.get(item.name)} of the last ${flaky.data?.builds} builds`}
+                                      label={`Flaky: ${flakyOf.get(item.name)}`}
                                     />
                                   ) : null}
                                 </span>

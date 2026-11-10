@@ -136,8 +136,10 @@ describe('merge gate (against a fake GitHub)', () => {
     ctx.setup.session.patch(`/api/workspaces/${workspace}/settings`, { flakyBlocksMerge })
 
   describe('a pull request that only changes a flaky screenshot', () => {
-    // `login` changes in 3 builds on main, so it is flagged as flaky (see flaky.browser.e2e.test.ts); the
-    // pull requests below change nothing else. The workspace's switch is global to this file's
+    // `login` flips between two images on main (100, 200, 100, 200, 100: three returns to an earlier
+    // image), so it is flagged as flaky (see flaky.browser.e2e.test.ts); the pull requests below
+    // change nothing else, and only to an image it already had there (the gate also needs the
+    // change to look like known variation). The workspace's switch is global to this file's
     // workspace, so it is put back at the end.
     let flaky: LinkedTeam
     let prs = 50
@@ -147,13 +149,13 @@ describe('merge gate (against a fake GitHub)', () => {
       flaky = await createLinkedTeam(stack, setup.session, workspace, 'Flaky', {
         repoRef: 'acme/flaky',
       })
-      for (const x of [100, 150, 200]) {
+      for (const x of [100, 200, 100, 200, 100]) {
         // oxlint-disable-next-line no-await-in-loop -- builds on main are sequential
         await flaky.repo.checkout('main')
         // oxlint-disable-next-line no-await-in-loop
         await flaky.repo.writeShots({ login: { dot: { x, y: 60 } } })
         // oxlint-disable-next-line no-await-in-loop
-        await flaky.repo.commit(`main: login moves to ${x}`)
+        await flaky.repo.commit(`main: login at ${x}`)
         // oxlint-disable-next-line no-await-in-loop
         await uploadOrThrow({ stack, token: flaky.token, repo: flaky.repo, wait: true })
       }
@@ -176,10 +178,10 @@ describe('merge gate (against a fake GitHub)', () => {
         flakyBlocksMerge,
       })
 
-    /** A pull request that moves only `login`, and what its check and `--wait` said. */
+    /** A pull request that puts `login` at the image main had before, and what its check and `--wait` said. */
     async function flakyPr() {
       prs += 1
-      const pr = await uploadPr(ctx.stack, flaky, prs, { login: { dot: { x: 300, y: 60 + prs } } })
+      const pr = await uploadPr(ctx.stack, flaky, prs, { login: { dot: { x: 200, y: 60 } } })
       await settle(pr.sha)
       const detail = await buildDetail(ctx.setup.session, flaky, pr.buildNumber)
       // The dashboard still says "changed": flaky is a grouping, not a status.

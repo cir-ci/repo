@@ -132,7 +132,13 @@ describe('InsightsPage', () => {
       .element(page.getByLabelText(/Down 5 since week 44, better/))
       .toHaveTextContent('▼ 5 since W44')
     await expect.element(page.getByText('fewer flaky (better)')).toBeVisible()
-    await expect.element(page.getByText(/Flaky means changed in 3 of the last 10/)).toBeVisible()
+    await expect
+      .element(
+        page.getByText(
+          /Flaky means a screenshot came back to an earlier image 3 times in the last 10/,
+        ),
+      )
+      .toBeVisible()
     await expect.element(page.getByText('last 7 days')).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Ada Lovelace' })).toBeVisible()
     await expect.element(page.getByText('Retention keeps 90 days of branch builds.')).toBeVisible()

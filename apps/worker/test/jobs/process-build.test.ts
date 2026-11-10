@@ -138,6 +138,8 @@ describe('processBuild', () => {
       baseBuildId: b1.id,
       baselineSource: 'cli',
       reviewStatus: 'pending',
+      // The gate's flaky set is recorded when the build finishes with changes (nothing flaky yet).
+      flakyDecision: { flakyOnly: false, flaky: [] },
     })
     const d2 = await diffsOf(b2.id)
     expect(d2.home).toMatchObject({ status: 'unchanged', score: 0 })
@@ -161,6 +163,7 @@ describe('processBuild', () => {
       conclusion: 'no_changes',
       autoApproved: false,
     })
+    expect((await getBuild(t.db, b3.id))?.flakyDecision).toBeNull()
   })
 
   it('holds the first build of a team with no baseline for review, and blocks the gate', async () => {

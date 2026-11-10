@@ -101,7 +101,7 @@ export function RotationSection(props: RotationSection.Props) {
           <NumberField
             className={styles.small}
             name="flakyAfterChanges"
-            label="Changes before flaky"
+            label="Returns to an earlier image before flaky"
             hideLabel
             step={1}
             value={numberOf(props.flakyAfter)}
@@ -110,7 +110,7 @@ export function RotationSection(props: RotationSection.Props) {
             error={(props.touched && flaky ? flaky : undefined) ?? props.serverFlakyProblem}
           />
           <Text>
-            changes in the last {FLAKY_WINDOW} builds on {props.defaultBranch}
+            returns to an earlier image in the last {FLAKY_WINDOW} builds on {props.defaultBranch}
           </Text>
         </div>
       </SettingsRow>

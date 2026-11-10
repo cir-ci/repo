@@ -1,5 +1,5 @@
 import type { ReviewRule, ReviewRuleKind, Team, Triage } from '@circi/api'
-import { FLAKY_WINDOW, reviewDueAt } from '@circi/core'
+import { MAX_FLAKY_FLIP_FLOPS, MIN_FLAKY_FLIP_FLOPS, reviewDueAt } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
@@ -187,8 +187,8 @@ export const dayCount = (days: number) => `${days} ${days === 1 ? 'day' : 'days'
 /** Why the flaky threshold can't be saved, or null. */
 export function flakyProblem(text: string): string | null {
   const t = text.trim()
-  if (!/^\d+$/.test(t) || Number(t) < 1 || Number(t) > FLAKY_WINDOW) {
-    return `Enter a whole number of changes from 1 to ${FLAKY_WINDOW}`
+  if (!/^\d+$/.test(t) || Number(t) < MIN_FLAKY_FLIP_FLOPS || Number(t) > MAX_FLAKY_FLIP_FLOPS) {
+    return `Enter a whole number from ${MIN_FLAKY_FLIP_FLOPS} to ${MAX_FLAKY_FLIP_FLOPS}`
   }
   return null
 }

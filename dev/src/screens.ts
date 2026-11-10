@@ -119,10 +119,10 @@ export const BANNER: Screen[] = BASELINE.map((s) =>
 )
 
 /**
- * Builds on main where two screens keep changing back and forth (a dashboard banner that comes
- * and goes, a billing page whose button jumps sides), so Triage lists them as flaky.
+ * Five builds on main where two screens keep changing back and forth (a dashboard banner that comes
+ * and goes, a billing page whose button jumps sides): each keeps returning to an image it already had, so Triage lists them as flaky.
  */
-export const FLAKY_RUNS: Screen[][] = [0, 1, 2, 3].map((run) =>
+export const FLAKY_RUNS: Screen[][] = [0, 1, 2, 3, 4].map((run) =>
   BASELINE.map((s) => {
     if (s.name === 'dashboard/overview') {
       return run % 2 === 0 ? Object.assign({}, s, { banner: '#06d6a0' }) : s

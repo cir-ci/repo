@@ -111,9 +111,11 @@ describe('ReviewsSettingsPage', () => {
     // The rotation, in order, with its cadence.
     await expect.element(page.getByText(/weekly, Mondays/)).toBeVisible()
     await expect
-      .element(page.getByRole('textbox', { name: 'Changes before flaky' }))
+      .element(page.getByRole('textbox', { name: 'Returns to an earlier image before flaky' }))
       .toHaveValue('3')
-    await expect.element(page.getByText(/changes in the last 10 builds on main/)).toBeVisible()
+    await expect
+      .element(page.getByText(/returns to an earlier image in the last 10 builds on main/))
+      .toBeVisible()
     await expect
       .element(page.getByRole('combobox', { name: 'Snoozed items come back after' }))
       .toHaveTextContent('7 days')
@@ -184,7 +186,7 @@ describe('ReviewsSettingsPage', () => {
   it('saves the flaky threshold and the snooze default', async () => {
     const calls = api()
     await show()
-    await page.getByRole('textbox', { name: 'Changes before flaky' }).fill('5')
+    await page.getByRole('textbox', { name: 'Returns to an earlier image before flaky' }).fill('5')
     await page.getByRole('combobox', { name: 'Snoozed items come back after' }).click()
     await page.getByRole('option', { name: '14 days' }).click()
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -202,9 +204,9 @@ describe('ReviewsSettingsPage', () => {
     expect(calls.of('PATCH')).toHaveLength(0)
     await page.getByRole('textbox', { name: /Overdue after/ }).fill('720')
     await expect.element(page.getByText(/whole number of hours/)).not.toBeInTheDocument()
-    await page.getByRole('textbox', { name: 'Changes before flaky' }).fill('')
+    await page.getByRole('textbox', { name: 'Returns to an earlier image before flaky' }).fill('')
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect.element(page.getByText(/whole number of changes/)).toBeVisible()
+    await expect.element(page.getByText(/Enter a whole number from 2 to 8/)).toBeVisible()
     expect(calls.of('PATCH')).toHaveLength(0)
   })
 

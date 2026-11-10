@@ -6,11 +6,18 @@ import { uploadOrThrow } from '#clients/upload.ts'
 import { Repo } from '#github/git-repo.ts'
 import { useBrowser, useStack } from '#stack/vitest.ts'
 
+const flakyWobble = (changedIn: number) => ({
+  name: 'wobble',
+  changedIn,
+  reason: 'came back to an earlier image 3 times',
+})
+
 /**
- * Flaky screenshot detection on the real stack: a screenshot that shows as changed in 3 or more of
- * the last 10 default-branch builds is flagged (API, team page banner, "Flaky" group of a build
- * review); pull request builds never count; the flag goes away when the changes roll out of the
- * window. `wobble` moves to a new spot at every build, `steady` never does.
+ * Flaky screenshot detection on the real stack: a screenshot whose image keeps coming back to one
+ * it already had on the default branch (3 returns in the last 10 commits, the team default) is
+ * flagged (API, team page banner, "Flaky" group of a build review); pull request builds never
+ * count; the flag goes away when the returns roll out of the window. `wobble` flips between two
+ * spots (A, B, A, B, A), `steady` never moves.
  */
 describe('flaky screenshots', () => {
   const ctx = useStack({ profile: 'default', setup: true })
@@ -30,13 +37,13 @@ describe('flaky screenshots', () => {
   const report = () =>
     ctx.setup.session.get<Flaky.Report>(`/api/teams/${workspace()}/${team.slug}/flaky`)
 
-  /** A build on main; `wobble` moves to a spot it never had, unless `still`. */
-  async function mainBuild(options: { still?: boolean } = {}) {
+  /** A build on main; `wobble` is at spot A or B (`B` unless `still`, which holds it at A). */
+  async function mainBuild(options: { still?: boolean; spot?: 'A' | 'B' } = {}) {
     mainBuilds += 1
     if (mainBuilds > 1) await repo.checkout('main')
     await repo.writeShots({
       steady: { dot: { x: 40, y: 40 } },
-      wobble: { dot: { x: options.still ? 370 : 10 + (mainBuilds % 12) * 30, y: 100 } },
+      wobble: { dot: { x: options.still || options.spot === 'A' ? 10 : 370, y: 100 } },
     })
     await repo.commit(`main ${mainBuilds}`)
     const up = await uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
@@ -46,27 +53,29 @@ describe('flaky screenshots', () => {
     return up
   }
 
-  it('twice changed is not flaky yet; the third change flags it, the steady one never', async () => {
+  it('two returns to an earlier image are not flaky yet; the third flags it, the steady one never', async () => {
     team = await createTeam(ctx.setup.session, workspace(), 'Flicker')
-    await mainBuild()
-    await mainBuild()
-    const third = await mainBuild()
-    expect(third.status?.counts).toMatchObject({ changed: 1, unchanged: 1 })
-    expect(await report()).toEqual({ builds: 3, flaky: [] })
+    await mainBuild({ spot: 'A' })
+    // A redesign (B, then C) never counts: only coming back does.
+    const second = await mainBuild({ spot: 'B' })
+    expect(second.status?.counts).toMatchObject({ changed: 1, unchanged: 1 })
+    await mainBuild({ spot: 'A' })
+    await mainBuild({ spot: 'B' })
+    expect(await report()).toEqual({ builds: 4, flaky: [] })
 
-    const fourth = await mainBuild()
-    expect(fourth.status?.counts).toMatchObject({ changed: 1, unchanged: 1 })
-    expect(await report()).toEqual({ builds: 4, flaky: [{ name: 'wobble', changedIn: 3 }] })
+    const fifth = await mainBuild({ spot: 'A' })
+    expect(fifth.status?.counts).toMatchObject({ changed: 1, unchanged: 1 })
+    expect(await report()).toEqual({ builds: 5, flaky: [flakyWobble(4)] })
   })
 
   it('the team page warns, naming the screenshot and the count but not the steady one', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
-    const banner = page.getByText('These screenshots keep changing on main:').locator('..')
+    const banner = page.getByText('These screenshots are flaky on main:').locator('..')
     await banner.waitFor()
     const text = (await banner.innerText()).replace(/\s+/g, ' ')
-    expect(text).toContain('wobble (3 of the last 4 builds)')
+    expect(text).toContain('wobble (came back to an earlier image 3 times)')
     expect(text).not.toContain('circi admin ignore add')
     await page.getByRole('link', { name: 'wobble' }).waitFor()
     expect(text).not.toContain('steady')
@@ -134,7 +143,7 @@ describe('flaky screenshots', () => {
       // oxlint-disable-next-line no-await-in-loop
       await uploadOrThrow({ stack, token: team.token, repo, wait: true, pr: { number: 7 } })
     }
-    expect(await report()).toEqual({ builds: 4, flaky: [{ name: 'wobble', changedIn: 3 }] })
+    expect(await report()).toEqual({ builds: 5, flaky: [flakyWobble(4)] })
   })
 
   it('flaky is a hint, not an exemption: a change to only the flaky screenshot still blocks the merge', async () => {
@@ -155,18 +164,14 @@ describe('flaky screenshots', () => {
     expect(up.exitCode).toBe(1)
   })
 
-  it('stays flagged through stable builds, and clears only when the changes leave the 10-build window', async () => {
-    await mainBuild({ still: true }) // 5th: changed (jumps to the still spot)
-    await mainBuild({ still: true }) // 6th: stable
-    expect((await report()).flaky).toEqual([{ name: 'wobble', changedIn: 4 }])
-    for (let n = 7; n <= 11; n++) {
+  it('stays flagged through stable builds, and clears only when the returns leave the 10-commit window', async () => {
+    for (let n = 6; n <= 12; n++) {
       // oxlint-disable-next-line no-await-in-loop -- builds are sequential
-      await mainBuild({ still: true })
+      await mainBuild({ still: true }) // stable: the image is A every time
     }
-    expect(await report()).toEqual({ builds: 10, flaky: [{ name: 'wobble', changedIn: 4 }] })
-    await mainBuild({ still: true }) // build 2 leaves the window
-    expect((await report()).flaky).toEqual([{ name: 'wobble', changedIn: 3 }])
-    await mainBuild({ still: true }) // build 3 leaves: two changes left
+    // Builds 3 to 12: the returns at builds 3, 4 and 5 are all still inside.
+    expect(await report()).toEqual({ builds: 10, flaky: [flakyWobble(3)] })
+    await mainBuild({ still: true }) // build 3 leaves the window: two returns left
     expect((await report()).flaky).toEqual([])
   })
 
@@ -176,6 +181,6 @@ describe('flaky screenshots', () => {
     await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
     // The team page has loaded once its build list is there.
     await page.getByRole('heading', { name: team.name }).first().waitFor()
-    expect(await page.getByText('keep changing on').count()).toBe(0)
+    expect(await page.getByText('are flaky on').count()).toBe(0)
   })
 })

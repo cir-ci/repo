@@ -12,7 +12,9 @@ import * as schema from '@circi/db/schema'
 import {
   createTestDb,
   seedBuild,
+  imageSha,
   seedDiff,
+  seedFlipFlops,
   seedGitLink,
   seedTeam,
   seedChangedSnapshots,
@@ -281,19 +283,21 @@ describe('notifyGit', () => {
     await t.db.delete(schema.jobs)
     const { team, workspace } = await seedTeam(t.db)
     await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
-    for (let i = 0; i < 3; i += 1) {
-      // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
-      const main = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
-      // oxlint-disable-next-line no-await-in-loop
-      await seedDiff(t.db, { buildId: main.id, name: 'wobble', status: 'changed' })
-    }
+    // `wobble` keeps returning to an image it had on main: A, B, A, B, A.
+    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B', 'A'])
     const pr = await seedBuild(t.db, team.id, {
       branch: 'feature',
       prNumber: 4,
       status: 'complete',
       conclusion: 'changes_detected',
     })
-    await seedDiff(t.db, { buildId: pr.id, name: 'wobble', status: 'changed' })
+    await seedDiff(t.db, {
+      buildId: pr.id,
+      name: 'wobble',
+      status: 'changed',
+      headSha256: imageSha('B'),
+      score: 0.02,
+    })
     await seedDiff(t.db, { buildId: pr.id, name: 'steady', status: 'unchanged' })
 
     const fake = recordingGithub()

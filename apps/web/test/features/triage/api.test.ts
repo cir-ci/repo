@@ -34,6 +34,7 @@ const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   snoozeKind: null,
   snoozed: false,
   history: [],
+  reason: null,
   error: null,
   blocking: 0,
   ...over,
@@ -87,7 +88,11 @@ describe('labels', () => {
   it("words a row's second line and the pane's Blocking row per kind", () => {
     const history = [3, 4, 5, 6].map((number) => ({ number, changed: number % 2 === 0 }))
     expect(changedText(history)).toBe('Changed in 2 of the last 4 builds')
+    // Without a reason, the history says it; with one, the subtitle is the reason.
     expect(itemSubtitle(item({ history }))).toBe('Changed in 2 of the last 4 builds')
+    expect(itemSubtitle(item({ history, reason: 'came back to an earlier image 3 times' }))).toBe(
+      'Came back to an earlier image 3 times',
+    )
     expect(itemSubtitle(item({ kind: 'no_baseline' }))).toBe('First seen in build #12')
     expect(itemSubtitle(item({ kind: 'failed', error: '2 files over the limit' }))).toBe(
       '2 files over the limit',
