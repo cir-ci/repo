@@ -62,7 +62,7 @@ describe('sidebar tabs', () => {
     await expect
       .element(tabs.getByRole('tab', { name: /^Comments/ }))
       .toHaveAttribute('aria-selected', 'true')
-    await expect.element(page.getByRole('combobox', { name: 'Comment' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Comment' })).toBeVisible()
   })
 
   it('Details lists per-snapshot decisions by snapshot, and marks the selected one', async () => {
@@ -205,7 +205,7 @@ describe('comments', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('c')
-    const field = page.getByRole('combobox', { name: 'Comment' })
+    const field = page.getByRole('textbox', { name: 'Comment' })
     await expect.element(field).toHaveFocus()
 
     await field.fill('Looks off, @gr')
@@ -251,7 +251,7 @@ describe('replying', () => {
     await renderBuild()
     await page.getByRole('tab', { name: /^Comments/ }).click()
     await page.getByRole('button', { name: 'Reply' }).click()
-    const box = page.getByRole('combobox', { name: 'Reply' })
+    const box = page.getByRole('textbox', { name: 'Reply' })
     await expect.element(box).toHaveFocus()
     // The QA path: type without clicking the box. A capital A is Approve all.
     await userEvent.keyboard('A reply')
@@ -266,7 +266,7 @@ describe('replying', () => {
     await renderBuild()
     await page.getByRole('tab', { name: /^Comments/ }).click()
     await page.getByRole('button', { name: 'Reply' }).click()
-    const box = page.getByRole('combobox', { name: 'Reply' })
+    const box = page.getByRole('textbox', { name: 'Reply' })
     await box.fill('half a thought')
     // Focus leaves the box (a click on the page background); the unsent text still holds the keys.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()

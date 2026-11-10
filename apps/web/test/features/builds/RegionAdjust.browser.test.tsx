@@ -314,7 +314,7 @@ describe('the comment region drawn and not yet sent', () => {
     await vi.waitFor(() => expect(draft.style.width).toMatch(/^4[4-9]|^5/))
 
     await expect
-      .element(popover().getByRole('combobox', { name: 'Comment' }))
+      .element(popover().getByRole('textbox', { name: 'Comment' }))
       .toHaveValue('Spacing is off')
     await popover().getByRole('button', { name: /^Send/ }).click()
     await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))

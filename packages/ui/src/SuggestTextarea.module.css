@@ -1,0 +1,40 @@
+.positioner {
+  z-index: var(--circi-z-popup);
+  outline: none;
+}
+
+.popup {
+  box-sizing: border-box;
+  width: var(--anchor-width);
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-panel);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+/* About eight rows show; the rest scroll, and the active option is scrolled into view. */
+.list {
+  box-sizing: border-box;
+  max-height: 232px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  outline: none;
+}
+
+.item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.item[data-highlighted] {
+  background: var(--circi-accent-subtle);
+}
