@@ -154,6 +154,9 @@ async function renderApp(path = '/') {
   return router
 }
 
+/** The offset the tab row gives the page's panel (its header sticks below the tabs). */
+const panelTop = () =>
+  document.querySelector('main')?.style.getPropertyValue('--circi-window-top') ?? ''
 const tabs = () => page.getByRole('tab')
 const tabNamed = (name: string) => page.getByRole('tab', { name })
 const press = (keys: string) => userEvent.keyboard(keys)
@@ -209,7 +212,14 @@ describe('tabs in the installed app', () => {
     installedAs('standalone')
     await renderApp()
     await expect.element(tabNamed('Projects page')).toBeVisible()
-    expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('36px')
+    expect(panelTop()).toBe('36px')
+    // Over the page only: the tabs are in the panel, right of the sidebar, which reaches the top.
+    const tab = tabNamed('Projects page').element()
+    const sidebar = page.getByRole('navigation', { name: 'Main' }).element().getBoundingClientRect()
+    expect(tab.closest('main')).not.toBeNull()
+    expect(sidebar.top).toBe(0)
+    expect(tab.getBoundingClientRect().left).toBeGreaterThanOrEqual(sidebar.right)
+    expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
   })
 
   it('leaves the frame without a row in overlay mode, where the title bar carries the tabs', async () => {
@@ -220,7 +230,7 @@ describe('tabs in the installed app', () => {
     await expect
       .poll(() => document.querySelector('[role="tab"]')?.textContent)
       .toBe('Projects page')
-    expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
+    expect(panelTop()).toBe('')
   })
 
   it('keeps the tabs in full screen, in the frame, and back in the title bar after it', async () => {
@@ -230,19 +240,15 @@ describe('tabs in the installed app', () => {
       .poll(() => document.querySelector('[role="tab"]')?.textContent)
       .toBe('Projects page')
     // The title bar carries them: no row in the frame.
-    expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
+    expect(panelTop()).toBe('')
     // Full screen: no title bar strip, so the frame's row shows the tabs, and the page stays a tab.
     display.switchTo('fullscreen')
     await expect.element(tabNamed('Projects page')).toBeVisible()
-    await expect
-      .poll(() => document.documentElement.style.getPropertyValue('--circi-window-top'))
-      .toBe('36px')
+    await expect.poll(() => panelTop()).toBe('36px')
     await expect.element(page.getByRole('button', { name: 'New tab' })).toBeVisible()
     // Leaving full screen: back in the title bar, the row gone again.
     display.switchTo('overlay')
-    await expect
-      .poll(() => document.documentElement.style.getPropertyValue('--circi-window-top'))
-      .toBe('')
+    await expect.poll(() => panelTop()).toBe('')
     expect(document.querySelector('[role="tab"]')?.textContent).toBe('Projects page')
   })
 

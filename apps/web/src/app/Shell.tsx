@@ -140,7 +140,6 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const sidebarWidth = usePaneWidth(pane.id)
   return (
     <ShortcutLayer>
-      <TabRow />
       <AppFrame
         sidebar={nav}
         sidebarLabel={navLabel}
@@ -158,6 +157,8 @@ function SignedInFrame({ user }: { user: SessionUser }) {
         compact
         {...(phone && !inSettings && !isBuildPage(pathname) ? { bottomBar: <PhoneTabs /> } : {})}
       >
+        {/* The tabs (installed app): over the page only, so the sidebar reaches the top. */}
+        <TabRow />
         {/* The notices show under each page's sticky header, inside the panel (`PanelHeader`). */}
         <PanelNotices notices={<Notices email={user.email} />}>
           <TabGate userId={user.id}>
