@@ -26,6 +26,12 @@ export async function findWorkspaceBySlug(
   return found
 }
 
+/** The workspace with this ID (deleted or not), or undefined. */
+export async function findWorkspaceById(db: Database, id: string): Promise<Workspace | undefined> {
+  const [found] = await db.select().from(workspace).where(eq(workspace.id, id))
+  return found
+}
+
 export async function getWorkspaceBySlug(db: Database, slug: string): Promise<Workspace> {
   const found = await findWorkspaceBySlug(db, slug)
   assertFound(found, `Workspace "${slug}" not found`)

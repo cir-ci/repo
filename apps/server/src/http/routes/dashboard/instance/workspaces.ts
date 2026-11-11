@@ -1,9 +1,9 @@
 import type { InstanceAdmin } from '@circi/api'
-import { createWorkspace } from '@circi/auth'
+import { addMemberById, createWorkspace } from '@circi/auth'
 import { workspaceDaysLeft } from '@circi/core'
 import { ConflictError, NotFoundError } from '@circi/db'
-import { listInstanceWorkspaces } from '@circi/db/queries'
-import { purgeWorkspace, restoreWorkspace } from '@circi/services'
+import { isInstanceAdmin, listInstanceWorkspaces } from '@circi/db/queries'
+import { joinWorkspace, purgeWorkspace, restoreWorkspace } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -69,6 +69,24 @@ export const dashboardInstanceWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard
     const found = await loadDeleted(id, userId)
     if (!found.deletedAt) throw new ConflictError("This workspace isn't deleted")
     await restoreWorkspace(deps.db, id)
+    return { workspace: wire(await loadDeleted(id, userId)) }
+  })
+
+  /**
+   * An instance admin who isn't in the workspace joins it as an admin (409 if they already are,
+   * 404 if it is deleted or missing). Written through better-auth's `addMember`.
+   */
+  app.post('/instance/workspaces/:id/join', async (req): Promise<InstanceAdmin.Joined> => {
+    const { id } = parse(idParams, req.params)
+    const userId = currentUser(req).id
+    await joinWorkspace(deps.db, {
+      actor: { instanceAdmin: await isInstanceAdmin(deps.db, userId) },
+      workspaceId: id,
+      userId,
+      apply: async (role) => {
+        await addMemberById(deps.auth, { workspaceId: id, userId, role })
+      },
+    })
     return { workspace: wire(await loadDeleted(id, userId)) }
   })
 

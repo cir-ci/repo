@@ -1,6 +1,7 @@
 import type { Workspace } from '@circi/api'
 import {
   Avatar,
+  Button,
   BlocksIcon,
   DatabaseIcon,
   EmptyState,
@@ -15,13 +16,14 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { workspacesQuery } from '#features/instance/api/admin.ts'
+import { useJoinWorkspace, workspacesQuery } from '#features/instance/api/admin.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { workspaceAuthQuery } from '#features/members/api.ts'
 import { SettingsBackLink } from '#features/project-settings/SettingsBackLink.tsx'
 import { instanceCrumb, workspacesCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
+import { toast } from '#lib/toast.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { formatBytes, workspaceGeneralQuery } from './api.ts'
@@ -65,13 +67,14 @@ function methodCount(auth: Workspace.Auth): number {
  * groups (Workspace, Access, Connections, Data), each with a one-line summary. The counts and
  * the storage come from the instance's workspaces list (the same list the
  * sidebar lists), the sign-in methods and integrations from the queries those pages read; those two are
- * only fetched for someone who may open the pages. Someone who isn't in the workspace sees why
- * there are no rows: its pages open for members only. A deleted workspace has no rows either: it
+ * only fetched for someone who may open the pages. An instance admin who isn't in the workspace sees why
+ * there are no rows and a Join workspace button (they join as an admin). A deleted workspace has no rows either: it
  * offers Restore and Delete permanently. "‹ Workspaces" goes back to the All workspaces list
  * (where New workspace is).
  */
 export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage.Props) {
   const clientLink = useClientLink()
+  const join = useJoinWorkspace()
   const { data, error, refetch } = useQuery(workspacesQuery())
   const found = data?.workspaces.find((w) => w.slug === workspace)
   const member = found?.youAreMember === true && !found.deletedAt
@@ -149,9 +152,21 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
               </SettingsSection>
             ))
           ) : (
-            <EmptyState size="section" title="You're not a member of this workspace">
-              Its settings open for its members. An owner can invite you.
-            </EmptyState>
+            <EmptyState
+              size="section"
+              title="You're not a member of this workspace"
+              action={
+                <Button
+                  variant="primary"
+                  loading={join.isPending}
+                  onClick={() =>
+                    join.mutate(found.id, { onSuccess: () => toast(`Joined ${found.name}`) })
+                  }
+                >
+                  Join workspace
+                </Button>
+              }
+            />
           )}
         </>
       ) : null}

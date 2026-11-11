@@ -224,6 +224,16 @@ export async function addMember(
   return auth.api.addMember({ body: { userId, organizationId: workspace.id, role: input.role } })
 }
 
+/** Adds an existing account to a workspace through better-auth's own `addMember`. */
+export async function addMemberById(
+  auth: Auth,
+  input: { workspaceId: string; userId: string; role: 'owner' | 'admin' | 'member' },
+) {
+  return auth.api.addMember({
+    body: { userId: input.userId, organizationId: input.workspaceId, role: input.role },
+  })
+}
+
 export interface IssuedToken {
   project: Project
   /** The CI token, shown exactly once. better-auth stores only its hash. */

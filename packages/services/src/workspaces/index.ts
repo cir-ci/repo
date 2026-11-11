@@ -12,3 +12,4 @@ export {
   WorkspaceDeleteForbiddenError,
 } from './delete.ts'
 export { storeWorkspacePicture } from './picture.ts'
+export { joinWorkspace } from './join.ts'

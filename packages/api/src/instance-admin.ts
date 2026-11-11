@@ -67,6 +67,11 @@ export namespace InstanceAdmin {
     youAreMember: boolean
   }
 
+  /** `POST /api/instance/workspaces/:id/join`: the signed-in instance admin is now an admin of it. */
+  export interface Joined {
+    workspace: Workspace
+  }
+
   /** `GET /api/instance/workspaces` */
   export interface WorkspaceList {
     workspaces: Workspace[]

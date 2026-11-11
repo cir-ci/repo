@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { WorkspaceSettingsHubPage } from '#features/workspace-settings/WorkspaceSettingsHubPage.tsx'
 import { workspace } from '#test/features/instance/fixtures.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
 
@@ -197,6 +198,46 @@ describe('WorkspaceSettingsHubPage', () => {
         .elements()
         .map((el) => el.textContent),
     ).toEqual(['Instance', 'Workspaces', 'Workspaces'])
+  })
+
+  it('offers Join workspace to an instance admin who is not in it; joining toasts and shows the rows', async () => {
+    const fake = api({ member: false })
+    await show()
+    expect(page.getByRole('link', { name: /^General/ }).elements()).toHaveLength(0)
+    expectOnePrimaryPerArea()
+    // The list is read again after joining, and now says they are a member.
+    fake.set('POST /api/instance/workspaces/w1/join', () => {
+      fake.set('GET /api/instance/workspaces', {
+        body: { workspaces: [workspace({ youAreMember: true })] },
+      })
+      return { body: { workspace: workspace({ youAreMember: true }) } }
+    })
+    await userEvent.click(page.getByRole('button', { name: 'Join workspace' }))
+    await expect.element(toastNamed('Joined Acme')).toBeVisible()
+    await expect.element(rowOf('General')).toBeVisible()
+    expect(fake.of('POST')).toHaveLength(1)
+    expect(page.getByRole('button', { name: 'Join workspace' }).elements()).toHaveLength(0)
+  })
+
+  it('toasts the reason when joining fails, and keeps the button', async () => {
+    const fake = api({ member: false })
+    fake.set('POST /api/instance/workspaces/w1/join', {
+      status: 409,
+      body: { error: "You're already a member of this workspace" },
+    })
+    await show()
+    await userEvent.click(page.getByRole('button', { name: 'Join workspace' }))
+    await expect
+      .element(toastNamed("Couldn't join: You're already a member of this workspace"))
+      .toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Join workspace' })).toBeVisible()
+  })
+
+  it('has no Join button for a member or a deleted workspace', async () => {
+    api()
+    await show()
+    await expect.element(rowOf('General')).toBeVisible()
+    expect(page.getByRole('button', { name: 'Join workspace' }).elements()).toHaveLength(0)
   })
 
   it('says so for an address that is no workspace', async () => {

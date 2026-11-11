@@ -504,6 +504,27 @@ export function useRestoreWorkspace() {
   })
 }
 
+/**
+ * An instance admin who isn't in a workspace joins it as an admin. Refreshes what depends on
+ * membership (the lists, the sidebar, the capabilities, the workspace's own data).
+ */
+export function useJoinWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'join' },
+    mutationFn: (id: string) =>
+      post<InstanceAdmin.Joined>(instancePath('workspaces', id, 'join'), {}),
+    onSuccess: () =>
+      invalidateAll(
+        queryClient,
+        keys.instanceWorkspaces(),
+        keys.projects(),
+        keys.sidebar(),
+        keys.capabilities(),
+      ),
+  })
+}
+
 /** "Delete permanently now": only for a workspace that was already deleted. */
 export function usePurgeWorkspace() {
   const queryClient = useQueryClient()

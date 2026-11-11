@@ -18,6 +18,7 @@ export { createSmtpMailer, type Mailer, signInMail, invitationMail } from './mai
 
 export {
   addMember,
+  addMemberById,
   createWorkspace,
   createProjectWithToken,
   createUser,
