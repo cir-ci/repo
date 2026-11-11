@@ -10,7 +10,6 @@ import {
   LayersIcon,
   NavItem,
   NavSection,
-  PlusIcon,
   ServerIcon,
   ShieldCheckIcon,
   SunIcon,
@@ -21,17 +20,14 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
-import { useState } from 'react'
 
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
-import { CreateWorkspaceDialog } from '#features/instance/CreateWorkspaceDialog.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
-import { toast } from '#lib/toast.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { useWorkspaces } from './use-workspaces.ts'
@@ -43,9 +39,9 @@ import styles from './SettingsNav.module.css'
  * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Teams
  * (each team the person may see, opening its settings hub, then All teams) and, for the people
  * who run the instance, Instance. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
- * Instance admins get a Workspaces section (every workspace of the instance, each opening its
- * settings hub and selected on every page of it, then New workspace, and a Deleted workspaces
- * section when there are any, to restore them from their hub) in place of the Workspace one. On a
+ * Instance admins get a Workspaces section (every live workspace of the instance, each opening its
+ * settings hub and selected on every page of it, then All workspaces: the list, with New workspace
+ * and the deleted ones) in place of the Workspace one. On a
  * phone it is the body of the settings sections sheet (`SettingsSections`): no Back row (the
  * header's Close is the way out) and no Hide button.
  */
@@ -63,10 +59,6 @@ export function SettingsNav() {
   const instanceWorkspaces = (instanceList?.workspaces ?? [])
     .filter((w) => !w.deletedAt)
     .toSorted(byName)
-  const deletedWorkspaces = (instanceList?.workspaces ?? [])
-    .filter((w) => w.deletedAt)
-    .toSorted(byName)
-  const [creating, setCreating] = useState(false)
   const router = useRouter()
   const back = returnTarget(
     useSettingsReturnStore((s) => s.app),
@@ -117,31 +109,14 @@ export function SettingsNav() {
             {instanceWorkspaces.map((w) => (
               <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
             ))}
-            <NavItem
-              icon={<PlusIcon />}
-              onClick={() => {
-                setCreating(true)
-              }}
+            <NavLink
+              to="/instance/workspaces"
+              icon={<BuildingIcon />}
+              selected={pathname === '/instance/workspaces'}
             >
-              New workspace
-            </NavItem>
+              All workspaces
+            </NavLink>
           </NavSection>
-          {deletedWorkspaces.length > 0 ? (
-            // Each opens its hub, where it can be restored or deleted for good.
-            <NavSection label="Deleted workspaces">
-              {deletedWorkspaces.map((w) => (
-                <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
-              ))}
-            </NavSection>
-          ) : null}
-          <CreateWorkspaceDialog
-            open={creating}
-            onClose={() => setCreating(false)}
-            onCreated={(created) => {
-              setCreating(false)
-              toast(`Created ${created}`)
-            }}
-          />
         </>
       ) : workspace ? (
         <NavSection

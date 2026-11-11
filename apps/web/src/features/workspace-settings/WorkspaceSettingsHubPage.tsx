@@ -18,6 +18,8 @@ import type { ReactNode } from 'react'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { workspaceAuthQuery } from '#features/members/api.ts'
+import { SettingsBackLink } from '#features/team-settings/SettingsBackLink.tsx'
+import { workspacesCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -65,8 +67,8 @@ function methodCount(auth: Workspace.Auth): number {
  * sidebar lists), the sign-in methods and integrations from the queries those pages read; those two are
  * only fetched for someone who may open the pages. Someone who isn't in the workspace sees why
  * there are no rows: its pages open for members only. A deleted workspace has no rows either: it
- * offers Restore and Delete permanently (everything the old Instance → Workspaces page did per
- * workspace; creating one is the sidebar's New workspace).
+ * offers Restore and Delete permanently. "‹ Workspaces" goes back to the All workspaces list
+ * (where New workspace is).
  */
 export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage.Props) {
   const clientLink = useClientLink()
@@ -95,7 +97,7 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
 
   return (
     <PageFrame
-      crumbs={[{ label: 'Instance' }]}
+      crumbs={[{ label: 'Instance' }, workspacesCrumb()]}
       title={name}
       loading={!data && !error}
       error={error}
@@ -111,6 +113,7 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
       {found ? (
         <>
           <div className={styles.head}>
+            <SettingsBackLink label="Workspaces" link={{ to: '/instance/workspaces' }} />
             <div className={styles.identity}>
               <Avatar
                 type="workspace"

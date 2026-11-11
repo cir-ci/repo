@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { WorkspaceSettingsHubPage } from '#features/workspace-settings/WorkspaceSettingsHubPage.tsx'
 import { workspace } from '#test/features/instance/fixtures.ts'
@@ -83,16 +83,32 @@ const rows = (group: string) =>
     .elements()
     .map((el) => el.querySelector('span span')?.textContent)
 
+/** The "‹ Workspaces" button in the page's column (the breadcrumb has a link of the same name). */
+const backLink = () =>
+  page
+    .getByRole('link', { name: 'Workspaces' })
+    .elements()
+    .find((el) => !el.closest('nav'))
+
 const rowOf = (name: string) => page.getByRole('link', { name: new RegExp(`^${name}`) })
 
 describe('WorkspaceSettingsHubPage', () => {
-  it('has the workspace name as its title and its size as the subtitle, and no way up', async () => {
+  it('has the workspace name as its title and its size as the subtitle', async () => {
     api()
     await show()
     await expect.element(page.getByRole('heading', { name: 'Acme', level: 1 })).toBeVisible()
     await expect.element(page.getByText('6 members · 3 teams')).toBeVisible()
-    // The sidebar's Workspaces section is the list: the hub has no back link to one.
-    expect(page.getByRole('link', { name: 'Workspaces' }).elements()).toHaveLength(0)
+  })
+
+  it('goes back to the All workspaces list with "‹ Workspaces", and names it in its breadcrumb', async () => {
+    api()
+    const { router } = await show()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect.element(crumbs.getByText('Instance')).toBeVisible()
+    await expect.element(crumbs.getByRole('link', { name: 'Workspaces' })).toBeVisible()
+    await expect.poll(backLink).not.toBeUndefined()
+    await userEvent.click(backLink()!)
+    await expect.poll(() => router.state.location.pathname).toBe('/instance/workspaces')
   })
 
   it('groups one row for each page: Workspace, Access, Connections and Data', async () => {
@@ -169,7 +185,13 @@ describe('WorkspaceSettingsHubPage', () => {
     api({ member: false })
     await show()
     await expect.element(page.getByText("You're not a member of this workspace")).toBeVisible()
-    expect(page.getByRole('link').elements()).toHaveLength(0)
+    // Only the way back and the breadcrumb: no page rows.
+    expect(
+      page
+        .getByRole('link')
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(['Workspaces', 'Workspaces'])
   })
 
   it('says so for an address that is no workspace', async () => {

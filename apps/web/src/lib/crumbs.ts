@@ -57,6 +57,11 @@ export function settingsCrumbsFor(workspace: Named, trail: ReadonlyArray<Crumb> 
   return [{ label: workspace.name }, ...trail]
 }
 
+/** The instance's Workspaces list, the parent of a workspace's settings hub (instance admins). */
+export function workspacesCrumb(): Crumb {
+  return { label: 'Workspaces', link: { to: '/instance/workspaces' } }
+}
+
 /** The workspace's Teams settings, the parent of a team's own settings. */
 export function teamsSettingsCrumb(workspace: string): Crumb {
   return {

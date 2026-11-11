@@ -1095,8 +1095,11 @@ describe('settings is closed', () => {
     const member = settingsSections({ workspace: 'acme', canManage: false, instanceAdmin: false })
     const names = member.filter((s) => s.area === 'Workspace').map((s) => s.label)
     expect(names).toEqual(['Members', 'Teams'])
+    expect(member.map((s) => s.label)).not.toContain('All workspaces')
     const admin = settingsSections({ workspace: 'acme', canManage: true, instanceAdmin: true })
-    expect(admin.map((s) => s.label)).toEqual(expect.arrayContaining(['Health', 'General']))
+    expect(admin.map((s) => s.label)).toEqual(
+      expect.arrayContaining(['Health', 'General', 'All workspaces']),
+    )
   })
 
   it('lists a section outside settings only when the query names it', () => {
