@@ -28,6 +28,37 @@ export function isAppLink(anchor: HTMLAnchorElement, origin = window.location.or
   }
 }
 
+/** The page's fade when another tab is shown: quick, and nothing moves (the strip's highlight glides). */
+const SWITCH_FADE_MS = 120
+
+/** Set by a switch of tabs; the page fades in once the router has rendered it (`fadeInSwitchedPage`). */
+let switched = false
+
+/**
+ * Fades the page in after a switch of tabs, once it is the new tab's page: everything in the
+ * panel but the tab row itself. Called when the router has rendered (TabGate); does nothing unless
+ * the render followed a switch.
+ */
+export function fadeInSwitchedPage(): void {
+  if (!switched) return
+  switched = false
+  fadeInPage()
+}
+
+function fadeInPage(): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const panel = document.querySelector('main')
+  if (!panel) return
+  for (const part of panel.children) {
+    if (part instanceof HTMLElement && !part.hasAttribute('data-tab-row')) {
+      part.animate([{ opacity: 0.35 }, { opacity: 1 }], {
+        duration: SWITCH_FADE_MS,
+        easing: 'ease-out',
+      })
+    }
+  }
+}
+
 /** How long a tab's restored scroll position is waited for while its page loads. */
 const SCROLL_WAIT_MS = 1500
 
@@ -108,6 +139,7 @@ export function installTabSync(history: RouterHistory): () => void {
         }
       }
       shownId = tab.id
+      switched = true
     }
     if (hrefFrom(history.location.href) === target) return
     passing = true

@@ -38,7 +38,7 @@ export function TabRow() {
   }, [shown])
   if (!shown) return null
   return (
-    <div ref={row} className={styles.root}>
+    <div ref={row} className={styles.root} data-tab-row="">
       <TabStrip />
     </div>
   )

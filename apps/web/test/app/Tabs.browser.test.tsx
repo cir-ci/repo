@@ -154,6 +154,10 @@ async function renderApp(path = '/') {
   return router
 }
 
+/** The active tab's highlight, and the active tab. */
+const indicator = () => document.querySelector<HTMLElement>('[role="tablist"] > span[aria-hidden]')!
+const activeTab = () => document.querySelector<HTMLElement>('[role="tablist"] [data-active]')!
+
 /** The offset the tab row gives the page's panel (its header sticks below the tabs). */
 const panelTop = () =>
   document.querySelector('main')?.style.getPropertyValue('--circi-window-top') ?? ''
@@ -271,6 +275,38 @@ describe('tabs in the installed app', () => {
       .toBeVisible()
     expect(tab.getBoundingClientRect().width).toBe(before.tab)
     expect(label.getBoundingClientRect().width).toBe(before.label)
+  })
+
+  it('glides the highlight to the tab switched to, and fades the page in', async () => {
+    installedAs('standalone')
+    await renderApp()
+    await page.getByRole('button', { name: 'New tab' }).click()
+    await expect.poll(() => tabs().elements()).toHaveLength(2)
+    // The highlight sits under the active tab (once its glide has settled).
+    await expect.poll(() => indicator().offsetLeft).toBe(activeTab().offsetLeft)
+    expect(getComputedStyle(indicator()).transitionProperty).toContain('left')
+    const animate = vi.spyOn(HTMLElement.prototype, 'animate')
+    const from = indicator().offsetLeft
+    await tabs().first().click()
+    // It glides: right after the switch its left is a running transition, from the old tab.
+    const glide = indicator()
+      .getAnimations()
+      .find((a) => a instanceof CSSTransition && a.transitionProperty === 'left')
+    expect(glide).toBeDefined()
+    expect(from).not.toBe(activeTab().offsetLeft)
+    // The page fades in (a Web Animation on the panel's parts), the tab row itself doesn't.
+    const fades = () =>
+      animate.mock.calls.flatMap((call, i) => {
+        const el = animate.mock.contexts[i]
+        const fade = JSON.stringify(call[0]) === JSON.stringify([{ opacity: 0.35 }, { opacity: 1 }])
+        return fade && el instanceof HTMLElement ? [el] : []
+      })
+    await expect.poll(() => fades().length).toBeGreaterThan(0)
+    expect(fades().every((el) => el.parentElement === document.querySelector('main'))).toBe(true)
+    expect(fades().some((el) => el.hasAttribute('data-tab-row'))).toBe(false)
+    animate.mockRestore()
+    await expect.poll(() => indicator().offsetLeft).toBe(activeTab().offsetLeft)
+    expect(activeTab().querySelector('[role="tab"]')?.getAttribute('aria-selected')).toBe('true')
   })
 
   it('opens a tab from the menu, and each tab keeps its own page', async () => {

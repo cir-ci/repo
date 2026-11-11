@@ -5,7 +5,7 @@ import { useInstalled, useWindowTitle } from '#lib/document-title.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { activeTab, hrefOf } from '#lib/tabs.ts'
 
-import { hrefFrom, installTabSync, isAppLink } from './tab-sync.ts'
+import { fadeInSwitchedPage, hrefFrom, installTabSync, isAppLink } from './tab-sync.ts'
 
 /** The link under a click, when it goes to a page of the app. */
 function appLinkAt(event: MouseEvent): HTMLAnchorElement | undefined {
@@ -30,7 +30,12 @@ export function TabGate({ userId, children }: TabGate.Props) {
     if (!installed) return undefined
     useTabStore.getState().adopt(userId, hrefFrom(router.history.location.href))
     const uninstall = installTabSync(router.history)
-    return uninstall
+    // A switch of tabs fades the new page in, once the router has rendered it.
+    const unsubscribe = router.subscribe('onRendered', fadeInSwitchedPage)
+    return () => {
+      unsubscribe()
+      uninstall()
+    }
   }, [installed, userId, router])
 
   // A new tab or a middle click in a link opens a background tab, as in a browser.
