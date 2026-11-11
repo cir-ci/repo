@@ -77,3 +77,18 @@ export function workspacePalette(scheme: ColorScheme): string[] {
   const { brand, surface } = palettes[scheme]
   return [brand.maroon, brand.blush, brand.rosewood, brand.terracotta, surface.highest]
 }
+
+/**
+ * The instance's avatar: a cool slate-and-graphite range, set apart from the workspaces' warm brand
+ * tones, so the server itself never reads as one of its workspaces.
+ */
+export function instancePalette(scheme: ColorScheme): string[] {
+  const { team, surface } = palettes[scheme]
+  return [
+    shade(team.slate, -0.25),
+    team.slate,
+    shade(team.slate, 0.3),
+    team.graphite,
+    surface.highest,
+  ]
+}

@@ -2,7 +2,13 @@ import { Avatar as BaseAvatar } from '@base-ui/react/avatar'
 import BoringAvatar from 'boring-avatars'
 import { lazy, Suspense, type CSSProperties, type ReactNode } from 'react'
 
-import { peoplePalette, teamPalette, useAvatarScheme, workspacePalette } from './avatar-palettes.ts'
+import {
+  instancePalette,
+  peoplePalette,
+  teamPalette,
+  useAvatarScheme,
+  workspacePalette,
+} from './avatar-palettes.ts'
 import { cx } from './cx.ts'
 import type { TeamColor } from './team-icons.ts'
 
@@ -23,7 +29,7 @@ const TeamGlyph = lazy(() => import('./TeamGlyph.tsx'))
  * - `user`: a round "beam" face.
  * - `team`: a rounded square holding a "marble" in shades of the team's `color`, with its icon on top.
  * - `workspace`: a rounded square holding a "bauhaus" pattern in the brand's tones.
- * - `instance`: a round "ring" in the brand's tones, drawn from the instance's address.
+ * - `instance`: a round "ring" in cool slate and graphite, drawn from the instance's address.
  */
 export function Avatar(props: Avatar.Props) {
   if (props.type === 'user') return <UserAvatar {...props} />
@@ -105,7 +111,7 @@ function InstanceAvatar({ type, seed, name, size = 20, ...rest }: Avatar.Instanc
       <BoringAvatar
         variant="ring"
         name={seed}
-        colors={workspacePalette(scheme)}
+        colors={instancePalette(scheme)}
         size="100%"
         aria-hidden="true"
         role="presentation"
