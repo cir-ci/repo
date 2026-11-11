@@ -112,7 +112,7 @@ Anyone you add to a workspace sees its projects, builds and screenshots, and not
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
 | `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
 | `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
-| `CIRCI_DIFF_ENGINE` | `js` | `native` runs the pixel comparison in the Rust addon the image ships (several times faster); if it can't load, the worker logs a warning and uses `js`. `js-workers` runs the same JavaScript comparison in a pool of worker threads, off the event loop, with no native module; a thread that fails falls back to `js` for that call, with one warning |
+| `CIRCI_DIFF_ENGINE` | `native` | `native` runs the pixel comparison in the Rust addon the image ships (about twice the builds per minute under load, at the same memory; see `docs/perf/2026-11-11-diff-engines.md`); if it can't load, the worker logs a warning and uses `js`. `js` runs it on the worker's event loop. `js-workers` runs the same JavaScript comparison in a pool of worker threads, off the event loop, with no native module; a thread that fails falls back to `js` for that call, with one warning |
 | `CIRCI_DIFF_THREADS` | cores - 1 | Threads of the `js-workers` engine (at least 1) |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `JOB_RETRY_BASE_SECONDS`, `JOB_RETRY_MAX_SECONDS` | `2`, `300` | Wait before a failed job (webhook, git check, email) is retried, doubling each time up to the maximum; mostly for tests |

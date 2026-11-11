@@ -62,10 +62,14 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(1).max(5000).default(200),
   ),
-  /** Pixel comparison of the diff step: pixelmatch in JavaScript, in a worker-thread pool, or the Rust addon (both fall back to js when they can't run). */
+  /**
+   * Pixel comparison of the diff step: the Rust addon (the default: fastest and leanest, see
+   * docs/perf/2026-11-11-diff-engines.md), pixelmatch in a worker-thread pool, or pixelmatch on the
+   * event loop. The first two fall back to js when they can't run.
+   */
   CIRCI_DIFF_ENGINE: z.preprocess(
     emptyToUndefined,
-    z.enum(['js', 'js-workers', 'native']).default('js'),
+    z.enum(['js', 'js-workers', 'native']).default('native'),
   ),
   /** Threads of the `js-workers` engine; default one less than the available cores, at least 1. */
   CIRCI_DIFF_THREADS: z.preprocess(

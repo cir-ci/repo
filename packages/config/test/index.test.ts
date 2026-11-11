@@ -22,9 +22,10 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
-  it('picks the diff engine: js unless CIRCI_DIFF_ENGINE=native', () => {
-    expect(loadConfig(base).diffEngine).toBe('js')
-    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: '' }).diffEngine).toBe('js')
+  it('picks the diff engine: native unless CIRCI_DIFF_ENGINE says otherwise', () => {
+    expect(loadConfig(base).diffEngine).toBe('native')
+    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: '' }).diffEngine).toBe('native')
+    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'js' }).diffEngine).toBe('js')
     expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'native' }).diffEngine).toBe('native')
     expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'js-workers' }).diffEngine).toBe('js-workers')
     expect(() => loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'rust' })).toThrow(ConfigError)

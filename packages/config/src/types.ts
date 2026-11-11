@@ -108,7 +108,7 @@ export interface Config {
   emailLogin: boolean
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
   staticSites?: Config.StaticSites
-  /** Pixel comparison engine of the diff step (`CIRCI_DIFF_ENGINE`, default `js`). */
+  /** Pixel comparison engine of the diff step (`CIRCI_DIFF_ENGINE`, default `native`). */
   diffEngine: 'js' | 'js-workers' | 'native'
   /** Threads of the `js-workers` engine (`CIRCI_DIFF_THREADS`); absent means one less than the cores, at least 1. */
   diffThreads?: number
