@@ -1,18 +1,19 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { diffImages } from '@circi/diff'
+import { closeDiffPool, diffImages, resolveDiffEngine } from '@circi/diff'
 
-import { FIXTURES_DIR } from '../src/config.ts'
+import { FIXTURES_DIR, isEngine } from '../src/config.ts'
 import { type FixtureFile, readManifest } from '../src/fixtures.ts'
 
 /**
  * Microbenchmark of `diffImages` (@circi/diff) on the fixture pairs: ms per pair, median and p95,
- * and memory. `CIRCI_DIFF_ENGINE=js|native` is read by the diff package itself, so the same
- * command compares the engines:
+ * and memory. `CIRCI_DIFF_ENGINE=js|js-workers|native` is read here and passed to `diffImages`, so the
+ * same command compares the engines:
  *
  *   CIRCI_DIFF_ENGINE=js node perf/bench/diff.ts --out js.json
  *   CIRCI_DIFF_ENGINE=native node perf/bench/diff.ts --out native.json
+ *   CIRCI_DIFF_ENGINE=js-workers node perf/bench/diff.ts --out js-workers.json
  *
  * Options: --iterations N (default 15), --warmup N (default 2), --concurrency N (default 4), --out FILE.
  */
@@ -70,6 +71,13 @@ export async function runBench(options: {
   log?: (line: string) => void
 }): Promise<BenchResult> {
   const log = options.log ?? (() => undefined)
+  const requested = process.env.CIRCI_DIFF_ENGINE
+  if (requested && !isEngine(requested)) {
+    throw new Error(`CIRCI_DIFF_ENGINE must be js, js-workers or native, got "${requested}"`)
+  }
+  // The worker resolves the engine the same way at startup (a native addon or pool script that is
+  // missing falls back to js), so the numbers below are for what the server would run.
+  const engine = resolveDiffEngine(requested && isEngine(requested) ? requested : 'js', log)
   const manifest = await readManifest()
   const cases: {
     name: string
@@ -108,7 +116,7 @@ export async function runBench(options: {
   for (const c of loaded) {
     for (let i = 0; i < options.warmup; i += 1) {
       // oxlint-disable-next-line no-await-in-loop -- sequential on purpose: one pair at a time
-      await diffImages(c.basePng, c.headPng)
+      await diffImages(c.basePng, c.headPng, { engine })
     }
     const times: number[] = []
     let peakRss = 0
@@ -116,7 +124,7 @@ export async function runBench(options: {
     for (let i = 0; i < options.iterations; i += 1) {
       const started = performance.now()
       // oxlint-disable-next-line no-await-in-loop -- sequential on purpose
-      last = await diffImages(c.basePng, c.headPng)
+      last = await diffImages(c.basePng, c.headPng, { engine })
       times.push(performance.now() - started)
       peakRss = Math.max(peakRss, mb(process.memoryUsage().rss))
     }
@@ -151,14 +159,16 @@ export async function runBench(options: {
         next += 1
         if (c) {
           // oxlint-disable-next-line no-await-in-loop -- each lane takes one pair at a time
-          await diffImages(c.basePng, c.headPng)
+          await diffImages(c.basePng, c.headPng, { engine })
         }
       }
     }),
   )
   const seconds = (performance.now() - started) / 1000
   return {
-    engine: process.env.CIRCI_DIFF_ENGINE || 'js (default)',
+    engine: requested
+      ? `${requested}${engine === requested ? '' : ` (ran ${engine})`}`
+      : 'js (default)',
     node: process.version,
     platform: `${process.platform}/${process.arch}`,
     iterations: options.iterations,
@@ -200,4 +210,5 @@ if (import.meta.main) {
   )
   const out = option('--out', '')
   if (out) await writeFile(out, `${JSON.stringify(result, null, 2)}\n`)
+  await closeDiffPool()
 }

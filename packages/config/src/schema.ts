@@ -62,8 +62,16 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(1).max(5000).default(200),
   ),
-  /** Pixel comparison of the diff step: pixelmatch in JavaScript, or the Rust addon (falls back to js when it can't load). */
-  CIRCI_DIFF_ENGINE: z.preprocess(emptyToUndefined, z.enum(['js', 'native']).default('js')),
+  /** Pixel comparison of the diff step: pixelmatch in JavaScript, in a worker-thread pool, or the Rust addon (both fall back to js when they can't run). */
+  CIRCI_DIFF_ENGINE: z.preprocess(
+    emptyToUndefined,
+    z.enum(['js', 'js-workers', 'native']).default('js'),
+  ),
+  /** Threads of the `js-workers` engine; default one less than the available cores, at least 1. */
+  CIRCI_DIFF_THREADS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(256).optional(),
+  ),
   GC_GRACE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
   UPLOAD_TIMEOUT_MINUTES: z.preprocess(
     emptyToUndefined,

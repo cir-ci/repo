@@ -37,10 +37,10 @@ export const SEED = {
   project: { name: 'Web app', slug: 'web-app' },
 }
 
-export type DiffEngine = 'js' | 'native'
+export type DiffEngine = 'js' | 'js-workers' | 'native'
 
 export const isEngine = (value: string | undefined): value is DiffEngine =>
-  value === 'js' || value === 'native'
+  value === 'js' || value === 'js-workers' || value === 'native'
 
 /** The environment of the server and the worker: the built bundle, as the image would run it. */
 export function serverEnv(engine: DiffEngine | undefined): Record<string, string> {

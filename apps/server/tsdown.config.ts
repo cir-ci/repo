@@ -15,7 +15,12 @@ const nativeDiff = join(repoRoot, 'packages/diff/native/circi-diff.node')
 // (sharp, pg and the AWS SDK: see deploy/README.md for why); everything else, our workspace
 // packages included, is inlined from source.
 export default defineConfig({
-  entry: ['src/main.ts'],
+  // The second entry is the `js-workers` diff engine's thread script: a worker needs its own file,
+  // which packages/diff finds next to the bundle (dist/pool-worker.mjs); from source it uses the .ts.
+  entry: {
+    main: 'src/main.ts',
+    'pool-worker': '../../packages/diff/src/pool-worker.ts',
+  },
   platform: 'node',
   dts: false,
   sourcemap: true,

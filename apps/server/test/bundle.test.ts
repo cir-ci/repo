@@ -62,6 +62,12 @@ describe('the server bundle', () => {
     expect(readFileSync(join(out, 'main.mjs'), 'utf8')).not.toMatch(/^await /m)
   })
 
+  it('ships the js-workers thread script next to main.mjs, standing on its own (no main.mjs import, no top-level await)', () => {
+    const code = readFileSync(join(out, 'pool-worker.mjs'), 'utf8')
+    expect(code).not.toMatch(/from "\.\/main\.mjs"/)
+    expect(code).not.toMatch(/^await /m)
+  })
+
   it('has source maps that lead to our TypeScript, one level above the bundle (/app/apps/... in the image)', () => {
     const map: { sources: string[] } = JSON.parse(readFileSync(join(out, 'main.mjs.map'), 'utf8'))
     const ours = map.sources.filter((s) => !s.includes('node_modules'))

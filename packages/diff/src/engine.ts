@@ -4,13 +4,17 @@ import { fileURLToPath } from 'node:url'
 
 import pixelmatch from 'pixelmatch'
 
+import { DiffPool, defaultThreads, findWorkerScript, PoolUnavailableError } from '#src/pool.ts'
+
 /**
- * The pixel comparison behind `diffImages`: pixelmatch in JavaScript (`js`, the default) or the
- * Rust port in `packages/diff/native` (`native`). sharp still decodes and encodes either way.
+ * The pixel comparison behind `diffImages`: pixelmatch in JavaScript on the calling thread (`js`,
+ * the default), the same pixelmatch in a pool of worker threads (`js-workers`, so concurrent
+ * comparisons don't queue on the event loop), or the Rust port in `packages/diff/native`
+ * (`native`). sharp still decodes and encodes either way.
  * The caller picks the engine (the server reads `CIRCI_DIFF_ENGINE` through `@circi/config`);
  * nothing here reads the environment.
  */
-export type DiffEngine = 'js' | 'native'
+export type DiffEngine = 'js' | 'js-workers' | 'native'
 
 export namespace comparePixels {
   export interface Options {
@@ -87,15 +91,60 @@ export function nativeEngineStatus():
   return 'module' in l ? { available: true, path: l.path } : { available: false, reason: l.error }
 }
 
+interface PoolSettings {
+  threads?: number
+  warn?: (message: string) => void
+}
+
+let poolSettings: PoolSettings = {}
+let pool: DiffPool | undefined
+let fellBack = false
+
+/**
+ * Sets how the `js-workers` pool is built: its size (default `availableParallelism() - 1`, at
+ * least 1) and where its one-time fallback warning goes. Takes effect when the pool is created,
+ * i.e. before the first comparison (or after `closeDiffPool`).
+ */
+export function configureDiffPool(settings: PoolSettings): void {
+  poolSettings = settings
+}
+
+/** Stops the `js-workers` threads (a later comparison makes a new pool). Call when the process stops. */
+export async function closeDiffPool(): Promise<void> {
+  const p = pool
+  pool = undefined
+  fellBack = false
+  await p?.close()
+}
+
+function getPool(): DiffPool {
+  pool ??= new DiffPool(
+    Math.max(1, Math.floor(poolSettings.threads ?? defaultThreads())),
+    findWorkerScript(),
+    (message) => {
+      fellBack = true
+      poolSettings.warn?.(message)
+    },
+  )
+  return pool
+}
+
 /**
  * The engine that will actually run for the requested one: `native` falls back to `js` when the
- * addon can't load, and `warn` is told why (the caller calls this once at startup, so the
- * warning appears once). Never throws.
+ * addon can't load, `js-workers` when the worker script can't be found, and `warn` is told why
+ * (the caller calls this once at startup, so the warning appears once). Never throws.
  */
 export function resolveDiffEngine(
   requested: DiffEngine,
   warn?: (message: string) => void,
 ): DiffEngine {
+  if (requested === 'js-workers') {
+    if (findWorkerScript()) return 'js-workers'
+    warn?.(
+      `CIRCI_DIFF_ENGINE=js-workers but the worker script (pool-worker) isn't next to the bundle or in packages/diff/src; using the JS engine`,
+    )
+    return 'js'
+  }
   if (requested !== 'native') return 'js'
   const status = nativeEngineStatus()
   if (status.available) return 'native'
@@ -105,7 +154,7 @@ export function resolveDiffEngine(
   return 'js'
 }
 
-/** Compares two equally sized RGBA canvases with the chosen engine (`native` without an addon runs `js`). */
+/** Compares two equally sized RGBA canvases with the chosen engine (`native` without an addon and `js-workers` without a pool run `js`). */
 export async function comparePixels(
   engine: DiffEngine,
   a: Uint8Array,
@@ -126,6 +175,26 @@ export async function comparePixels(
     return {
       changedPixels: res.changedPixels,
       ...(res.output ? { output: res.output } : {}),
+    }
+  }
+  if (engine === 'js-workers') {
+    try {
+      return await getPool().compare({
+        a,
+        b,
+        width,
+        height,
+        threshold: options.threshold,
+        alpha,
+        withOutput: options.withOutput,
+      })
+    } catch (err) {
+      if (!(err instanceof PoolUnavailableError)) throw err
+      // The pool is gone or a worker died under this call: compare here instead, warn once.
+      if (!fellBack) {
+        fellBack = true
+        poolSettings.warn?.(`js-workers diff pool: ${err.message}; comparing in-thread instead`)
+      }
     }
   }
   const output = options.withOutput ? new Uint8Array(width * height * 4) : undefined

@@ -26,7 +26,15 @@ describe('loadConfig', () => {
     expect(loadConfig(base).diffEngine).toBe('js')
     expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: '' }).diffEngine).toBe('js')
     expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'native' }).diffEngine).toBe('native')
+    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'js-workers' }).diffEngine).toBe('js-workers')
     expect(() => loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'rust' })).toThrow(ConfigError)
+  })
+
+  it('reads the js-workers pool size from CIRCI_DIFF_THREADS, absent by default', () => {
+    expect(loadConfig(base).diffThreads).toBeUndefined()
+    expect(loadConfig({ ...base, CIRCI_DIFF_THREADS: '' }).diffThreads).toBeUndefined()
+    expect(loadConfig({ ...base, CIRCI_DIFF_THREADS: '3' }).diffThreads).toBe(3)
+    expect(() => loadConfig({ ...base, CIRCI_DIFF_THREADS: '0' })).toThrow(ConfigError)
   })
 
   it('keeps the production waits unless asked: job retries 2 s up to 5 min, webhook 10 s, GitHub 15 s', () => {

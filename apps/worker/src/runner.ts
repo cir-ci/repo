@@ -1,6 +1,6 @@
 import type { RetryBackoff } from '@circi/core'
 import type { Database, ListenFn } from '@circi/db'
-import { type DiffEngine, resolveDiffEngine } from '@circi/diff'
+import { closeDiffPool, configureDiffPool, type DiffEngine, resolveDiffEngine } from '@circi/diff'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
 import { type GithubApp } from '@circi/integrations/github'
@@ -65,8 +65,10 @@ export namespace startWorker {
     concurrency?: number
     /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
     uploadTimeoutMinutes?: number
-    /** Pixel comparison engine (`CIRCI_DIFF_ENGINE`, default `js`); `native` falls back to `js` with a warning when the addon can't load. */
+    /** Pixel comparison engine (`CIRCI_DIFF_ENGINE`, default `js`); `native` and `js-workers` fall back to `js` with a warning when they can't run. */
     diffEngine?: DiffEngine
+    /** Threads of the `js-workers` engine (`CIRCI_DIFF_THREADS`); default one less than the cores, at least 1. */
+    diffThreads?: number
     /** How long a file waits, once nothing uses it, before it's deleted (default 24 hours). */
     gcGraceHours?: number
     /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
@@ -101,16 +103,26 @@ export async function startWorker(deps: startWorker.Deps): Promise<startWorker.R
   const diffEngine = resolveDiffEngine(deps.diffEngine ?? 'js', (message) =>
     deps.logger.warn(message),
   )
+  configureDiffPool({
+    ...(deps.diffThreads ? { threads: deps.diffThreads } : {}),
+    warn: (message) => deps.logger.warn(message),
+  })
   const lanes = startLanes({ ...deps, diffEngine })
   const stopSweeps = startSweeps(deps)
   deps.logger.info(
-    { storage: deps.storage.kind, lanes: deps.concurrency ?? 2, diffEngine },
+    {
+      storage: deps.storage.kind,
+      lanes: deps.concurrency ?? 2,
+      diffEngine,
+      ...(diffEngine === 'js-workers' && deps.diffThreads ? { diffThreads: deps.diffThreads } : {}),
+    },
     'worker started',
   )
   return {
     async stop() {
       stopSweeps()
       await lanes.stop()
+      await closeDiffPool()
       deps.logger.info('worker stopped')
     },
   }

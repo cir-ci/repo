@@ -2,7 +2,13 @@ import sharp, { type Metadata } from 'sharp'
 
 import { comparePixels, type DiffEngine } from '#src/engine.ts'
 
-export { type DiffEngine, nativeEngineStatus, resolveDiffEngine } from '#src/engine.ts'
+export {
+  closeDiffPool,
+  configureDiffPool,
+  type DiffEngine,
+  nativeEngineStatus,
+  resolveDiffEngine,
+} from '#src/engine.ts'
 
 /**
  * Image work for the worker (PLAN §7.3): validate screenshots, diff two of them, and make
@@ -56,7 +62,8 @@ export namespace diffImages {
     ignore?: readonly diffImages.IgnoreRegion[]
     /**
      * Which pixel comparison runs (default `js`). `native` uses the Rust addon when it loads and
-     * the JS one otherwise; use `resolveDiffEngine` once at startup to learn which and to warn.
+     * the JS one otherwise; `js-workers` runs pixelmatch in a worker-thread pool (in-thread on
+     * failure); use `resolveDiffEngine` once at startup to learn which and to warn.
      */
     engine?: DiffEngine
   }

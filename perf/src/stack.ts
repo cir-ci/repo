@@ -168,7 +168,7 @@ if (import.meta.main) {
   const at = rest.indexOf('--engine')
   const requested = at >= 0 ? rest[at + 1] : process.env.CIRCI_DIFF_ENGINE
   if (requested !== undefined && requested !== '' && !isEngine(requested)) {
-    throw new Error(`--engine must be js or native, got "${requested}"`)
+    throw new Error(`--engine must be js, js-workers or native, got "${requested}"`)
   }
   const engine = requested && isEngine(requested) ? requested : undefined
   if (command === 'up') await up(engine)

@@ -2,7 +2,7 @@
 
 Repeatable numbers for CirCI: how fast builds are processed, how fast the dashboard answers, and
 how long one image comparison takes. It is not a test and is not part of `pnpm gate`. Built for
-before/after comparisons (for example the diff engine: `CIRCI_DIFF_ENGINE=js` against `native`).
+before/after comparisons (for example the diff engine: `CIRCI_DIFF_ENGINE=js` against `js-workers` against `native`).
 
 Needs Docker (Postgres only), [k6](https://k6.io) on the `PATH`, and Node 26 like the rest of the repo.
 
@@ -11,6 +11,7 @@ Needs Docker (Postgres only), [k6](https://k6.io) on the `PATH`, and Node 26 lik
 ```sh
 pnpm perf --label js --engine js          # the whole suite -> perf/results/<timestamp>-js/
 pnpm perf --label native --engine native  # same, after restarting the stack with the other engine
+pnpm perf --label js-workers --engine js-workers  # pixelmatch in a worker-thread pool (CIRCI_DIFF_THREADS sets its size)
 pnpm perf --quick --label try             # short: 2 builds per level, 5 s ramps, 5 benchmark iterations
 pnpm perf:down                            # stop everything and delete the stack's data
 ```
@@ -20,7 +21,7 @@ once, brings the stack up if it is not running (or restarts it when `--engine` d
 running one), runs the scenarios and writes the results. The stack stays up afterwards, so a second
 run is quick; `pnpm perf:down` removes it.
 
-Options: `--label NAME`, `--engine js|native` (default: `$CIRCI_DIFF_ENGINE`, else leave the stack
+Options: `--label NAME`, `--engine js|js-workers|native` (default: `$CIRCI_DIFF_ENGINE`, else leave the stack
 as it is), `--levels 1,5,20` (concurrent builds), `--iterations 3` (builds per VU per level),
 `--dashboard-vus 50`, `--ramp 20` and `--hold 40` (seconds), `--bench-iterations 15`, `--quick`,
 `--skip-bench`, `--skip-upload`, `--skip-dashboard`.
@@ -37,7 +38,7 @@ Fixtures) skips thumbnails; the summary's "uploaded MB" column shows how much wa
 
 ## The stack under test
 
-`pnpm perf:stack [--engine js|native]` (also what `pnpm perf` calls) starts, and `pnpm perf:down` removes:
+`pnpm perf:stack [--engine js|js-workers|native]` (also what `pnpm perf` calls) starts, and `pnpm perf:down` removes:
 
 - **Postgres 18** in Docker, compose project `circi-perf` (`perf/compose.yml`), host port **54349**,
   its own volume, default settings (fsync on).
@@ -78,8 +79,8 @@ It signs in once through the real `/api/auth/sign-in/email` and every VU sends t
 **Diff microbenchmark** (`bench/diff.ts`, `pnpm perf:bench [--iterations N --out file.json]`): calls
 `diffImages` from `@circi/diff` on the fixture pairs, one at a time: ms per pair (median, p95, min,
 max), peak RSS, and the numbers the comparison found (`changedPixels`, so two engines can be
-checked for agreement), then pairs per second with 4 at a time. It reads `CIRCI_DIFF_ENGINE` through
-the diff package, so `CIRCI_DIFF_ENGINE=native pnpm perf:bench` runs the other engine.
+checked for agreement), then pairs per second with 4 at a time. It reads `CIRCI_DIFF_ENGINE` and passes it to
+`diffImages`, so `CIRCI_DIFF_ENGINE=native pnpm perf:bench` (or `js-workers`) runs another engine.
 
 **CPU and memory** (`src/sampler.ts`): while the scenarios run, the runner samples the server and
 the worker (`ps` on macOS, `/proc` on Linux) every second and Postgres with `docker stats`. The

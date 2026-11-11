@@ -22,7 +22,7 @@ import { isUp, readStack, up } from './stack.ts'
 const exec = promisify(execFile)
 
 /**
- * `pnpm perf [--label L] [--engine js|native] [--quick]`: the whole suite against the perf stack,
+ * `pnpm perf [--label L] [--engine js|js-workers|native] [--quick]`: the whole suite against the perf stack,
  * into perf/results/<timestamp>-<label>/. See perf/README.md for the options.
  */
 
@@ -196,7 +196,8 @@ async function git(...a: string[]): Promise<string> {
 // Run
 // ---------------------------------------------------------------------------------------------
 
-if (requestedEngine && !isEngine(requestedEngine)) throw new Error('--engine must be js or native')
+if (requestedEngine && !isEngine(requestedEngine))
+  throw new Error('--engine must be js, js-workers or native')
 const engine: DiffEngine | undefined = isEngine(requestedEngine) ? requestedEngine : undefined
 
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '')
