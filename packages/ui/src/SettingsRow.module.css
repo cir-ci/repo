@@ -130,7 +130,8 @@
 }
 
 /* A wide page: a row whose control is a field you type or choose in (text, number, date, select)
-   puts its label and detail in a 240px column, the field beside it. A row whose control is an
+   gives its label and detail the row's room and puts the field in a column at the right edge
+   (at most --circi-settings-control wide), so the controls of a section line up on the right. A row whose control is an
    action or a switch (Delete workspace, Configure, an email notification) is not a field: its text
    takes the room and the control stays at the right edge, as on a narrow page. */
 @container settings (min-width: 900px) {
@@ -145,7 +146,7 @@
         )
     ) {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--circi-settings-control, 320px));
     gap: 8px 24px;
   }
 
@@ -175,6 +176,6 @@
     )
     > .control {
     margin-left: 0;
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 }

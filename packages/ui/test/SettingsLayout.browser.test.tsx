@@ -51,8 +51,10 @@ describe('settings form layout', () => {
     )
     expect(rect(help ?? null).top).toBeGreaterThan(rect(label).bottom - 1)
     expect(rect(help ?? null).right).toBeLessThanOrEqual(rect(input).left)
-    // The column is 240px wide.
-    expect(Math.round(rect(input).left - rect(label).left)).toBe(240 + 24)
+    // The control sits in a 320px column at the right edge; the label and its help take the rest.
+    const row = input?.closest('[data-form]')?.getBoundingClientRect()
+    expect(Math.round(rect(input).width)).toBe(320)
+    expect(Math.round((row?.right ?? 0) - rect(input).right)).toBeLessThanOrEqual(1)
     // The number field's label and control are in two columns too.
     const numberLabel = [...container.querySelectorAll('label')].find(
       (l) => l.textContent === 'Retention',
@@ -103,7 +105,7 @@ describe('settings form layout', () => {
       s.textContent?.startsWith('Hides it'),
     )
     const button = container.querySelector('button')
-    // The description is not squeezed into the 240px label column…
+    // The description is not squeezed into a narrow label column…
     expect(rect(detail ?? null).width).toBeGreaterThan(400)
     // …and the button sits at the row's right edge.
     expect(Math.round(rect(row).right - rect(button).right)).toBeLessThanOrEqual(24)

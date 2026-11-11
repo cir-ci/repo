@@ -1,5 +1,8 @@
 /* The container the rows and fields measure: the width the panel gives the page. */
+/* The container the rows and fields measure. `--circi-settings-control` is the width of the control
+   column on a wide page: the label and its help take the rest, the control sits at the right edge. */
 .frame {
+  --circi-settings-control: 320px;
   container: settings / inline-size;
   display: flex;
   flex: 1 1 auto;

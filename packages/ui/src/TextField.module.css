@@ -76,12 +76,12 @@
   color: var(--circi-state-failed-text);
 }
 
-/* In a settings form on a wide page: the label and its help in a 240px column, the control beside
-   it, the error under the control. */
+/* In a settings form on a wide page: the label and its help take the row's room, the control sits
+   in a column at the right edge (--circi-settings-control), the error under the control. */
 @container settings (min-width: 900px) {
   :global([data-form]) .root:not([data-hide-label], [data-stacked]) {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--circi-settings-control, 320px));
     column-gap: 24px;
     row-gap: 4px;
     align-items: start;
