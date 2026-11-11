@@ -16,6 +16,19 @@ describe('the app router', () => {
     expect(router.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')
   })
 
+  it('has the bare workspace settings address and General at its own', async () => {
+    const hub = await open('/workspaces/acme/settings')
+    expect(hub.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')
+    const general = await open('/workspaces/acme/settings/general')
+    expect(general.state.location.pathname).toBe('/workspaces/acme/settings/general')
+    expect(general.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings/general')
+  })
+
+  it('keeps the old Instance Workspaces address as a redirect route', async () => {
+    const router = await open('/instance/workspaces')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/instance/workspaces')
+  })
+
   it('still reads /<workspace>/<team> as a team', async () => {
     const router = await open('/acme/web')
     expect(router.state.location.pathname).toBe('/acme/web')

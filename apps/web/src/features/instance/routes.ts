@@ -20,7 +20,7 @@ const accountsRoute = createRoute({
 const workspacesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'instance/workspaces',
-  component: lazyRouteComponent(() => import('./WorkspacesPage.tsx'), 'WorkspacesPage'),
+  component: lazyRouteComponent(() => import('./WorkspacesRedirect.tsx'), 'WorkspacesRedirect'),
 })
 
 const settingsRoute = createRoute({

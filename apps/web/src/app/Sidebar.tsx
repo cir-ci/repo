@@ -121,6 +121,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           current={workspace}
           onSelect={switchWorkspace}
           canManage={model?.canManage}
+          instanceAdmin={caps?.instanceAdmin}
           {...(caps?.canCreateWorkspace ? { onCreate: () => setNewWorkspaceOpen(true) } : {})}
         />
       </div>

@@ -17,7 +17,7 @@ import { PicturePanel } from './PicturePanel.tsx'
 
 /** The workspace's name and address, the defaults its teams start from, and the danger zone. */
 export function WorkspaceGeneralPage() {
-  const { workspace } = useParams({ from: '/workspaces/$workspace/settings' })
+  const { workspace } = useParams({ from: '/workspaces/$workspace/settings/general' })
   useDocumentTitle('General', workspace)
   const { data, error, refetch } = useQuery(workspaceGeneralQuery(workspace))
 
@@ -123,7 +123,7 @@ function IdentityRow({ workspace, name, slug, picture, canManage }: IdentityRow.
                   // The address in the bar is the old one, which no longer works.
                   if (result.slug !== workspace) {
                     void navigate({
-                      to: '/workspaces/$workspace/settings',
+                      to: '/workspaces/$workspace/settings/general',
                       params: { workspace: result.slug },
                       replace: true,
                     })

@@ -1,14 +1,27 @@
 import type { ReactNode } from 'react'
 
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import type { PageHeading } from '#lib/PageHeading.tsx'
 
 /** The header, the one centred column and the loading and error states every integrations page shares. */
-export function IntegrationFrame({ workspace, below, title, ...rest }: IntegrationFrame.Props) {
+export function IntegrationFrame({
+  workspace,
+  below,
+  title,
+  children,
+  ...rest
+}: IntegrationFrame.Props) {
   const { workspace: named } = useCrumbNames(workspace)
-  return <PageFrame crumbs={integrationCrumbs(named, below)} title={title} {...rest} />
+  return (
+    <PageFrame crumbs={integrationCrumbs(named, below)} title={title} {...rest}>
+      {/* An integration's own page goes back to the list; the list goes back to the hub. */}
+      {below ? null : <WorkspaceBackLink workspace={workspace} name={named.name} />}
+      {children}
+    </PageFrame>
+  )
 }
 
 /** `Workspace › Settings` and, on an integration's own page, `› Integrations`. */

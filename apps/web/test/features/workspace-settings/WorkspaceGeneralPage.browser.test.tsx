@@ -7,9 +7,10 @@ import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
 
 const ROUTE = {
-  route: '/workspaces/$workspace/settings',
-  url: '/workspaces/acme/settings',
+  route: '/workspaces/$workspace/settings/general',
+  url: '/workspaces/acme/settings/general',
   otherRoutes: [
+    '/workspaces/$workspace/settings',
     '/workspaces/$workspace/settings/members',
     '/$workspace/$team/settings/general',
     '/$workspace/$team/settings/reviews',
@@ -62,6 +63,35 @@ const saveSlug = () => page.getByRole('button', { name: 'Save URL Slug' })
 const save = () => page.getByRole('button', { name: 'Save changes' })
 const flaky = () => page.getByRole('checkbox', { name: /Flaky-only changes block merging/ })
 const SLUG_HELP = 'Where the workspace lives in CirCI. Changing it breaks existing links.'
+
+const openAs = (instanceAdmin: boolean) => {
+  fakeApi({
+    'GET /api/capabilities': {
+      body: { instanceAdmin, manageableWorkspaces: [], refusingWorkspaces: [] },
+    },
+    'GET /api/workspaces/acme': { body: general() },
+    'GET /api/workspaces/acme/settings': { body: settings() },
+  })
+  return renderPage(<WorkspaceGeneralPage />, ROUTE)
+}
+
+describe('WorkspaceGeneralPage, the way up', () => {
+  it("goes back to the workspace's hub, named for it, for an instance admin", async () => {
+    await page.viewport(1000, 900)
+    const { router } = await openAs(true)
+    const back = page.getByRole('link', { name: 'Acme Inc' })
+    await expect.element(back).toHaveAttribute('href', '/workspaces/acme/settings')
+    await back.click()
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
+  })
+
+  it('has no way up for an owner or admin who is not an instance admin', async () => {
+    await page.viewport(1000, 900)
+    await openAs(false)
+    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
+    expect(page.getByRole('link', { name: 'Acme Inc' }).elements()).toHaveLength(0)
+  })
+})
 
 describe('WorkspaceGeneralPage', () => {
   it('keeps the picture in a popover on the avatar: Upload for a manager, no Remove without one', async () => {
@@ -423,7 +453,9 @@ describe('WorkspaceGeneralPage', () => {
     const { router } = await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('acme-co')
     await saveSlug().click()
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme-co/settings')
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme-co/settings/general')
     expect(api.of('PATCH')[0]?.body).toEqual({ slug: 'acme-co' })
     await expect.element(slug()).toHaveValue('acme-co')
     await expect.element(toastNamed('URL slug saved')).toBeInTheDocument()

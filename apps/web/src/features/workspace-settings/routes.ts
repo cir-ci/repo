@@ -2,9 +2,19 @@ import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
 
 import { rootRoute } from '#app/root-route.ts'
 
-const workspaceGeneralRoute = createRoute({
+// The bare address is the workspace's hub for instance admins and redirects everyone else to General.
+const workspaceSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'workspaces/$workspace/settings',
+  component: lazyRouteComponent(
+    () => import('./WorkspaceSettingsEntry.tsx'),
+    'WorkspaceSettingsEntry',
+  ),
+})
+
+const workspaceGeneralRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'workspaces/$workspace/settings/general',
   component: lazyRouteComponent(() => import('./WorkspaceGeneralPage.tsx'), 'WorkspaceGeneralPage'),
 })
 
@@ -20,4 +30,9 @@ const workspaceStorageRoute = createRoute({
   component: lazyRouteComponent(() => import('./WorkspaceStoragePage.tsx'), 'WorkspaceStoragePage'),
 })
 
-export const workspaceSettingsRoutes = [workspaceGeneralRoute, signInRoute, workspaceStorageRoute]
+export const workspaceSettingsRoutes = [
+  workspaceSettingsRoute,
+  workspaceGeneralRoute,
+  signInRoute,
+  workspaceStorageRoute,
+]

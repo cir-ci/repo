@@ -56,6 +56,7 @@ export function PhoneMore() {
           current={workspace}
           onSelect={switchWorkspace}
           canManage={model?.canManage}
+          instanceAdmin={caps?.instanceAdmin}
           {...(caps?.canCreateWorkspace
             ? {
                 onCreate: () => {
@@ -88,7 +89,7 @@ export function PhoneMore() {
         {workspace ? (
           <SheetRow
             onGo={go}
-            href={workspaceSettingsPath(workspace.slug, model?.canManage)}
+            href={workspaceSettingsPath(workspace.slug, model?.canManage, caps?.instanceAdmin)}
             icon={<BuildingIcon />}
           >
             {`${workspace.name} settings`}

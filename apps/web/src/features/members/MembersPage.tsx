@@ -23,6 +23,7 @@ import { useState } from 'react'
 
 import { memberTeamsQuery } from '#features/teams/api/members.ts'
 import { TeamStack } from '#features/teams/AvatarStack.tsx'
+import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -158,6 +159,7 @@ export function MembersPage() {
         >
           {(loaded) => (
             <>
+              <WorkspaceBackLink workspace={workspace} name={loaded.name} />
               {canManage ? (
                 <InviteForm
                   workspaceId={loaded.id}

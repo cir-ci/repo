@@ -95,6 +95,36 @@ describe('settings is a closed area', () => {
     expect(crossings).toEqual([])
   })
 
+  it('the old Instance Workspaces page has no link left: only its redirect route and the purge that leaves a dead workspace name it', () => {
+    const allowed = new Set([
+      'features/instance/routes.ts',
+      'features/workspace-settings/DeletedWorkspaceSection.tsx',
+    ])
+    const links = all
+      .filter(({ rel }) => !allowed.has(rel))
+      .filter(({ source }) => /['"`]\/instance\/workspaces['"`]/.test(source))
+      .map(({ rel }) => rel)
+    expect(links).toEqual([])
+  })
+
+  it('the settings nav and the hub only point at settings pages, the bare address included', () => {
+    const navFiles = [
+      'features/sidebar/SettingsNav.tsx',
+      'features/workspace-settings/WorkspaceSettingsHubPage.tsx',
+      'features/workspace-settings/WorkspaceBackLink.tsx',
+      'features/workspace-settings/WorkspaceSettingsEntry.tsx',
+      'features/instance/WorkspacesRedirect.tsx',
+    ]
+    const found = all.filter(({ rel }) => navFiles.includes(rel))
+    expect(found.map(({ rel }) => rel).toSorted()).toEqual(navFiles.toSorted())
+    const crossings = found.flatMap(({ rel, source }) =>
+      routeLiterals(source)
+        .filter((target) => !SETTINGS_TARGET.test(target))
+        .map((target) => `${rel} -> ${target}`),
+    )
+    expect(crossings).toEqual([])
+  })
+
   it("settings pages use the settings crumbs, whose workspace crumb doesn't link out to the Inbox", () => {
     const outward = all
       .filter(({ rel }) => SETTINGS_FILES.some((re) => re.test(rel)))

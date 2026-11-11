@@ -318,6 +318,7 @@ export interface JumpInput {
   teams: readonly Sidebar.Team[] | undefined
   views: readonly View.Item[] | undefined
   canManage?: boolean | undefined
+  instanceAdmin?: boolean | undefined
   /** The team of the address, which the Triage page opens. */
   routeTeam?: string | undefined
 }
@@ -344,7 +345,14 @@ function pageEntry(
 }
 
 /** Pages, then the pinned teams and the saved views, under Go to. */
-export function goToEntries({ workspace, teams, views, canManage, routeTeam }: JumpInput): Entry[] {
+export function goToEntries({
+  workspace,
+  teams,
+  views,
+  canManage,
+  instanceAdmin,
+  routeTeam,
+}: JumpInput): Entry[] {
   const entries: Entry[] = [pageEntry('inbox', 'Inbox', '/inbox', 'inbox', 'inbox')]
   if (workspace) {
     const ws = enc(workspace)
@@ -358,7 +366,7 @@ export function goToEntries({ workspace, teams, views, canManage, routeTeam }: J
       pageEntry('insights', 'Insights', `/workspaces/${enc(workspace)}/insights`, 'insights'),
     )
   }
-  const settings = goPath('settings', { workspace, canManage })
+  const settings = goPath('settings', { workspace, canManage, instanceAdmin })
   if (settings) entries.push(pageEntry('settings', 'Settings', settings, 'settings', 'settings'))
   if (workspace) {
     for (const p of (teams ?? []).filter((team) => team.pinned)) {
@@ -954,6 +962,7 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     teams: input.teams,
     views: input.views,
     canManage: input.canManage,
+    instanceAdmin: input.instanceAdmin,
     routeTeam: context.team?.slug,
   }
   const switchInput: SwitchInput = {

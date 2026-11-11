@@ -19,6 +19,7 @@ export function WorkspaceSwitcher({
   onSelect,
   onCreate,
   canManage,
+  instanceAdmin,
 }: WorkspaceSwitcher.Props) {
   const navigate = useNavigate()
   if (!current)
@@ -71,7 +72,8 @@ export function WorkspaceSwitcher({
         {
           label: 'Settings',
           icon: <SlidersIcon />,
-          onSelect: () => void navigate({ href: workspaceSettingsPath(current.slug, canManage) }),
+          onSelect: () =>
+            void navigate({ href: workspaceSettingsPath(current.slug, canManage, instanceAdmin) }),
         },
         ...(onCreate
           ? [
@@ -96,5 +98,7 @@ export namespace WorkspaceSwitcher {
     onCreate?: () => void
     /** Whether the person may change the workspace's settings; false opens Members instead of General. */
     canManage?: boolean | undefined
+    /** Instance admins open the workspace's settings hub, not General. */
+    instanceAdmin?: boolean | undefined
   }
 }

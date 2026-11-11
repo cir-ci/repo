@@ -64,13 +64,6 @@ const INSTANCE: SettingsSection[] = [
     icon: 'person',
   },
   {
-    id: 'workspaces',
-    label: 'Workspaces',
-    area: 'Instance',
-    path: '/instance/workspaces',
-    icon: 'workspace',
-  },
-  {
     id: 'instance',
     label: 'Instance settings',
     area: 'Instance',
@@ -98,7 +91,11 @@ export function settingsSections({
   const sections = isPhone() ? ACCOUNT.filter((s) => s.id !== 'shortcuts') : [...ACCOUNT]
   if (workspace) {
     const base = `/workspaces/${enc(workspace)}/settings`
-    if (canManage) sections.push(workspaceSection('general', 'General', base, 'workspace'))
+    // Instance admins have the workspace's hub, then its pages (General is at its own address).
+    if (instanceAdmin)
+      sections.push(workspaceSection('hub', 'Workspace settings', base, 'workspace'))
+    if (canManage)
+      sections.push(workspaceSection('general', 'General', `${base}/general`, 'workspace'))
     sections.push(workspaceSection('members', 'Members', `${base}/members`, 'person'))
     sections.push(workspaceSection('teams', 'Teams', `${base}/teams`, 'layers'))
     if (canManage) {

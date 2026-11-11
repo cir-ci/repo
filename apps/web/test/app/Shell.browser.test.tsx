@@ -20,6 +20,7 @@ import { Shell } from '#app/Shell.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { PANES } from '#lib/panes.ts'
 import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
+import { workspace as instanceWorkspace } from '#test/features/instance/fixtures.ts'
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 import { headerButton, pageHeader } from '#test/support/header.ts'
 import { expectLimitedToSpace, parentOf } from '#test/support/resize.ts'
@@ -103,6 +104,12 @@ const API: Record<string, unknown> = {
     refusingWorkspaces: [],
   },
   '/api/instance/notices': {},
+  '/api/instance/workspaces': {
+    workspaces: [
+      instanceWorkspace(),
+      instanceWorkspace({ id: 'w2', name: 'Globex', slug: 'globex' }),
+    ],
+  },
   '/api/setup': { needed: false },
   '/api/auth-methods': { password: true, email: false, sso: [] },
 }
@@ -164,6 +171,11 @@ async function renderShell(path: string) {
       getParentRoute: () => root,
       path: 'workspaces/$workspace/settings',
       component: text('Workspace settings page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'workspaces/$workspace/settings/general',
+      component: text('Workspace general page'),
     }),
     createRoute({
       getParentRoute: () => root,
@@ -514,7 +526,9 @@ describe('Shell, keyboard', () => {
     await userEvent.keyboard('gr')
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/reviews')
     await userEvent.keyboard('gs')
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/general')
   })
 
   it('goes to the first team with Triage work on G then T', async () => {
@@ -624,7 +638,7 @@ describe('Shell, settings', () => {
     expect(nav.getByRole('link', { name: 'Health' }).elements()).toHaveLength(0)
   })
 
-  it('shows the Instance section to an instance admin, with its four pages', async () => {
+  it('shows the Instance section to an instance admin, with its three pages', async () => {
     await page.viewport(1280, 800)
     asInstanceAdmin()
     await renderShell('/instance/accounts')
@@ -636,10 +650,30 @@ describe('Shell, settings', () => {
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
-    expect(names).toEqual(['Accounts', 'Workspaces', 'Instance settings', 'Health'])
+    expect(names).toEqual(['Accounts', 'Instance settings', 'Health'])
     await expect
       .element(section.getByRole('link', { name: 'Accounts' }))
       .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('gives an instance admin a Workspaces section in place of the Workspace one, each opening its hub', async () => {
+    await page.viewport(1280, 800)
+    asInstanceAdmin()
+    await renderShell('/instance/accounts')
+    const nav = page.getByRole('navigation', { name: 'Settings' })
+    const section = nav.getByRole('region', { name: 'Workspaces' })
+    await expect.element(section).toBeVisible()
+    expect(
+      section
+        .getByRole('link')
+        .elements()
+        .map((el) => [el.textContent, el.getAttribute('href')]),
+    ).toEqual([
+      ['Acme', '/workspaces/acme/settings'],
+      ['Globex', '/workspaces/globex/settings'],
+    ])
+    await expect.element(section.getByRole('button', { name: 'New workspace' })).toBeVisible()
+    expect(nav.getByRole('region', { name: /^Workspace ·/ }).elements()).toHaveLength(0)
   })
 
   it('has no settings nav on other pages', async () => {
@@ -710,7 +744,9 @@ describe('Shell, menus', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(page.getByRole('menu')).toBeVisible()
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/general')
   })
 
   it('offers New workspace when the person may create one', async () => {
@@ -894,6 +930,41 @@ describe('Shell, narrow', () => {
       'Profile',
       'Notifications',
       'Appearance',
+      // An instance admin has every workspace of the instance (each its hub) in place of one's pages.
+      'Acme',
+      'Globex',
+      'web-app',
+      'storybook',
+      'api',
+      'All teams',
+      'Accounts',
+      'Instance settings',
+      'Health',
+    ])
+    await expect.element(sheet.getByRole('button', { name: 'New workspace' })).toBeVisible()
+    // No way back to the app from the list: the header's Close is the one way out.
+    expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
+    await sheet.getByRole('link', { name: 'Globex' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/globex/settings')
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it("lists a workspace owner's pages in the sheet, General at its own address", async () => {
+    await page.viewport(390, 844)
+    await renderShell('/workspaces/acme/settings/members')
+    await expect.poll(() => headerButton('Settings sections')).toBeDefined()
+    headerButton('Settings sections')!.click()
+    const sheet = page.getByRole('dialog', { name: 'Settings sections' })
+    await expect.element(sheet).toBeVisible()
+    expect(
+      sheet
+        .getByRole('link')
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual([
+      'Profile',
+      'Notifications',
+      'Appearance',
       'General',
       'Members',
       'Sign-in and domains',
@@ -903,23 +974,17 @@ describe('Shell, narrow', () => {
       'storybook',
       'api',
       'All teams',
-      'Accounts',
-      'Workspaces',
-      'Instance settings',
-      'Health',
     ])
-    // No way back to the app from the list: the header's Close is the one way out.
-    expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
-    await sheet.getByRole('link', { name: 'Members' }).click()
     await expect
-      .poll(() => router.state.location.pathname)
-      .toBe('/workspaces/acme/settings/members')
+      .element(sheet.getByRole('link', { name: 'General' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings/general')
+    await sheet.getByRole('link', { name: 'Members' }).click()
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
   })
 
   it('closes the sections sheet when the page already shown is chosen', async () => {
     await page.viewport(390, 844)
-    await renderShell('/workspaces/acme/settings')
+    await renderShell('/workspaces/acme/settings/general')
     await expect.poll(() => headerButton('Settings sections')).toBeDefined()
     headerButton('Settings sections')!.click()
     await page

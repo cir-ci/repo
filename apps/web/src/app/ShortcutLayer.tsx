@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type ReactNode, useEffect } from 'react'
 
@@ -5,6 +6,7 @@ import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { classifyVisit } from '#features/command/recent.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useRememberOpenedWorkspace, useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentStore } from '#lib/stores/recent-store.ts'
@@ -29,6 +31,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const { workspace, workspaces } = useWorkspaces(useChosenWorkspace())
   useRememberOpenedWorkspace()
   const { data: sidebar } = useSidebarModel(workspace?.slug)
+  const { data: caps } = useQuery(capabilitiesQuery())
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
   const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const helpOpen = useOverlayStore((s) => s.helpOpen)
@@ -68,6 +71,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         team: params.workspace === workspace?.slug ? params.team : undefined,
         teams: sidebar?.teams,
         canManage: sidebar?.canManage,
+        instanceAdmin: caps?.instanceAdmin,
       })
       if (path) router.history.push(path)
     },

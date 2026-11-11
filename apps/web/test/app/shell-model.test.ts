@@ -19,6 +19,7 @@ import {
   teamSettingsKey,
   teamsTabLabel,
   switchWorkspacePath,
+  workspaceSettingsPath,
   yourTeams,
 } from '#app/shell-model.ts'
 
@@ -157,6 +158,21 @@ describe('pinnedViews', () => {
   })
 })
 
+describe('workspaceSettingsPath', () => {
+  it('opens the hub for an instance admin, General for who manages, Members for the rest', () => {
+    expect(workspaceSettingsPath('acme', true, true)).toBe('/workspaces/acme/settings')
+    expect(workspaceSettingsPath('acme', false, true)).toBe('/workspaces/acme/settings')
+    expect(workspaceSettingsPath('acme', true)).toBe('/workspaces/acme/settings/general')
+    expect(workspaceSettingsPath('acme', undefined, false)).toBe(
+      '/workspaces/acme/settings/general',
+    )
+    expect(workspaceSettingsPath('acme', false)).toBe('/workspaces/acme/settings/members')
+  })
+  it('encodes the slug', () => {
+    expect(workspaceSettingsPath('a b', true)).toBe('/workspaces/a%20b/settings/general')
+  })
+})
+
 describe('goPath', () => {
   const teams = [
     sidebarTeam('web', { triage: 0 }),
@@ -170,7 +186,7 @@ describe('goPath', () => {
   it('opens workspace pages only with a workspace', () => {
     expect(goPath('reviews', { workspace: 'acme' })).toBe('/workspaces/acme/reviews')
     expect(goPath('reviews', {})).toBeUndefined()
-    expect(goPath('settings', { workspace: 'acme' })).toBe('/workspaces/acme/settings')
+    expect(goPath('settings', { workspace: 'acme' })).toBe('/workspaces/acme/settings/general')
     expect(goPath('settings', {})).toBe('/account/profile')
   })
   it("opens Members instead of General for a member who can't change the settings", () => {
@@ -178,8 +194,15 @@ describe('goPath', () => {
       '/workspaces/acme/settings/members',
     )
     expect(goPath('settings', { workspace: 'acme', canManage: true })).toBe(
-      '/workspaces/acme/settings',
+      '/workspaces/acme/settings/general',
     )
+  })
+  it("opens the workspace's hub for an instance admin, whatever their role in it", () => {
+    for (const canManage of [true, false, undefined]) {
+      expect(goPath('settings', { workspace: 'acme', canManage, instanceAdmin: true })).toBe(
+        '/workspaces/acme/settings',
+      )
+    }
   })
   it('opens triage of the open team, else the first team with work waiting, else the first', () => {
     expect(goPath('triage', { workspace: 'acme', team: 'web', teams })).toBe('/acme/web/triage')
@@ -282,6 +305,7 @@ describe('switchWorkspacePath', () => {
     expect(go('/workspaces/acme/reviews')).toBe('/workspaces/globex/reviews')
     expect(go('/workspaces/acme/insights')).toBe('/workspaces/globex/insights')
     expect(go('/workspaces/acme/settings')).toBe('/workspaces/globex/settings')
+    expect(go('/workspaces/acme/settings/general')).toBe('/workspaces/globex/settings/general')
     expect(go('/workspaces/acme/settings/members')).toBe('/workspaces/globex/settings/members')
     expect(go('/workspaces/acme/settings/integrations/github/abc')).toBe(
       '/workspaces/globex/settings/integrations',

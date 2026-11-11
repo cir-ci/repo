@@ -15,6 +15,7 @@ import { useParams } from '@tanstack/react-router'
 
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { MemberStack } from '#features/teams/AvatarStack.tsx'
+import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
@@ -68,6 +69,7 @@ export function TeamsSettingsPage() {
       error={query.error}
       onRetry={() => void query.refetch()}
     >
+      <WorkspaceBackLink workspace={workspace} name={inWorkspace[0]?.workspace.name ?? workspace} />
       {shown.length === 0 && search.trim() ? (
         <NoResults noun="team" query={search} onClear={() => setSearch('')} size="section" />
       ) : shown.length === 0 ? (

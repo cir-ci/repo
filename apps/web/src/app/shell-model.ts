@@ -218,13 +218,20 @@ export function pinnedViews(views: readonly View.Item[] | undefined): View.Item[
 }
 
 /**
- * Where a workspace's settings open: General for people who may change them, Members (the one
- * settings page a member can see) for everyone else. `canManage` is undefined until the sidebar
- * model has loaded; General then redirects a member on its own.
+ * Where a workspace's settings open. Instance admins: the workspace's hub, the bare `/settings`.
+ * Everyone else: General for people who may change the settings, Members (the one settings page a
+ * member can see) for the rest. `canManage` is undefined until the sidebar model has loaded;
+ * General then redirects a member on its own. (The bare `/settings` also works for everyone else:
+ * it redirects to General.)
  */
-export function workspaceSettingsPath(workspace: string, canManage: boolean | undefined): string {
+export function workspaceSettingsPath(
+  workspace: string,
+  canManage: boolean | undefined,
+  instanceAdmin?: boolean,
+): string {
   const base = `/workspaces/${encodeURIComponent(workspace)}/settings`
-  return canManage === false ? `${base}/members` : base
+  if (instanceAdmin) return base
+  return canManage === false ? `${base}/members` : `${base}/general`
 }
 
 /** The page a go-to chord (`G I`, `G R`, …) opens, or nothing when it has no workspace or team to open in. */
@@ -235,6 +242,7 @@ export function goPath(
     team?: string | undefined
     teams?: readonly Sidebar.Team[]
     canManage?: boolean | undefined
+    instanceAdmin?: boolean | undefined
   },
 ): string | undefined {
   const workspace = where.workspace ? encodeURIComponent(where.workspace) : undefined
@@ -242,7 +250,7 @@ export function goPath(
   if (target === 'teams') return '/'
   if (target === 'settings')
     return where.workspace
-      ? workspaceSettingsPath(where.workspace, where.canManage)
+      ? workspaceSettingsPath(where.workspace, where.canManage, where.instanceAdmin)
       : '/account/profile'
   if (!workspace) return undefined
   if (target === 'reviews') return `/workspaces/${workspace}/reviews`

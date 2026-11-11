@@ -48,6 +48,15 @@ describe('instance settings', () => {
     await expect.element(page.getByRole('button', { name: 'Create GitHub App' })).toBeVisible()
   })
 
+  it('says who can create workspaces, and which variable sets it', async () => {
+    fakeApi({ 'GET /api/instance/settings': { body: settingsFixture() }, ...GITHUB })
+    await show()
+    const section = page.getByRole('region', { name: 'Who can create workspaces' })
+    await expect.element(section.getByText('Instance admins only')).toBeVisible()
+    await expect.element(section.getByText(/Set WORKSPACE_CREATION=anyone/)).toBeVisible()
+    await expect.element(section.getByText('WORKSPACE_CREATION', { exact: true })).toBeVisible()
+  })
+
   it('says so to someone who is not an instance admin', async () => {
     fakeApi({
       'GET /api/instance/settings': { status: 403, body: { error: 'Forbidden' } },

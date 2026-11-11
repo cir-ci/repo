@@ -8,7 +8,13 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { toast } from '#lib/toast.ts'
 
 import { AdminFrame } from './AdminFrame.tsx'
-import { mailServer, settingsQuery, signInMethods, useSendTestMail } from './api/admin.ts'
+import {
+  mailServer,
+  settingsQuery,
+  signInMethods,
+  useSendTestMail,
+  WORKSPACE_CREATION_TEXT,
+} from './api/admin.ts'
 import { GithubAppSection } from './GithubAppSection.tsx'
 
 import styles from './Admin.module.css'
@@ -76,6 +82,18 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
             </Badge>
           </Setting>
         ))}
+      </SettingsSection>
+
+      <SettingsSection title="Who can create workspaces">
+        <Setting
+          title={WORKSPACE_CREATION_TEXT[settings.workspaceCreation]}
+          note={
+            settings.workspaceCreation === 'admin'
+              ? 'Everyone else joins through an invitation or a verified email domain. Set WORKSPACE_CREATION=anyone to let every signed-in account create one.'
+              : 'Every signed-in account can create a workspace. Set WORKSPACE_CREATION=admin to limit it to instance admins.'
+          }
+          env="WORKSPACE_CREATION"
+        />
       </SettingsSection>
 
       <MailSection mail={settings.mail} />
