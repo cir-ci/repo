@@ -161,19 +161,21 @@ export function SettingsForm(props: SettingsForm.Props) {
                 </>
               }
             />
-            <TextField
-              name="defaultBranch"
-              label="Default branch"
-              value={branch}
-              onChange={(e) => {
-                setBranch(e.target.value)
-                edited()
-              }}
-              onBlur={touch('defaultBranch')}
-              disabled={disabled}
-              error={shown('defaultBranch')}
-              description="Its approved builds are the baselines."
-            />
+            <div id="default-branch">
+              <TextField
+                name="defaultBranch"
+                label="Default branch"
+                value={branch}
+                onChange={(e) => {
+                  setBranch(e.target.value)
+                  edited()
+                }}
+                onBlur={touch('defaultBranch')}
+                disabled={disabled}
+                error={shown('defaultBranch')}
+                description="Its approved builds are the baselines."
+              />
+            </div>
           </div>
         </SettingsRow>
         {slug.trim() !== s.slug ? (
@@ -243,6 +245,7 @@ export function SettingsForm(props: SettingsForm.Props) {
           />
         </SettingsRow>
         <SettingsRow
+          id="retention"
           label="Keep builds for"
           detail="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
         >
@@ -278,7 +281,7 @@ export function SettingsForm(props: SettingsForm.Props) {
             disabled={disabled}
           />
         </SettingsRow>
-        <SettingsRow>
+        <SettingsRow id="merge-gate">
           <Select
             label="Flaky-only changes block merging"
             description="When the only changes are to flaky screenshots (ones that keep changing on the default branch). Off: the pull request passes; the build still lists them as flaky."

@@ -55,6 +55,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
               link={(team) => ({
                 to: '/$workspace/$team/settings/general',
                 params: { workspace, team: team.slug },
+                hash: 'merge-gate',
               })}
             />
           </SettingsRow>
@@ -80,6 +81,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
               link={(team) => ({
                 to: '/$workspace/$team/settings/reviews',
                 params: { workspace, team: team.slug },
+                hash: 'assign-on-call',
               })}
             />
           </SettingsRow>

@@ -14,7 +14,7 @@ import { renderPage } from '#test/support/render.tsx'
 const ROUTE = {
   route: '/workspaces/$workspace/settings/storage',
   url: '/workspaces/acme/settings/storage',
-  otherRoutes: ['/workspaces/$workspace/settings/members'],
+  otherRoutes: ['/workspaces/$workspace/settings/members', '/$workspace/$team/settings/general'],
 }
 const team = (slug: string, name: string, bytes: number, retentionDays = 90) => ({
   slug,
@@ -66,7 +66,13 @@ describe('WorkspaceStoragePage', () => {
     await expect.element(links.first()).toHaveAccessibleName('Web App')
     await expect.element(links.last()).toHaveAccessibleName('Docs')
     await expect.element(teams.getByText('30 days')).toBeVisible()
-    await expect.element(links.first()).toHaveAttribute('href', '/acme/web/settings')
+    // Each team opens its retention setting, which the General page holds.
+    await expect
+      .element(links.first())
+      .toHaveAttribute('href', '/acme/web/settings/general#retention')
+    await expect
+      .element(links.last())
+      .toHaveAttribute('href', '/acme/docs/settings/general#retention')
     await expect.element(page.getByText('Acme Inc')).toBeVisible()
   })
 
@@ -208,5 +214,19 @@ describe('WorkspaceStoragePage in the app frame', () => {
     // Nothing is left to scroll past the bar, so it stays on the window's bottom edge.
     expect(Math.round(bar().bottom)).toBe(window.innerHeight)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+})
+
+describe('WorkspaceStoragePage By team link', () => {
+  it('goes to the team’s retention setting', async () => {
+    await page.viewport(1000, 1000)
+    fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
+    const { router } = await renderPage(<WorkspaceStoragePage />, ROUTE)
+    await page
+      .getByRole('region', { name: 'By team' })
+      .getByRole('link', { name: 'Web App' })
+      .click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/general')
+    expect(router.state.location.hash).toBe('retention')
   })
 })

@@ -267,16 +267,28 @@ describe('WorkspaceGeneralPage', () => {
       await expect.element(page.getByRole('tooltip')).toHaveTextContent('Docs')
     })
 
-    it('goes to the team’s General settings from the merge gate defaults', async () => {
+    it('goes to the team’s merge gate setting from the merge gate defaults', async () => {
       const { router } = await open([team('web', 'Web app')])
       await merge().getByRole('link', { name: 'Web app' }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/general')
+      expect(router.state.location.hash).toBe('merge-gate')
     })
 
-    it('goes to the team’s Reviews and triage settings from the triage defaults', async () => {
+    it('goes to the team’s assign-to-triage setting from the triage defaults', async () => {
       const { router } = await open([team('web', 'Web app')])
       await triage().getByRole('link', { name: 'Web app' }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/reviews')
+      expect(router.state.location.hash).toBe('assign-on-call')
+    })
+
+    it('puts the setting in the links’ addresses, so a new tab opens at it', async () => {
+      await open([team('web', 'Web app')])
+      await expect
+        .element(merge().getByRole('link', { name: 'Web app' }))
+        .toHaveAttribute('href', '/acme/web/settings/general#merge-gate')
+      await expect
+        .element(triage().getByRole('link', { name: 'Web app' }))
+        .toHaveAttribute('href', '/acme/web/settings/reviews#assign-on-call')
     })
 
     it('says "inherits this" for one team', async () => {

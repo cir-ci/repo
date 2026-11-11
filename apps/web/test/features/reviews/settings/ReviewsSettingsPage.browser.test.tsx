@@ -441,3 +441,21 @@ describe('ReviewsSettingsPage', () => {
     expect(page.getByText('checkout/**').elements()).toHaveLength(0)
   })
 })
+
+describe('ReviewsSettingsPage opened at a setting', () => {
+  it('#assign-on-call scrolls to the assign-to-whoever-is-on-triage setting and focuses it', async () => {
+    api()
+    await page.viewport(1000, 500)
+    await renderPage(<ReviewsSettingsPage />, {
+      route: '/$workspace/$team/settings/reviews',
+      url: '/acme/web/settings/reviews#assign-on-call',
+      otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings'],
+    })
+    await expect
+      .element(page.getByRole('combobox', { name: /^Assign new items to whoever is on triage/ }))
+      .toHaveFocus()
+    const rect = document.getElementById('assign-on-call')?.getBoundingClientRect()
+    expect(rect?.top).toBeGreaterThanOrEqual(0)
+    expect(rect?.bottom).toBeLessThanOrEqual(window.innerHeight)
+  })
+})

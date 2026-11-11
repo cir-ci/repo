@@ -696,3 +696,25 @@ describe('TeamSettingsPage', () => {
     expect(heading('Webhooks').elements()).toHaveLength(0)
   })
 })
+
+describe('TeamSettingsPage opened at a setting', () => {
+  it.each([
+    ['merge-gate', /^Flaky-only changes block merging/, 'combobox'],
+    ['retention', 'Keep builds for (days)', 'textbox'],
+    ['default-branch', 'Default branch', 'textbox'],
+  ] as const)('#%s scrolls to its setting and focuses it', async (hash, name, role) => {
+    api()
+    await page.viewport(1000, 500)
+    await renderPage(<TeamSettingsPage />, {
+      route: '/$workspace/$team/settings/general',
+      url: `/acme/web/settings/general#${hash}`,
+      announcer: true,
+      otherRoutes: ['/$workspace/$team/settings', '/workspaces/$workspace/settings'],
+    })
+    // Once the settings have loaded, the setting is scrolled into view and focused.
+    await expect.element(page.getByRole(role, { name })).toHaveFocus()
+    const rect = document.getElementById(hash)?.getBoundingClientRect()
+    expect(rect?.top).toBeGreaterThanOrEqual(0)
+    expect(rect?.bottom).toBeLessThanOrEqual(window.innerHeight)
+  })
+})

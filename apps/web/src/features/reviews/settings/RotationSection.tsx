@@ -105,7 +105,7 @@ export function RotationSection(props: RotationSection.Props) {
           description="Any day in the first week. Leave empty to start now."
         />
       </SettingsRow>
-      <SettingsRow>
+      <SettingsRow id="assign-on-call">
         <Select
           label="Assign new items to whoever is on triage"
           description="Items nobody has are assigned to them, and move to the next person at the handover. Items someone assigns or unassigns stay as they left them."

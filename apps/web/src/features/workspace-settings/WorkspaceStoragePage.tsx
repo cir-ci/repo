@@ -92,8 +92,9 @@ export function WorkspaceStoragePage() {
               teamRows(data).map((t) => (
                 <SettingsRow key={t.slug}>
                   <Link
-                    to="/$workspace/$team/settings"
+                    to="/$workspace/$team/settings/general"
                     params={{ workspace, team: t.slug }}
+                    hash="retention"
                     className={styles.teamLink}
                   >
                     <Avatar
