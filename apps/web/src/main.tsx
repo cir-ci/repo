@@ -3,9 +3,7 @@
 import '@fontsource-variable/inter'
 // oxlint-disable-next-line import/no-unassigned-import
 import '@fontsource-variable/jetbrains-mono'
-// The token variables and the base reset (see @circi/ui's tokens-css).
-// oxlint-disable-next-line import/no-unassigned-import
-import '@circi/ui/global.css'
+// The token variables and the base reset load first, from boot.ts (see index.html).
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

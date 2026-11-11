@@ -52,6 +52,16 @@ describe('the built dashboard', () => {
     expect(css).toMatch(/:where\(body\)\{[^}]*background:var\(--circi-surface-chrome\)/)
   })
 
+  it('draws the loading screen before any script runs: the logo in #root, styled by a linked stylesheet', () => {
+    expect(html).toMatch(
+      /<div id="root">\s*<div class="circi-boot"[^>]*>\s*<img src="\/assets\/[^"]+\.svg" alt="CirCI"/,
+    )
+    const linked = [
+      ...html.matchAll(/<link rel="stylesheet"[^>]*href="\/assets\/([^"]+\.css)"/g),
+    ].map((m) => readFileSync(join(out, 'assets', m[1]!), 'utf8'))
+    expect(linked.some((c) => c.includes('.circi-boot{'))).toBe(true)
+  })
+
   it('links the stylesheet that carries them from index.html', () => {
     const linked = [
       ...html.matchAll(/<link rel="stylesheet"[^>]*href="\/assets\/([^"]+\.css)"/g),

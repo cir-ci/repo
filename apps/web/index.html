@@ -26,7 +26,13 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- The loading screen until the app mounts over it (styles in src/boot.css). -->
+    <div id="root">
+      <div class="circi-boot" aria-busy="true">
+        <img src="/src/features/auth/logo.svg" alt="CirCI" width="56" height="56" />
+      </div>
+    </div>
+    <script type="module" src="/src/boot.ts"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

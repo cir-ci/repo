@@ -1,0 +1,24 @@
+/*
+ * The loading screen in index.html, drawn before the app's script has loaded: the sign-in page's
+ * ground and logo, the same as `SessionCheck`, so a refresh never shows a blank screen. React
+ * replaces it when it mounts.
+ */
+.circi-boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 48px 16px;
+  background:
+    radial-gradient(800px 480px at 50% -10%, var(--circi-glow), transparent 70%),
+    var(--circi-surface-chrome);
+}
+
+.circi-boot img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+}
