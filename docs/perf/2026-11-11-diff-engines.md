@@ -49,3 +49,41 @@ No build failed in any run, and no request errored.
   before shipping the Rust engine as the default.
 - PNG encoding of the diff image is now the largest cost per diff; a lower compression level or
   encoding only when something changed may save more CPU than the comparison does.
+
+## Four engines (second round, commit 0ebf06d9)
+
+The same suite, again back to back on fresh stacks, now with `js-workers` (pixelmatch in a pool of
+worker threads, 11 on this machine) and with the benchmark honouring the engine (it ran `js` in the
+first round whatever was asked, so ignore that round's benchmark table).
+
+| 20 concurrent builds | JS | JS, worker threads | Rust, all cores | Rust, 1 thread |
+|---|---:|---:|---:|---:|
+| builds/min | 118 | 251 | **261** | 180 |
+| finalize → done, median | 9.9 s | 4.4 s | 4.5 s | 6.4 s |
+| worker CPU, average | 239% | 514% | 485% | 325% |
+| worker RSS, peak | 696 MB | **1835 MB** | 703 MB | 753 MB |
+| builds/min per worker core | 49 | 49 | 54 | 55 |
+
+| at 1 and 5 concurrent | JS | JS, worker threads | Rust, all cores | Rust, 1 thread |
+|---|---:|---:|---:|---:|
+| 1: builds/min | 66 | 80 | 96 | 101 |
+| 1: finalize → done, median / p95 | 795 / 800 ms | 533 / 768 ms | 523 / 527 ms | 521 / 522 ms |
+| 5: builds/min | 115 | 190 | 225 | 166 |
+
+Diff benchmark (`diffImages`, median ms per pair; 4 pairs at a time):
+
+| pair | JS | JS, worker threads | Rust, all cores | Rust, 1 thread |
+|---|---:|---:|---:|---:|
+| small change, 1440×900 | 78 | 82 | 75 | 76 |
+| small change, 1440×4000 | 250 | 270 | 231 | 241 |
+| large change, 1440×900 | 182 | 193 | **67** | 149 |
+| large change, 1440×4000 | 273 | 285 | **102** | 221 |
+| pairs/s, 4 at a time | 12.1 | 19.7 | **24.4** | 15.5 |
+| process max RSS | 560 MB | **1980 MB** | 647 MB | 599 MB |
+
+**Reading it.** Worker threads recover almost all of Rust's throughput under load (251 against 261
+builds/min, the same 4.4 s wait) with no native module, but at about 2.6× the worker's memory: each
+thread is its own V8 isolate, and the pixel buffers are copied into it. Per CPU, worker threads are
+no cheaper than plain JS; Rust is about 10% cheaper. Rust is the clear winner on large changes
+(2.7× faster per diff) and on memory, at the cost of a Rust toolchain in the image build and a
+binary per architecture. `CIRCI_DIFF_THREADS` caps the pool, and with it the memory.
