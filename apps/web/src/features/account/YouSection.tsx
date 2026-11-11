@@ -2,12 +2,13 @@ import { Avatar, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui
 import { useMutation } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
-import { IdentityEditor } from '#lib/IdentityEditor.tsx'
+import { CheckedTextField } from '#lib/CheckedTextField.tsx'
+import { IdentityFields } from '#lib/IdentityFields.tsx'
 import { toast } from '#lib/toast.ts'
 
 import styles from '#features/workspace-settings/Settings.module.css'
 
-/** Your picture and name in one row, and your email. The name saves as soon as you leave the field. */
+/** Your picture, your display name (saved with its ✓) and your email, in one row. */
 export function YouSection({ user }: YouSection.Props) {
   const save = useMutation({
     meta: { what: 'save' },
@@ -20,9 +21,9 @@ export function YouSection({ user }: YouSection.Props) {
 
   return (
     <div className={styles.form}>
-      <SettingsSection title="Name and picture">
+      <SettingsSection title="Display Settings">
         <SettingsRow>
-          <IdentityEditor
+          <IdentityFields
             avatar={
               <Avatar
                 type="user"
@@ -41,22 +42,26 @@ export function YouSection({ user }: YouSection.Props) {
                 email, then a generated avatar.
               </Text>
             }
-            name="name"
-            autoComplete="name"
-            saved={user.name}
-            mutation={save}
-            validate={(next) => (next ? null : 'Enter your name')}
-            onCommit={(next) => save.mutate(next)}
-          />
-        </SettingsRow>
-        <SettingsRow>
-          <TextField
-            label="Email"
-            name="email"
-            value={user.email}
-            readOnly
-            description="Changing your email isn't available yet: ask an admin."
-          />
+          >
+            <CheckedTextField
+              label="Display Name"
+              name="name"
+              autoComplete="name"
+              saved={user.name}
+              mutation={save}
+              validate={(next) => (next ? null : 'Enter your name')}
+              onCommit={(next) => save.mutate(next)}
+            />
+            <TextField
+              className={styles.emailField}
+              label="Email"
+              name="email"
+              stacked
+              value={user.email}
+              readOnly
+              description="Changing your email isn't available yet: ask an admin."
+            />
+          </IdentityFields>
         </SettingsRow>
       </SettingsSection>
     </div>

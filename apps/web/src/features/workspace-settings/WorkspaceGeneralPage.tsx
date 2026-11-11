@@ -1,10 +1,10 @@
-import { Avatar, Banner, Button, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
+import { Avatar, SettingsRow, SettingsSection, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
 
+import { CheckedTextField } from '#lib/CheckedTextField.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { IdentityEditor } from '#lib/IdentityEditor.tsx'
+import { IdentityFields } from '#lib/IdentityFields.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { workspaceGeneralQuery, useSaveWorkspaceGeneral, useSaveWorkspacePicture } from './api.ts'
@@ -14,8 +14,6 @@ import { Frame } from './Frame.tsx'
 import { MembersRedirect } from './MembersRedirect.tsx'
 import { generalProblems } from './model.ts'
 import { PicturePanel } from './PicturePanel.tsx'
-
-import styles from './Settings.module.css'
 
 /** The workspace's name and address, the defaults its teams start from, and the danger zone. */
 export function WorkspaceGeneralPage() {
@@ -35,19 +33,15 @@ export function WorkspaceGeneralPage() {
     >
       {data ? (
         <>
-          <IdentitySection
-            workspace={workspace}
-            name={data.name}
-            picture={data.picture}
-            canManage={data.canManage}
-          />
-          {/* Keyed by the saved address, so a save (or a rename elsewhere) resets the form. */}
-          <AddressForm
-            key={data.slug}
-            workspace={workspace}
-            saved={data.slug}
-            canManage={data.canManage}
-          />
+          <SettingsSection title="Display Settings">
+            <IdentityRow
+              workspace={workspace}
+              name={data.name}
+              slug={data.slug}
+              picture={data.picture}
+              canManage={data.canManage}
+            />
+          </SettingsSection>
           <BuildSettings workspace={workspace} />
           <DeleteWorkspaceSection workspace={workspace} name={data.name} isOwner={data.isOwner} />
         </>
@@ -56,147 +50,100 @@ export function WorkspaceGeneralPage() {
   )
 }
 
-/** The name and picture: they change nobody's workflow, so each saves as soon as it is changed. */
-function IdentitySection({ workspace, name, picture, canManage }: IdentitySection.Props) {
-  const save = useSaveWorkspaceGeneral(workspace)
+/**
+ * The picture, the display name and the URL slug in one row. Each text field saves with its own ✓,
+ * which appears while it differs from what is saved: the picture and the name change nobody's
+ * workflow; the slug breaks every link that has the old one in it, so its warning stays under it.
+ */
+function IdentityRow({ workspace, name, slug, picture, canManage }: IdentityRow.Props) {
+  const navigate = useNavigate()
+  const saveName = useSaveWorkspaceGeneral(workspace)
+  const saveSlug = useSaveWorkspaceGeneral(workspace)
   const savePicture = useSaveWorkspacePicture(workspace)
   return (
-    <SettingsSection title="Name and picture">
-      <SettingsRow>
-        <IdentityEditor
-          avatar={
-            <Avatar
-              type="workspace"
-              slug={workspace}
-              name={name}
-              picture={picture}
-              size={40}
-              aria-hidden
-            />
-          }
-          buttonLabel="Change picture"
-          panelLabel="Picture"
-          canEdit={canManage}
-          panel={
-            <PicturePanel
-              picture={picture}
-              mutation={savePicture}
-              onSave={(file) =>
-                savePicture.mutate(file, {
-                  onSuccess: () => toast(file ? 'Picture saved' : 'Picture removed'),
-                })
-              }
-            />
-          }
+    <SettingsRow>
+      <IdentityFields
+        avatar={
+          <Avatar
+            type="workspace"
+            slug={workspace}
+            name={name}
+            picture={picture}
+            size={40}
+            aria-hidden
+          />
+        }
+        buttonLabel="Change picture"
+        panelLabel="Picture"
+        canEdit={canManage}
+        panel={
+          <PicturePanel
+            picture={picture}
+            mutation={savePicture}
+            onSave={(file) =>
+              savePicture.mutate(file, {
+                onSuccess: () => toast(file ? 'Picture saved' : 'Picture removed'),
+              })
+            }
+          />
+        }
+      >
+        <CheckedTextField
+          label="Display Name"
           name="name"
           saved={name}
-          mutation={save}
+          disabled={!canManage}
+          mutation={saveName}
           validate={(next) => generalProblems({ name: next, slug: 'x' }).name ?? null}
-          onCommit={(next) => save.mutate({ name: next }, { onSuccess: () => toast('Name saved') })}
+          onCommit={(next) =>
+            saveName.mutate({ name: next }, { onSuccess: () => toast('Name saved') })
+          }
         />
-      </SettingsRow>
-    </SettingsSection>
+        <CheckedTextField
+          label="URL Slug"
+          name="slug"
+          saved={slug}
+          disabled={!canManage}
+          mutation={saveSlug}
+          description="Where the workspace lives in CirCI. Changing it breaks existing links."
+          dirtyDescription={
+            <>
+              Links with <Text variant="mono">/{slug}/</Text> in them stop working, including
+              bookmarks and the links in existing pull request comments. New builds post the new
+              address.
+            </>
+          }
+          validate={(next) => generalProblems({ name: 'x', slug: next }).slug ?? null}
+          onCommit={(next) =>
+            saveSlug.mutate(
+              { slug: next },
+              {
+                onSuccess: (result) => {
+                  toast('URL slug saved')
+                  // The address in the bar is the old one, which no longer works.
+                  if (result.slug !== workspace) {
+                    void navigate({
+                      to: '/workspaces/$workspace/settings',
+                      params: { workspace: result.slug },
+                      replace: true,
+                    })
+                  }
+                },
+              },
+            )
+          }
+        />
+      </IdentityFields>
+    </SettingsRow>
   )
 }
 
-namespace IdentitySection {
+namespace IdentityRow {
   export interface Props {
     workspace: string
     name: string
+    slug: string
     picture: string | null
-    canManage: boolean
-  }
-}
-
-/** The address breaks every link that has the old one in it, so it waits for Save (with its warning). */
-function AddressForm({ workspace, saved, canManage }: AddressForm.Props) {
-  const navigate = useNavigate()
-  const save = useSaveWorkspaceGeneral(workspace)
-  const [slug, setSlug] = useState(saved)
-  const [showProblems, setShowProblems] = useState(false)
-  const problem = showProblems ? generalProblems({ name: 'x', slug }).slug : undefined
-  const dirty = slug !== saved
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    setShowProblems(true)
-    if (generalProblems({ name: 'x', slug }).slug || !dirty) return
-    save.mutate(
-      { slug },
-      {
-        onSuccess: (result) => {
-          toast('Address saved')
-          // The address in the bar is the old one, which no longer works.
-          if (result.slug !== workspace) {
-            void navigate({
-              to: '/workspaces/$workspace/settings',
-              params: { workspace: result.slug },
-              replace: true,
-            })
-          }
-        },
-      },
-    )
-  }
-
-  return (
-    <form onSubmit={submit} noValidate aria-labelledby="address" className={styles.form}>
-      <SettingsSection
-        title={<span id="address">Address</span>}
-        description="Where the workspace lives in CirCI. Changing it breaks existing links."
-      >
-        <SettingsRow>
-          <div className={styles.fieldRow}>
-            <TextField
-              label="URL slug"
-              name="slug"
-              value={slug}
-              disabled={!canManage}
-              error={problem}
-              onChange={(e) => {
-                setSlug(e.target.value)
-                if (save.isError) save.reset()
-              }}
-            />
-          </div>
-        </SettingsRow>
-        {dirty ? (
-          <SettingsRow>
-            <Banner tone="warning">
-              Links with <Text variant="mono">/{saved}/</Text> in them stop working, including
-              bookmarks and the links in existing pull request comments. New builds post the new
-              address.
-            </Banner>
-          </SettingsRow>
-        ) : null}
-      </SettingsSection>
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-      {canManage ? (
-        <div className={styles.footer} data-save-bar="" data-clean={dirty ? undefined : ''}>
-          <Button
-            variant="ghost"
-            disabled={!dirty || save.isPending}
-            onClick={() => {
-              setSlug(saved)
-              setShowProblems(false)
-              save.reset()
-            }}
-          >
-            Discard
-          </Button>
-          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
-            Save changes
-          </Button>
-        </div>
-      ) : null}
-    </form>
-  )
-}
-
-namespace AddressForm {
-  export interface Props {
-    workspace: string
-    saved: string
     canManage: boolean
   }
 }

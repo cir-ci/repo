@@ -18,6 +18,7 @@ import styles from './TextField.module.css'
 export function TextField({
   label,
   hideLabel,
+  stacked,
   description,
   error,
   invalid,
@@ -35,6 +36,7 @@ export function TextField({
       disabled={disabled}
       className={cx(styles.root, className)}
       data-hide-label={hideLabel ? '' : undefined}
+      data-stacked={stacked ? '' : undefined}
     >
       <div className={styles.labelRow} style={hideLabel ? visuallyHidden : undefined}>
         <Field.Label className={styles.label}>{label}</Field.Label>
@@ -60,6 +62,8 @@ export namespace TextField {
     label: ReactNode
     /** Hide the label visually; it still names the control for assistive tech. */
     hideLabel?: boolean
+    /** Keep the label above the control, also in a wide settings form (where it would sit in a column beside it). */
+    stacked?: boolean
     /** Help under the control; hidden while there is an `error`. */
     description?: ReactNode
     /** Makes the field invalid and replaces the description. */

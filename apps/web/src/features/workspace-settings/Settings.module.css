@@ -88,6 +88,13 @@
   padding: 16px;
 }
 
+.emailField {
+  flex: 1 1 220px;
+  /* Level with the Display Name field, whose ✓ slot is 28px + 4px gap. */
+  padding-right: 32px;
+  box-sizing: border-box;
+}
+
 .footer {
   composes: saveBar from '@circi/ui/utilities.module.css';
   display: flex;

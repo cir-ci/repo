@@ -79,7 +79,7 @@
 /* In a settings form on a wide page: the label and its help in a 240px column, the control beside
    it, the error under the control. */
 @container settings (min-width: 900px) {
-  :global([data-form]) .root:not([data-hide-label]) {
+  :global([data-form]) .root:not([data-hide-label], [data-stacked]) {
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr);
     column-gap: 24px;

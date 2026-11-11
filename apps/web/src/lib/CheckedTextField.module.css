@@ -1,0 +1,28 @@
+.root {
+  display: flex;
+  flex: 1 1 220px;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.root > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The ✓ takes its room whether or not it shows, so the field never moves when it appears. It sits
+   level with the input, below the label (12px/1.5 label + 6px gap, then half the 32px/28px). */
+.slot {
+  display: flex;
+  flex: none;
+  width: 28px;
+  margin-top: 26px;
+}
+
+/* A phone: the 44px input, so the button's centre follows. */
+@media (max-width: 819.98px) {
+  .slot {
+    margin-top: 32px;
+  }
+}

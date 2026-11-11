@@ -1,0 +1,63 @@
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* The fields sit beside the picture; the avatar lines up with the inputs, below their labels
+   (12px/1.5 label + 6px gap). They wrap under each other when the row is narrow. */
+.fields {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+}
+
+.avatar,
+.trigger {
+  margin-top: 24px;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+}
+
+.trigger {
+  display: flex;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--circi-radius-panel);
+  background: none;
+  cursor: pointer;
+}
+
+/* The avatar's radius differs by kind: the ring follows the shape inside. */
+.trigger:has([data-type='user']) {
+  border-radius: 50%;
+}
+
+.trigger:hover,
+.trigger[data-popup-open] {
+  outline: 2px solid var(--circi-line-strong);
+  outline-offset: 2px;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+/* The popover's own max-width is one class too: doubling these makes them win. */
+.narrow.narrow {
+  width: 280px;
+}
+
+.wide.wide {
+  width: 344px;
+  max-width: calc(100vw - 32px);
+}
