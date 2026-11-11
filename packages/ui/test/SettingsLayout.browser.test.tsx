@@ -161,8 +161,8 @@ describe('settings form layout', () => {
     ] as const) {
       // The innermost element holding the text (whatever its tag: a label, a div, a p).
       const all = [...container.querySelectorAll('*')]
-      const label = all.filter((el) => el.textContent === labelText).at(-1)
-      const help = all.filter((el) => el.textContent?.startsWith(helpText)).at(-1)
+      const label = all.findLast((el) => el.textContent === labelText)
+      const help = all.findLast((el) => el.textContent?.startsWith(helpText))
       expect(rect(help ?? null).top - rect(label).bottom).toBeLessThanOrEqual(4)
     }
   })
