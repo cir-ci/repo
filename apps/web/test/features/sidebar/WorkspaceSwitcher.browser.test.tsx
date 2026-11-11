@@ -131,8 +131,18 @@ describe('WorkspaceSwitcher', () => {
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
 
-  it("opens the current workspace's settings", async () => {
+  it("opens the current workspace's settings: General, or the hub for an instance admin", async () => {
     const { ready } = show()
+    const { router } = await ready
+    await page.getByRole('button', { name: 'Workspace: Acme' }).click()
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/general')
+  })
+
+  it("opens the workspace's settings hub for an instance admin", async () => {
+    const { ready } = show({ instanceAdmin: true })
     const { router } = await ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()

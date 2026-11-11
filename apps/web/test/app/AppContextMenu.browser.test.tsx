@@ -73,7 +73,7 @@ async function renderApp() {
       </QueryClientProvider>
     </CirciTheme>,
   )
-  await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+  await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
 }
 
 /** A right click as the browser sends it, to see whether the app took it over. */
@@ -117,8 +117,8 @@ describe('the app-level context menu', () => {
       'Forward',
       'Reload',
       'Copy link',
-      'Search…',
-      'Keyboard shortcuts',
+      'Search…⌘K',
+      'Keyboard shortcuts?',
     ])
   })
 

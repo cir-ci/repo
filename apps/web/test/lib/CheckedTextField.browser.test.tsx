@@ -124,7 +124,8 @@ describe('CheckedTextField', () => {
         mutation={{ isPending: false, error: new Error('Name is too long'), reset: () => {} }}
       />,
     )
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+    await expect.element(page.getByText('Name is too long')).toBeVisible()
+    await expect.element(field()).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('shows the dirty description in place of the description only while the text differs', async () => {

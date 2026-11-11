@@ -78,7 +78,11 @@ describe('Settings, Workspaces', () => {
     await show()
     await expect.element(page.getByText('Globex', { exact: true })).toBeVisible()
     await userEvent.type(page.getByRole('textbox', { name: 'Find workspaces' }), 'old')
-    await expect.poll(() => page.getByRole('listitem').elements()).toHaveLength(1)
+    await expect
+      .poll(() =>
+        page.getByRole('list', { name: 'Deleted workspaces' }).getByRole('listitem').elements(),
+      )
+      .toHaveLength(1)
     expect(page.getByRole('list', { name: 'Workspaces', exact: true }).elements()).toHaveLength(0)
     await userEvent.fill(page.getByRole('textbox', { name: 'Find workspaces' }), 'zzz')
     await expectEmptyState('No workspace matches “zzz”', { action: 'Clear search' })

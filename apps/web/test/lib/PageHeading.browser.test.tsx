@@ -30,6 +30,8 @@ describe('PageHeading', () => {
       .element(nav.getByRole('link', { name: 'web-app' }))
       .toHaveAttribute('href', '/acme/web')
     await expect.element(nav.getByRole('heading', { level: 1 })).toHaveTextContent('Webhooks')
+    // The sidebar toggle comes first in the bar.
+    await userEvent.tab()
     await userEvent.tab()
     await expect.element(page.getByText('Workspace: opens the Inbox')).toBeVisible()
     await userEvent.tab()

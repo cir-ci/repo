@@ -91,7 +91,9 @@ describe('SettingsNav', () => {
     await show()
     const projects = page.getByRole('region', { name: 'Projects' })
     await expect.element(projects).toBeVisible()
-    expect(names(projects.getByRole('link'))).toEqual(['Web App', 'Storybook', 'All projects'])
+    await expect
+      .poll(() => names(projects.getByRole('link')))
+      .toEqual(['Web App', 'Storybook', 'All projects'])
     await expect
       .element(projects.getByRole('link', { name: 'Storybook' }))
       .toHaveAttribute('href', '/acme/storybook/settings')
@@ -240,7 +242,9 @@ describe('SettingsNav', () => {
       await show({ instanceAdmin: true })
       const workspaces = page.getByRole('region', { name: 'Workspaces' })
       await expect.element(workspaces).toBeVisible()
-      expect(names(workspaces.getByRole('link'))).toEqual(['Acme', 'Globex', 'All workspaces'])
+      await expect
+        .poll(() => names(workspaces.getByRole('link')))
+        .toEqual(['Acme', 'Globex', 'All workspaces'])
       expect(page.getByRole('region', { name: /^Workspace ·/ }).elements()).toHaveLength(0)
       // Creating and the deleted ones live on the list page, not in the sidebar.
       expect(page.getByRole('button', { name: 'New workspace' }).elements()).toHaveLength(0)
@@ -256,6 +260,8 @@ describe('SettingsNav', () => {
     it('orders the sections by the hierarchy: Account, Instance, Workspaces, Projects', async () => {
       await show({ instanceAdmin: true })
       await expect.element(page.getByRole('region', { name: 'Projects' })).toBeVisible()
+      await expect.element(page.getByRole('region', { name: 'Instance' })).toBeVisible()
+      await expect.element(page.getByRole('region', { name: 'Workspaces' })).toBeVisible()
       const order = ['Account', 'Instance', 'Workspaces', 'Projects'].map((name) =>
         page.getByRole('region', { name }).element(),
       )

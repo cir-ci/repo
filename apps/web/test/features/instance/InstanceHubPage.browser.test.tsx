@@ -61,7 +61,7 @@ describe('InstanceHubPage', () => {
     api()
     await show()
     await expect.element(page.getByRole('heading', { name: 'Instance', level: 1 })).toBeVisible()
-    await expect.element(page.getByText('ci.acme.io')).toBeVisible()
+    await expect.element(page.getByText('ci.acme.io').first()).toBeVisible()
   })
 
   it('groups one row for each page: People, Workspaces and Server', async () => {
@@ -79,7 +79,7 @@ describe('InstanceHubPage', () => {
     await expect.element(rowOf('Accounts').getByText('12 accounts')).toBeVisible()
     // The deleted workspace isn't counted.
     await expect.element(rowOf('All workspaces').getByText('2 workspaces')).toBeVisible()
-    await expect.element(rowOf('Instance settings').getByText('ci.acme.io')).toBeVisible()
+    await expect.element(rowOf('Instance settings').getByText('ci.acme.io').first()).toBeVisible()
   })
 
   it('leaves Health without a summary: the doctor asks other hosts, so its checks run on its page', async () => {

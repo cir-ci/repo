@@ -74,10 +74,12 @@ describe('useScrollToHash', () => {
   })
 
   it('jumps instead of scrolling smoothly when the person prefers reduced motion', async () => {
-    // The helper reads only `matches`.
+    // The helper reads `matches`; the page's own hooks (the phone breakpoint) also subscribe.
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('prefers-reduced-motion'),
       media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
     }))
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     await show('late-setting')

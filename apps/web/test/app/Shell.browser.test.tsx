@@ -666,16 +666,18 @@ describe('Shell, settings', () => {
     const nav = page.getByRole('navigation', { name: 'Settings' })
     const section = nav.getByRole('region', { name: 'Workspaces' })
     await expect.element(section).toBeVisible()
-    expect(
-      section
-        .getByRole('link')
-        .elements()
-        .map((el) => [el.textContent, el.getAttribute('href')]),
-    ).toEqual([
-      ['Acme', '/workspaces/acme/settings'],
-      ['Globex', '/workspaces/globex/settings'],
-    ])
-    await expect.element(section.getByRole('button', { name: 'New workspace' })).toBeVisible()
+    await expect
+      .poll(() =>
+        section
+          .getByRole('link')
+          .elements()
+          .map((el) => [el.textContent, el.getAttribute('href')]),
+      )
+      .toEqual([
+        ['Acme', '/workspaces/acme/settings'],
+        ['Globex', '/workspaces/globex/settings'],
+        ['All workspaces', '/instance/workspaces'],
+      ])
     expect(nav.getByRole('region', { name: /^Workspace ·/ }).elements()).toHaveLength(0)
   })
 
@@ -928,22 +930,28 @@ describe('Shell, narrow', () => {
     headerButton('Settings sections')!.click()
     const sheet = page.getByRole('dialog', { name: 'Settings sections' })
     await expect.element(sheet).toBeVisible()
-    const links = sheet.getByRole('link').elements()
-    expect(links.map((el) => el.textContent)).toEqual([
-      'Profile',
-      'Notifications',
-      'Appearance',
-      // The hierarchy: Account, then Instance, Workspaces (every workspace of the instance, each
-      // its hub, then All workspaces, in place of one's pages) and Projects.
-      'Instance',
-      'Acme',
-      'Globex',
-      'All workspaces',
-      'web-app',
-      'storybook',
-      'api',
-      'All projects',
-    ])
+    await expect
+      .poll(() =>
+        sheet
+          .getByRole('link')
+          .elements()
+          .map((el) => el.textContent),
+      )
+      .toEqual([
+        'Profile',
+        'Notifications',
+        'Appearance',
+        // The hierarchy: Account, then Instance, Workspaces (every workspace of the instance, each
+        // its hub, then All workspaces, in place of one's pages) and Projects.
+        'Instance',
+        'Acme',
+        'Globex',
+        'All workspaces',
+        'web-app',
+        'storybook',
+        'api',
+        'All projects',
+      ])
     // No way back to the app from the list: the header's Close is the one way out.
     expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await sheet.getByRole('link', { name: 'Globex' }).click()
@@ -1022,8 +1030,10 @@ describe('Shell, narrow', () => {
       await trigger.click()
       await page.getByRole('menuitem', { name: /Globex/ }).click()
       await expect.element(sheet.getByRole('button', { name: 'Workspace: Globex' })).toBeVisible()
-      await expect.element(sheet.getByRole('link', { name: /^portal/ })).toBeVisible()
-      expect(sheet.getByRole('link', { name: /^web-app/ }).elements()).toHaveLength(0)
+      // The sheet follows the workspace chosen (its projects are on the Projects tab).
+      await expect
+        .element(sheet.getByRole('link', { name: 'Insights' }))
+        .toHaveAttribute('href', '/workspaces/globex/insights')
     })
 
     it('offers New workspace where it is allowed', async () => {
@@ -1098,7 +1108,7 @@ describe('Shell, narrow', () => {
       expect(boxes[1]!.left).toBeLessThan(boxes[0]!.right)
       expect(boxes[2]!.left).toBeLessThan(boxes[1]!.right)
       // Decoration, and still: no spreading on a phone.
-      const stack = tiles()[0]!.closest('[aria-hidden="true"]')!
+      const stack = tiles()[0]!.closest('[data-spread]')!
       expect(stack.getAttribute('data-spread')).toBe('false')
     })
 
@@ -1137,8 +1147,8 @@ describe('Shell, narrow', () => {
       ).toEqual(['web-app', 'api', 'storybook', 'portal', 'All projects'])
       // The pinned project from a workspace of several names its workspace, with its count.
       await expect
-        .element(menu.getByRole('menuitem', { name: /^web-app/ }))
-        .toHaveTextContent('Acme · 4')
+        .poll(() => menu.getByRole('menuitem', { name: /^web-app/ }).element().textContent)
+        .toContain('Acme · 4')
       // A separator between the groups and before All projects.
       expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(3)
     })

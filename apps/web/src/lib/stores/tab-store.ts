@@ -79,8 +79,8 @@ export const useTabStore = create<TabStore.State & TabStore.Actions>()((set, get
       return Promise.resolve()
     })
   }
-  /** A toast for tabs just closed, with Undo that puts them back. */
-  const announceClosed = (closedIds: readonly string[], message: string) => {
+  /** A toast for tabs just closed, with Undo that puts them back (`reactivate`: the one that was open is open again). */
+  const announceClosed = (closedIds: readonly string[], message: string, reactivate?: string) => {
     toast.undoable(message, () => {
       for (const id of closedIds) {
         const state = snapshot()
@@ -90,6 +90,7 @@ export const useTabStore = create<TabStore.State & TabStore.Actions>()((set, get
           ...state,
           tabs: state.tabs.toSpliced(Math.min(found.at, state.tabs.length), 0, found.tab),
           closed: state.closed.filter((c) => c.tab.id !== id),
+          ...(id === reactivate ? { activeId: id } : {}),
         })
       }
       return Promise.resolve()
@@ -146,7 +147,7 @@ export const useTabStore = create<TabStore.State & TabStore.Actions>()((set, get
       const tab = state.tabs.find((t) => t.id === id)
       if (!tab) return
       commit(closeTab(state, id, newId(), Date.now()))
-      announceClosed([id], `Closed ${titleOf(tab)}`)
+      announceClosed([id], `Closed ${titleOf(tab)}`, id === state.activeId ? id : undefined)
     },
     closeActive: () => get().close(get().activeId),
     closeOthers: (id) => {

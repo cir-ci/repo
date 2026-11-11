@@ -146,7 +146,7 @@ describe('tabs in a normal browser tab', () => {
   it('show nothing and leave the keys alone', async () => {
     installedAs('browser')
     await renderApp()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
     expect(tabs().elements()).toHaveLength(0)
     await press('{Alt>}t{/Alt}')
     expect(store().tabs).toHaveLength(0)
@@ -179,7 +179,11 @@ describe('tabs in the installed app', () => {
   it('leaves the frame without a row in overlay mode, where the title bar carries the tabs', async () => {
     installedAs('overlay')
     await renderApp()
-    await expect.element(tabNamed('Projects page')).toBeVisible()
+    // The title bar is `display: none` unless the real display-mode media query matches (the
+    // mock above only reaches script), so the tab is in the page but not in the accessibility tree.
+    await expect
+      .poll(() => document.querySelector('[role="tab"]')?.textContent)
+      .toBe('Projects page')
     expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
   })
 
@@ -192,11 +196,11 @@ describe('tabs in the installed app', () => {
     await page.getByRole('menuitem', { name: 'Open in new tab' }).click()
     expect(tabs().elements()).toHaveLength(2)
     // It opens behind the page being read.
-    await expect.element(page.getByRole('main')).toHaveTextContent('Profile page')
+    await expect.element(page.getByRole('heading', { name: 'Profile page' })).toBeVisible()
     await page.getByRole('button', { name: 'New tab' }).click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+    await expect.element(page.getByRole('heading', { name: 'Inbox page' })).toBeVisible()
     await tabNamed('Profile page').first().click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Profile page')
+    await expect.element(page.getByRole('heading', { name: 'Profile page' })).toBeVisible()
   })
 
   it('opens a link in a background tab on ⌘-click and on middle-click', async () => {
@@ -211,23 +215,23 @@ describe('tabs in the installed app', () => {
     ).toEqual(['/', '/inbox'])
     link.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }))
     expect(store().tabs).toHaveLength(3)
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
   })
 
   it('keeps back inside the tab', async () => {
     installedAs('standalone')
     const router = await renderApp()
     await page.getByRole('button', { name: 'Go to profile' }).click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Profile page')
+    await expect.element(page.getByRole('heading', { name: 'Profile page' })).toBeVisible()
     await press('{Alt>}t{/Alt}')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+    await expect.element(page.getByRole('heading', { name: 'Inbox page' })).toBeVisible()
     // Back in the new tab has nowhere to go but the tab it was opened from.
     router.history.back()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Profile page')
+    await expect.element(page.getByRole('heading', { name: 'Profile page' })).toBeVisible()
     expect(tabs().elements()).toHaveLength(1)
     // Back in the first tab walks its own pages.
     router.history.back()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
   })
 
   it('answers the shortcuts', async () => {
@@ -266,7 +270,9 @@ describe('tabs in the installed app', () => {
     expect(tabs().elements()).toHaveLength(12)
     await press('{Alt>}t{/Alt}')
     expect(tabs().elements()).toHaveLength(12)
-    await expect.element(page.getByText('to stay within 12 tabs')).toBeVisible()
+    await expect
+      .element(page.getByText('Closed Projects page to stay within 12 tabs'))
+      .toBeVisible()
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect.element(tabNamed('Projects page')).toBeVisible()
     expect(tabs().elements()).toHaveLength(12)
@@ -306,8 +312,8 @@ describe('tabs on a phone, installed', () => {
       .getByRole('button', { name: /Projects page/ })
       .first()
       .click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
-    expect(page.getByRole('dialog', { name: '2 tabs' }).elements()).toHaveLength(0)
+    await expect.element(page.getByRole('heading', { name: /^Projects page/ })).toBeVisible()
+    await expect.poll(() => page.getByRole('dialog', { name: '2 tabs' }).elements().length).toBe(0)
   })
 
   it('closes a card with its × or a swipe', async () => {

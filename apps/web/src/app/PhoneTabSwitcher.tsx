@@ -144,14 +144,18 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const held = useRef(false)
   const [dx, setDx] = useState(0)
+  // What `up` reads: the last move, even when no render came between it and the release (a quick flick).
+  const dragged = useRef(0)
 
   const stopTimer = () => clearTimeout(timer.current)
   const down = (event: PointerEvent) => {
     start.current = { x: event.clientX, y: event.clientY }
     held.current = false
+    dragged.current = 0
     timer.current = setTimeout(() => {
       held.current = true
       start.current = null
+      dragged.current = 0
       setDx(0)
       onHold()
     }, HOLD_MS)
@@ -161,12 +165,14 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
     if (!from) return
     const x = event.clientX - from.x
     if (Math.abs(x) > SLOP_PX || Math.abs(event.clientY - from.y) > SLOP_PX) stopTimer()
+    dragged.current = x
     setDx(x)
   }
   const up = () => {
     stopTimer()
-    const swiped = Math.abs(dx) >= SWIPE_PX
+    const swiped = start.current !== null && Math.abs(dragged.current) >= SWIPE_PX
     start.current = null
+    dragged.current = 0
     setDx(0)
     if (swiped) onClose()
   }
