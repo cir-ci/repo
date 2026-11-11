@@ -4,18 +4,23 @@ import { join } from 'node:path'
 
 import { upload } from '@circi/cli'
 
-import { COMPOSE_FILE, SEED, SERVER_MAIN, STATE_DIR, URLS, serverEnv } from './config.ts'
-import { log, run } from './processes.ts'
 import {
-  BANNER,
-  BASELINE,
-  FLAKY_RUNS,
-  NO_CHANGES,
-  REDESIGN,
-  STORYBOOK,
-  type Screen,
-  writeScreens,
-} from './screens.ts'
+  COMPOSE_FILE,
+  PEOPLE,
+  PROJECTS,
+  SEED,
+  SERVER_MAIN,
+  STATE_DIR,
+  URLS,
+  WORKSPACES,
+  serverEnv,
+  type PersonKey,
+  type SeedProject,
+  type SeedWorkspace,
+} from './config.ts'
+import { HISTORY, type Step } from './history.ts'
+import { log, run } from './processes.ts'
+import { writeScreens } from './screens.ts'
 
 /** What the seed leaves behind for later runs (`.dev/seed.json`). */
 export interface SeedState {
@@ -23,7 +28,7 @@ export interface SeedState {
 }
 
 const STATE_FILE = join(STATE_DIR, 'seed.json')
-const REPO = join(STATE_DIR, 'seed-repo')
+const REPOS = join(STATE_DIR, 'seed-repos')
 
 /** `circi admin …` from source, against the dev database. */
 export function admin(args: string[]): Promise<string> {
@@ -32,19 +37,19 @@ export function admin(args: string[]): Promise<string> {
   })
 }
 
-/** The `token` field of a JSON object (`--json` output, `.dev/seed.json`). */
-function tokenIn(json: string): string {
-  const parsed: unknown = JSON.parse(json)
-  if (
-    typeof parsed === 'object' &&
-    parsed &&
-    'token' in parsed &&
-    typeof parsed.token === 'string'
-  ) {
-    return parsed.token
-  }
-  throw new Error(`Expected a JSON object with a token, got: ${json.slice(0, 200)}`)
+function asRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value))
+  throw new Error(`Expected an object, got: ${JSON.stringify(value)?.slice(0, 200)}`)
 }
+
+/** The string field `key` of a JSON object (`--json` output, `.dev/seed.json`, API replies). */
+function stringIn(json: unknown, key: string): string {
+  const value = asRecord(json)[key]
+  if (typeof value === 'string') return value
+  throw new Error(`Expected a string "${key}", got: ${JSON.stringify(json)?.slice(0, 200)}`)
+}
+
+const tokenIn = (json: string): string => stringIn(JSON.parse(json), 'token')
 
 async function isSeeded(): Promise<boolean> {
   const workspaces: unknown = JSON.parse(await admin(['workspace', 'list', '--json']))
@@ -58,9 +63,9 @@ async function isSeeded(): Promise<boolean> {
 }
 
 /**
- * Makes sure the dev database has the seed's accounts, workspace, project and builds, and returns
- * the project's CI token. Seeds once: later runs reuse `.dev/seed.json` (or rotate the token when
- * that file is gone but the data is still there).
+ * Makes sure the dev database has the seed's accounts, workspaces, projects and builds, and
+ * returns the Web app's CI token. Seeds once: later runs reuse `.dev/seed.json` (or rotate the
+ * token when that file is gone but the data is still there).
  */
 export async function ensureSeeded(): Promise<SeedState> {
   if (await isSeeded()) {
@@ -83,12 +88,15 @@ export async function ensureSeeded(): Promise<SeedState> {
     return { token }
   }
 
-  log('seed', 'Empty database: creating accounts, a workspace, a project and sample builds')
+  log('seed', 'Empty database: creating accounts, workspaces, projects and a history of builds')
+  const started = Date.now()
   try {
-    const state = await seedAccounts()
+    const world = await seedPeopleAndProjects()
+    const state = { token: world.tokens.get(SEED.project.slug) ?? '' }
     await saveState(state)
-    await seedBuilds(state.token)
-    log('seed', 'Done')
+    await seedHistory(world)
+    await seedActivity(world)
+    log('seed', `Done in ${Math.round((Date.now() - started) / 1000)}s`)
     return state
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -103,10 +111,33 @@ async function saveState(state: SeedState): Promise<void> {
   await writeFile(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`)
 }
 
-async function seedAccounts(): Promise<SeedState> {
-  const { owner, member, password, workspace, project, hiddenProject } = SEED
-  const user = (who: { email: string; name: string }, extra: string[] = []) =>
-    admin([
+/** What the later steps need to know about what exists. */
+interface World {
+  ids: Map<PersonKey, string>
+  /** Project slug to its CI token. */
+  tokens: Map<string, string>
+  workspaceIds: Map<string, string>
+}
+
+const workspaceOf = (slug: string): SeedWorkspace => {
+  const found = WORKSPACES.find((w) => w.slug === slug)
+  if (!found) throw new Error(`Unknown workspace ${slug}`)
+  return found
+}
+
+const isPersonKey = (key: string): key is PersonKey => key in PEOPLE
+const personKeys = Object.keys(PEOPLE).filter(isPersonKey)
+
+// ---------------------------------------------------------------------------------------------
+// Accounts, workspaces and projects: the `circi admin` commands, as an operator would run them.
+// ---------------------------------------------------------------------------------------------
+
+async function seedPeopleAndProjects(): Promise<World> {
+  const ids = new Map<PersonKey, string>()
+  const createUser = async (key: PersonKey) => {
+    const who = PEOPLE[key]
+    const extra = key === 'owner' || key === 'ines' ? ['--instance-admin'] : []
+    const out = await admin([
       'user',
       'create',
       '--email',
@@ -114,278 +145,520 @@ async function seedAccounts(): Promise<SeedState> {
       '--name',
       who.name,
       '--password',
-      password,
+      SEED.password,
+      '--json',
       ...extra,
     ])
-  await user(owner, ['--instance-admin'])
-  await user(member)
-  await admin([
-    'workspace',
-    'create',
-    '--name',
-    workspace.name,
-    '--slug',
-    workspace.slug,
-    '--owner',
-    owner.email,
-  ])
-  await admin([
-    'member',
-    'add',
-    '--org',
-    workspace.slug,
-    '--email',
-    member.email,
-    '--role',
-    'member',
-  ])
-  const token = tokenIn(
-    await admin([
-      'project',
-      'create',
-      '--org',
-      workspace.slug,
-      '--name',
-      project.name,
-      '--slug',
-      project.slug,
-      '--member',
-      owner.email,
-      '--member',
-      member.email,
-      '--json',
-    ]),
+    ids.set(key, stringIn(JSON.parse(out), 'id'))
+  }
+  // The first account is created alone: it is the one that opens the instance.
+  await createUser('owner')
+  await Promise.all(personKeys.filter((k) => k !== 'owner').map(createUser))
+
+  await Promise.all(
+    WORKSPACES.map((w) =>
+      admin([
+        'workspace',
+        'create',
+        '--name',
+        w.name,
+        '--slug',
+        w.slug,
+        '--owner',
+        PEOPLE[w.owner].email,
+      ]),
+    ),
   )
-  // Projects have their own members: the member is in Web app but doesn't see this one at all.
-  await admin([
-    'project',
-    'create',
-    '--org',
-    workspace.slug,
-    '--name',
-    hiddenProject.name,
-    '--slug',
-    hiddenProject.slug,
-    '--member',
-    owner.email,
-    '--json',
-  ])
-  return { token }
+  await Promise.all(
+    WORKSPACES.flatMap((w) =>
+      w.members.map((m) =>
+        admin(['member', 'add', '--org', w.slug, '--email', PEOPLE[m.who].email, '--role', m.role]),
+      ),
+    ),
+  )
+
+  const tokens = new Map<string, string>()
+  await Promise.all(
+    PROJECTS.map(async (p) => {
+      const out = await admin([
+        'project',
+        'create',
+        '--org',
+        p.workspace,
+        '--name',
+        p.name,
+        '--slug',
+        p.slug,
+        ...p.members.flatMap((m) => ['--member', PEOPLE[m].email]),
+        '--json',
+      ])
+      tokens.set(p.slug, tokenIn(out))
+    }),
+  )
+
+  const listed: unknown = JSON.parse(await admin(['workspace', 'list', '--json']))
+  const workspaceIds = new Map<string, string>()
+  if (Array.isArray(listed)) {
+    for (const w of listed) workspaceIds.set(stringIn(w, 'slug'), stringIn(w, 'id'))
+  }
+  return { ids, tokens, workspaceIds }
 }
 
-const GIT_ENV = {
-  GIT_AUTHOR_NAME: SEED.owner.name,
-  GIT_AUTHOR_EMAIL: SEED.owner.email,
-  GIT_COMMITTER_NAME: SEED.owner.name,
-  GIT_COMMITTER_EMAIL: SEED.owner.email,
+// ---------------------------------------------------------------------------------------------
+// The dashboard's own API, signed in as one of the seeded people.
+// ---------------------------------------------------------------------------------------------
+
+const sessions = new Map<PersonKey, Promise<string>>()
+
+/** Signs in through better-auth; returns the session cookie (one sign-in per person). */
+function cookieFor(who: PersonKey): Promise<string> {
+  let session = sessions.get(who)
+  if (!session) {
+    session = (async () => {
+      const email = PEOPLE[who].email
+      const res = await fetch(`${URLS.server}/api/auth/sign-in/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: URLS.web },
+        body: JSON.stringify({ email, password: SEED.password }),
+      })
+      if (!res.ok) {
+        throw new Error(`Sign-in as ${email} failed: HTTP ${res.status} ${await res.text()}`)
+      }
+      return res.headers
+        .getSetCookie()
+        .map((c) => c.split(';')[0])
+        .join('; ')
+    })()
+    sessions.set(who, session)
+  }
+  return session
 }
 
-const git = (args: string[]) => run('git', args, { cwd: REPO, env: GIT_ENV })
-
-/** Commits on `branch` (branched from main) and returns the commit's sha. */
-async function commit(branch: string, message: string): Promise<string> {
-  await git(['checkout', '-q', '-B', branch, 'main'])
-  await git(['commit', '-q', '--allow-empty', '-m', message])
-  return git(['rev-parse', 'HEAD'])
-}
-
-async function uploadScreens(
-  token: string,
-  screens: Screen[],
-  ci: { sha: string; branch: string; pr?: number; author: string; name?: string },
-): Promise<number> {
-  const dir = join(STATE_DIR, 'seed-screens', ci.sha.slice(0, 12))
-  await rm(dir, { recursive: true, force: true })
-  await writeScreens(dir, screens)
-  const result = await upload({
-    dir,
-    apiUrl: URLS.server,
-    token,
-    wait: true,
-    fetch: false,
-    cwd: REPO,
-    author: ci.author,
-    env: {
-      CIRCI_COMMIT: ci.sha,
-      CIRCI_BRANCH: ci.branch,
-      ...(ci.pr ? { CIRCI_PR_NUMBER: String(ci.pr), CIRCI_BASE_BRANCH: 'main' } : {}),
+/** One call to `/api<path>` as `who`; the parsed reply, or null when there is none. */
+async function call(
+  who: PersonKey,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<unknown> {
+  const res = await fetch(`${URLS.server}/api${path}`, {
+    method,
+    headers: {
+      'content-type': 'application/json',
+      origin: URLS.web,
+      cookie: await cookieFor(who),
     },
-    log: (line) => log('seed', line),
-    ...(ci.name ? { name: ci.name } : {}),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
-  if (result.exitCode === 2) throw new Error(`Upload of ${ci.branch} failed`)
-  return result.build.number
+  if (!res.ok) throw new Error(`${method} ${path}: HTTP ${res.status} ${await res.text()}`)
+  const text = await res.text()
+  return text ? (JSON.parse(text) as unknown) : null
 }
 
-/** Signs in through better-auth as the owner; returns the session cookie. */
-async function signIn(email: string): Promise<string> {
-  const res = await fetch(`${URLS.server}/api/auth/sign-in/email`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', origin: URLS.web },
-    body: JSON.stringify({ email, password: SEED.password }),
-  })
-  if (!res.ok) throw new Error(`Sign-in as ${email} failed: HTTP ${res.status} ${await res.text()}`)
-  return res.headers
-    .getSetCookie()
-    .map((c) => c.split(';')[0])
-    .join('; ')
+const idOf = (key: PersonKey, world: World): string => {
+  const id = world.ids.get(key)
+  if (!id) throw new Error(`No account for ${key}`)
+  return id
 }
 
-async function review(
-  cookie: string,
-  build: number,
-  state: 'approved' | 'rejected',
-  reason?: string,
-) {
-  const { workspace, project } = SEED
-  const res = await fetch(
-    `${URLS.server}/api/projects/${workspace.slug}/${project.slug}/builds/${build}/review`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', origin: URLS.web, cookie },
-      body: JSON.stringify({ state, ...(reason ? { reason } : {}) }),
-    },
-  )
-  if (!res.ok)
-    throw new Error(`Review of build ${build} failed: HTTP ${res.status} ${await res.text()}`)
-}
+const projectPath = (p: { workspace: string; slug: string }) => `/projects/${p.workspace}/${p.slug}`
 
-/**
- * A short history to click through: an approved baseline on main, a pull request waiting for
- * review (changed, added, removed and unchanged screens), one with no changes, and a rejected one.
- */
-async function seedBuilds(token: string): Promise<void> {
-  await rm(REPO, { recursive: true, force: true })
-  await mkdir(REPO, { recursive: true })
-  await git(['init', '-q', '-b', 'main'])
-  await git(['commit', '-q', '--allow-empty', '-m', 'Initial commit'])
-
-  const owner = await signIn(SEED.owner.email)
-  const author = 'olivia'
-
-  const base = await commit('main', 'Add the app shell')
-  const baseline = await uploadScreens(token, BASELINE, { sha: base, branch: 'main', author })
-  await review(owner, baseline, 'approved')
-  // A pull request's ancestry is read from origin/<base>, as in a CI checkout.
-  await git(['update-ref', 'refs/remotes/origin/main', 'main'])
-
-  const quiet = await commit('fix/typos', 'Fix typos')
-  await uploadScreens(token, NO_CHANGES, { sha: quiet, branch: 'fix/typos', pr: 11, author })
-
-  const banner = await commit('feat/alert-banner', 'Show an alert banner on the dashboard')
-  const rejected = await uploadScreens(token, BANNER, {
-    sha: banner,
-    branch: 'feat/alert-banner',
-    pr: 12,
-    author: 'max',
-  })
-  await review(
-    owner,
-    rejected,
-    'rejected',
-    'The banner covers the charts; move it below the title.',
-  )
-
-  const redesign = await commit('feat/redesign', 'Redesign home, pricing and onboarding')
-  await uploadScreens(token, REDESIGN, {
-    sha: redesign,
-    branch: 'feat/redesign',
-    pr: 13,
-    author: 'max',
-  })
-  await git(['checkout', '-q', 'main'])
-  await seedTriage(token, owner)
-}
-
-/**
- * Something in each Triage group: two flaky screens (changed back and forth on main), a
- * Storybook build with no baseline yet, and a failed build; plus a rotation (so someone is on
- * triage) and one item assigned to the member.
- */
-async function seedTriage(token: string, owner: string): Promise<void> {
-  for (const [i, screens] of FLAKY_RUNS.entries()) {
-    // eslint-disable-next-line no-await-in-loop -- each build follows the one before on main
-    const sha = await commit('main', `Tweak the dashboard (${i + 1})`)
-    // eslint-disable-next-line no-await-in-loop -- in order: flakiness is about the latest builds
-    await uploadScreens(token, screens, { sha, branch: 'main', author: 'olivia' })
-  }
-
-  const stories = await commit('main', 'Add Storybook')
-  await uploadScreens(token, STORYBOOK, {
-    sha: stories,
-    branch: 'main',
-    author: 'olivia',
-    name: 'storybook',
-  })
-
-  // A build whose second CI shard never arrived. The worker fails such a build once its upload
-  // window has passed; the seed can't wait that long, so it records the same outcome directly.
-  const broken = await commit('main', 'Split the end-to-end job in two')
-  const dir = join(STATE_DIR, 'seed-screens', broken.slice(0, 12))
-  await rm(dir, { recursive: true, force: true })
-  await writeScreens(dir, BASELINE)
-  const half = await upload({
-    dir,
-    apiUrl: URLS.server,
-    token,
-    wait: false,
-    fetch: false,
-    cwd: REPO,
-    author: 'max',
-    shard: { index: 0, total: 2, nonce: 'seed-split-e2e' },
-    env: { CIRCI_COMMIT: broken, CIRCI_BRANCH: 'main' },
-    log: (line) => log('seed', line),
-  })
-  await sql(
-    `update builds set status = 'error', completed_at = now(), error_message = ` +
-      `'Timed out waiting for 1 of 2 shard(s): shard 2. The CI job(s) that should have uploaded them probably failed or never ran.' ` +
-      `where id = '${half.build.id}'`,
-  )
-
-  const { workspace, project } = SEED
-  const api = `${URLS.server}/api/projects/${workspace.slug}/${project.slug}`
-  const call = async (method: string, path: string, body?: unknown) => {
-    const res = await fetch(`${api}${path}`, {
-      method,
-      headers: { 'content-type': 'application/json', origin: URLS.web, cookie: owner },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    })
-    if (!res.ok) throw new Error(`${method} ${path}: HTTP ${res.status} ${await res.text()}`)
-    return res.status === 204 ? null : res.json()
-  }
-  const list: unknown = await call('GET', '/members')
-  const members =
-    typeof list === 'object' && list !== null && 'members' in list && Array.isArray(list.members)
-      ? list.members.filter(
-          (m: unknown): m is { id: string; email: string } =>
-            typeof m === 'object' &&
-            m !== null &&
-            'id' in m &&
-            typeof m.id === 'string' &&
-            'email' in m &&
-            typeof m.email === 'string',
-        )
-      : []
-  const id = (email: string) => {
-    const found = members.find((m) => m.email === email)
-    if (!found) throw new Error(`${email} is not in ${project.slug}`)
-    return found.id
-  }
+function mondayOfThisWeek(): string {
   const monday = new Date()
   monday.setUTCHours(0, 0, 0, 0)
   monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
-  await call('PUT', '/triage-rotation', {
-    memberIds: [id(SEED.owner.email), id(SEED.member.email)],
-    startsOn: monday.toISOString(),
-  })
-  await call('POST', '/triage/assign', {
-    kind: 'flaky',
-    key: 'settings/billing',
-    assigneeId: id(SEED.member.email),
-  })
+  return monday.toISOString()
 }
 
-/** One statement against the dev database, through the Postgres container. */
+/** Looks, settings, review rules, the triage rotation and pins of one project. */
+async function configureProject(p: SeedProject, world: World): Promise<void> {
+  const actor = workspaceOf(p.workspace).owner
+  const base = projectPath(p)
+  await call(actor, 'PATCH', `${base}/appearance`, { color: p.color, icon: p.icon })
+  // Builds up to three months old stay until the seed's data is wiped.
+  await call(actor, 'PATCH', `${base}/settings`, {
+    retentionDays: 365,
+    ...(p.slug === SEED.project.slug ? { reviewTargetHours: 48 } : {}),
+  })
+  for (const rule of p.rules) {
+    // eslint-disable-next-line no-await-in-loop -- rules are ordered: the first match wins
+    await call(actor, 'POST', `${base}/rules`, {
+      kind: rule.kind,
+      pattern: rule.pattern,
+      reviewerIds: rule.reviewers.map((r) => idOf(r, world)),
+    })
+  }
+  if (p.rotation.length > 0) {
+    await call(actor, 'PUT', `${base}/triage-rotation`, {
+      memberIds: p.rotation.map((m) => idOf(m, world)),
+      startsOn: mondayOfThisWeek(),
+    })
+  }
+  await Promise.all(
+    p.pinnedBy.map((who) =>
+      call(who, 'PUT', `/workspaces/${p.workspace}/pinned-projects/${p.slug}`),
+    ),
+  )
+}
+
+// ---------------------------------------------------------------------------------------------
+// Builds: the real CLI upload from a git repository per project, then the reviewers' decisions.
+// ---------------------------------------------------------------------------------------------
+
+/** A build the seed made, for the backdating at the end. */
+interface Built {
+  workspace: string
+  step: Step
+  number: number
+}
+
+const gitFor = (repo: string, env: Record<string, string>) => (args: string[]) =>
+  run('git', args, { cwd: repo, env })
+
+async function seedProjectHistory(p: SeedProject, steps: Step[], world: World): Promise<Built[]> {
+  const token = world.tokens.get(p.slug)
+  if (!token) throw new Error(`No token for ${p.slug}`)
+  const repo = join(REPOS, p.slug)
+  await rm(repo, { recursive: true, force: true })
+  await mkdir(repo, { recursive: true })
+  const initial = gitFor(repo, {
+    GIT_AUTHOR_NAME: PEOPLE.owner.name,
+    GIT_AUTHOR_EMAIL: PEOPLE.owner.email,
+    GIT_COMMITTER_NAME: PEOPLE.owner.name,
+    GIT_COMMITTER_EMAIL: PEOPLE.owner.email,
+  })
+  await initial(['init', '-q', '-b', 'main'])
+  await initial(['commit', '-q', '--allow-empty', '-m', 'Initial commit'])
+
+  const built: Built[] = []
+  // Oldest first, so build numbers follow the dates.
+  const ordered = steps.toSorted((a, b) => b.daysAgo - a.daysAgo)
+  for (const step of ordered) {
+    const author = PEOPLE[step.author]
+    const git = gitFor(repo, {
+      GIT_AUTHOR_NAME: author.name,
+      GIT_AUTHOR_EMAIL: author.email,
+      GIT_COMMITTER_NAME: author.name,
+      GIT_COMMITTER_EMAIL: author.email,
+    })
+    // eslint-disable-next-line no-await-in-loop -- each commit branches from the one before on main
+    await git(['checkout', '-q', '-B', step.branch, 'main'])
+    // eslint-disable-next-line no-await-in-loop -- as above
+    await git(['commit', '-q', '--allow-empty', '-m', step.message])
+    // eslint-disable-next-line no-await-in-loop -- as above
+    const sha = await git(['rev-parse', 'HEAD'])
+    if (step.branch === 'main') {
+      // A pull request's ancestry is read from origin/<base>, as in a CI checkout.
+      // eslint-disable-next-line no-await-in-loop -- as above
+      await git(['update-ref', 'refs/remotes/origin/main', 'main'])
+    }
+
+    const dir = join(STATE_DIR, 'seed-screens', `${p.slug}-${sha.slice(0, 12)}`)
+    // eslint-disable-next-line no-await-in-loop -- one build at a time per project
+    await rm(dir, { recursive: true, force: true })
+    // eslint-disable-next-line no-await-in-loop -- as above
+    await writeScreens(dir, step.screens)
+    const ci = {
+      cwd: repo,
+      dir,
+      apiUrl: URLS.server,
+      token,
+      fetch: false,
+      pollIntervalMs: 250,
+      log: (line: string) => log('seed', `${p.slug}: ${line}`),
+      env: {
+        // Buildkite's variables carry the author's name and email, which the server matches to a member.
+        BUILDKITE: 'true',
+        BUILDKITE_BUILD_AUTHOR: author.name,
+        BUILDKITE_BUILD_AUTHOR_EMAIL: author.email,
+        CIRCI_COMMIT: sha,
+        CIRCI_BRANCH: step.branch,
+        ...(step.pr ? { CIRCI_PR_NUMBER: String(step.pr), CIRCI_BASE_BRANCH: 'main' } : {}),
+      },
+      ...(step.name ? { name: step.name } : {}),
+    }
+    let number: number
+    if (step.failed) {
+      // A build whose second CI shard never arrived. The worker fails such a build once its
+      // upload window has passed; the seed can't wait that long, so it records the same
+      // outcome with SQL (see `backdate`).
+      // eslint-disable-next-line no-await-in-loop -- as above
+      const half = await upload({
+        ...ci,
+        wait: false,
+        shard: { index: 0, total: 2, nonce: `seed-${p.slug}-${sha.slice(0, 8)}` },
+      })
+      number = half.build.number
+    } else {
+      // eslint-disable-next-line no-await-in-loop -- as above
+      const result = await upload({ ...ci, wait: true })
+      if (result.exitCode === 2) throw new Error(`Upload of ${p.slug} ${step.branch} failed`)
+      number = result.build.number
+    }
+    built.push({ workspace: p.workspace, step, number })
+    // eslint-disable-next-line no-await-in-loop -- as above
+    await interact(p, step, number, world)
+  }
+  await run('git', ['checkout', '-q', 'main'], { cwd: repo })
+  return built
+}
+
+/** What people did with a build: asked for reviews, commented, decided. */
+async function interact(p: SeedProject, step: Step, number: number, world: World): Promise<void> {
+  const base = `${projectPath(p)}/builds/${number}`
+  for (const reviewer of step.requests) {
+    // eslint-disable-next-line no-await-in-loop -- a few calls, in the order they happened
+    await call(step.author, 'POST', `${base}/review-requests`, {
+      reviewerId: idOf(reviewer, world),
+    })
+  }
+  let lastThread: string | undefined
+  for (const c of step.comments) {
+    // eslint-disable-next-line no-await-in-loop -- replies need their thread's ID
+    const made = await call(c.by, 'POST', `${base}/comments`, {
+      body: c.body,
+      ...(c.snapshot ? { snapshotName: c.snapshot } : {}),
+      ...(c.region ? { region: c.region, regionSide: 'current' } : {}),
+      ...(c.reply && lastThread ? { parentId: lastThread } : {}),
+    })
+    if (!c.reply) lastThread = stringIn(asRecord(made).comment ?? made, 'id')
+  }
+  for (const r of step.reviews) {
+    // eslint-disable-next-line no-await-in-loop -- as above
+    await call(r.by, 'POST', `${base}/review`, {
+      state: r.state,
+      ...(r.reason ? { reason: r.reason } : {}),
+    })
+  }
+}
+
+/** Every project's builds, the projects in parallel (the builds of one follow each other on main). */
+async function seedHistory(world: World): Promise<void> {
+  await Promise.all(PROJECTS.map((p) => configureProject(p, world)))
+  const projects = PROJECTS.filter((p) => HISTORY[p.slug])
+  const results = await Promise.all(
+    projects.map(async (p) => {
+      const built = await seedProjectHistory(p, HISTORY[p.slug] ?? [], world)
+      log('seed', `${p.workspace}/${p.slug}: ${built.length} builds`)
+      return built
+    }),
+  )
+  await backdate(results.flat())
+}
+
+// ---------------------------------------------------------------------------------------------
+// Triage, saved views, webhooks, invitations, domains and a deleted workspace.
+// ---------------------------------------------------------------------------------------------
+
+/** Runs `fn`; a failure is only logged (for extras that depend on what the history produced). */
+async function tolerant(what: string, fn: () => Promise<unknown>): Promise<void> {
+  try {
+    await fn()
+  } catch (error) {
+    log('seed', `Skipped ${what}: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+const view = (who: PersonKey, workspace: string, body: Record<string, unknown>) =>
+  call(who, 'POST', `/workspaces/${workspace}/views`, body)
+
+async function seedActivity(world: World): Promise<void> {
+  // Triage: flaky screens handed to people.
+  const triage = (
+    who: PersonKey,
+    project: string,
+    key: string,
+    assignee: PersonKey,
+    workspace = 'acme',
+  ) =>
+    tolerant(`triage of ${key}`, () =>
+      call(who, 'POST', `/projects/${workspace}/${project}/triage/assign`, {
+        kind: 'flaky',
+        key,
+        assigneeId: idOf(assignee, world),
+      }),
+    )
+  await Promise.all([
+    triage('owner', 'web-app', 'settings/billing', 'member'),
+    triage('owner', 'web-app', 'dashboard/overview', 'priya'),
+    triage('tomas', 'mobile-web', 'm/cart', 'liam'),
+  ])
+
+  // Saved views, which are private to each person.
+  await Promise.all([
+    view('owner', 'acme', { name: 'Needs review', filters: { review: 'pending' }, pinned: true }),
+    view('owner', 'acme', {
+      name: 'Changes requested',
+      filters: { review: 'rejected' },
+      pinned: true,
+    }),
+    view('owner', 'acme', { name: 'Feature branches', filters: { branchContains: 'feat/' } }),
+    view('owner', 'acme', {
+      name: 'Web app failures',
+      project: 'web-app',
+      filters: { status: 'error' },
+    }),
+    view('member', 'acme', { name: 'Needs review', filters: { review: 'pending' }, pinned: true }),
+    view('member', 'acme', { name: 'Failed builds', filters: { status: 'error' } }),
+    view('priya', 'acme', { name: 'Approved', filters: { review: 'approved' } }),
+    view('elena', 'northwind', {
+      name: 'Needs review',
+      filters: { review: 'pending' },
+      pinned: true,
+    }),
+  ])
+
+  // Webhooks, added now so they don't fail against nothing for every build above.
+  await Promise.all([
+    admin([
+      'webhook',
+      'add',
+      '--org',
+      'acme',
+      '--project',
+      'web-app',
+      '--url',
+      'http://localhost:4010/hooks/circi',
+      '--events',
+      'build.completed,build.reviewed',
+      '--json',
+    ]),
+    admin([
+      'webhook',
+      'add',
+      '--org',
+      'acme',
+      '--project',
+      'api',
+      '--url',
+      'http://localhost:4010/hooks/chat-bridge',
+      '--events',
+      'build.reviewed',
+      '--json',
+    ]),
+  ])
+
+  // Invitations that stay pending (better-auth's own endpoint, which also sends the email).
+  for (const w of WORKSPACES) {
+    const workspaceId = world.workspaceIds.get(w.slug)
+    for (const invite of w.invitations ?? []) {
+      // eslint-disable-next-line no-await-in-loop -- a single invitation
+      await call(w.owner, 'POST', '/auth/organization/invite-member', {
+        email: invite.email,
+        role: invite.role,
+        organizationId: workspaceId,
+      })
+    }
+  }
+
+  // A claimed email domain. Verifying it needs a DNS record, so the seed marks it verified.
+  for (const w of WORKSPACES) {
+    if (!w.domain) continue
+    // eslint-disable-next-line no-await-in-loop -- one domain per workspace
+    await call(w.owner, 'POST', `/workspaces/${w.slug}/domains`, { domain: w.domain })
+    // eslint-disable-next-line no-await-in-loop -- as above
+    await sql(
+      `update workspace_domains set verified_at = now() - interval '12 days' ` +
+        `where domain = ${quote(w.domain)} and verified_at is null`,
+    )
+  }
+
+  // Older notices were read long ago: only the recent ones are unread in the inbox.
+  await sql(
+    `update notifications set read_at = created_at + interval '3 hours' ` +
+      `where read_at is null and created_at < now() - interval '7 days'`,
+  )
+
+  // Deleted last: its owner deletes it with its address typed in, as the dashboard asks.
+  for (const w of WORKSPACES.filter((x) => x.deleted)) {
+    // eslint-disable-next-line no-await-in-loop -- one workspace
+    await call(w.owner, 'DELETE', `/workspaces/${w.slug}`, { confirm: w.slug })
+  }
+  await sql(
+    `update workspace_deletions set deleted_at = now() - interval '9 days' ` +
+      `where workspace_id in (select id from workspace where slug = 'old-labs')`,
+  )
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dates. Everything above happened within a minute, so the history is moved back with SQL.
+// ---------------------------------------------------------------------------------------------
+
+const quote = (text: string) => `'${text.replaceAll("'", "''")}'`
+const DAY_SECONDS = 86_400
+
+/**
+ * Spreads the builds over the last three months: each build's own timestamps (the ones Insights
+ * and the date filters read: `completed_at`, which falls back to `created_at`), its reviews (the
+ * time to a decision), its comments, and what came with it (screenshots, review requests,
+ * inbox notices). A failed build is marked failed here (see `seedProjectHistory`).
+ */
+async function backdate(built: Built[]): Promise<void> {
+  const rows = built.map((b) => {
+    const first = b.step.reviews[0]
+    return `(${quote(b.workspace)}, ${quote(b.step.project)}, ${b.number}::int, ${Math.round(b.step.daysAgo * DAY_SECONDS)}::int, ${b.step.failed === true}::boolean, ${first ? `${first.hours}::numeric` : 'null::numeric'})`
+  })
+  const commentRows = built.flatMap((b) =>
+    b.step.comments.map(
+      (c, i) =>
+        `(${quote(b.workspace)}, ${quote(b.step.project)}, ${b.number}::int, ${i + 1}::int, ${c.hours}::numeric)`,
+    ),
+  )
+  await sql(
+    [
+      `create temp table seed_builds as
+        select b.id as build_id, v.ws, v.slug, v.num, v.failed, v.hours,
+          now() - v.secs * interval '1 second' as ready,
+          now() - v.secs * interval '1 second' - coalesce(b.completed_at, b.created_at) as delta
+        from (values ${rows.join(', ')}) as v(ws, slug, num, secs, failed, hours)
+        join workspace w on w.slug = v.ws
+        join projects p on p.workspace_id = w.id and p.slug = v.slug
+        join builds b on b.project_id = p.id and b.number = v.num`,
+      // A person's decision lands `hours` after the build was ready; automatic ones with the build.
+      `update reviews r set created_at = case
+          when r.user_id is not null and d.hours is not null then d.ready + d.hours * interval '1 hour'
+          else r.created_at + d.delta end
+        from seed_builds d where r.build_id = d.build_id`,
+      `update snapshot_reviews s set
+          created_at = s.created_at + d.delta + case when s.user_id is not null then coalesce(d.hours, 0) * interval '1 hour' else interval '0' end,
+          superseded_at = s.superseded_at + d.delta + case when s.user_id is not null then coalesce(d.hours, 0) * interval '1 hour' else interval '0' end
+        from seed_builds d where s.build_id = d.build_id`,
+      ...(commentRows.length > 0
+        ? [
+            `create temp table seed_comments as
+              select d.build_id, v.ord, v.hours
+              from (values ${commentRows.join(', ')}) as v(ws, slug, num, ord, hours)
+              join seed_builds d on d.ws = v.ws and d.slug = v.slug and d.num = v.num`,
+            `update comments c set created_at = d.ready + h.hours * interval '1 hour'
+              from (select id, build_id, row_number() over (partition by build_id order by created_at, id) as ord from comments) o
+              join seed_builds d on d.build_id = o.build_id
+              join seed_comments h on h.build_id = o.build_id and h.ord = o.ord
+              where c.id = o.id`,
+          ]
+        : []),
+      `update screenshots x set created_at = x.created_at + d.delta from seed_builds d where x.build_id = d.build_id`,
+      `update screenshot_diffs x set created_at = x.created_at + d.delta from seed_builds d where x.build_id = d.build_id`,
+      `update review_requests q set created_at = q.created_at + d.delta, due_at = q.due_at + d.delta,
+          closed_at = q.closed_at + d.delta
+        from seed_builds d where q.build_id = d.build_id`,
+      `update notifications n set created_at = n.created_at + d.delta + case n.kind
+          when 'build_approved' then coalesce(d.hours, 1) * interval '1 hour'
+          when 'build_rejected' then coalesce(d.hours, 1) * interval '1 hour'
+          when 'mentioned' then interval '2 hours'
+          else interval '0' end
+        from seed_builds d where n.build_id = d.build_id`,
+      `update builds b set created_at = d.ready - interval '90 seconds',
+          finalized_at = case when b.finalized_at is null then null else d.ready - interval '45 seconds' end,
+          completed_at = d.ready
+        from seed_builds d where b.id = d.build_id`,
+      `update builds b set status = 'error', completed_at = d.ready,
+          error_message = 'Timed out waiting for 1 of 2 shard(s): shard 2. The CI job(s) that should have uploaded them probably failed or never ran.'
+        from seed_builds d where b.id = d.build_id and d.failed`,
+    ].join(';\n'),
+  )
+}
+
+/** One statement (or several, in one session) against the dev database, through the Postgres container. */
 function sql(statement: string): Promise<string> {
   return run('docker', [
     'compose',

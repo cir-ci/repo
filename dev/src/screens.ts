@@ -72,23 +72,33 @@ function svg(screen: Screen): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">${parts.join('')}</svg>`
 }
 
+/** Each distinct screen is drawn once, however many builds use it. */
+const rendered = new Map<string, Promise<Buffer>>()
+
+function render(screen: Screen): Promise<Buffer> {
+  const key = JSON.stringify(screen)
+  let png = rendered.get(key)
+  if (!png) {
+    png = sharp(Buffer.from(svg(screen)))
+      .png()
+      .toBuffer()
+    rendered.set(key, png)
+  }
+  return png
+}
+
 /** Writes each screen as `<dir>/<name>.png`. */
 export async function writeScreens(dir: string, screens: Screen[]): Promise<void> {
   await Promise.all(
     screens.map(async (screen) => {
       const file = join(dir, `${screen.name}.png`)
       await mkdir(dirname(file), { recursive: true })
-      await writeFile(
-        file,
-        await sharp(Buffer.from(svg(screen)))
-          .png()
-          .toBuffer(),
-      )
+      await writeFile(file, await render(screen))
     }),
   )
 }
 
-const BLUE = '#3355dd'
+export const BLUE = '#3355dd'
 
 /** The default branch's screens: the baseline every pull request is compared with. */
 export const BASELINE: Screen[] = [
@@ -100,42 +110,67 @@ export const BASELINE: Screen[] = [
   { name: 'settings/billing', accent: BLUE, sidebar: 200, cards: 3, columns: 1 },
 ]
 
-/** A pull request with every kind of change: changed, added, removed and unchanged screens. */
-export const REDESIGN: Screen[] = [
-  { name: 'home', accent: '#7a3ddb', cards: 6 },
-  { name: 'pricing', accent: BLUE, cards: 4, columns: 4 },
-  { name: 'dashboard/overview', accent: BLUE, sidebar: 200, cards: 4, columns: 2 },
-  { name: 'settings/profile', accent: BLUE, sidebar: 200, cards: 2, columns: 1, buttonX: 0 },
-  { name: 'settings/billing', accent: BLUE, sidebar: 200, cards: 3, columns: 1 },
-  { name: 'onboarding/welcome', accent: BLUE, cards: 2, columns: 2, banner: '#ffd166' },
-]
+/** Pages called `names`, drawn in one accent, each a little different from the next. */
+export function pagesOf(accentColor: string, names: string[]): Screen[] {
+  return names.map((name, i) => ({
+    name,
+    accent: accentColor,
+    cards: 1 + ((i * 2) % 6),
+    columns: 1 + ((i + 1) % 3),
+    ...(i % 3 === 2 ? { sidebar: 200 } : {}),
+  }))
+}
 
-/** A pull request that changes nothing visible: passes without review. */
-export const NO_CHANGES: Screen[] = BASELINE
-
-/** A pull request with one small change, which gets rejected in the seed. */
-export const BANNER: Screen[] = BASELINE.map((s) =>
-  s.name === 'dashboard/overview' ? Object.assign({}, s, { banner: '#ef476f' }) : s,
-)
-
-/**
- * Five builds on main where two screens keep changing back and forth (a dashboard banner that comes
- * and goes, a billing page whose button jumps sides): each keeps returning to an image it already had, so Triage lists them as flaky.
- */
-export const FLAKY_RUNS: Screen[][] = [0, 1, 2, 3, 4].map((run) =>
-  BASELINE.map((s) => {
-    if (s.name === 'dashboard/overview') {
-      return run % 2 === 0 ? Object.assign({}, s, { banner: '#06d6a0' }) : s
-    }
-    if (s.name === 'settings/billing')
-      return run % 2 === 0 ? Object.assign({}, s, { buttonX: 0 }) : s
-    return s
-  }),
-)
-
-/** A first Storybook build on main: nothing to compare with yet, so Triage lists "No baseline". */
+/** A named build in the web app that has nothing to compare with yet, so Triage lists "No baseline". */
 export const STORYBOOK: Screen[] = [
   { name: 'storybook/button', accent: '#ef476f', cards: 3 },
   { name: 'storybook/card', accent: '#ef476f', cards: 2, columns: 2 },
   { name: 'storybook/modal', accent: '#ef476f', cards: 1, columns: 1, banner: '#118ab2' },
 ]
+
+/** What a commit does to the pages. */
+export type Change = (screens: Screen[]) => Screen[]
+
+const on =
+  (name: string, patch: (s: Screen) => Screen): Change =>
+  (screens) =>
+    screens.map((s) => (s.name === name ? patch(s) : s))
+
+/** No visible change. */
+export const same: Change = (screens) => screens
+
+/** A banner across the page; `undefined` takes it away again. */
+export const banner = (name: string, color: string | undefined): Change =>
+  on(name, (s) => {
+    const { banner: _old, ...rest } = s
+    return color ? { ...rest, banner: color } : rest
+  })
+
+/** The primary button sits at the left (`true`) or at the right again. */
+export const buttonLeft = (name: string, left: boolean): Change =>
+  on(name, (s) => {
+    const { buttonX: _old, ...rest } = s
+    return left ? { ...rest, buttonX: 0 } : rest
+  })
+
+export const accent = (name: string, color: string): Change =>
+  on(name, (s) => ({ ...s, accent: color }))
+
+export const cards = (name: string, count: number, columns?: number): Change =>
+  on(name, (s) => ({ ...s, cards: count, ...(columns ? { columns } : {}) }))
+
+/** A page that wasn't there before. */
+export const addPage =
+  (screen: Screen): Change =>
+  (screens) => [...screens.filter((s) => s.name !== screen.name), screen]
+
+export const removePage =
+  (name: string): Change =>
+  (screens) =>
+    screens.filter((s) => s.name !== name)
+
+/** Several changes, one after the other. */
+export const together =
+  (...changes: Change[]): Change =>
+  (screens) =>
+    changes.reduce((current, change) => change(current), screens)
