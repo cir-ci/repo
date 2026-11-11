@@ -72,12 +72,12 @@ describe('SuggestTextarea', () => {
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     expect(onPick).not.toHaveBeenCalled()
     await userEvent.keyboard('{Enter}')
-    expect(onPick).toHaveBeenLastCalledWith('p1')
+    await expect.poll(() => onPick).toHaveBeenLastCalledWith('p1')
 
     await userEvent.keyboard('@')
     await expect.element(page.getByRole('option', { name: 'Person 0' })).toBeVisible()
     await userEvent.keyboard('{Tab}')
-    expect(onPick).toHaveBeenLastCalledWith('p0')
+    await expect.poll(() => onPick).toHaveBeenLastCalledWith('p0')
   })
 
   it('Esc closes the list and goes no further', async () => {

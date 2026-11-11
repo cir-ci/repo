@@ -53,7 +53,7 @@ describe('CheckedTextField', () => {
     await field().fill('  Acme Inc ')
     expect(onCommit).not.toHaveBeenCalled()
     await check().click()
-    expect(onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
+    await expect.poll(() => onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
   })
 
   it('commits on Enter', async () => {
@@ -61,7 +61,7 @@ describe('CheckedTextField', () => {
     await renderPage(<Harness onCommit={onCommit} />)
     await field().fill('Acme Inc')
     await userEvent.keyboard('{Enter}')
-    expect(onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
+    await expect.poll(() => onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
   })
 
   it('commits nothing when Enter is pressed on unchanged text', async () => {
@@ -99,7 +99,7 @@ describe('CheckedTextField', () => {
     await field().fill('Acme Inc')
     reset.mockClear()
     await userEvent.keyboard('{Escape}')
-    expect(reset).toHaveBeenCalled()
+    await expect.poll(() => reset).toHaveBeenCalled()
   })
 
   it('refuses text that validate rejects, shows its message and sends nothing', async () => {
@@ -115,7 +115,7 @@ describe('CheckedTextField', () => {
     await field().fill('Acme Inc')
     await expect.element(page.getByText('No bangs')).not.toBeInTheDocument()
     await userEvent.keyboard('{Enter}')
-    expect(onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
+    await expect.poll(() => onCommit).toHaveBeenCalledExactlyOnceWith('Acme Inc')
   })
 
   it('shows a failed save on the field', async () => {

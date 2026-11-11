@@ -43,7 +43,7 @@ describe('SaveViewDialog', () => {
     await ready
     await dialog().getByRole('textbox', { name: 'Name' }).fill('  Waiting on me ')
     await dialog().getByRole('button', { name: 'Save view' }).click()
-    expect(onSave).toHaveBeenCalledExactlyOnceWith('Waiting on me')
+    await expect.poll(() => onSave).toHaveBeenCalledExactlyOnceWith('Waiting on me')
   })
 
   it("shows the server's refusal under the name", async () => {
@@ -55,6 +55,6 @@ describe('SaveViewDialog', () => {
     const { ready, onCancel } = show()
     await ready
     await dialog().getByRole('button', { name: 'Cancel' }).click()
-    expect(onCancel).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onCancel).toHaveBeenCalledTimes(1)
   })
 })

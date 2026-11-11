@@ -172,7 +172,9 @@ describe("a site's custom domain", () => {
     await page.getByRole('textbox', { name: 'Domain' }).fill(' Storybook.acme.com ')
     await page.getByRole('button', { name: 'Save domain' }).click()
 
-    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ domain: 'Storybook.acme.com' })
+    await expect
+      .poll(() => calls.find((c) => c.method === 'PUT')?.body)
+      .toEqual({ domain: 'Storybook.acme.com' })
     // Saved: it shows as not verified, with the CNAME to add and where it points.
     await expect.element(page.getByText('Not verified')).toBeVisible()
     const record = page.getByLabelText('DNS record')

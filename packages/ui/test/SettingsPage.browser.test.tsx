@@ -44,9 +44,9 @@ describe('SettingsPage', () => {
 
   it('width="wide" allows 1040px', async () => {
     const { container } = await render(<SettingsPage width="wide">x</SettingsPage>)
-    expect(getComputedStyle(found(container.firstElementChild?.firstElementChild)).maxWidth).toBe(
-      '1040px',
-    )
+    await expect
+      .poll(() => getComputedStyle(found(container.firstElementChild?.firstElementChild)).maxWidth)
+      .toBe('1040px')
   })
 
   it('has no header without a title, description or actions', async () => {

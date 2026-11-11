@@ -138,7 +138,7 @@ describe('the viewer', () => {
     await expect.element(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(background()).toContain('conic-gradient')
     await toggle.click()
-    expect(background()).toBe('none')
+    await expect.poll(() => background()).toBe('none')
   })
 
   it('names the control for what a drag draws', async () => {

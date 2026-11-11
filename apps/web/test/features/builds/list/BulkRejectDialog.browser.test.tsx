@@ -49,10 +49,10 @@ describe('BulkRejectDialog', () => {
     const field = page.getByRole('textbox', { name: 'Reason' })
     await field.fill(' Layout broke ')
     await page.getByRole('button', { name: 'Reject', exact: true }).click()
-    expect(onReject).toHaveBeenLastCalledWith('Layout broke')
+    await expect.poll(() => onReject).toHaveBeenLastCalledWith('Layout broke')
     await field.fill('Spacing')
     await userEvent.keyboard('{Control>}{Enter}{/Control}')
-    expect(onReject).toHaveBeenLastCalledWith('Spacing')
+    await expect.poll(() => onReject).toHaveBeenLastCalledWith('Spacing')
   })
 
   it('does not send twice while pending', async () => {
@@ -67,6 +67,6 @@ describe('BulkRejectDialog', () => {
     const { ready, onCancel } = show()
     await ready
     await page.getByRole('button', { name: 'Cancel' }).click()
-    expect(onCancel).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onCancel).toHaveBeenCalledTimes(1)
   })
 })

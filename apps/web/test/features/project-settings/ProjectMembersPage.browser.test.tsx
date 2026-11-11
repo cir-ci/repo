@@ -156,7 +156,7 @@ describe('a project Members page', () => {
     await expect.element(dialog.getByRole('button', { name: 'Add 0 members' })).toBeDisabled()
 
     await userEvent.type(dialog.getByRole('textbox', { name: 'Find a workspace member' }), 'noa')
-    expect(dialog.getByRole('checkbox').elements()).toHaveLength(1)
+    await expect.poll(() => dialog.getByRole('checkbox').elements()).toHaveLength(1)
     await dialog.getByRole('checkbox', { name: /Noa Ben-Ari/ }).click()
     await dialog.getByRole('button', { name: 'Add 1 member' }).click()
 

@@ -24,6 +24,6 @@ describe('SecretBox', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     await render(<SecretBox label="Signing secret" value="whsec_1" />)
     await page.getByRole('button', { name: 'Copy Signing secret' }).click()
-    expect(writeText).toHaveBeenCalledWith('whsec_1')
+    await expect.poll(() => writeText).toHaveBeenCalledWith('whsec_1')
   })
 })

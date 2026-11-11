@@ -46,14 +46,18 @@ describe('DeliveriesTable', () => {
     await expect.element(status).toHaveAttribute('aria-sort', 'ascending')
     expect(events()).toEqual(['build.approved', 'build.reviewed', 'build.completed'])
     await status.getByRole('button').click()
-    expect(events()).toEqual(['build.reviewed', 'build.approved', 'build.completed'])
+    await expect
+      .poll(() => events())
+      .toEqual(['build.reviewed', 'build.approved', 'build.completed'])
     await status.getByRole('button').click()
     await expect.element(status).toHaveAttribute('aria-sort', 'none')
     expect(events()).toEqual(['build.reviewed', 'build.completed', 'build.approved'])
 
     const event = table.getByRole('columnheader', { name: 'Event' })
     await event.getByRole('button').click()
-    expect(events()).toEqual(['build.approved', 'build.completed', 'build.reviewed'])
+    await expect
+      .poll(() => events())
+      .toEqual(['build.approved', 'build.completed', 'build.reviewed'])
 
     // Another column replaces the sort: the oldest delivery first.
     const time = table.getByRole('columnheader', { name: 'Time' })
@@ -61,6 +65,8 @@ describe('DeliveriesTable', () => {
     await expect.element(event).toHaveAttribute('aria-sort', 'none')
     expect(events()).toEqual(['build.approved', 'build.completed', 'build.reviewed'])
     await time.getByRole('button').click()
-    expect(events()).toEqual(['build.reviewed', 'build.completed', 'build.approved'])
+    await expect
+      .poll(() => events())
+      .toEqual(['build.reviewed', 'build.completed', 'build.approved'])
   })
 })

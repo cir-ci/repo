@@ -15,17 +15,17 @@ function Title(props: { parts: (string | undefined)[] }) {
 describe('useDocumentTitle', () => {
   it('lists the parts most specific first and ends with the product name', async () => {
     await renderPage(<Title parts={['Build #2', 'web-app']} />)
-    expect(document.title).toBe('Build #2 · web-app · CirCI')
+    await expect.poll(() => document.title).toBe('Build #2 · web-app · CirCI')
   })
 
   it('skips parts that are missing', async () => {
     await renderPage(<Title parts={[undefined, 'Reviews']} />)
-    expect(document.title).toBe('Reviews · CirCI')
+    await expect.poll(() => document.title).toBe('Reviews · CirCI')
   })
 
   it('is just the product name with no parts', async () => {
     await renderPage(<Title parts={[]} />)
-    expect(document.title).toBe('CirCI')
+    await expect.poll(() => document.title).toBe('CirCI')
   })
 })
 
@@ -50,7 +50,7 @@ describe('useClientLink', () => {
   it('leaves a modified click to the browser (new tab)', async () => {
     const { router } = await renderPage(<Link />)
     await page.getByRole('link', { name: 'go' }).click({ modifiers: ['ControlOrMeta'] })
-    expect(router.state.location.pathname).toBe('/')
+    await expect.poll(() => router.state.location.pathname).toBe('/')
   })
 })
 

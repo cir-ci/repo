@@ -36,7 +36,7 @@ describe('NavItem', () => {
     )
     const button = page.getByRole('button', { name: /Search/ })
     await button.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
     await expect.element(page.getByTestId('icon')).toBeInTheDocument()
     const style = getComputedStyle(button.element())
     expect([style.height, style.fontSize, style.fontWeight]).toEqual(['32px', '14px', '500'])

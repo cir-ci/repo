@@ -28,7 +28,7 @@ describe('Ref', () => {
     await render(<Ref value="3f9c2ab81d0e" display="3f9c2ab" label="SHA" />)
     await expect.element(page.getByText('3f9c2ab')).toBeVisible()
     await page.getByRole('button', { name: 'Copy SHA' }).click()
-    expect(writeText).toHaveBeenCalledWith('3f9c2ab81d0e')
+    await expect.poll(() => writeText).toHaveBeenCalledWith('3f9c2ab81d0e')
   })
 
   it('shows "Copied" for a moment in a status region, then clears it', async () => {

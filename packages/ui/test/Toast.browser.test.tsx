@@ -105,7 +105,7 @@ describe('Toast', () => {
       data: { tone: 'success' },
     })
     await toastNamed('Approved build #148').getByRole('button', { name: 'Undo' }).click()
-    expect(onClick).toHaveBeenCalledOnce()
+    await expect.poll(() => onClick).toHaveBeenCalledOnce()
   })
 
   it('has no action button when there is nothing to undo', async () => {

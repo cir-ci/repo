@@ -61,7 +61,7 @@ describe('ContextMenu', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
-    expect(onDelete).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onDelete).toHaveBeenCalledTimes(1)
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
   })
 
@@ -70,7 +70,7 @@ describe('ContextMenu', () => {
     await render(<Harness onOpen={onOpen} />)
     await page.getByText('Build row').click({ button: 'right' })
     await page.getByRole('menuitem', { name: /Open/ }).click()
-    expect(onOpen).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onOpen).toHaveBeenCalledTimes(1)
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
   })
 

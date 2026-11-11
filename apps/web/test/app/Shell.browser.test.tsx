@@ -551,7 +551,7 @@ describe('Shell, keyboard', () => {
     document.body.append(field)
     field.focus()
     await userEvent.keyboard('gi')
-    expect(router.state.location.pathname).toBe('/')
+    await expect.poll(() => router.state.location.pathname).toBe('/')
     field.remove()
   })
 

@@ -35,7 +35,7 @@ describe('useCopy', () => {
     await render(<Probe />)
     await expect.element(page.getByRole('status')).toHaveTextContent('idle')
     await page.getByRole('button', { name: 'Copy' }).click()
-    expect(writeText).toHaveBeenCalledWith('hello')
+    await expect.poll(() => writeText.mock.calls.map(([t]) => t)).toEqual(['hello'])
     await expect.element(page.getByRole('status')).toHaveTextContent('copied')
     await page.getByRole('button', { name: 'Reset' }).click()
     await expect.element(page.getByRole('status')).toHaveTextContent('idle')

@@ -23,15 +23,17 @@ describe('right-click menu on a screenshot row', () => {
     fakeBuildApi(detail())
     await renderBuild()
     await row(/checkout \/ address/).click({ button: 'right' })
-    expect(menuItemNames()).toEqual([
-      'Open',
-      'Open in new tab',
-      'Copy link',
-      'Copy name',
-      'Approve',
-      'Reject',
-      'View baseline',
-    ])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual([
+        'Open',
+        'Open in new tab',
+        'Copy link',
+        'Copy name',
+        'Approve',
+        'Reject',
+        'View baseline',
+      ])
     await expect
       .element(page.getByRole('menuitem', { name: 'Reject' }))
       .toHaveAttribute('data-tone', 'danger')

@@ -62,7 +62,7 @@ describe('Autocomplete', () => {
     await render(<Harness onPick={onPick} onSubmit={onSubmit} />)
     await page.getByRole('combobox', { name: 'Branch' }).click()
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
-    expect(onPick).toHaveBeenCalledExactlyOnceWith('feature/login')
+    await expect.poll(() => onPick).toHaveBeenCalledExactlyOnceWith('feature/login')
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -70,7 +70,7 @@ describe('Autocomplete', () => {
     const onPick = vi.fn<(value: string) => void>()
     await render(<Harness onPick={onPick} />)
     await page.getByRole('option', { name: 'main' }).click()
-    expect(onPick).toHaveBeenCalledExactlyOnceWith('main')
+    await expect.poll(() => onPick).toHaveBeenCalledExactlyOnceWith('main')
   })
 
   it('submits the typed text with Enter when no suggestion is highlighted', async () => {
@@ -79,7 +79,7 @@ describe('Autocomplete', () => {
     await render(<Harness onPick={onPick} onSubmit={onSubmit} />)
     await page.getByRole('combobox', { name: 'Branch' }).fill('qa')
     await userEvent.keyboard('{Enter}')
-    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('qa')
+    await expect.poll(() => onSubmit).toHaveBeenCalledExactlyOnceWith('qa')
     expect(onPick).not.toHaveBeenCalled()
   })
 })

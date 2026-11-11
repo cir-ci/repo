@@ -224,7 +224,7 @@ describe('ReviewsPage', () => {
     })
     const { router } = await show()
     await page.getByRole('link', { name: /Build #13/ }).click()
-    expect(router.state.location.search).toMatchObject({ review: 'r2' })
+    await expect.poll(() => router.state.location.search).toMatchObject({ review: 'r2' })
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByRole('heading', { name: 'Build #13' })).toBeVisible()
     await expect.element(panel.getByText('Needs review').first()).toBeVisible()
@@ -625,15 +625,17 @@ describe('right-click menu on a review', () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
     await show()
     await rowFor(12).click({ button: 'right' })
-    expect(menuItemNames()).toEqual([
-      'Open review',
-      'Open in new tab',
-      'Copy link',
-      'Approve',
-      'Snooze until next push',
-      'Snooze until tomorrow',
-      'Snooze until next week',
-    ])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual([
+        'Open review',
+        'Open in new tab',
+        'Copy link',
+        'Approve',
+        'Snooze until next push',
+        'Snooze until tomorrow',
+        'Snooze until next week',
+      ])
   })
 
   it('approves that review without selecting it, and Undo is offered', async () => {
@@ -660,7 +662,9 @@ describe('right-click menu on a review', () => {
     })
     await show('/workspaces/acme/reviews?tab=created')
     await page.getByRole('link').filter({ hasText: /Build/ }).first().click({ button: 'right' })
-    expect(menuItemNames()).toEqual(['Open review', 'Open in new tab', 'Copy link', 'Nudge Dana'])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual(['Open review', 'Open in new tab', 'Copy link', 'Nudge Dana'])
     await page.getByRole('menuitem', { name: 'Nudge Dana' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
     await expect.element(toastNamed('Nudged Dana Levi')).toBeVisible()

@@ -35,7 +35,7 @@ describe('RejectDialog', () => {
     const field = dialog().getByRole('textbox', { name: 'Reason (optional)' })
     await expect.element(field).not.toBeRequired()
     await dialog().getByRole('button', { name: 'Reject', exact: true }).click()
-    expect(onReject).toHaveBeenCalledExactlyOnceWith('')
+    await expect.poll(() => onReject).toHaveBeenCalledExactlyOnceWith('')
   })
 
   it('puts the cursor in the Reason box when it opens, so the reason can be typed at once', async () => {
@@ -61,7 +61,7 @@ describe('RejectDialog', () => {
     await ready
     await dialog().getByRole('textbox', { name: 'Reason' }).fill('  Button is clipped  ')
     await dialog().getByRole('button', { name: 'Reject', exact: true }).click()
-    expect(onReject).toHaveBeenCalledExactlyOnceWith('Button is clipped')
+    await expect.poll(() => onReject).toHaveBeenCalledExactlyOnceWith('Button is clipped')
   })
 
   it('sends the reason with the submit shortcut from the text field', async () => {
@@ -69,7 +69,7 @@ describe('RejectDialog', () => {
     await ready
     await dialog().getByRole('textbox', { name: 'Reason' }).fill('Wrong colour')
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
-    expect(onReject).toHaveBeenCalledExactlyOnceWith('Wrong colour')
+    await expect.poll(() => onReject).toHaveBeenCalledExactlyOnceWith('Wrong colour')
   })
 
   it('does not send while a rejection is pending', async () => {
@@ -84,7 +84,7 @@ describe('RejectDialog', () => {
     const { ready, onCancel } = show()
     await ready
     await dialog().getByRole('button', { name: 'Cancel' }).click()
-    expect(onCancel).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onCancel).toHaveBeenCalledTimes(1)
     await userEvent.keyboard('{Escape}')
     await expect.poll(() => onCancel.mock.calls.length).toBe(2)
   })

@@ -142,7 +142,7 @@ describe('ResizeHandle keyboard', () => {
     await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}')
     await expect.element(separator()).toHaveAttribute('aria-valuenow', '500')
     await userEvent.keyboard('{ArrowRight}')
-    expect(spy).toHaveBeenCalledTimes(1)
+    await expect.poll(() => spy).toHaveBeenCalledTimes(1)
   })
 
   it('restores the default with Enter and with a double click', async () => {

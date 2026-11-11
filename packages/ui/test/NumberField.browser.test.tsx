@@ -19,7 +19,7 @@ describe('NumberField', () => {
     const onValueChange = vi.fn<(value: number | null) => void>()
     await render(<NumberField label="Keep for" onValueChange={onValueChange} />)
     await field().fill('42')
-    expect(onValueChange).toHaveBeenLastCalledWith(42, expect.anything())
+    await expect.poll(() => onValueChange).toHaveBeenLastCalledWith(42, expect.anything())
   })
 
   it('steps with the buttons and the arrow keys', async () => {

@@ -110,7 +110,7 @@ describe('Settings, Projects', () => {
       body: 'Create a project to start uploading screenshots.',
     })
     await page.getByRole('button', { name: 'New project' }).click()
-    expect(useOverlayStore.getState().newProjectOpen).toBe(true)
+    await expect.poll(() => useOverlayStore.getState().newProjectOpen).toBe(true)
   })
 
   it('tells a member whom to ask, without a button', async () => {
@@ -135,6 +135,6 @@ describe('Settings, Projects', () => {
   it('offers New project to owners and admins', async () => {
     await show()
     await page.getByRole('button', { name: 'New project' }).click()
-    expect(useOverlayStore.getState().newProjectOpen).toBe(true)
+    await expect.poll(() => useOverlayStore.getState().newProjectOpen).toBe(true)
   })
 })

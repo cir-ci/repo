@@ -64,7 +64,9 @@ describe('CheckboxGroup', () => {
     await expect.element(page.getByRole('group', { name: 'Events' })).toBeVisible()
     await expect.element(page.getByRole('checkbox', { name: 'Build complete' })).toBeChecked()
     await page.getByRole('checkbox', { name: 'Build approved' }).click()
-    expect(onValueChange).toHaveBeenLastCalledWith(['build.complete', 'build.approved'])
+    await expect
+      .poll(() => onValueChange)
+      .toHaveBeenLastCalledWith(['build.complete', 'build.approved'])
   })
 
   it('moves between checkboxes with Tab and toggles with Space', async () => {

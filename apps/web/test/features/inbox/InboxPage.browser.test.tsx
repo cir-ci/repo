@@ -216,7 +216,7 @@ describe('InboxPage', () => {
       .toBe(true)
     expect(router.state.location.pathname).toBe('/inbox')
     await pane.getByRole('link', { name: 'Open build' }).click()
-    expect(router.state.location.pathname).toBe('/acme/web/builds/12')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
   })
 
   it('moves through the list with j and k, and Enter opens the build', async () => {
@@ -518,16 +518,18 @@ describe('right-click menu on an inbox item', () => {
     fakeApi({ 'GET /api/inbox': list([item('n1')]) })
     await show()
     await firstRow().click({ button: 'right' })
-    expect(menuItemNames()).toEqual([
-      'Open',
-      'Open in new tab',
-      'Copy link',
-      'Mark read',
-      'Snooze until tomorrow',
-      'Snooze until next week',
-      'Approve all',
-      'Delete',
-    ])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual([
+        'Open',
+        'Open in new tab',
+        'Copy link',
+        'Mark read',
+        'Snooze until tomorrow',
+        'Snooze until next week',
+        'Approve all',
+        'Delete',
+      ])
   })
 
   it('has no Approve all for a notice without your open request', async () => {

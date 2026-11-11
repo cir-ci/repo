@@ -40,7 +40,9 @@ describe('MemberPicker', () => {
       .element(dialog.getByText("You can't request a review from yourself."))
       .toBeVisible()
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
-    expect(onPick).toHaveBeenCalledWith({ id: 'u2', name: 'Grace Hopper' })
+    await expect
+      .poll(() => onPick.mock.calls.map(([m]) => m))
+      .toEqual([{ id: 'u2', name: 'Grace Hopper' }])
   })
 
   it("offers only the project's members when it is asked for a project", async () => {
@@ -80,6 +82,6 @@ describe('MemberPicker', () => {
     // Grace is in the workspace but not the project: never offered.
     expect(dialog.getByRole('button', { name: /Grace Hopper/ }).elements()).toHaveLength(0)
     await dialog.getByRole('button', { name: /Alan Turing/ }).click()
-    expect(onPick).toHaveBeenCalledWith({ id: 'u3', name: 'Alan Turing' })
+    await expect.poll(() => onPick).toHaveBeenCalledWith({ id: 'u3', name: 'Alan Turing' })
   })
 })

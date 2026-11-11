@@ -304,10 +304,12 @@ describe('MembersPage', () => {
     await page.getByRole('button', { name: 'Actions for Grace Hopper' }).click()
     await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
-    expect(auth.removeMember).toHaveBeenCalledWith({
-      memberIdOrEmail: 'm2',
-      organizationId: 'workspace1',
-    })
+    await expect
+      .poll(() => auth.removeMember)
+      .toHaveBeenCalledWith({
+        memberIdOrEmail: 'm2',
+        organizationId: 'workspace1',
+      })
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
     await expect.element(toastNamed('Member removed')).toBeInTheDocument()
   })
@@ -332,7 +334,7 @@ describe('MembersPage', () => {
     await show()
     await expect.element(page.getByText(/Admin · expires/)).toBeVisible()
     await page.getByRole('button', { name: 'Revoke' }).click()
-    expect(auth.cancelInvitation).toHaveBeenCalledWith({ invitationId: 'i1' })
+    await expect.poll(() => auth.cancelInvitation).toHaveBeenCalledWith({ invitationId: 'i1' })
     await expect.element(toastNamed('Invitation revoked')).toBeInTheDocument()
   })
 
@@ -341,12 +343,14 @@ describe('MembersPage', () => {
     auth.inviteMember.mockResolvedValue({ data: {}, error: null })
     await show()
     await page.getByRole('button', { name: 'Resend' }).click()
-    expect(auth.inviteMember).toHaveBeenCalledWith({
-      email: 'alan@example.test',
-      role: 'admin',
-      organizationId: 'workspace1',
-      resend: true,
-    })
+    await expect
+      .poll(() => auth.inviteMember)
+      .toHaveBeenCalledWith({
+        email: 'alan@example.test',
+        role: 'admin',
+        organizationId: 'workspace1',
+        resend: true,
+      })
     // Said on the page, next to the invitations, and announced.
     await expect
       .element(
@@ -412,11 +416,13 @@ describe('MembersPage', () => {
     await page.getByRole('button', { name: 'Invite', exact: true }).click()
     await page.getByRole('textbox', { name: 'Email' }).fill('new@example.test')
     await page.getByRole('button', { name: 'Send invite' }).click()
-    expect(auth.inviteMember).toHaveBeenCalledWith({
-      email: 'new@example.test',
-      role: 'member',
-      organizationId: 'workspace1',
-    })
+    await expect
+      .poll(() => auth.inviteMember)
+      .toHaveBeenCalledWith({
+        email: 'new@example.test',
+        role: 'member',
+        organizationId: 'workspace1',
+      })
     await vi.waitFor(() => expect(auth.getFullOrganization).toHaveBeenCalledTimes(2))
   })
 

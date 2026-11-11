@@ -201,7 +201,7 @@ describe('ProjectsPage', () => {
     })
     const { router } = await show()
     await page.getByRole('link', { name: /web-app/ }).click()
-    expect(router.state.location.pathname).toBe('/acme/web-app')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
   })
 
   it('offers to create a project when you can, in the header only (the empty state has no button)', async () => {

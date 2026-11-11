@@ -249,14 +249,16 @@ describe('right-click menu on a baseline row', () => {
     })
     const { router } = await open()
     await page.getByRole('link', { name: /checkout\/payment/ }).click({ button: 'right' })
-    expect(menuItemNames()).toEqual([
-      'Open',
-      'Open build #12',
-      'Open in Triage',
-      'Open in new tab',
-      'Copy link',
-      'Copy name',
-    ])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual([
+        'Open',
+        'Open build #12',
+        'Open in Triage',
+        'Open in new tab',
+        'Copy link',
+        'Copy name',
+      ])
     await page.getByRole('menuitem', { name: 'Open in Triage' }).click()
     await vi.waitFor(() =>
       expect(router.state.location.search).toEqual({ item: 'flaky:checkout/payment' }),
@@ -270,12 +272,8 @@ describe('right-click menu on a baseline row', () => {
     })
     await open()
     await page.getByRole('link', { name: /home/ }).click({ button: 'right' })
-    expect(menuItemNames()).toEqual([
-      'Open',
-      'Open build #9',
-      'Open in new tab',
-      'Copy link',
-      'Copy name',
-    ])
+    await expect
+      .poll(() => menuItemNames())
+      .toEqual(['Open', 'Open build #9', 'Open in new tab', 'Copy link', 'Copy name'])
   })
 })

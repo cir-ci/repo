@@ -87,7 +87,9 @@ describe('EmptyState', () => {
       Math.abs(heading.top + heading.height / 2 - (outer.top + outer.height / 2)),
     ).toBeLessThan(40)
     const section = await render(<EmptyState size="section" title="In a card" />)
-    expect(getComputedStyle(section.container.firstElementChild!).paddingTop).toBe('32px')
+    await expect
+      .poll(() => getComputedStyle(section.container.firstElementChild!).paddingTop)
+      .toBe('32px')
   })
 })
 
@@ -99,7 +101,7 @@ describe('NoResults', () => {
       .element(page.getByRole('heading', { name: 'No baseline matches “footer”' }))
       .toBeVisible()
     await userEvent.click(page.getByRole('button', { name: 'Clear search' }))
-    expect(onClear).toHaveBeenCalledOnce()
+    await expect.poll(() => onClear).toHaveBeenCalledOnce()
   })
 
   it('cuts a long query at 24 characters', async () => {
@@ -119,7 +121,7 @@ describe('NoFilterResults', () => {
     await expect.element(page.getByRole('heading', { name: 'No builds match' })).toBeVisible()
     await expect.element(page.getByText('Nothing in web-app fits these filters.')).toBeVisible()
     await userEvent.click(page.getByRole('button', { name: 'Clear filters' }))
-    expect(onClear).toHaveBeenCalledOnce()
+    await expect.poll(() => onClear).toHaveBeenCalledOnce()
   })
 })
 

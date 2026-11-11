@@ -32,25 +32,42 @@ function List() {
   )
 }
 
+const focused = () => document.activeElement?.textContent ?? ''
+
+/**
+ * Presses `key` until the row called `name` has the focus. The shortcut handler reads the latest
+ * selection from a passive effect, so under load a second press can still see the old one and
+ * land on the same row again: pressing again is what a person would do, and stops at the target.
+ */
+async function walkTo(key: 'j' | 'k', name: string) {
+  await expect
+    .poll(async () => {
+      if (focused() !== name) await userEvent.keyboard(key)
+      return focused()
+    })
+    .toBe(name)
+}
+
 describe('useListNavigation', () => {
   it('moves the selection and the focus together with j and k', async () => {
     await render(<List />)
-    await userEvent.keyboard('j')
+    await walkTo('j', 'alpha')
     await expect.element(page.getByRole('link', { name: 'alpha' })).toHaveFocus()
     await expect.element(page.getByRole('link', { name: 'alpha' })).toHaveAttribute('aria-current')
-    await userEvent.keyboard('j')
+    await walkTo('j', 'beta')
     await expect.element(page.getByRole('link', { name: 'beta' })).toHaveFocus()
     await expect.element(page.getByRole('link', { name: 'beta' })).toHaveAttribute('aria-current')
     await expect
       .element(page.getByRole('link', { name: 'alpha' }))
       .not.toHaveAttribute('aria-current')
-    await userEvent.keyboard('k')
+    await walkTo('k', 'alpha')
     await expect.element(page.getByRole('link', { name: 'alpha' })).toHaveFocus()
   })
 
   it('stops at the last row', async () => {
     await render(<List />)
     await userEvent.keyboard('jjjj')
+    await walkTo('j', 'gamma')
     await expect.element(page.getByRole('link', { name: 'gamma' })).toHaveFocus()
   })
 

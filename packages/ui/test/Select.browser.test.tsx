@@ -76,7 +76,7 @@ describe('Select', () => {
       .element(page.getByRole('option', { name: 'Member' }))
       .toHaveAttribute('data-highlighted')
     await userEvent.keyboard('{Enter}')
-    expect(onValueChange).toHaveBeenLastCalledWith('member')
+    await expect.poll(() => onValueChange).toHaveBeenLastCalledWith('member')
     await expect.element(page.getByRole('listbox')).not.toBeInTheDocument()
     await expect.element(trigger).toHaveTextContent('Member')
     await expect.element(trigger).toHaveFocus()

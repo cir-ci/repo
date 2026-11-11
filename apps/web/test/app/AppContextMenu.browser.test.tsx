@@ -153,7 +153,7 @@ describe('the app-level context menu', () => {
     const write = vi.spyOn(clipboard, 'write').mockResolvedValue()
     await page.getByText('Plain text').click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Copy link' }).click()
-    expect(write).toHaveBeenCalledWith(window.location.href)
+    await expect.poll(() => write).toHaveBeenCalledWith(window.location.href)
     await expect.element(page.getByText('Link copied')).toBeVisible()
   })
 

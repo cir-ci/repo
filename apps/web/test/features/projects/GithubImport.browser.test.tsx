@@ -86,7 +86,7 @@ describe('Import from GitHub', () => {
     await expect.element(dialog.getByRole('button', { name: 'Import', exact: true })).toBeDisabled()
 
     await userEvent.type(dialog.getByRole('textbox', { name: 'Find a repository' }), 'web')
-    expect(dialog.getByRole('checkbox').elements()).toHaveLength(1)
+    await expect.poll(() => dialog.getByRole('checkbox').elements()).toHaveLength(1)
     await dialog.getByRole('checkbox', { name: /acme\/web-app/ }).click()
     await dialog.getByRole('button', { name: 'Import 1 project' }).click()
     await expect.element(dialog).not.toBeInTheDocument()

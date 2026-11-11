@@ -27,7 +27,9 @@ describe('WorkspaceSwitcher', () => {
       .poll(() => page.getByRole('menuitem', { name: 'Acme' }).element().querySelector('img'))
       .not.toBeNull()
     // Without one, the letter stays.
-    expect(page.getByRole('menuitem', { name: 'Globex' }).element().querySelector('img')).toBeNull()
+    await expect
+      .poll(() => page.getByRole('menuitem', { name: 'Globex' }).element().querySelector('img'))
+      .toBeNull()
   })
 
   it('is 228px wide with 36px rows, a 20px tile and your role at the right of each workspace', async () => {
@@ -37,12 +39,18 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(menu).toBeVisible()
     await expect.poll(() => menu.element().getBoundingClientRect().width).toBe(228)
     const globexItem = page.getByRole('menuitem', { name: 'Globex' })
-    expect(getComputedStyle(globexItem.element()).height).toBe('36px')
-    expect(globexItem.element().textContent).toContain('Member')
-    expect(page.getByRole('menuitem', { name: 'Acme' }).element().textContent).toContain('Owner')
-    expect(
-      globexItem.element().querySelector('[data-type="workspace"]')?.getBoundingClientRect().width,
-    ).toBe(20)
+    await expect.poll(() => getComputedStyle(globexItem.element()).height).toBe('36px')
+    await expect.poll(() => globexItem.element().textContent).toContain('Member')
+    await expect
+      .poll(() => page.getByRole('menuitem', { name: 'Acme' }).element().textContent)
+      .toContain('Owner')
+    await expect
+      .poll(
+        () =>
+          globexItem.element().querySelector('[data-type="workspace"]')?.getBoundingClientRect()
+            .width,
+      )
+      .toBe(20)
     await expect
       .element(page.getByRole('menuitem', { name: 'Acme' }))
       .toHaveAttribute('aria-current', 'true')
@@ -105,7 +113,7 @@ describe('WorkspaceSwitcher', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(page.getByRole('menu')).toBeVisible()
     await page.getByRole('menuitem', { name: 'Globex' }).click()
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith(globex)
+    await expect.poll(() => onSelect).toHaveBeenCalledExactlyOnceWith(globex)
   })
 
   it('closes with Escape and gives focus back to the button', async () => {
@@ -128,7 +136,7 @@ describe('WorkspaceSwitcher', () => {
     await show({ onCreate }).ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
     await page.getByRole('menuitem', { name: 'New workspace' }).click()
-    expect(onCreate).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onCreate).toHaveBeenCalledTimes(1)
   })
 
   it("opens the current workspace's settings: General, or the hub for an instance admin", async () => {

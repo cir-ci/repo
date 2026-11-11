@@ -154,7 +154,7 @@ describe('creating an account', () => {
       instanceAdmin: true,
     })
     await page.getByRole('button', { name: 'Copy password for lior@acme.dev' }).click()
-    expect(write).toHaveBeenCalledWith('tide-ember-violet-42')
+    await expect.poll(() => write).toHaveBeenCalledWith('tide-ember-violet-42')
     await expect.element(page.getByText('Copied')).toBeVisible()
     await page.getByRole('button', { name: 'Done' }).click()
     await expect.element(page.getByText('tide-ember-violet-42')).not.toBeInTheDocument()

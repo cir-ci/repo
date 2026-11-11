@@ -90,7 +90,7 @@ describe('Menu', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(page.getByRole('menuitem', { name: 'Remove' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
-    expect(onRemove).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onRemove).toHaveBeenCalledTimes(1)
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
     await expect.element(trigger).toHaveFocus()
   })
@@ -100,7 +100,7 @@ describe('Menu', () => {
     await render(<Harness onAccount={onAccount} />)
     await page.getByRole('button', { name: 'Row actions' }).click()
     await page.getByRole('menuitem', { name: /Account/ }).click()
-    expect(onAccount).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onAccount).toHaveBeenCalledTimes(1)
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
   })
 
@@ -150,9 +150,9 @@ describe('Menu', () => {
       />,
     )
     await page.getByRole('button', { name: 'Account menu' }).click()
-    expect(page.getByRole('menuitem').elements()).toHaveLength(1)
+    await expect.poll(() => page.getByRole('menuitem').elements()).toHaveLength(1)
     await page.getByRole('button', { name: 'Dark' }).click()
-    expect(picked).toEqual(['dark'])
+    await expect.poll(() => picked).toEqual(['dark'])
     await expect.element(page.getByRole('menu')).toBeVisible()
     // Arrow keys move inside the control, not between the menu's items.
     page.getByRole('button', { name: 'Light' }).element().focus()
@@ -206,7 +206,7 @@ describe('Menu radio group', () => {
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
     await expect.element(page.getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
-    expect(onChange).toHaveBeenCalledWith('light')
+    await expect.poll(() => onChange).toHaveBeenCalledWith('light')
     await expect
       .element(page.getByRole('menuitemradio', { name: 'Light' }))
       .toHaveAttribute('aria-checked', 'true')

@@ -11,7 +11,7 @@ const ids = () =>
 describe('the command menu on a phone', () => {
   it('lists the Keyboard shortcuts page on a desktop and leaves it out on a phone', async () => {
     await page.viewport(1280, 800)
-    expect(ids()).toContain('shortcuts')
+    await expect.poll(() => ids()).toContain('shortcuts')
     await page.viewport(390, 844)
     expect(ids()).not.toContain('shortcuts')
     expect(ids()).toContain('appearance')

@@ -712,21 +712,23 @@ describe('right-click menu on a triage row', () => {
     await show()
     await expect.element(flakyRow()).toBeVisible()
     await flakyRow().click({ button: 'right' })
-    expect(
-      page
-        .getByRole('menuitem')
-        .elements()
-        .map((el) => el.textContent),
-    ).toEqual([
-      'Open in build',
-      'Open in new tab',
-      'Copy link',
-      'Assign to me',
-      'Snooze until next push',
-      'Snooze until tomorrow',
-      'Snooze until next week',
-      'Dismiss',
-    ])
+    await expect
+      .poll(() =>
+        page
+          .getByRole('menuitem')
+          .elements()
+          .map((el) => el.textContent),
+      )
+      .toEqual([
+        'Open in build',
+        'Open in new tab',
+        'Copy link',
+        'Assign to me',
+        'Snooze until next push',
+        'Snooze until tomorrow',
+        'Snooze until next week',
+        'Dismiss',
+      ])
   })
 
   it('assigns the row to me at once with an Undo toast', async () => {

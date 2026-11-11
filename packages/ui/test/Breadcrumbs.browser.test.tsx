@@ -40,7 +40,7 @@ describe('Breadcrumbs', () => {
     )
     await expect.element(page.getByRole('navigation', { name: 'Path' })).toBeVisible()
     await page.getByRole('link', { name: 'Projects' }).click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick.mock.calls.length).toBe(1)
   })
 
   it('keeps crumbs with the same label apart', async () => {

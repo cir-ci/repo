@@ -70,9 +70,9 @@ describe('SortableHeader', () => {
     await userEvent.tab()
     await expect.element(page.getByRole('button', { name: 'Name' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
-    expect(onSort).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onSort).toHaveBeenCalledTimes(1)
     await userEvent.keyboard(' ')
-    expect(onSort).toHaveBeenCalledTimes(2)
+    await expect.poll(() => onSort).toHaveBeenCalledTimes(2)
   })
 
   it('right-aligns the label of a column of numbers', async () => {
@@ -95,6 +95,6 @@ describe('SortableHeader', () => {
     const header = page.getByRole('columnheader', { name: 'Time' })
     await expect.element(header).toHaveAttribute('aria-sort', 'descending')
     await header.getByRole('button').click()
-    expect(onSort).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onSort).toHaveBeenCalledTimes(1)
   })
 })

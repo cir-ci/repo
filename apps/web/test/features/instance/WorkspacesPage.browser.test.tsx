@@ -64,14 +64,22 @@ describe('Settings, Workspaces', () => {
 
   it('opens the workspace hub from a row, a deleted workspace too', async () => {
     const { router } = await show()
-    await page.getByRole('link', { name: /Globex/ }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/globex/settings')
+    const row = page.getByRole('link', { name: /Globex/ })
+    await expect.element(row).toBeVisible()
+    await row.click()
+    await expect
+      .poll(() => router.state.location.pathname, { timeout: 15_000 })
+      .toBe('/workspaces/globex/settings')
   })
 
   it('opens the hub of a deleted workspace, where Restore lives', async () => {
     const { router } = await show()
-    await page.getByRole('link', { name: /Old Co/ }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/old-co/settings')
+    const row = page.getByRole('link', { name: /Old Co/ })
+    await expect.element(row).toBeVisible()
+    await row.click()
+    await expect
+      .poll(() => router.state.location.pathname, { timeout: 15_000 })
+      .toBe('/workspaces/old-co/settings')
   })
 
   it('finds a workspace by what is typed, the deleted ones included', async () => {

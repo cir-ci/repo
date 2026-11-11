@@ -40,7 +40,7 @@ describe('ConfirmDialog', () => {
     await page.getByRole('button', { name: 'Open' }).click()
     await expect.element(page.getByRole('button', { name: 'Cancel' })).toHaveFocus()
     await page.getByRole('button', { name: 'Delete' }).click()
-    expect(onConfirm).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onConfirm).toHaveBeenCalledTimes(1)
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
   })
 
@@ -84,7 +84,7 @@ describe('ConfirmDialog', () => {
     await input.fill('web-app')
     await expect.element(confirm).toBeEnabled()
     await userEvent.keyboard('{Enter}')
-    expect(onConfirm).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('forgets the typed phrase when closed', async () => {

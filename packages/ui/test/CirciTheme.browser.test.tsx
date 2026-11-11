@@ -51,22 +51,22 @@ const withControl = (mode?: 'light' | 'dark') => (
 describe('CirciTheme', () => {
   it('marks the document with a pinned scheme', async () => {
     await render(<CirciTheme mode="light">x</CirciTheme>)
-    expect(scheme()).toBe('light')
+    await expect.poll(() => scheme()).toBe('light')
   })
 
   it('does not store a pinned scheme, and ignores the stored choice', async () => {
     localStorage.setItem(MODE_STORAGE_KEY, 'light')
     await render(withControl('dark'))
-    expect(scheme()).toBe('dark')
+    await expect.poll(() => scheme()).toBe('dark')
     await page.getByRole('button', { name: 'Light' }).click()
-    expect(scheme()).toBe('dark')
+    await expect.poll(() => scheme()).toBe('dark')
     expect(localStorage.getItem(MODE_STORAGE_KEY)).toBe('light')
   })
 
   it('follows the system, live', async () => {
     const system = fakeSystem('light')
     await render(<CirciTheme>x</CirciTheme>)
-    expect(scheme()).toBe('light')
+    await expect.poll(() => scheme()).toBe('light')
     system.set('dark')
     await vi.waitFor(() => expect(scheme()).toBe('dark'))
     expect(localStorage.length).toBe(0)
@@ -76,7 +76,7 @@ describe('CirciTheme', () => {
     fakeSystem('dark')
     localStorage.setItem(MODE_STORAGE_KEY, 'light')
     await render(withControl())
-    expect(scheme()).toBe('light')
+    await expect.poll(() => scheme()).toBe('light')
     await expect
       .element(page.getByRole('button', { name: 'Light' }))
       .toHaveAttribute('aria-pressed', 'true')
@@ -86,7 +86,7 @@ describe('CirciTheme', () => {
     fakeSystem('light')
     await render(withControl())
     await page.getByRole('button', { name: 'Dark' }).click()
-    expect(scheme()).toBe('dark')
+    await expect.poll(() => scheme()).toBe('dark')
     expect(localStorage.getItem(MODE_STORAGE_KEY)).toBe('dark')
   })
 
@@ -94,9 +94,9 @@ describe('CirciTheme', () => {
     const system = fakeSystem('light')
     localStorage.setItem(MODE_STORAGE_KEY, 'dark')
     await render(withControl())
-    expect(scheme()).toBe('dark')
+    await expect.poll(() => scheme()).toBe('dark')
     await page.getByRole('button', { name: 'System' }).click()
-    expect(localStorage.getItem(MODE_STORAGE_KEY)).toBe('system')
+    await expect.poll(() => localStorage.getItem(MODE_STORAGE_KEY)).toBe('system')
     expect(scheme()).toBe('light')
     system.set('dark')
     await vi.waitFor(() => expect(scheme()).toBe('dark'))
@@ -111,15 +111,15 @@ describe('CirciTheme', () => {
       throw new Error('blocked')
     })
     await render(withControl())
-    expect(scheme()).toBe('light')
+    await expect.poll(() => scheme()).toBe('light')
     await page.getByRole('button', { name: 'Dark' }).click()
-    expect(scheme()).toBe('dark')
+    await expect.poll(() => scheme()).toBe('dark')
   })
 
   it('ignores a stored value that is not a mode', async () => {
     fakeSystem('light')
     localStorage.setItem(MODE_STORAGE_KEY, 'purple')
     await render(<CirciTheme>x</CirciTheme>)
-    expect(scheme()).toBe('light')
+    await expect.poll(() => scheme()).toBe('light')
   })
 })

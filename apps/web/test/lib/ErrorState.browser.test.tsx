@@ -25,7 +25,7 @@ describe('ErrorState', () => {
     )
     await expect.element(page.getByText('boom')).toBeVisible()
     await page.getByRole('button', { name: 'Try again' }).click()
-    expect(onRetry).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onRetry).toHaveBeenCalledTimes(1)
   })
 
   it('offers no retry when there is nothing to retry', async () => {

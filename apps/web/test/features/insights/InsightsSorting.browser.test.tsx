@@ -62,17 +62,17 @@ describe('sortable tables on Insights', () => {
     const projects = card('Projects')
     const project = projects.getByRole('columnheader', { name: 'Project' })
     await userEvent.click(project.getByRole('button'))
-    expect(await firstColumn('Projects')).toEqual(['Docs', 'Web'])
+    await expect.poll(() => firstColumn('Projects')).toEqual(['Docs', 'Web'])
     await userEvent.click(project.getByRole('button'))
-    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    await expect.poll(() => firstColumn('Projects')).toEqual(['Web', 'Docs'])
 
     // The oldest-waiting list: the second build has no author.
     const waiting = card('Oldest waiting builds')
     const author = waiting.getByRole('columnheader', { name: 'Author' })
     await userEvent.click(author.getByRole('button'))
-    expect(await firstColumn('Oldest waiting builds')).toEqual(['#418', '#420'])
+    await expect.poll(() => firstColumn('Oldest waiting builds')).toEqual(['#418', '#420'])
     await userEvent.click(author.getByRole('button'))
-    expect(await firstColumn('Oldest waiting builds')).toEqual(['#418', '#420'])
+    await expect.poll(() => firstColumn('Oldest waiting builds')).toEqual(['#418', '#420'])
   })
 
   it('sorts the lists by a count, and a table can be sorted without moving another', async () => {
@@ -102,17 +102,13 @@ describe('sortable tables on Insights', () => {
     const load = card('Reviewer load')
     const response = load.getByRole('columnheader', { name: 'Median response' })
     await userEvent.click(response.getByRole('button'))
-    expect(await firstColumn('Reviewer load')).toEqual([
-      'Grace Hopper',
-      'Ada Lovelace',
-      'Alan Turing',
-    ])
+    await expect
+      .poll(() => firstColumn('Reviewer load'))
+      .toEqual(['Grace Hopper', 'Ada Lovelace', 'Alan Turing'])
     await userEvent.click(response.getByRole('button'))
-    expect(await firstColumn('Reviewer load')).toEqual([
-      'Ada Lovelace',
-      'Grace Hopper',
-      'Alan Turing',
-    ])
+    await expect
+      .poll(() => firstColumn('Reviewer load'))
+      .toEqual(['Ada Lovelace', 'Grace Hopper', 'Alan Turing'])
   })
 
   it('sorts a chart\'s "View as table" by the figure in a column', async () => {
@@ -132,6 +128,6 @@ describe('sortable tables on Insights', () => {
     )
     await userEvent.click(header.getByRole('button'))
     await userEvent.click(header.getByRole('button'))
-    expect(medians()).toEqual(before)
+    await expect.poll(() => medians()).toEqual(before)
   })
 })

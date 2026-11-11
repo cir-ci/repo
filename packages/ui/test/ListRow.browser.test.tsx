@@ -16,7 +16,7 @@ describe('ListRow', () => {
     )
     await expect.element(page.getByRole('link', { name: 'Link row' })).toHaveAttribute('href', '/a')
     await page.getByRole('button', { name: 'Button row' }).click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
   })
 
   it('hands onClick the click event, so a link row can navigate client-side', async () => {
@@ -29,7 +29,7 @@ describe('ListRow', () => {
       </ListRow>,
     )
     await page.getByRole('link', { name: 'Link row' }).click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
     expect(onClick.mock.calls[0]?.[0].defaultPrevented).toBe(true)
     expect(onClick.mock.calls[0]?.[0].type).toBe('click')
   })
@@ -137,7 +137,7 @@ describe('ListRow title, subtitle and action', () => {
     await page.getByRole('button', { name: /Hovered/ }).hover()
     expect(getComputedStyle(hidden).display).not.toBe('none')
     await page.getByText('Open ↗').click()
-    expect(onAction).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onAction).toHaveBeenCalledTimes(1)
     expect(onClick).not.toHaveBeenCalled()
   })
 

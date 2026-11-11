@@ -12,7 +12,7 @@ describe('Button', () => {
     const button = page.getByRole('button', { name: 'Save' })
     await expect.element(button).toHaveAttribute('type', 'button')
     await button.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
   })
 
   it('carries its variant and size as data attributes and is 24px high when small', async () => {
@@ -30,7 +30,9 @@ describe('Button', () => {
 
   it('is 28px high by default', async () => {
     await render(<Button>Save</Button>)
-    expect(getComputedStyle(page.getByRole('button').element()).height).toBe('28px')
+    await expect
+      .poll(() => getComputedStyle(page.getByRole('button').element()).height)
+      .toBe('28px')
   })
 
   it('does not call onClick when disabled', async () => {
@@ -69,7 +71,7 @@ describe('Button', () => {
       </form>,
     )
     await page.getByRole('button', { name: 'Go' }).click()
-    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onSubmit).toHaveBeenCalledTimes(1)
   })
 
   it('renders the link variant as plain accent text: no box, underline on hover', async () => {
@@ -104,7 +106,7 @@ describe('Button', () => {
     expect(page.getByRole('button').elements()).toHaveLength(0)
     expect(getComputedStyle(link.element()).height).toBe('28px')
     await link.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
   })
   it('toggle and filter are buttons with aria-pressed that flip on click and Space', async () => {
     const onPressedChange = vi.fn<(pressed: boolean) => void>()

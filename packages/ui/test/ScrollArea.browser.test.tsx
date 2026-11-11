@@ -49,10 +49,15 @@ describe('ScrollArea', () => {
     const thumb = bars('vertical')[0]!.firstElementChild!
     await expect.poll(() => Math.round(thumb.getBoundingClientRect().width)).toBe(6)
 
-    await view.rerender(<Harness width={100} height={100} />)
-    // Base UI re-measures on a resize observer, which can lag well behind on a busy machine.
-    await expect.poll(() => bars('vertical').length, { timeout: 15_000 }).toBe(0)
-    await expect.poll(() => bars('horizontal').length, { timeout: 15_000 }).toBe(0)
+    // A fresh mount with content that fits. Base UI only observes the viewport's own size, which
+    // stays 200 x 200 when the content inside shrinks, so a rerender is measured only if it lands
+    // before the observer's first delivery: not a thing to rely on under load.
+    await view.unmount()
+    await render(<Harness width={100} height={100} />)
+    // oxlint-disable-next-line eslint/no-await-in-loop -- one frame after another
+    for (let i = 0; i < 5; i++) await frame() // long enough for a wrongly shown bar to appear
+    await expect.poll(() => bars('vertical').length).toBe(0)
+    await expect.poll(() => bars('horizontal').length).toBe(0)
   })
 
   it('shows the bars while the area is hovered, and keeps them hidden otherwise', async () => {

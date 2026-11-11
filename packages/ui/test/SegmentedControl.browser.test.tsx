@@ -42,7 +42,7 @@ describe('SegmentedControl', () => {
     const onChange = vi.fn<(value: string) => void>()
     await render(<Harness onChange={onChange} />)
     await page.getByRole('button', { name: 'Diff' }).click()
-    expect(onChange).toHaveBeenCalledWith('diff')
+    await expect.poll(() => onChange.mock.calls.map(([v]) => v)).toEqual(['diff'])
     await expect
       .element(page.getByRole('button', { name: 'Diff' }))
       .toHaveAttribute('aria-pressed', 'true')

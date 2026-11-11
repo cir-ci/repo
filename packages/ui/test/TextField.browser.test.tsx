@@ -56,7 +56,7 @@ describe('TextField', () => {
     )
     await page.getByRole('textbox', { name: 'Name' }).fill('Acme')
     await userEvent.keyboard('{Enter}')
-    expect(onSubmit).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onSubmit).toHaveBeenCalledTimes(1)
   })
 
   it('has a 36px large size with an accent border and ring on focus, and a link on the label row', async () => {

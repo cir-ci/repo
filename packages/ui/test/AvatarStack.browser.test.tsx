@@ -85,7 +85,7 @@ describe('AvatarStack', () => {
 
   it('draws no chip for a count of 0', async () => {
     await render(<People more={{ count: 0 }} />)
-    expect(items()).toHaveLength(3)
+    await expect.poll(() => items()).toHaveLength(3)
   })
 
   it('stays still with spread off', async () => {

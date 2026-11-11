@@ -39,6 +39,6 @@ describe('Toggle', () => {
     await expect.element(page.getByRole('button', { name: 'View as table' })).toHaveFocus()
     await userEvent.keyboard(' ')
     await userEvent.keyboard('{Enter}')
-    expect(onChange.mock.calls.map(([pressed]) => pressed)).toEqual([true, false])
+    await expect.poll(() => onChange.mock.calls.map(([pressed]) => pressed)).toEqual([true, false])
   })
 })

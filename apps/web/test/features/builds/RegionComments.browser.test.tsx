@@ -238,7 +238,7 @@ describe('region comments are always on', () => {
     const inside = popover().element()
     const tabbed = async () => {
       await userEvent.tab()
-      expect(inside.contains(document.activeElement)).toBe(true)
+      await expect.poll(() => inside.contains(document.activeElement)).toBe(true)
     }
     // Field, Cancel, Send, and round again.
     await tabbed()

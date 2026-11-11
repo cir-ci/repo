@@ -12,9 +12,9 @@ describe('Link', () => {
     await expect.element(link).toHaveAttribute('href', '/builds')
     // The pointer may still rest where an earlier test hovered: move it away first.
     await userEvent.unhover(link)
-    expect(getComputedStyle(link.element()).textDecorationLine).toBe('none')
+    await expect.poll(() => getComputedStyle(link.element()).textDecorationLine).toBe('none')
     await link.hover()
-    expect(getComputedStyle(link.element()).textDecorationLine).toBe('underline')
+    await expect.poll(() => getComputedStyle(link.element()).textDecorationLine).toBe('underline')
   })
 
   it('forwards its ref and any anchor props', async () => {

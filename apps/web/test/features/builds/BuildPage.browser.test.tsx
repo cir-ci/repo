@@ -334,7 +334,9 @@ describe('the screenshot list', () => {
     fakeBuildApi(detail())
     const { router } = await renderBuild()
     await page.getByRole('link', { name: /checkout \/ address/ }).click()
-    expect(router.state.location.search).toMatchObject({ shot: 'checkout / address' })
+    await expect
+      .poll(() => router.state.location.search)
+      .toMatchObject({ shot: 'checkout / address' })
     await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
     await expect
       .element(page.getByRole('link', { name: /checkout \/ address/ }))
@@ -378,16 +380,16 @@ describe('view modes', () => {
     fakeBuildApi(detail())
     const { router } = await renderBuild()
     await page.getByRole('button', { name: 'Overlay' }).click()
-    expect(router.state.location.search).toMatchObject({ mode: 'overlay' })
+    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'overlay' })
     await expect
       .element(page.getByRole('img', { name: 'checkout / payment in this build' }))
       .toBeVisible()
     await expect.element(page.getByRole('slider', { name: 'Diff layer' })).toBeVisible()
     await page.getByRole('button', { name: 'Diff', exact: true }).click()
-    expect(router.state.location.search).toMatchObject({ mode: 'diff' })
+    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'diff' })
     await expect.element(page.getByRole('img', { name: 'Changed pixels in red' })).toBeVisible()
     await page.getByRole('button', { name: 'Slider' }).click()
-    expect(router.state.location.search).toMatchObject({ mode: 'slider' })
+    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'slider' })
     await expect
       .element(page.getByRole('img', { name: 'checkout / payment in the baseline' }))
       .toBeVisible()

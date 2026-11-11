@@ -882,11 +882,9 @@ describe('row actions', () => {
     await userEvent.type(field(), '148')
     await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
-    expect(open).toHaveBeenCalledWith(
-      `${window.location.origin}/acme/web/builds/148`,
-      '_blank',
-      'noopener',
-    )
+    await expect
+      .poll(() => open)
+      .toHaveBeenCalledWith(`${window.location.origin}/acme/web/builds/148`, '_blank', 'noopener')
     await openMenu()
     await userEvent.type(field(), '148')
     await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
@@ -973,7 +971,7 @@ describe('row actions', () => {
       .toBeVisible()
     // Enter on the empty step sends nothing.
     await userEvent.keyboard('{Enter}')
-    expect(calls.of('POST')).toEqual([])
+    await expect.poll(() => calls.of('POST')).toEqual([])
     await userEvent.type(field(), '#nav is clipped')
     await userEvent.keyboard('{Enter}')
     await expect.element(toast().getByText('Rejected build #148')).toBeVisible()

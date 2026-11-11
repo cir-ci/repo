@@ -155,7 +155,7 @@ describe('ProjectPage', () => {
     api([build(8)])
     const { router } = await show()
     await page.getByRole('link', { name: /Build #8/ }).click()
-    expect(router.state.location.pathname).toBe('/acme/web/builds/8')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/8')
   })
 
   it('leaves Settings out of the header for members', async () => {
@@ -180,7 +180,7 @@ describe('ProjectPage', () => {
       .element(page.getByRole('link', { name: 'Sites' }))
       .toHaveAttribute('href', '/acme/web/sites')
     await page.getByRole('link', { name: 'Settings' }).click()
-    expect(router.state.location.pathname).toBe('/acme/web/settings')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
   })
 
   it('guides the first upload when there are no builds', async () => {
@@ -256,12 +256,12 @@ describe('ProjectPage', () => {
     const fake = api(full)
     const { router } = await show()
     await page.getByRole('link', { name: 'Older builds' }).click()
-    expect(router.state.location.search).toEqual({ before: 51 })
+    await expect.poll(() => router.state.location.search).toEqual({ before: 51 })
     await expect.element(page.getByRole('heading', { name: 'Older builds' })).toBeVisible()
     expect(fake.of('GET').some((c) => c.path === '/api/projects/acme/web')).toBe(true)
     await expect.element(page.getByRole('link', { name: 'Newest builds' })).toBeVisible()
     await page.getByRole('link', { name: 'Newest builds' }).click()
-    expect(router.state.location.search).toEqual({})
+    await expect.poll(() => router.state.location.search).toEqual({})
   })
 
   it('shows no pager for a short list', async () => {

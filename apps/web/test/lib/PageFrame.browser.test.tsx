@@ -39,7 +39,7 @@ describe('PageFrame', () => {
     await expect.element(page.getByText('boom')).toBeVisible()
     expect(page.getByText('The list').elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Try again' }).click()
-    expect(onRetry).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onRetry).toHaveBeenCalledTimes(1)
   })
 
   it("uses the page's own words for a 404", async () => {

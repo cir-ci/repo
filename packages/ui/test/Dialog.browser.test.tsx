@@ -60,7 +60,7 @@ describe('Dialog', () => {
     await opener.click()
     await expect.element(page.getByRole('dialog')).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    await expect.poll(() => onOpenChange).toHaveBeenLastCalledWith(false)
     await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
     await expect.element(opener).toHaveFocus()
   })
@@ -80,7 +80,8 @@ describe('Dialog', () => {
     for (let i = 0; i < 6; i++) {
       // oxlint-disable-next-line eslint/no-await-in-loop -- each Tab depends on the previous one
       await userEvent.tab()
-      expect(dialog.element().contains(document.activeElement)).toBe(true)
+      // oxlint-disable-next-line eslint/no-await-in-loop -- the check follows its Tab
+      await expect.poll(() => dialog.element().contains(document.activeElement)).toBe(true)
     }
   })
 })

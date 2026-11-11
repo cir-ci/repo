@@ -39,7 +39,7 @@ describe('QueryBoundary', () => {
     await expect.element(page.getByText('boom')).toBeVisible()
     expect(page.getByText('stale').elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Try again' }).click()
-    expect(refetch).toHaveBeenCalledTimes(1)
+    await expect.poll(() => refetch).toHaveBeenCalledTimes(1)
   })
 
   it('says "not found" in the page\'s words for a 404', async () => {

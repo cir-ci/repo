@@ -126,7 +126,7 @@ describe('adjusting a comment region you wrote', () => {
     await expect.element(marker()).toBeVisible()
     const dot = () => getComputedStyle(handleOf(marker().element(), 'se'), '::after').opacity
     await userEvent.unhover(marker())
-    expect(dot()).toBe('0')
+    await expect.poll(() => dot()).toBe('0')
     await userEvent.hover(marker(), { position: { x: 100, y: 75 } })
     await vi.waitFor(() => expect(dot()).toBe('1'))
   })

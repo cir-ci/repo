@@ -5,7 +5,7 @@ import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { AddToHomeScreenSheet } from '#features/pwa/AddToHomeScreenSheet.tsx'
 import { InstallBanner } from '#features/pwa/InstallBanner.tsx'
 import { type InstallPromptEvent, usePwaStore } from '#lib/stores/pwa-store.ts'
-import { fixedClock } from '#test/support/clock.ts'
+import { fixedClock, T0 } from '#test/support/clock.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -26,6 +26,7 @@ function installEvent(outcome: 'accepted' | 'dismissed' = 'accepted') {
   return { event, prompt }
 }
 
+const install = () => JSON.parse(localStorage.getItem('circi-pwa-prompts') ?? '{}').install
 const banner = () => page.getByRole('status').filter({ hasText: /Install CirCI/ })
 
 describe('InstallBanner', () => {
@@ -70,9 +71,11 @@ describe('InstallBanner', () => {
       beforeRender: () => usePwaStore.setState({ visits: 3, installEvent: installEvent().event }),
     })
     await page.getByRole('button', { name: 'Not now' }).click()
-    expect(banner().elements()).toHaveLength(0)
-    const stored = JSON.parse(localStorage.getItem('circi-pwa-prompts') ?? '{}')
-    expect(stored.install).toEqual({ count: 1, lastAt: clock.now.getTime() })
+    await expect.poll(() => banner().elements()).toHaveLength(0)
+    await expect.poll(() => install()?.count).toBe(1)
+    // The pinned clock may have moved on a little since the click.
+    expect(install().lastAt).toBeGreaterThanOrEqual(T0.getTime())
+    expect(install().lastAt).toBeLessThanOrEqual(clock.now.getTime())
 
     // Another visit, 13 days later: still hidden; 14 days later: shown again.
     usePwaStore.getState().reset()
@@ -114,7 +117,7 @@ describe('InstallBanner', () => {
       .element(sheet.getByText('Open CirCI from the Home Screen, then turn on notifications'))
       .toBeVisible()
     await sheet.getByRole('button', { name: 'Done' }).click()
-    expect(usePwaStore.getState().sheetOpen).toBe(false)
+    await expect.poll(() => usePwaStore.getState().sheetOpen).toBe(false)
   })
 })
 

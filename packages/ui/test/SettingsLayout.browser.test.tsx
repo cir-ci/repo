@@ -81,9 +81,9 @@ describe('settings form layout', () => {
 
   it('goes by the width of the page, not the window', async () => {
     const { container } = await render(<Page width={899} />)
-    expect(rect(container.querySelector('input')).top).toBeGreaterThanOrEqual(
-      rect(container.querySelector('label')).bottom - 1,
-    )
+    await expect
+      .poll(() => rect(container.querySelector('input')).top)
+      .toBeGreaterThanOrEqual(rect(container.querySelector('label')).bottom - 1)
   })
 
   it('keeps an action row (a lone button) inline: the text takes the room, the button the right edge', async () => {

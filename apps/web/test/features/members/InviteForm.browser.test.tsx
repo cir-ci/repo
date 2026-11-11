@@ -32,11 +32,13 @@ describe('InviteForm', () => {
     await page.getByRole('combobox', { name: 'Role' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
     await page.getByRole('button', { name: 'Send invite' }).click()
-    expect(auth.inviteMember).toHaveBeenCalledWith({
-      email: 'ada@example.test',
-      role: 'admin',
-      organizationId: 'workspace1',
-    })
+    await expect
+      .poll(() => auth.inviteMember)
+      .toHaveBeenCalledWith({
+        email: 'ada@example.test',
+        role: 'admin',
+        organizationId: 'workspace1',
+      })
     await expect.element(toastNamed('Invitation sent to ada@example.test')).toBeVisible()
     expect(onInvited).toHaveBeenCalledTimes(1)
   })

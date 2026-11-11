@@ -81,7 +81,7 @@ describe('filters', () => {
     const { router } = await show()
     await page.getByRole('button', { name: 'Status' }).click()
     await page.getByRole('button', { name: 'Approved' }).click()
-    expect(router.state.location.search).toEqual({ review: 'approved' })
+    await expect.poll(() => router.state.location.search).toEqual({ review: 'approved' })
     await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?review=approved')
     await expect
       .element(page.getByRole('button', { name: 'Status: Approved' }))
@@ -90,13 +90,15 @@ describe('filters', () => {
     await page.getByRole('button', { name: 'Branch' }).click()
     await page.getByRole('combobox', { name: 'Branch' }).fill('main')
     await userEvent.keyboard('{Enter}')
-    expect(router.state.location.search).toEqual({ review: 'approved', branchContains: 'main' })
+    await expect
+      .poll(() => router.state.location.search)
+      .toEqual({ review: 'approved', branchContains: 'main' })
     await expect
       .poll(() => fake.urls)
       .toContain('/api/projects/acme/web?review=approved&branchContains=main')
 
     await page.getByRole('button', { name: 'Clear filters' }).click()
-    expect(router.state.location.search).toEqual({})
+    await expect.poll(() => router.state.location.search).toEqual({})
   })
 
   describe('the branch picker', () => {
@@ -135,7 +137,7 @@ describe('filters', () => {
       const { router } = await show()
       await page.getByRole('button', { name: 'Branch' }).click()
       await page.getByRole('option', { name: 'qa/pr20' }).click()
-      expect(router.state.location.search).toEqual({ branch: 'qa/pr20' })
+      await expect.poll(() => router.state.location.search).toEqual({ branch: 'qa/pr20' })
       await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?branch=qa%2Fpr20')
       await expect.element(page.getByRole('button', { name: 'Branch: qa/pr20' })).toBeVisible()
     })
@@ -147,7 +149,7 @@ describe('filters', () => {
       await expect.element(page.getByRole('option', { name: 'main' })).toBeVisible()
       await page.getByRole('combobox', { name: 'Branch' }).click()
       await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
-      expect(router.state.location.search).toEqual({ branch: 'qa/pr20' })
+      await expect.poll(() => router.state.location.search).toEqual({ branch: 'qa/pr20' })
     })
 
     it('filters by names containing free text that is not a branch, and shows it on the chip', async () => {
@@ -156,7 +158,7 @@ describe('filters', () => {
       await page.getByRole('button', { name: 'Branch' }).click()
       await page.getByRole('combobox', { name: 'Branch' }).fill('pr2')
       await userEvent.keyboard('{Enter}')
-      expect(router.state.location.search).toEqual({ branchContains: 'pr2' })
+      await expect.poll(() => router.state.location.search).toEqual({ branchContains: 'pr2' })
       await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?branchContains=pr2')
       await expect.element(page.getByRole('button', { name: 'Branch: contains pr2' })).toBeVisible()
     })
@@ -168,7 +170,7 @@ describe('filters', () => {
       await expect.element(page.getByRole('option', { name: 'main' })).toBeVisible()
       await page.getByRole('combobox', { name: 'Branch' }).fill('main')
       await userEvent.keyboard('{Enter}')
-      expect(router.state.location.search).toEqual({ branch: 'main' })
+      await expect.poll(() => router.state.location.search).toEqual({ branch: 'main' })
     })
   })
 
@@ -184,7 +186,7 @@ describe('filters', () => {
     await userEvent.keyboard('{Enter}')
     expect(page.getByRole('button', { name: 'Clear author' }).elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Clear status' }).click()
-    expect(router.state.location.search).toEqual({ branchContains: 'main' })
+    await expect.poll(() => router.state.location.search).toEqual({ branchContains: 'main' })
     expect(page.getByRole('button', { name: 'Clear status' }).elements()).toHaveLength(0)
   })
 
@@ -197,7 +199,7 @@ describe('filters', () => {
     })
     expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Clear filters' }).last().click()
-    expect(router.state.location.search).toEqual({})
+    await expect.poll(() => router.state.location.search).toEqual({})
   })
 
   it('keeps the page where it is while the next filter loads', async () => {
@@ -749,7 +751,7 @@ describe('the find field', () => {
     const { router } = await show('/acme/web?q=zzz')
     await expectEmptyState('No build matches “zzz”', { action: 'Clear search' })
     await page.getByRole('button', { name: 'Clear search' }).click()
-    expect(router.state.location.search).toEqual({})
+    await expect.poll(() => router.state.location.search).toEqual({})
   })
 })
 
@@ -880,6 +882,6 @@ describe('right-click menu on a build row', () => {
     const { router } = await show()
     await rowOf(8).click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Filter by branch feature/x' }).click()
-    expect(router.state.location.search).toEqual({ branch: 'feature/x' })
+    await expect.poll(() => router.state.location.search).toEqual({ branch: 'feature/x' })
   })
 })

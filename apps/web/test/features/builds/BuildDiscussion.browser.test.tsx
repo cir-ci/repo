@@ -218,7 +218,14 @@ describe('comments', () => {
 
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     await vi.waitFor(() => expect(api.commentPosts).toEqual([{ body: 'Looks off, @grace' }]))
-    await expect.element(page.getByText('Looks off, @grace', { exact: true })).toBeVisible()
+    // The posted comment first shows the raw body, then the mention resolved to the member's name.
+    await expect
+      .element(
+        page
+          .getByRole('list', { name: 'Comments' })
+          .getByText(/^Looks off, @(grace|Grace Hopper)$/),
+      )
+      .toBeVisible()
   })
 
   it('shows replies, and edit and delete only where they are allowed', async () => {
@@ -271,7 +278,7 @@ describe('replying', () => {
     // Focus leaves the box (a click on the page background); the unsent text still holds the keys.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     await userEvent.keyboard('{Shift>}A{/Shift}')
-    expect(api.reviews).toEqual([])
+    await expect.poll(() => api.reviews).toEqual([])
     await expect.element(page.getByRole('dialog', { name: /Reject/ })).not.toBeInTheDocument()
   })
 })
