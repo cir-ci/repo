@@ -15,7 +15,7 @@ import {
   commitLabelOfVersion,
   findSiteByLabel,
   getSiteFile,
-  listProjectsites,
+  listProjectSites,
   servedCommitForBranch,
 } from '#src/queries/index.ts'
 import {
@@ -136,14 +136,14 @@ describe('publishing and serving', () => {
     const { project } = await seedProject(t.db)
     const first = await publish(project.id)
     await publish(project.id, { commitSha: SHA_B })
-    const [listing] = await listProjectsites(t.db, project.id)
+    const [listing] = await listProjectSites(t.db, project.id)
     expect(listing).toMatchObject({ name: 'docs', kind: 'generic' })
     expect(listing?.versions.map((v) => v.commitSha).toSorted()).toEqual([SHA_A, SHA_B])
     expect(listing?.versions.find((v) => v.commitSha === SHA_A)?.commitLabel).toBe(
       first.commitLabel,
     )
     expect(listing?.branches).toMatchObject([{ branch: 'main', commitSha: SHA_B }])
-    expect(await listProjectsites(t.db, (await seedProject(t.db)).project.id)).toEqual([])
+    expect(await listProjectSites(t.db, (await seedProject(t.db)).project.id)).toEqual([])
   })
 
   it('serves what the seeder inserts, so other packages can rely on it', async () => {

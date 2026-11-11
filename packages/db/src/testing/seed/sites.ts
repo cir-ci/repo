@@ -25,7 +25,7 @@ export async function seedSite(
   n += 1
   const slug = `site${n}`
   const [site] = await db
-    .insert(schema.projectsites)
+    .insert(schema.projectSites)
     .values({
       projectId: input.projectId,
       name: input.name ?? `site-${n}`,

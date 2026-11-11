@@ -8,7 +8,7 @@ import {
   assignTriage,
   autoAssignAllProjects,
   autoAssignTriage,
-  changeProjectsettings,
+  changeProjectSettings,
   dismissTriage,
   failBuild,
   replaceTriageRotation,
@@ -94,7 +94,7 @@ describe('the setting', () => {
 
   it('turned on for the project, gives the waiting items to whoever is on triage and tells them', async () => {
     const { project, owner, first, second, assigned, notices } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     expect(await assigned()).toEqual({
       [keyOf(first)]: [owner.id, true],
       [keyOf(second)]: [owner.id, true],
@@ -111,7 +111,7 @@ describe('the setting', () => {
     const other = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'mobile' })
     await seedBuild(t.db, other.project.id, { branch: 'main', status: 'error' })
     await replaceTriageRotation(t.db, { projectId: other.project.id, memberIds: [mate.id] })
-    await changeProjectsettings(t.db, other.project.id, { assignTriageToOnCall: false })
+    await changeProjectSettings(t.db, other.project.id, { assignTriageToOnCall: false })
     await updateWorkspaceSettings(t.db, workspace.id, { assignTriageToOnCall: true })
     expect((await queue()).map((i) => i.assignee?.id)).toEqual([owner.id, owner.id])
     const otherQueue = await listTriage(t.db, { projectId: other.project.id, now: new Date() })
@@ -121,8 +121,8 @@ describe('the setting', () => {
   it('a project value of null follows the workspace again', async () => {
     const { project, workspace, owner, queue } = await setup()
     await updateWorkspaceSettings(t.db, workspace.id, { assignTriageToOnCall: true })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: false })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: null })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: false })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: null })
     expect((await queue()).map((i) => i.assignee?.id)).toEqual([owner.id, owner.id])
   })
 })
@@ -130,7 +130,7 @@ describe('the setting', () => {
 describe('when it runs', () => {
   it('assigns a new item once the build that makes it fails', async () => {
     const { project, owner, notices } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     const before = (await notices(owner.id)).length
     const build = await seedBuild(t.db, project.id, { branch: 'main' })
     await failBuild(t.db, build.id, 'bad png')
@@ -143,7 +143,7 @@ describe('when it runs', () => {
 
   it('leaves failed builds on other branches alone', async () => {
     const { project } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     const build = await seedBuild(t.db, project.id, { branch: 'feature' })
     await failBuild(t.db, build.id, 'bad png')
     const rows = await t.db
@@ -156,7 +156,7 @@ describe('when it runs', () => {
   it('the handover moves automatic assignments to the new person and leaves a person’s choice', async () => {
     const { project, owner, mate, first, second, ref, assigned, nextWeek } = await setup()
     await assignTriage(t.db, { ...ref(second), assigneeId: owner.id })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     expect(await assigned()).toEqual({
       [keyOf(first)]: [owner.id, true],
       [keyOf(second)]: [owner.id, false],
@@ -173,7 +173,7 @@ describe('when it runs', () => {
 
   it('replacing the rotation hands automatic assignments to whoever is on triage now', async () => {
     const { project, mate, first, second, assigned } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     await replaceTriageRotation(t.db, { projectId: project.id, memberIds: [mate.id] })
     expect(await assigned()).toEqual({
       [keyOf(first)]: [mate.id, true],
@@ -185,7 +185,7 @@ describe('when it runs', () => {
 describe('never overriding a person', () => {
   it('an item somebody unassigned stays unassigned, through new builds and the handover', async () => {
     const { project, first, second, ref, assigned, nextWeek } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     await assignTriage(t.db, { ...ref(first), assigneeId: null })
     await autoAssignTriage(t.db, { projectId: project.id })
     await autoAssignAllProjects(t.db, { now: nextWeek })
@@ -198,7 +198,7 @@ describe('never overriding a person', () => {
 
   it('an item somebody assigned to themselves does not move', async () => {
     const { project, mate, first, ref, assigned, nextWeek } = await setup()
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     await assignTriage(t.db, { ...ref(first), assigneeId: mate.id })
     await autoAssignAllProjects(t.db, { now: nextWeek })
     expect((await assigned(nextWeek))[keyOf(first)]).toEqual([mate.id, false])
@@ -209,7 +209,7 @@ describe('never overriding a person', () => {
     await t.db
       .insert(schema.triageItems)
       .values({ projectId: project.id, kind: 'failed', key: keyOf(first), assigneeId: mate.id })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     await autoAssignAllProjects(t.db, { now: nextWeek })
     expect((await assigned(nextWeek))[keyOf(first)]).toEqual([mate.id, false])
   })
@@ -217,7 +217,7 @@ describe('never overriding a person', () => {
   it('a dismissed item is left out of the queue and not assigned', async () => {
     const { project, first, ref } = await setup()
     await dismissTriage(t.db, ref(first))
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     const [row] = await t.db
       .select()
       .from(schema.triageItems)
@@ -232,7 +232,7 @@ describe('what it skips', () => {
   it('snoozed items stay unassigned', async () => {
     const { project, first, second, ref, assigned } = await setup()
     await snoozeTriage(t.db, { ...ref(first), choice: 'next_week', now: new Date() })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     const items = await assigned()
     expect(items[keyOf(first)]).toBeNull()
     expect(items[keyOf(second)]?.[1]).toBe(true)
@@ -240,7 +240,7 @@ describe('what it skips', () => {
 
   it('does nothing without a rotation', async () => {
     const { project, queue, owner } = await setup({ rotation: false })
-    await changeProjectsettings(t.db, project.id, { assignTriageToOnCall: true })
+    await changeProjectSettings(t.db, project.id, { assignTriageToOnCall: true })
     expect(await autoAssignTriage(t.db, { projectId: project.id })).toBe(0)
     expect(await autoAssignAllProjects(t.db)).toBeGreaterThanOrEqual(0)
     expect((await queue()).map((i) => i.assignee)).toEqual([null, null])

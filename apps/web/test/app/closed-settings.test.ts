@@ -18,7 +18,7 @@ const SRC = join(import.meta.dirname, '../../src')
 const SETTINGS_FILES: RegExp[] = [
   /^features\/(project-settings|workspace-settings|account|instance|members|integrations|regions)\//,
   /^features\/reviews\/settings\//,
-  /^features\/projects\/DeleteProjectsection\.tsx$/,
+  /^features\/projects\/DeleteProjectSection\.tsx$/,
   // The slug editor on the project's General settings page; it only renders there.
   /^features\/projects\/ProjectIdentity\.tsx$/,
   /^features\/sidebar\/SettingsNav\.tsx$/,

@@ -15,7 +15,7 @@ import {
   sidebarProjects,
   PROJECT_SETTINGS_PAGES,
   projectPageOf,
-  projectsections,
+  projectSections,
   projectSettingsKey,
   projectsTabLabel,
   switchWorkspacePath,
@@ -362,7 +362,7 @@ const sidebar = (pinned: string[], triage: Record<string, number> = {}): Sidebar
   canManage: true,
 })
 
-describe('yourProjects, projectsections and projectsTabLabel', () => {
+describe('yourProjects, projectSections and projectsTabLabel', () => {
   const items = [overview('globex', 'portal'), overview('acme', 'web'), overview('acme', 'api')]
 
   it('puts pinned projects first, then the rest A to Z, with the sidebar counts', () => {
@@ -385,7 +385,7 @@ describe('yourProjects, projectsections and projectsTabLabel', () => {
   it('is one run for one workspace, and Pinned plus one run per workspace for several', () => {
     const several = yourProjects(items, { acme: sidebar(['web']), globex: sidebar([]) })
     expect(
-      projectsections(several).map((s) => [
+      projectSections(several).map((s) => [
         s.label,
         s.showWorkspace,
         s.projects.map((t) => t.slug),
@@ -396,10 +396,10 @@ describe('yourProjects, projectsections and projectsTabLabel', () => {
       ['GLOBEX', false, ['portal']],
     ])
     const one = yourProjects([overview('acme', 'web'), overview('acme', 'api')], {})
-    expect(projectsections(one).map((s) => [s.label, s.projects.map((t) => t.slug)])).toEqual([
+    expect(projectSections(one).map((s) => [s.label, s.projects.map((t) => t.slug)])).toEqual([
       [undefined, ['api', 'web']],
     ])
-    expect(projectsections([])).toEqual([])
+    expect(projectSections([])).toEqual([])
   })
 
   it('labels the tab with the project when there is exactly one, else Projects', () => {

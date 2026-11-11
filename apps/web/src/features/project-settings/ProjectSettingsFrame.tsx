@@ -9,7 +9,7 @@ import { settingsQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { memberCountLabel } from '#features/projects/AvatarStack.tsx'
 import {
   settingsCrumbsFor,
-  projectsettingsCrumb,
+  projectSettingsCrumb,
   projectsSettingsCrumb,
   workspaceSettingsCrumb,
 } from '#lib/crumbs.ts'
@@ -59,7 +59,7 @@ export function ProjectSettingsFrame({
       crumbs={settingsCrumbsFor({ slug: workspace, name: workspaceName }, [
         workspaceSettingsCrumb(workspace),
         projectsSettingsCrumb(workspace),
-        ...(page ? [projectsettingsCrumb(workspace, project, projectName)] : []),
+        ...(page ? [projectSettingsCrumb(workspace, project, projectName)] : []),
       ])}
       title={page ?? projectName}
       {...(find ? { find } : {})}

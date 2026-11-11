@@ -14,7 +14,7 @@ import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'
-import { createProject, updateProjectsettings } from '#src/repositories/index.ts'
+import { createProject, updateProjectSettings } from '#src/repositories/index.ts'
 import * as schemaTables from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -352,7 +352,7 @@ describe('getInsights', () => {
       retentionDays: { min: 30, max: 30 },
       flakyAfterChanges: 3,
     })
-    await updateProjectsettings(t.db, other.project.id, {
+    await updateProjectSettings(t.db, other.project.id, {
       reviewTargetHours: null,
       retentionDays: 90,
       flakyAfterChanges: 5,

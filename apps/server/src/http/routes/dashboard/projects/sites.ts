@@ -1,4 +1,4 @@
-import { listFlakyScreenshots, listProjectsites } from '@circi/db/queries'
+import { listFlakyScreenshots, listProjectSites } from '@circi/db/queries'
 import { customDomainTarget } from '@circi/services'
 import { isSiteKindId, KINDS } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
@@ -10,7 +10,7 @@ import { loadProject } from '#http/lib/project-access.ts'
  * `GET /api/projects/:workspace/:project/sites`: the project's hosted sites and their addresses. The
  * dashboard only links out: it never serves a site's files (PLAN §7.6).
  */
-export const dashboardProjectsitesRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
+export const dashboardProjectSitesRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
   deps,
 ) => {
@@ -18,7 +18,7 @@ export const dashboardProjectsitesRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     const { project, canManage } = await loadProject(deps, req)
     const sites = deps.sites
     if (!sites) return { configured: false, dnsTarget: null, canManage, sites: [] }
-    const listing = await listProjectsites(deps.db, project.id)
+    const listing = await listProjectSites(deps.db, project.id)
     return {
       configured: true,
       dnsTarget: customDomainTarget(sites.host),

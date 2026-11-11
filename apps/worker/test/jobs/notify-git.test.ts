@@ -7,7 +7,7 @@ import {
   getCheckRunId,
   getPrCommentId,
 } from '@circi/db/queue'
-import { createBuild, setWorkspaceSettings, updateProjectsettings } from '@circi/db/repositories'
+import { createBuild, setWorkspaceSettings, updateProjectSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
   createTestDb,
@@ -318,7 +318,7 @@ describe('notifyGit', () => {
     expect(fake.checks.at(-1)?.input.report).toMatchObject({
       title: 'Only flaky screenshots changed (1 changed)',
     })
-    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: true })
+    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })
     expect(await conclusion()).toBe('action_required') // the project overrides the workspace
   })
 

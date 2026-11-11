@@ -168,18 +168,18 @@ Do first: change the two loaders, then migrate route files in batches (they are 
   `NavItem.module.css:43`.
 - Bordered list/box surface (`border:1px solid var(--circi-line-subtle); border-radius:8px
   (sometimes 10px); overflow:hidden`) x7 across `MembersPage`, `EmailDomains`, `WorkspaceSso`,
-  `ProjectsitesPage`, `ProjectPage`, `ProjectsPage`, `WebhooksPage`, `Settings.module.css:63 .box`,
-  `Projectsettings.module.css:17 .box`, `IgnoreRegionsPage.module.css:17`, `ListPage.module.css:37`,
+  `ProjectSitesPage`, `ProjectPage`, `ProjectsPage`, `WebhooksPage`, `Settings.module.css:63 .box`,
+  `ProjectSettings.module.css:17 .box`, `IgnoreRegionsPage.module.css:17`, `ListPage.module.css:37`,
   `BuildsBrowser.module.css:6`. Radius is 8px in some and 10px in others for the same thing.
 - Dialog backdrop and viewport identical in `ConfirmDialog.module.css:1,17` and
   `Dialog.module.css:1,17` (13 declarations each).
 - The four feature stylesheets for "settings style" pages define the same vocabulary:
-  `Settings.module.css`, `Admin.module.css`, `Integrations.module.css`, `Projectsettings.module.css`
+  `Settings.module.css`, `Admin.module.css`, `Integrations.module.css`, `ProjectSettings.module.css`
   all contain `.content .section .fields .box .boxRow .boxDanger .row .rowText .footer .list
   .intro` with the same bodies (`.boxRow` x2 identical 7-declaration block, `.box` x3).
 - Smaller: `.groupHeader` x2 (`BaselinesPage`, `TriagePage`), `.textarea` x2 (`Discussion`,
   `BulkRejectDialog`), title typography (15px/600/1.4) x3 in `ConfirmDialog`, `Dialog`,
-  `Projectsettings`, `EmptyState` + `ProjectsEmpty`, the 9-declaration annotation tag in
+  `ProjectSettings`, `EmptyState` + `ProjectsEmpty`, the 9-declaration annotation tag in
   `RegionLayer.module.css:30` and `RegionStage.module.css:31`.
 - Counts of repeated rule kinds: `:focus-visible` 21 ui + 13 web, `outline:` 27 + 15,
   `prefers-reduced-motion` 17 in ui (each transition guarded separately), `border-radius` 47 + 71.
@@ -227,9 +227,9 @@ Total ~450 lines of CSS, plus the clarity of one settings vocabulary.
   `BaselinesPage.tsx:62`, `TriagePage.tsx:180` (detector hits x3, x3, x2, x2).
 - Four frames with the same body:
   `settings/Frame.tsx` (51 lines), `integrations/IntegrationFrame.tsx` (68), `instance/AdminFrame.tsx`
-  (65), `projects/ProjectsettingsFrame.tsx` (82). `Frame` and `IntegrationFrame` have the **same 18
+  (65), `projects/ProjectSettingsFrame.tsx` (82). `Frame` and `IntegrationFrame` have the **same 18
   lines** (error / loading / read-only Banner / children) and the same prop list
-  (`loading, error, onRetry, notFound, readOnlyNote`); `AdminFrame` and `ProjectsettingsFrame`
+  (`loading, error, onRetry, notFound, readOnlyNote`); `AdminFrame` and `ProjectSettingsFrame`
   repeat the error/skeleton ternary again. Only the breadcrumb, the CSS module and one extra
   state (403 for admin) differ.
 - `useLoadingAnnouncement(!data && !error, 'Loading ...')` repeated in 17 pages next to it.
@@ -258,7 +258,7 @@ compute crumbs (and AdminFrame passes `forbidden`). Replaces 20 ternaries (~6 li
 refetching currently decide inline; the render-prop handles `data` only once present, which is
 what all 20 do (`!data`).
 
-Not a trap but keep separate: `ProjectsettingsFrame` also loads settings and sets the document
+Not a trap but keep separate: `ProjectSettingsFrame` also loads settings and sets the document
 title; keep that inside the wrapper, not in the shared frame.
 
 ---
@@ -626,7 +626,7 @@ call. Not pursued further.
   Keeping `@circi/ui` independent matters more than 40 lines.
 - **T6. `contract-check.ts`** is a guard that makes duplication of types safe; do not delete it
   before C8 is actually done.
-- **T7. `ProjectsettingsFrame` vs the other Frames**: it fetches and manages titles; keep as a
+- **T7. `ProjectSettingsFrame` vs the other Frames**: it fetches and manages titles; keep as a
   wrapper around the shared frame rather than forcing the shared one to fetch.
 - **T8. `integrations-generic.ts` (723 lines)** is long because it is the one generic CRUD +
   mapping + links route set for all definitions; splitting it by concern is fine, merging it with

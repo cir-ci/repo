@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { ProjectsitesSettingsPage } from '#features/project-settings/ProjectsitesSettingsPage.tsx'
+import { ProjectSitesSettingsPage } from '#features/project-settings/ProjectSitesSettingsPage.tsx'
 import { IgnoreRegionBaselinePage } from '#features/regions/IgnoreRegionBaselinePage.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -41,7 +41,7 @@ const show = (canManage = true) => {
       body: { configured: true, dnsTarget: 'custom.sites.test', canManage, sites: [SITE] },
     },
   })
-  return renderPage(<ProjectsitesSettingsPage />, {
+  return renderPage(<ProjectSitesSettingsPage />, {
     route: '/$workspace/$project/settings/sites',
     url: '/acme/web/settings/sites',
     announcer: true,

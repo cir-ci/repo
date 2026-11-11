@@ -386,9 +386,9 @@ describe('serving the default branch on the custom domain', () => {
   it('serves a domain only while it is verified, and only for sites; other hosts are untouched', async () => {
     const { siteCookie } = await openDomain()
     await t.db
-      .update(schema.projectsites)
+      .update(schema.projectSites)
       .set({ customDomainVerifiedAt: null })
-      .where(eq(schema.projectsites.slug, slug))
+      .where(eq(schema.projectSites.slug, slug))
     // Not verified: not a site host any more, so the request reaches the ordinary routes.
     const gone = await siteGet('/healthz', { cookie: siteCookie })
     expect(gone.json()).toEqual({ status: 'ok' })

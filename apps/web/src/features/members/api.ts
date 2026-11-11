@@ -120,7 +120,7 @@ export function useSaveWorkspaceSettings(workspace: string) {
         keys.workspaceSettings(workspace),
         // The Storage page shows the default retention beside what is used.
         keys.workspaceStorage(workspace),
-        keys.allProjectsettings(),
+        keys.allProjectSettings(),
       ),
   })
 }

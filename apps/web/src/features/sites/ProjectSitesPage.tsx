@@ -20,10 +20,10 @@ import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { copiedToast } from '#lib/toast.ts'
 
-import { formatSize, projectsitesQuery } from './api.ts'
+import { formatSize, projectSitesQuery } from './api.ts'
 import { CustomDomainSection } from './CustomDomainSection.tsx'
 
-import styles from './ProjectsitesPage.module.css'
+import styles from './ProjectSitesPage.module.css'
 
 const UPLOAD_EXAMPLE =
   'CIRCI_TOKEN=… CIRCI_API_URL=… \\\n  npx circi storybook upload ./storybook-static'
@@ -32,21 +32,21 @@ const UPLOAD_EXAMPLE =
  * A project's hosted sites: each branch's current address, and recent uploads by commit. The
  * dashboard only links out; the sites are served from their own domain and ask you to sign in.
  */
-export function ProjectsitesPage() {
+export function ProjectSitesPage() {
   const { workspace, project } = useParams({ from: '/$workspace/$project/sites' })
   useDocumentTitle('Sites', project)
   const names = useCrumbNames(workspace, project)
   return (
     <>
       <PageHeading crumbs={crumbsFor(names)} title="Sites" />
-      <ProjectsitesBody workspace={workspace} project={project} />
+      <ProjectSitesBody workspace={workspace} project={project} />
     </>
   )
 }
 
 /** The sites themselves, shared by this page and the Sites tab of the project's settings. */
-export function ProjectsitesBody({ workspace, project }: ProjectsitesBody.Props) {
-  const query = useQuery(projectsitesQuery(workspace, project))
+export function ProjectSitesBody({ workspace, project }: ProjectSitesBody.Props) {
+  const query = useQuery(projectSitesQuery(workspace, project))
   const caps = useQuery(capabilitiesQuery())
   const canChangeServer = caps.data?.instanceAdmin === true
 
@@ -144,7 +144,7 @@ export function ProjectsitesBody({ workspace, project }: ProjectsitesBody.Props)
   )
 }
 
-export namespace ProjectsitesBody {
+export namespace ProjectSitesBody {
   export interface Props {
     workspace: string
     project: string

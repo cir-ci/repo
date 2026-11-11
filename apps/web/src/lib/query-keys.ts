@@ -14,10 +14,10 @@ export const keys = {
   /** A project's builds page; `page` is `before`, then the filters and the order (see `projectBuildsQuery`). */
   project: (workspace: string, project: string, ...page: unknown[]) =>
     ['project', workspace, project, ...page] as const,
-  projectsettings: (workspace: string, project: string) =>
+  projectSettings: (workspace: string, project: string) =>
     ['settings', workspace, project] as const,
-  /** Every project's settings (the prefix of `projectsettings`). */
-  allProjectsettings: () => ['settings'] as const,
+  /** Every project's settings (the prefix of `projectSettings`). */
+  allProjectSettings: () => ['settings'] as const,
   projectMembers: (workspace: string, project: string) =>
     ['project-members', workspace, project] as const,
   token: (workspace: string, project: string) => ['token', workspace, project] as const,

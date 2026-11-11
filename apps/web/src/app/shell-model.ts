@@ -166,7 +166,7 @@ export function yourProjects(
 }
 
 /** A run of rows in the Projects sheet; `label` is absent when there is nothing to tell apart. */
-export interface Projectsection {
+export interface ProjectSection {
   key: string
   label?: string
   /** Rows say which workspace each project is in (the Pinned run mixes workspaces). */
@@ -178,13 +178,13 @@ export interface Projectsection {
  * The Projects sheet's rows: with one workspace, one run (pinned first). With several, a Pinned run
  * first (each row says its workspace), then one run per workspace, A to Z, of its other projects.
  */
-export function projectsections(projects: readonly YourProject[]): Projectsection[] {
+export function projectSections(projects: readonly YourProject[]): ProjectSection[] {
   const workspaces = new Set(projects.map((t) => t.workspace.slug))
   if (workspaces.size <= 1)
     return projects.length === 0
       ? []
       : [{ key: 'all', showWorkspace: false, projects: [...projects] }]
-  const sections: Projectsection[] = []
+  const sections: ProjectSection[] = []
   const pinned = projects.filter((t) => t.pinned)
   if (pinned.length > 0)
     sections.push({ key: 'pinned', label: 'Pinned', showWorkspace: true, projects: pinned })

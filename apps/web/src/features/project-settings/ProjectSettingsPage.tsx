@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { useSaveSettings } from '#features/projects/api/index.ts'
-import { DeleteProjectsection } from '#features/projects/DeleteProjectsection.tsx'
+import { DeleteProjectSection } from '#features/projects/DeleteProjectSection.tsx'
 import { ProjectIdentity } from '#features/projects/ProjectIdentity.tsx'
 
 import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
@@ -49,7 +49,7 @@ export function ProjectSettingsPage() {
             saved={saved}
             onSavedChange={setSaved}
           />
-          <DeleteProjectsection
+          <DeleteProjectSection
             workspace={workspace}
             project={project}
             name={name}

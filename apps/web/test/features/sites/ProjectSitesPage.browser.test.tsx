@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { ProjectsitesPage } from '#features/sites/ProjectsitesPage.tsx'
+import { ProjectSitesPage } from '#features/sites/ProjectSitesPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -9,7 +9,7 @@ import { toastNamed } from '#test/support/toast.ts'
 
 const API = 'GET /api/projects/acme/web/sites'
 const open = () =>
-  renderPage(<ProjectsitesPage />, { route: '/$workspace/$project/sites', url: '/acme/web/sites' })
+  renderPage(<ProjectSitesPage />, { route: '/$workspace/$project/sites', url: '/acme/web/sites' })
 
 const list = (sites: unknown[], canManage = true) => ({
   configured: true,
@@ -49,7 +49,7 @@ const site = {
   ],
 }
 
-describe('ProjectsitesPage', () => {
+describe('ProjectSitesPage', () => {
   it('holds a skeleton under the header while loading', async () => {
     fakeFetch({ [API]: pending })
     await open()

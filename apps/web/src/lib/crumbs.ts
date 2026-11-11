@@ -76,7 +76,7 @@ export function projectsSettingsCrumb(workspace: string): Crumb {
 }
 
 /** A project's settings hub, the parent of each of its settings pages. */
-export function projectsettingsCrumb(workspace: string, project: string, name: string): Crumb {
+export function projectSettingsCrumb(workspace: string, project: string, name: string): Crumb {
   return {
     label: name,
     link: { to: '/$workspace/$project/settings', params: { workspace, project } },

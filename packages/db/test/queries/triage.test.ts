@@ -14,7 +14,7 @@ import { countOpenTriage, listTriage } from '#src/queries/index.ts'
 import {
   dismissTriageItem,
   setTriageRotation,
-  updateProjectsettings,
+  updateProjectSettings,
 } from '#src/repositories/index.ts'
 import * as schema from '#src/schema/index.ts'
 
@@ -58,7 +58,7 @@ describe('listTriage', () => {
 
   it('lists flaky, no-baseline and failed items, each with its build', async () => {
     const { project } = await seedProject(t.db)
-    await updateProjectsettings(t.db, project.id, { flakyAfterChanges: 2 })
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 2 })
     // Orphan: the first build had nothing to compare with.
     const first = await mainBuild(project.id, { baselineSource: 'none' })
     await seedDiff(t.db, { buildId: first.id, name: 'pricing', status: 'added' })
@@ -106,7 +106,7 @@ describe('listTriage', () => {
 
   it('gives a flaky item its last builds, a failed one its error, and counts pull requests it blocks', async () => {
     const { project } = await seedProject(t.db)
-    await updateProjectsettings(t.db, project.id, { flakyAfterChanges: 2 })
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 2 })
     const history = []
     for (const [i, image] of ['A', 'B', 'A', 'B'].entries()) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
@@ -263,7 +263,7 @@ describe('countOpenTriage', () => {
     await seedDiff(t.db, { buildId: orphan.id, name: 'docs', status: 'added' })
     await dismissTriageItem(t.db, { projectId: first.project.id, kind: 'no_baseline', key: 'docs' })
     await mainBuild(first.project.id, { status: 'error' })
-    await updateProjectsettings(t.db, first.project.id, { flakyAfterChanges: 2 })
+    await updateProjectSettings(t.db, first.project.id, { flakyAfterChanges: 2 })
     for (const image of ['A', 'B', 'A', 'B']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       const b = await mainBuild(first.project.id, { baselineSource: 'cli' })

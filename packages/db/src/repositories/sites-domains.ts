@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, ne } from 'drizzle-orm'
 
-import { projectsites } from '#schema/index.ts'
+import { projectSites } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
@@ -26,22 +26,22 @@ export async function setSiteCustomDomain(
 ): Promise<setSiteCustomDomain.Result | undefined> {
   const [site] = await db
     .select()
-    .from(projectsites)
-    .where(and(eq(projectsites.projectId, input.projectId), eq(projectsites.slug, input.slug)))
+    .from(projectSites)
+    .where(and(eq(projectSites.projectId, input.projectId), eq(projectSites.slug, input.slug)))
   if (!site) return undefined
   if (site.customDomain === input.domain) {
     return { slug: site.slug, customDomain: input.domain, verifiedAt: site.customDomainVerifiedAt }
   }
   const [taken] = await db
-    .select({ id: projectsites.id })
-    .from(projectsites)
-    .where(and(eq(projectsites.customDomain, input.domain), ne(projectsites.id, site.id)))
+    .select({ id: projectSites.id })
+    .from(projectSites)
+    .where(and(eq(projectSites.customDomain, input.domain), ne(projectSites.id, site.id)))
   if (taken) throw new ConflictError(`${input.domain} is already used by another site`)
   try {
     await db
-      .update(projectsites)
+      .update(projectSites)
       .set({ customDomain: input.domain, customDomainVerifiedAt: null })
-      .where(eq(projectsites.id, site.id))
+      .where(eq(projectSites.id, site.id))
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new ConflictError(`${input.domain} is already used by another site`)
@@ -57,10 +57,10 @@ export async function clearSiteCustomDomain(
   input: { projectId: string; slug: string },
 ): Promise<boolean> {
   const rows = await db
-    .update(projectsites)
+    .update(projectSites)
     .set({ customDomain: null, customDomainVerifiedAt: null })
-    .where(and(eq(projectsites.projectId, input.projectId), eq(projectsites.slug, input.slug)))
-    .returning({ id: projectsites.id })
+    .where(and(eq(projectSites.projectId, input.projectId), eq(projectSites.slug, input.slug)))
+    .returning({ id: projectSites.id })
   return rows.length > 0
 }
 
@@ -70,14 +70,14 @@ export async function markSiteCustomDomainVerified(
   input: { projectId: string; slug: string; domain: string; verified: boolean; now?: Date },
 ): Promise<void> {
   await db
-    .update(projectsites)
+    .update(projectSites)
     .set({ customDomainVerifiedAt: input.verified ? (input.now ?? new Date()) : null })
     .where(
       and(
-        eq(projectsites.projectId, input.projectId),
-        eq(projectsites.slug, input.slug),
-        eq(projectsites.customDomain, input.domain),
-        isNotNull(projectsites.customDomain),
+        eq(projectSites.projectId, input.projectId),
+        eq(projectSites.slug, input.slug),
+        eq(projectSites.customDomain, input.domain),
+        isNotNull(projectSites.customDomain),
       ),
     )
 }

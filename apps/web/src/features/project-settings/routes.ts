@@ -40,8 +40,8 @@ const sitesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$project/settings/sites',
   component: lazyRouteComponent(
-    () => import('./ProjectsitesSettingsPage.tsx'),
-    'ProjectsitesSettingsPage',
+    () => import('./ProjectSitesSettingsPage.tsx'),
+    'ProjectSitesSettingsPage',
   ),
 })
 
@@ -52,7 +52,7 @@ const projectsRoute = createRoute({
   component: lazyRouteComponent(() => import('./ProjectsSettingsPage.tsx'), 'ProjectsSettingsPage'),
 })
 
-export const projectsettingsRoutes = [
+export const projectSettingsRoutes = [
   settingsRoute,
   generalRoute,
   membersRoute,

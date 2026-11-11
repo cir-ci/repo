@@ -22,7 +22,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { memberProjectsQuery } from '#features/projects/api/members.ts'
-import { Projectstack } from '#features/projects/AvatarStack.tsx'
+import { ProjectStack } from '#features/projects/AvatarStack.tsx'
 import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
@@ -223,7 +223,7 @@ export function MembersPage() {
                           <div className={styles.controls}>
                             {memberProjects.data ? (
                               <div className={styles.projects}>
-                                <Projectstack
+                                <ProjectStack
                                   projects={memberProjects.data.projects[m.userId] ?? []}
                                 />
                               </div>

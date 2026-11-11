@@ -8,7 +8,7 @@ import { insightsRoutes } from '#features/insights/routes.ts'
 import { instanceRoutes } from '#features/instance/routes.ts'
 import { integrationsRoutes } from '#features/integrations/routes.ts'
 import { membersRoutes } from '#features/members/routes.ts'
-import { projectsettingsRoutes } from '#features/project-settings/routes.ts'
+import { projectSettingsRoutes } from '#features/project-settings/routes.ts'
 import { projectsRoutes } from '#features/projects/routes.ts'
 import { regionsRoutes } from '#features/regions/routes.ts'
 import { reviewsRoutes } from '#features/reviews/routes.ts'
@@ -42,7 +42,7 @@ const loginRedirect = createRoute({
 /** The route tree: each feature declares its own routes; this only assembles them. */
 const routeTree = rootRoute.addChildren([
   ...projectsRoutes,
-  ...projectsettingsRoutes,
+  ...projectSettingsRoutes,
   ...regionsRoutes,
   ...buildsRoutes,
   ...membersRoutes,

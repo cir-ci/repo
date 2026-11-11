@@ -1,7 +1,7 @@
 import type { ProjectColor } from '@circi/core'
 import { and, asc, count, eq, inArray } from 'drizzle-orm'
 
-import { projects, projectsites } from '#schema/index.ts'
+import { projects, projectSites } from '#schema/index.ts'
 import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
@@ -86,15 +86,15 @@ export async function getSidebar(
     rows.length === 0
       ? []
       : await db
-          .select({ projectId: projectsites.projectId, n: count() })
-          .from(projectsites)
+          .select({ projectId: projectSites.projectId, n: count() })
+          .from(projectSites)
           .where(
             inArray(
-              projectsites.projectId,
+              projectSites.projectId,
               rows.map((r) => r.id),
             ),
           )
-          .groupBy(projectsites.projectId)
+          .groupBy(projectSites.projectId)
   const siteCounts = new Map(siteRows.map((r) => [r.projectId, r.n]))
   const [views, inboxUnread, requests, triage, triageAssigned] = await Promise.all([
     listSavedViews(db, { userId: input.userId, workspaceId: input.workspace.id }),

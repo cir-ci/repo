@@ -6,7 +6,7 @@ import { figmaFramesForSnapshots, getBuildDetail } from '#src/queries/index.ts'
 import {
   createIntegration,
   createIntegrationLink,
-  listProjectsnapshotNames,
+  listProjectSnapshotNames,
 } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
@@ -54,7 +54,7 @@ describe('snapshot names', () => {
       name: 'checkout/cart',
     })
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'home' })
-    expect((await listProjectsnapshotNames(t.db, project.id)).toSorted()).toEqual([
+    expect((await listProjectSnapshotNames(t.db, project.id)).toSorted()).toEqual([
       'checkout/cart',
       'home',
     ])

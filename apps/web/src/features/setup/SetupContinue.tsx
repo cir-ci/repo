@@ -35,7 +35,7 @@ export function SetupContinue() {
       {step === 3 ? (
         <StorageStep onContinue={() => setStep(4)} />
       ) : (
-        <Projectstep onBack={() => setStep(3)} />
+        <ProjectStep onBack={() => setStep(3)} />
       )}
     </AuthPage>
   )
@@ -86,7 +86,7 @@ function StorageStep({ onContinue }: { onContinue: () => void }) {
 }
 
 /** Step 4: the first project and its CI snippet, or skip it. */
-function Projectstep({ onBack }: { onBack: () => void }) {
+function ProjectStep({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: caps } = useQuery(capabilitiesQuery())

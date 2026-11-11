@@ -16,7 +16,7 @@ import { notify } from '#src/notifications/notifications.ts'
  *
  *   - a default-branch build finishes or fails (`autoAssignAfterBuild`, from `completeBuild` and
  *     `failBuild`): new items appear
- *   - the setting is turned on, or the rotation is replaced (`changeProjectsettings`,
+ *   - the setting is turned on, or the rotation is replaced (`changeProjectSettings`,
  *     `updateWorkspaceSettings`, `replaceTriageRotation`)
  *   - every few minutes in the worker (`autoAssignAllProjects`): the handover on Monday, and items
  *     whose snooze ended

@@ -60,7 +60,7 @@ What no test or rule pins: anything about `apps/server` and `apps/worker`. That 
 
 **F1. Routes bypass the application layer for writes.**
 `apps/server/src` imports 129 distinct values from `@circi/db`: 29 queries (fine, read models), 91 repository functions
-and a few others. 42 server files call repository functions. 25 of those are mutating: `createWebhook`, `updateProjectsettings`,
+and a few others. 42 server files call repository functions. 25 of those are mutating: `createWebhook`, `updateProjectSettings`,
 `setWorkspaceSettings`, `createReviewRule`, `addWorkspaceDomain`, `replaceIntegrationCredentials`, `setProjectAppearance`,
 `markFileVerified`, `setParallelTotal`, `setSetting`, and so on. `grep transaction(` in `apps/server` returns 0 and in
 `packages/services/src` 32 (8 files), so every one of those writes is a bare single statement that cannot join an outbox
@@ -324,8 +324,8 @@ internals"). A job handler is a function `(deps: { db, storage, providers, logge
 
 ## 3. Naming conventions
 
-- Use cases are verbs: `createBuild`, `requeueBuild`, `reviewBuild`, `updateProjectsettings`, `connectIntegration`. One exported function per intent;
-  its types are merged into it (`updateProjectsettings.Input`), as CLAUDE.md prescribes.
+- Use cases are verbs: `createBuild`, `requeueBuild`, `reviewBuild`, `updateProjectSettings`, `connectIntegration`. One exported function per intent;
+  its types are merged into it (`updateProjectSettings.Input`), as CLAUDE.md prescribes.
 - File per area under `services/src/<area>/`; file name is the noun or intent (`process.ts`, `bulk.ts`), never `utils.ts` or `helpers.ts`.
 - Repositories: `get*` (one or throws `NotFoundError`), `find*` (one or `undefined`), `list*` (many), `create|insert*`, `update|set*`, `delete|remove*`,
   `record*` (append-only). Queries: `list*`/`get*` only and named after the screen (`listBuildsForProject`).
@@ -431,7 +431,7 @@ one write today) and returns the changed row. Group by area, each agent owns its
 
 | Agent | Routes | New service files | Repository functions |
 | --- | --- | --- | --- |
-| A | `settings.ts`, `rules.ts`, `ignore-regions.ts` | `services/src/projects/settings.ts`, `rules/*`, `ignore-regions.ts` | `updateProjectsettings`, `setProjectAppearance`, `create/update/deleteReviewRule`, `create/deleteWebhook`, `add/removeIgnoreRegion`, `setTriageRotation` |
+| A | `settings.ts`, `rules.ts`, `ignore-regions.ts` | `services/src/projects/settings.ts`, `rules/*`, `ignore-regions.ts` | `updateProjectSettings`, `setProjectAppearance`, `create/update/deleteReviewRule`, `create/deleteWebhook`, `add/removeIgnoreRegion`, `setTriageRotation` |
 | B | `domains.ts`, `workspace-*.ts`, `workspaces.ts` | `services/src/workspaces/*` | `add/removeWorkspaceDomain`, `setWorkspaceSettings`, `setWorkspaceAuthSettings`, `setSetting` |
 | C | `integrations*.ts`, `github-app.ts`, `issue-trackers.ts` | `services/src/integrations/*`, `settings/github-app.ts` | `createIntegration`, `deleteIntegration(Link)`, `replaceIntegrationCredentials`, `setIntegrationAttention` |
 | D | `v1/*`, `argos/*`, `sites` | `services/src/builds/*`, `sites/*` | `markFileVerified`, `setParallelTotal`, `recordPublicUrl`, `createSite*` |

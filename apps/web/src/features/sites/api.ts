@@ -5,7 +5,7 @@ import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { keys } from '#lib/query-keys.ts'
 
-export const projectsitesQuery = (workspace: string, project: string) =>
+export const projectSitesQuery = (workspace: string, project: string) =>
   queryOptions({
     queryKey: keys.sites(workspace, project),
     queryFn: () => getJson<Site.List>(projectPath(workspace, project, 'sites')),

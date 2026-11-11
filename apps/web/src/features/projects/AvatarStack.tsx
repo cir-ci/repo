@@ -36,7 +36,7 @@ export function MemberStack({ count, people }: MemberStack.Props) {
 }
 
 /** A person's projects: the project avatars, then "N projects". */
-export function Projectstack({ projects }: Projectstack.Props) {
+export function ProjectStack({ projects }: ProjectStack.Props) {
   return (
     <span className={styles.root}>
       <ProjectAvatars aria-hidden="true" projects={projects} limit={STACK_LIMIT} overflow={false} />
@@ -53,7 +53,7 @@ export namespace MemberStack {
   }
 }
 
-export namespace Projectstack {
+export namespace ProjectStack {
   export interface Props {
     projects: ReadonlyArray<{
       slug: string

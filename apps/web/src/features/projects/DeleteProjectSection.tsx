@@ -13,12 +13,12 @@ import shared from '#features/project-settings/ProjectSettings.module.css'
  * The danger zone of Project General: deleting the project, after typing `workspace/project` back. Owners
  * and admins only; anyone else sees why it is disabled.
  */
-export function DeleteProjectsection({
+export function DeleteProjectSection({
   workspace,
   project,
   name,
   canManage,
-}: DeleteProjectsection.Props) {
+}: DeleteProjectSection.Props) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState('')
   const remove = useDeleteProject(workspace, project)
@@ -92,7 +92,7 @@ export function DeleteProjectsection({
   )
 }
 
-export namespace DeleteProjectsection {
+export namespace DeleteProjectSection {
   export interface Props {
     workspace: string
     project: string

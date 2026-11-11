@@ -81,7 +81,7 @@ export function useCreateWorkspace() {
 
 export const settingsQuery = (workspace: string, project: string) =>
   queryOptions({
-    queryKey: keys.projectsettings(workspace, project),
+    queryKey: keys.projectSettings(workspace, project),
     queryFn: () => getJson<Project.SettingsResponse>(projectPath(workspace, project, 'settings')),
   })
 
@@ -104,7 +104,7 @@ export function useSaveSettings(workspace: string, project: string) {
       }
       return invalidateAll(
         queryClient,
-        keys.projectsettings(workspace, project),
+        keys.projectSettings(workspace, project),
         keys.project(workspace, project),
         keys.projects(),
         keys.sidebar(workspace),
@@ -123,7 +123,7 @@ export function useAddWebhook(workspace: string, project: string) {
         input,
       ),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: keys.projectsettings(workspace, project) }),
+      queryClient.invalidateQueries({ queryKey: keys.projectSettings(workspace, project) }),
   })
 }
 
@@ -135,7 +135,7 @@ export function useTestWebhook(workspace: string, project: string) {
     mutationFn: (id: string) =>
       post<{ deliveryId: string }>(projectPath(workspace, project, 'webhooks', id, 'test'), {}),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: keys.projectsettings(workspace, project) }),
+      queryClient.invalidateQueries({ queryKey: keys.projectSettings(workspace, project) }),
   })
 }
 
@@ -146,7 +146,7 @@ export function useDeleteWebhook(workspace: string, project: string) {
     mutationFn: (id: string) =>
       send<undefined>('DELETE', projectPath(workspace, project, 'webhooks', id)),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: keys.projectsettings(workspace, project) }),
+      queryClient.invalidateQueries({ queryKey: keys.projectSettings(workspace, project) }),
   })
 }
 
@@ -180,7 +180,7 @@ export function useSaveAppearance(workspace: string, project: string) {
     onSuccess: () =>
       invalidateAll(
         queryClient,
-        keys.projectsettings(workspace, project),
+        keys.projectSettings(workspace, project),
         keys.project(workspace, project),
         keys.projects(),
         keys.sidebar(),
@@ -196,7 +196,7 @@ export function useDeleteProject(workspace: string, project: string) {
     mutationFn: () => send<void>('DELETE', projectPath(workspace, project)),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: keys.project(workspace, project) })
-      queryClient.removeQueries({ queryKey: keys.projectsettings(workspace, project) })
+      queryClient.removeQueries({ queryKey: keys.projectSettings(workspace, project) })
       return invalidateAll(queryClient, keys.projects(), keys.sidebar(), keys.capabilities())
     },
   })
@@ -209,7 +209,7 @@ export function useUnlinkRepository(workspace: string, project: string) {
     meta: { what: 'remove the repository link' },
     mutationFn: () => send<undefined>('DELETE', projectPath(workspace, project, 'github')),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: keys.projectsettings(workspace, project) }),
+      queryClient.invalidateQueries({ queryKey: keys.projectSettings(workspace, project) }),
   })
 }
 

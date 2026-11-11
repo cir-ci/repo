@@ -378,9 +378,9 @@ describe('serving a custom domain', () => {
     expect(await ask(domain)).toBeUndefined()
     expect(await ask('nothing.example.com', owner.id, session.id)).toBeUndefined()
     await t.db
-      .update(schema.projectsites)
+      .update(schema.projectSites)
       .set({ customDomainVerifiedAt: null })
-      .where(eq(schema.projectsites.slug, slug))
+      .where(eq(schema.projectSites.slug, slug))
     expect(await ask(domain, owner.id, session.id)).toBeUndefined()
   })
 })

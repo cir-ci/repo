@@ -59,7 +59,7 @@ export async function updateDiff(
 }
 
 /** Distinct snapshot names the project's builds have uploaded, most recently seen first. */
-export async function listProjectsnapshotNames(
+export async function listProjectSnapshotNames(
   db: Database,
   projectId: string,
   limit = 2000,

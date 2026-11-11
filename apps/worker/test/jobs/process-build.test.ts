@@ -10,7 +10,7 @@ import {
   listBuildScreenshots,
   markFileVerified,
   planUploads,
-  updateProjectsettings,
+  updateProjectSettings,
 } from '@circi/db/repositories'
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
@@ -279,7 +279,7 @@ describe('processBuild', () => {
 
   it('compares a snapshot with its approved version in a default-branch build still waiting on review', async () => {
     const { project, owner } = await seedProject(t.db)
-    await updateProjectsettings(t.db, project.id, { autoApproveDefaultBranch: false })
+    await updateProjectSettings(t.db, project.id, { autoApproveDefaultBranch: false })
     const plain = await png(320, 200)
     const marked = await png(320, 200, { x: 30, y: 30 })
     const other = await png(320, 200, { x: 90, y: 90 })
@@ -320,7 +320,7 @@ describe('processBuild', () => {
 
   it('holds a default-branch build with a baseline when auto-approval is off', async () => {
     const { project, owner } = await seedProject(t.db)
-    await updateProjectsettings(t.db, project.id, { autoApproveDefaultBranch: false })
+    await updateProjectSettings(t.db, project.id, { autoApproveDefaultBranch: false })
     const first = await uploadBuild(
       project.id,
       { commitSha: 'fff0008', branch: 'main' },

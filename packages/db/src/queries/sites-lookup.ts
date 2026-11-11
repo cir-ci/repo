@@ -4,7 +4,7 @@ import {
   files,
   workspace,
   projects,
-  projectsites,
+  projectSites,
   siteHostnames,
   staticSiteFiles,
   staticSites,
@@ -38,14 +38,14 @@ export async function findSiteByLabel(
       versionId: staticSites.id,
       commitSha: staticSites.commitSha,
       entryPath: staticSites.entryPath,
-      site: projectsites,
+      site: projectSites,
       project: projects,
       workspace: workspace,
     })
     .from(siteHostnames)
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
-    .innerJoin(projectsites, eq(projectsites.id, siteHostnames.projectsiteId))
-    .innerJoin(projects, eq(projects.id, projectsites.projectId))
+    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectsiteId))
+    .innerJoin(projects, eq(projects.id, projectSites.projectId))
     .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .where(eq(siteHostnames.label, label))
   if (!row) return undefined
@@ -82,17 +82,17 @@ export async function findSiteByCustomDomain(
       versionId: staticSites.id,
       commitSha: staticSites.commitSha,
       entryPath: staticSites.entryPath,
-      site: projectsites,
+      site: projectSites,
       project: projects,
       workspace: workspace,
     })
-    .from(projectsites)
-    .innerJoin(projects, eq(projects.id, projectsites.projectId))
+    .from(projectSites)
+    .innerJoin(projects, eq(projects.id, projectSites.projectId))
     .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .innerJoin(
       siteHostnames,
       and(
-        eq(siteHostnames.projectsiteId, projectsites.id),
+        eq(siteHostnames.projectsiteId, projectSites.id),
         eq(siteHostnames.linkKind, 'branch'),
         eq(siteHostnames.branch, projects.defaultBranch),
       ),
@@ -100,9 +100,9 @@ export async function findSiteByCustomDomain(
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(
-        eq(projectsites.customDomain, domain),
-        isNotNull(projectsites.customDomainVerifiedAt),
-        isNotNull(projectsites.customDomain),
+        eq(projectSites.customDomain, domain),
+        isNotNull(projectSites.customDomainVerifiedAt),
+        isNotNull(projectSites.customDomain),
       ),
     )
   if (!row) return undefined
@@ -130,13 +130,13 @@ export async function findSiteByCustomDomain(
  */
 export async function isVerifiedCustomDomain(db: Database, domain: string): Promise<boolean> {
   const [row] = await db
-    .select({ id: projectsites.id })
-    .from(projectsites)
+    .select({ id: projectSites.id })
+    .from(projectSites)
     .where(
       and(
-        eq(projectsites.customDomain, domain),
-        isNotNull(projectsites.customDomain),
-        isNotNull(projectsites.customDomainVerifiedAt),
+        eq(projectSites.customDomain, domain),
+        isNotNull(projectSites.customDomain),
+        isNotNull(projectSites.customDomainVerifiedAt),
       ),
     )
   return row !== undefined
@@ -179,24 +179,24 @@ export async function sitesForCommit(
   if (sha.length < 7) return []
   const rows = await db
     .select({
-      name: projectsites.name,
-      kind: projectsites.kind,
-      slug: projectsites.slug,
+      name: projectSites.name,
+      kind: projectSites.kind,
+      slug: projectSites.slug,
       label: siteHostnames.label,
     })
     .from(staticSites)
-    .innerJoin(projectsites, eq(projectsites.id, staticSites.projectsiteId))
+    .innerJoin(projectSites, eq(projectSites.id, staticSites.projectsiteId))
     .leftJoin(
       siteHostnames,
       and(eq(siteHostnames.staticSiteId, staticSites.id), eq(siteHostnames.linkKind, 'commit')),
     )
     .where(
       and(
-        eq(projectsites.projectId, projectId),
+        eq(projectSites.projectId, projectId),
         sql`(starts_with(${staticSites.commitSha}, ${sha}) or starts_with(${sha}, ${staticSites.commitSha}))`,
       ),
     )
-    .orderBy(projectsites.name)
+    .orderBy(projectSites.name)
   return rows.map((r) => ({
     name: r.name,
     kind: r.kind,
@@ -212,9 +212,9 @@ export async function getSiteCustomDomain(
   slug: string,
 ): Promise<{ domain: string | null; verifiedAt: Date | null } | undefined> {
   const [row] = await db
-    .select({ domain: projectsites.customDomain, verifiedAt: projectsites.customDomainVerifiedAt })
-    .from(projectsites)
-    .where(and(eq(projectsites.projectId, projectId), eq(projectsites.slug, slug)))
+    .select({ domain: projectSites.customDomain, verifiedAt: projectSites.customDomainVerifiedAt })
+    .from(projectSites)
+    .where(and(eq(projectSites.projectId, projectId), eq(projectSites.slug, slug)))
   return row
 }
 
@@ -248,7 +248,7 @@ export async function commitLabelOfVersion(
   return row?.label
 }
 
-export namespace listProjectsites {
+export namespace listProjectSites {
   export interface Listing {
     name: string
     kind: string
@@ -266,12 +266,12 @@ export namespace listProjectsites {
 }
 
 /** Every site of a project with its newest versions and the branches that have an address. */
-export async function listProjectsites(
+export async function listProjectSites(
   db: Database,
   projectId: string,
-): Promise<listProjectsites.Listing[]> {
-  const sites = await db.select().from(projectsites).where(eq(projectsites.projectId, projectId))
-  const result: listProjectsites.Listing[] = []
+): Promise<listProjectSites.Listing[]> {
+  const sites = await db.select().from(projectSites).where(eq(projectSites.projectId, projectId))
+  const result: listProjectSites.Listing[] = []
   for (const site of sites) {
     // eslint-disable-next-line no-await-in-loop -- a project has a handful of sites
     const versions = await db
@@ -327,12 +327,12 @@ export async function servedCommitForBranch(
   const [row] = await db
     .select({ commitSha: staticSites.commitSha })
     .from(siteHostnames)
-    .innerJoin(projectsites, eq(projectsites.id, siteHostnames.projectsiteId))
+    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectsiteId))
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(
-        eq(projectsites.projectId, projectId),
-        eq(projectsites.name, name),
+        eq(projectSites.projectId, projectId),
+        eq(projectSites.name, name),
         eq(siteHostnames.linkKind, 'branch'),
         eq(siteHostnames.branch, branch),
       ),

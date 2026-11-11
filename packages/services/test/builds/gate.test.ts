@@ -5,7 +5,7 @@ import {
   resetBuild,
   setBuildResult,
   setWorkspaceSettings,
-  updateProjectsettings,
+  updateProjectSettings,
 } from '@circi/db/repositories'
 import {
   createTestDb,
@@ -126,17 +126,17 @@ describe('gateInputs', () => {
   it('lets a project override the workspace either way', async () => {
     const { build, workspace, project } = await flakyPr()
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
-    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: true })
+    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
 
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: true })
-    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: false })
+    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: false })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: false })
     expect(await outcomeOf(build)).toMatchObject({ state: 'pass' })
 
     // Back to null: the workspace's value applies again.
-    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: null })
+    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: null })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
   })
 

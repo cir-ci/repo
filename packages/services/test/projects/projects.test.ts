@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   addWebhook,
-  changeProjectsettings,
+  changeProjectSettings,
   removeWebhook,
   sendTestWebhook,
   updateProjectAppearance,
@@ -38,17 +38,17 @@ describe('updateProjectAppearance', () => {
   })
 })
 
-describe('changeProjectsettings', () => {
+describe('changeProjectSettings', () => {
   it('saves the given parts and returns all of them; a bad value changes nothing', async () => {
     const { project } = await seedProject(t.db)
-    const saved = await changeProjectsettings(t.db, project.id, {
+    const saved = await changeProjectSettings(t.db, project.id, {
       name: '  Web  ',
       diffThreshold: 0.5,
     })
     expect(saved.name).toBe('Web')
     expect(saved.diffThreshold).toBe(0.5)
     await expect(
-      changeProjectsettings(t.db, project.id, { name: 'Other', defaultBranch: '  ' }),
+      changeProjectSettings(t.db, project.id, { name: 'Other', defaultBranch: '  ' }),
     ).rejects.toThrow(/branch name is required/)
     expect((await getProjectById(t.db, project.id))?.name).toBe('Web')
   })

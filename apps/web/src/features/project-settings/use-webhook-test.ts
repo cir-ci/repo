@@ -62,7 +62,7 @@ export function useWebhookTest(
         setWatch((w) => (w ? { ...w, gaveUp: true } : w))
         return
       }
-      void queryClient.invalidateQueries({ queryKey: keys.projectsettings(workspace, project) })
+      void queryClient.invalidateQueries({ queryKey: keys.projectSettings(workspace, project) })
     }, TEST_POLL_MS)
     return () => clearInterval(timer)
   }, [waiting, queryClient, workspace, project])

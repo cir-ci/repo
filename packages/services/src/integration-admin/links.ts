@@ -7,7 +7,7 @@ import {
   deleteAutoLinks,
   getProjectIntegration,
   insertIntegrationLinksIfAbsent,
-  listProjectsnapshotNames,
+  listProjectSnapshotNames,
   removeIntegrationProject,
   removeOtherProjectMappings,
   setIntegrationAttention,
@@ -148,7 +148,7 @@ export async function autoLinkProject(
     ctx,
   )
   const [names, existing] = await Promise.all([
-    listProjectsnapshotNames(db, input.projectId),
+    listProjectSnapshotNames(db, input.projectId),
     listProjectLinks(db, input.projectId, links.kind),
   ])
   const uncovered = names.filter(

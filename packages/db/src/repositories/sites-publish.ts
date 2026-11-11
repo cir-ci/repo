@@ -1,7 +1,7 @@
 import { ValidationError } from '@circi/core'
 import { and, eq, inArray, like, sql } from 'drizzle-orm'
 
-import { files, projectsites, siteHostnames, staticSiteFiles, staticSites } from '#schema/index.ts'
+import { files, projectSites, siteHostnames, staticSiteFiles, staticSites } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /** Publishing a site version: its files and the addresses that point at it. */
@@ -68,26 +68,26 @@ export async function publishSiteVersion(
     // 1. The site: found by name, or created with a free slug.
     let [site] = await tx
       .select()
-      .from(projectsites)
-      .where(and(eq(projectsites.projectId, input.projectId), eq(projectsites.name, input.name)))
+      .from(projectSites)
+      .where(and(eq(projectSites.projectId, input.projectId), eq(projectSites.name, input.name)))
     if (site) {
       if (site.kind !== input.kind || site.spa !== input.spa) {
         ;[site] = await tx
-          .update(projectsites)
+          .update(projectSites)
           .set({ kind: input.kind, spa: input.spa })
-          .where(eq(projectsites.id, site.id))
+          .where(eq(projectSites.id, site.id))
           .returning()
       }
     } else {
       const probe = input.slugPrefix
       const rows = await tx
-        .select({ slug: projectsites.slug })
-        .from(projectsites)
-        .where(like(projectsites.slug, `${probe}%`))
+        .select({ slug: projectSites.slug })
+        .from(projectSites)
+        .where(like(projectSites.slug, `${probe}%`))
       const used = new Set(rows.map((r) => r.slug))
       const slug = input.addressing.chooseSlug((s) => used.has(s))
       ;[site] = await tx
-        .insert(projectsites)
+        .insert(projectSites)
         .values({
           projectId: input.projectId,
           name: input.name,

@@ -8,7 +8,7 @@ import {
   listTriage,
   loadFlakyHistory,
 } from '#src/queries/index.ts'
-import { updateProjectsettings } from '#src/repositories/index.ts'
+import { updateProjectSettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -23,7 +23,7 @@ const now = new Date('2026-03-11T12:00:00Z')
 /** A project that asks for 2 flip-flops. */
 async function project2() {
   const seeded = await seedProject(t.db)
-  await updateProjectsettings(t.db, seeded.project.id, { flakyAfterChanges: 2 })
+  await updateProjectSettings(t.db, seeded.project.id, { flakyAfterChanges: 2 })
   return seeded
 }
 

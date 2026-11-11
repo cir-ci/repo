@@ -123,7 +123,7 @@ describe('saved view routes', () => {
     const count = async () =>
       (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().projects[0].siteCount
     expect(await count()).toBe(0)
-    await db.insert(schema.projectsites).values({
+    await db.insert(schema.projectSites).values({
       projectId: acme.project.id,
       name: 'Storybook',
       kind: 'storybook',

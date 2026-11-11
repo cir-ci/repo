@@ -16,7 +16,7 @@ import {
 } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
-import { getProjectById, projectsettings } from '#queries/project-lookup.ts'
+import { getProjectById, projectSettings } from '#queries/project-lookup.ts'
 import { getWorkspaceSettings } from '#queries/workspace-settings.ts'
 import { getWorkspaceBySlug } from '#queries/workspaces.ts'
 import { projectMembers, projects } from '#schema/index.ts'
@@ -134,12 +134,12 @@ export async function setProjectCiKey(
  * valid and free in the workspace (`ConflictError`); like a workspace's address, the old one
  * stops working (there is no redirect).
  */
-export async function updateProjectsettings(
+export async function updateProjectSettings(
   db: Database,
   projectId: string,
-  patch: Partial<projectsettings.Settings>,
-): Promise<projectsettings.Settings> {
-  const set: Partial<projectsettings.Settings> = {}
+  patch: Partial<projectSettings.Settings>,
+): Promise<projectSettings.Settings> {
+  const set: Partial<projectSettings.Settings> = {}
   if (patch.name !== undefined) {
     const name = patch.name.trim()
     if (!name) throw new ValidationError('Project name is required')
@@ -216,12 +216,12 @@ export async function updateProjectsettings(
   if (Object.keys(set).length === 0) {
     const current = await getProjectById(db, projectId)
     assertFound(current, 'Project not found')
-    return projectsettings(current)
+    return projectSettings(current)
   }
   try {
     const [row] = await db.update(projects).set(set).where(eq(projects.id, projectId)).returning()
     assertFound(row, 'Project not found')
-    return projectsettings(row)
+    return projectSettings(row)
   } catch (err) {
     // `projects_workspace_slug_key`: another project in the workspace already has this slug.
     if (isUniqueViolation(err))

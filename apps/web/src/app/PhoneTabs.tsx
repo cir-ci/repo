@@ -24,7 +24,7 @@ import {
   currentSection,
   goPath,
   phoneProject,
-  projectsections,
+  projectSections,
   PROJECT_STACK_LIMIT,
   projectsTabLabel,
   type YourProject,
@@ -88,7 +88,7 @@ export function PhoneTabs() {
         items={projectItems}
         trigger={
           <BottomBarItem
-            icon={<Projectstack projects={projects} />}
+            icon={<ProjectStack projects={projects} />}
             selected={
               projectsOpen ||
               section === 'projects' ||
@@ -129,7 +129,7 @@ export function PhoneTabs() {
 }
 
 /** The Projects tab's icon: your first few projects' tiles, overlapping and still; the folder before any is known. */
-function Projectstack({ projects }: { projects: readonly YourProject[] }) {
+function ProjectStack({ projects }: { projects: readonly YourProject[] }) {
   const shown = projects.slice(0, PROJECT_STACK_LIMIT)
   if (shown.length === 0) return <FolderOpenIcon />
   return (
@@ -155,7 +155,7 @@ function projectMenuItems(
   go: (href: string) => void,
 ): (Menu.Item | Menu.Separator)[] {
   const items: (Menu.Item | Menu.Separator)[] = []
-  for (const section of projectsections(projects)) {
+  for (const section of projectSections(projects)) {
     if (items.length > 0) items.push({ type: 'separator' })
     for (const t of section.projects) {
       const triage = countOrUndefined(t.triage)

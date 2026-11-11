@@ -123,7 +123,7 @@ export async function getProjectMemberRole(
   return row?.role
 }
 
-export namespace projectsettings {
+export namespace projectSettings {
   export interface Settings {
     name: string
     /** The project's address in the dashboard: `<workspace>/<slug>`. */
@@ -158,7 +158,7 @@ export namespace projectsettings {
   }
 }
 
-export function projectsettings(project: Project): projectsettings.Settings {
+export function projectSettings(project: Project): projectSettings.Settings {
   return {
     name: project.name,
     slug: project.slug,

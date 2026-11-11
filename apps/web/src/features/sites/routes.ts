@@ -5,7 +5,7 @@ import { rootRoute } from '#app/root-route.ts'
 const sitesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$project/sites',
-  component: lazyRouteComponent(() => import('./ProjectsitesPage.tsx'), 'ProjectsitesPage'),
+  component: lazyRouteComponent(() => import('./ProjectSitesPage.tsx'), 'ProjectSitesPage'),
 })
 
 // Where a hosted site sends people to sign in. Two static segments beat `$workspace/$project`.

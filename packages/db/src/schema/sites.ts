@@ -31,7 +31,7 @@ const SITE_KINDS = [
   'generic',
 ]
 
-export const projectsites = pgTable(
+export const projectSites = pgTable(
   'project_sites',
   {
     id: id(),
@@ -67,7 +67,7 @@ export const staticSites = pgTable(
     id: id(),
     projectsiteId: uuid('project_site_id')
       .notNull()
-      .references(() => projectsites.id, { onDelete: 'cascade' }),
+      .references(() => projectSites.id, { onDelete: 'cascade' }),
     commitSha: text('commit_sha').notNull(),
     branch: text('branch'),
     /** The page served at the root. */
@@ -105,7 +105,7 @@ export const siteHostnames = pgTable(
     label: text('label').primaryKey(),
     projectsiteId: uuid('project_site_id')
       .notNull()
-      .references(() => projectsites.id, { onDelete: 'cascade' }),
+      .references(() => projectSites.id, { onDelete: 'cascade' }),
     /** `commit` addresses serve one version for good; `branch` ones move with the branch. */
     linkKind: text('link_kind').notNull(),
     /** For `branch`: the branch name, so a later upload can find its address again. */

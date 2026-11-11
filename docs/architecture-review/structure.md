@@ -130,7 +130,7 @@ Consistency matrix (what each feature has):
 
 Problems:
 
-1. **`projects` (50) is three features**: (a) project CRUD and chrome (`ProjectsPage`, `ProjectPage`, `NewProjectDialog`, `CreateDialogs`, `ProjectDialogs`, `DeleteProjectsection`, `new-project*.ts`, `delete-project.ts`, `appearance.ts`, `AppearanceSection`), (b) the build list (`BuildsBrowser`, `BuildFilterBar`, `BulkRejectDialog`, `builds-filters.ts`, `display-options.ts`, `loading.ts`, `GitAttentionBanner`), (c) project settings pages (`Projectsettings*`, `SettingsForm`, `settings-patch.ts`, `flaky-setting.ts`, `SecretBox`, `CiTokenPage`, `WebhooksPage`, `webhook-events.ts`, `IgnoreRegionsPage`, `RegionStage`, `ignore-regions*.ts`).
+1. **`projects` (50) is three features**: (a) project CRUD and chrome (`ProjectsPage`, `ProjectPage`, `NewProjectDialog`, `CreateDialogs`, `ProjectDialogs`, `DeleteProjectSection`, `new-project*.ts`, `delete-project.ts`, `appearance.ts`, `AppearanceSection`), (b) the build list (`BuildsBrowser`, `BuildFilterBar`, `BulkRejectDialog`, `builds-filters.ts`, `display-options.ts`, `loading.ts`, `GitAttentionBanner`), (c) project settings pages (`ProjectSettings*`, `SettingsForm`, `settings-patch.ts`, `flaky-setting.ts`, `SecretBox`, `CiTokenPage`, `WebhooksPage`, `webhook-events.ts`, `IgnoreRegionsPage`, `RegionStage`, `ignore-regions*.ts`).
 2. **Region code duplicated by concern across features**: `builds/{RegionLayer,regions.ts}` and `projects/{RegionStage,ignore-regions.ts,ignore-regions-search.ts}` both deal with rectangles on a screenshot. Shared drawing/geometry belongs in one place.
 3. **`settings` holds workspace settings** (`WorkspaceGeneralPage`, `WorkspaceSso`, `WorkspaceStoragePage`, `EmailDomains`) next to user-level (`AppearancePage`, `ShortcutsPage`, `NotificationsPage`) and review settings (`ReviewsSettingsPage`, `RulesSection`, `RotationSection`) while `account` is the other "you" feature and `reviews` (4) the other review feature. With the vocabulary project/workspace the folder names should say which.
 4. **`app/` mixes shell with feature-ish components**: `Projectswitcher`, `WorkspaceSwitcher`, `WorkspaceTile`, `SettingsNav`, `use-workspaces.ts` are project/workspace features; `placeholder-routes.tsx`, `ComingSoon.tsx`, `NotFound.tsx` are stubs.
@@ -143,9 +143,9 @@ Proposed structure (`src/features/` flat list stays, sub-folders inside heavy fe
 
 | Current | Proposed | Reason |
 |---|---|---|
-| `projects/{ProjectsPage,ProjectPage,ProjectsEmpty,NewProjectDialog,CreateDialogs,ProjectDialogs,DeleteProjectsection,new-project*,delete-project,appearance,AppearanceSection}` + css | `features/projects/…` (stays, slimmed) | project CRUD |
+| `projects/{ProjectsPage,ProjectPage,ProjectsEmpty,NewProjectDialog,CreateDialogs,ProjectDialogs,DeleteProjectSection,new-project*,delete-project,appearance,AppearanceSection}` + css | `features/projects/…` (stays, slimmed) | project CRUD |
 | `projects/{BuildsBrowser,BuildFilterBar,BulkRejectDialog,builds-filters,display-options,loading,GitAttentionBanner}` + css | `features/builds/list/…` | the build list is builds; kills 25 `projects` imports |
-| `projects/{Projectsettings*,SettingsForm,settings-patch,flaky-setting,SecretBox,CiTokenPage,WebhooksPage,webhook-events}` + css | `features/project-settings/…` | one page family with its frame |
+| `projects/{ProjectSettings*,SettingsForm,settings-patch,flaky-setting,SecretBox,CiTokenPage,WebhooksPage,webhook-events}` + css | `features/project-settings/…` | one page family with its frame |
 | `projects/{IgnoreRegionsPage,RegionStage,ignore-regions*}` + `builds/{RegionLayer,regions}` | `features/regions/` (shared geometry in `regions/geometry.ts`) | one concern, two features use it |
 | `builds/{api,discussion-api,issues-api}.ts` | `builds/api/{index,discussion,issues}.ts` | one api folder per feature (rule: >1 api file becomes `api/`) |
 | `builds/` 36 files | `builds/{components,discussion,issues,review}/…` + `BuildPage.tsx` | 4 sub-areas already visible in file names |

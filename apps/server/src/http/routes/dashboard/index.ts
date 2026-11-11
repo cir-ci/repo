@@ -33,7 +33,7 @@ import { dashboardRuleRoutes } from './projects/rules.ts'
 import { dashboardSettingsRoutes } from './projects/settings.ts'
 import { dashboardSiteDomainRoutes } from './projects/site-domains.ts'
 import { dashboardSiteHandoffRoutes } from './projects/site-handoff.ts'
-import { dashboardProjectsitesRoutes } from './projects/sites.ts'
+import { dashboardProjectSitesRoutes } from './projects/sites.ts'
 import { dashboardTriageRoutes } from './projects/triage.ts'
 import { dashboardPushRoutes } from './push/push.ts'
 import { dashboardUndoRoutes } from './undo.ts'
@@ -116,7 +116,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardIntegrationRoutes, deps)
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
-  await api.register(dashboardProjectsitesRoutes, deps)
+  await api.register(dashboardProjectSitesRoutes, deps)
   await api.register(dashboardSiteDomainRoutes, deps)
   await api.register(dashboardBulkReviewRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)

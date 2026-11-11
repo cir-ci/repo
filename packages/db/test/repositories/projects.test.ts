@@ -14,13 +14,13 @@ import {
   findProjectForMember,
   getProjectBySlugs,
   listProjects,
-  projectsettings,
+  projectSettings,
 } from '#src/queries/index.ts'
 import {
   createProject,
   setProjectAppearance,
   setProjectCiKey,
-  updateProjectsettings,
+  updateProjectSettings,
 } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
@@ -157,22 +157,22 @@ describe('findProjectForMember (workspace isolation)', () => {
 describe('flaky-screenshot setting', () => {
   it('starts as null: the project inherits the workspace', async () => {
     const { project } = await seedProject(t.db)
-    expect(projectsettings(project).flakyBlocksMerge).toBeNull()
+    expect(projectSettings(project).flakyBlocksMerge).toBeNull()
   })
 
   it('is set to on or off, and back to null to inherit again; other patches leave it be', async () => {
     const { project } = await seedProject(t.db)
     expect(
-      (await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: false })).flakyBlocksMerge,
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: false })).flakyBlocksMerge,
     ).toBe(false)
     expect(
-      (await updateProjectsettings(t.db, project.id, { retentionDays: 7 })).flakyBlocksMerge,
+      (await updateProjectSettings(t.db, project.id, { retentionDays: 7 })).flakyBlocksMerge,
     ).toBe(false)
     expect(
-      (await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: true })).flakyBlocksMerge,
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })).flakyBlocksMerge,
     ).toBe(true)
     expect(
-      (await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: null })).flakyBlocksMerge,
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: null })).flakyBlocksMerge,
     ).toBeNull()
   })
 
@@ -180,35 +180,35 @@ describe('flaky-screenshot setting', () => {
     const { project, workspace } = await seedProject(t.db, { slug: 'old-name' })
     await createProject(t.db, { workspaceSlug: workspace.slug, name: 'Taken', slug: 'taken' })
     expect(project.slug).toBe('old-name')
-    expect((await updateProjectsettings(t.db, project.id, { slug: ' fresh ' })).slug).toBe('fresh')
-    expect((await updateProjectsettings(t.db, project.id, { retentionDays: 7 })).slug).toBe('fresh')
-    await expect(updateProjectsettings(t.db, project.id, { slug: 'taken' })).rejects.toThrow(
+    expect((await updateProjectSettings(t.db, project.id, { slug: ' fresh ' })).slug).toBe('fresh')
+    expect((await updateProjectSettings(t.db, project.id, { retentionDays: 7 })).slug).toBe('fresh')
+    await expect(updateProjectSettings(t.db, project.id, { slug: 'taken' })).rejects.toThrow(
       /already taken/,
     )
-    await expect(updateProjectsettings(t.db, project.id, { slug: 'Not Valid!' })).rejects.toThrow(
+    await expect(updateProjectSettings(t.db, project.id, { slug: 'Not Valid!' })).rejects.toThrow(
       /slug/,
     )
     // The same slug in another workspace is fine.
     const other = await seedProject(t.db, { slug: 'elsewhere' })
-    expect((await updateProjectsettings(t.db, other.project.id, { slug: 'fresh' })).slug).toBe(
+    expect((await updateProjectSettings(t.db, other.project.id, { slug: 'fresh' })).slug).toBe(
       'fresh',
     )
   })
 
   it('has a 24 hour review target that can be changed, cleared with null, and must be positive', async () => {
     const { project } = await seedProject(t.db)
-    expect(projectsettings(project).reviewTargetHours).toBe(24)
+    expect(projectSettings(project).reviewTargetHours).toBe(24)
     expect(
-      (await updateProjectsettings(t.db, project.id, { reviewTargetHours: 4 })).reviewTargetHours,
+      (await updateProjectSettings(t.db, project.id, { reviewTargetHours: 4 })).reviewTargetHours,
     ).toBe(4)
     expect(
-      (await updateProjectsettings(t.db, project.id, { retentionDays: 7 })).reviewTargetHours,
+      (await updateProjectSettings(t.db, project.id, { retentionDays: 7 })).reviewTargetHours,
     ).toBe(4)
     expect(
-      (await updateProjectsettings(t.db, project.id, { reviewTargetHours: null }))
+      (await updateProjectSettings(t.db, project.id, { reviewTargetHours: null }))
         .reviewTargetHours,
     ).toBeNull()
-    await expect(updateProjectsettings(t.db, project.id, { reviewTargetHours: 0 })).rejects.toThrow(
+    await expect(updateProjectSettings(t.db, project.id, { reviewTargetHours: 0 })).rejects.toThrow(
       /review target/,
     )
   })

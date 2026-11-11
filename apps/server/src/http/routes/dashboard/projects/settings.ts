@@ -2,10 +2,10 @@ import type { Project } from '@circi/api'
 import { deleteProjectWithToken, rotateProjectToken } from '@circi/auth'
 import { NotFoundError, ValidationError } from '@circi/core'
 import { checkWebhookEvents, WEBHOOK_EVENTS, webhookUrlProblem } from '@circi/core/node'
-import { getWorkspaceSettings, getProjectById, projectsettings } from '@circi/db/queries'
+import { getWorkspaceSettings, getProjectById, projectSettings } from '@circi/db/queries'
 import {
   addWebhook,
-  changeProjectsettings,
+  changeProjectSettings,
   linkProjectToGithub,
   removeWebhook,
   sendTestWebhook,
@@ -62,7 +62,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const found = await load(req)
     return {
       canManage: found.canManage,
-      settings: projectsettings(found.project),
+      settings: projectSettings(found.project),
       appearance: { color: found.project.color, icon: found.project.icon },
       // What a project that inherits gets, so the form can say so.
       workspace: await getWorkspaceSettings(deps.db, found.project.workspaceId),
@@ -80,7 +80,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   app.patch('/projects/:workspace/:project/settings', async (req) => {
     const project = await loadForManager(req)
     const patch = parse(settingsBody, req.body)
-    return { settings: await changeProjectsettings(deps.db, project.id, patch) }
+    return { settings: await changeProjectSettings(deps.db, project.id, patch) }
   })
 
   /** Deletes the project and everything that belongs to it (owners and admins). */

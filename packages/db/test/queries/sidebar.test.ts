@@ -12,7 +12,7 @@ import {
 } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { projectsites } from '#schema/index.ts'
+import { projectSites } from '#schema/index.ts'
 import { getSidebar } from '#src/queries/index.ts'
 import { assignTriageItem, snoozeTriageItem } from '#src/repositories/index.ts'
 
@@ -113,7 +113,7 @@ describe('getSidebar', () => {
     const withSites = await seedProject(t.db, { slug: 'with-sites' })
     const { workspace, owner } = withSites
     await seedProject(t.db, { workspace: { workspace, owner }, slug: 'no-sites' })
-    await t.db.insert(projectsites).values([
+    await t.db.insert(projectSites).values([
       { projectId: withSites.project.id, name: 'Storybook', kind: 'storybook', slug: 'sb-sites-1' },
       { projectId: withSites.project.id, name: 'Docs', kind: 'docs', slug: 'docs-sites-1' },
     ])

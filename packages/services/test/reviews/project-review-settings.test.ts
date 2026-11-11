@@ -16,7 +16,7 @@ import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
-  changeProjectsettings,
+  changeProjectSettings,
   finalizeBuild,
   notifyOverdueReviews,
   requestReview,
@@ -108,16 +108,16 @@ describe('project review settings', () => {
     const { project } = await seedProject(t.db)
     const stranger = await seedUser(t.db)
     await expect(
-      changeProjectsettings(t.db, project.id, { flakyAfterChanges: 0 }),
+      changeProjectSettings(t.db, project.id, { flakyAfterChanges: 0 }),
     ).rejects.toBeInstanceOf(ValidationError)
     await expect(
-      changeProjectsettings(t.db, project.id, { flakyAfterChanges: 11 }),
+      changeProjectSettings(t.db, project.id, { flakyAfterChanges: 11 }),
     ).rejects.toBeInstanceOf(ValidationError)
     await expect(
-      changeProjectsettings(t.db, project.id, { snoozeDefaultDays: 31 }),
+      changeProjectSettings(t.db, project.id, { snoozeDefaultDays: 31 }),
     ).rejects.toBeInstanceOf(ValidationError)
     await expect(
-      changeProjectsettings(t.db, project.id, { reviewOverdueNotifyUserId: stranger.id }),
+      changeProjectSettings(t.db, project.id, { reviewOverdueNotifyUserId: stranger.id }),
     ).rejects.toBeInstanceOf(ValidationError)
   })
 })
@@ -125,7 +125,7 @@ describe('project review settings', () => {
 describe('closing and re-requesting on a newer build', () => {
   it('keeps the older build open when the project turns closing off', async () => {
     const { project, owner, mate } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { closeReviewsOnNewerBuild: false })
+    await changeProjectSettings(t.db, project.id, { closeReviewsOnNewerBuild: false })
     const older = await pushBuild(project.id, 'feature', 'a000001', fakeSha('1'))
     await requestReview(t.db, { buildId: older.id, reviewerId: mate.id, requestedById: owner.id })
     await pushBuild(project.id, 'feature', 'a000002', fakeSha('2'))
@@ -134,7 +134,7 @@ describe('closing and re-requesting on a newer build', () => {
 
   it("doesn't ask the same reviewers on the newer build when the project turns it off", async () => {
     const { project, owner, mate } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { reRequestOnNewerBuild: false })
+    await changeProjectSettings(t.db, project.id, { reRequestOnNewerBuild: false })
     const older = await pushBuild(project.id, 'feature', 'a000001', fakeSha('3'))
     await requestReview(t.db, { buildId: older.id, reviewerId: mate.id, requestedById: owner.id })
     const newer = await pushBuild(project.id, 'feature', 'a000002', fakeSha('4'))
@@ -158,7 +158,7 @@ describe('closing and re-requesting on a newer build', () => {
 
   it('skips a reviewer who left the project', async () => {
     const { project, owner, mate } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { reRequestOnNewerBuild: true })
+    await changeProjectSettings(t.db, project.id, { reRequestOnNewerBuild: true })
     const older = await pushBuild(project.id, 'feature', 'a000001', fakeSha('7'))
     await requestReview(t.db, { buildId: older.id, reviewerId: mate.id, requestedById: owner.id })
     await t.db
@@ -177,7 +177,7 @@ describe('closing and re-requesting on a newer build', () => {
 describe('a reason when rejecting', () => {
   it('is refused without one when the project asks for it, and accepted with one', async () => {
     const { project, owner } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { requireRejectReason: true })
+    await changeProjectSettings(t.db, project.id, { requireRejectReason: true })
     const build = await changedBuild(project.id)
     await expect(
       reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' }),
@@ -201,7 +201,7 @@ describe('a reason when rejecting', () => {
       (await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' }))
         .reviewStatus,
     ).toBe('rejected')
-    await changeProjectsettings(t.db, project.id, { requireRejectReason: true })
+    await changeProjectSettings(t.db, project.id, { requireRejectReason: true })
     expect(
       (await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' }))
         .reviewStatus,
@@ -210,7 +210,7 @@ describe('a reason when rejecting', () => {
 
   it("doesn't hold up a code host's reject button, which has no field for it", async () => {
     const { project, owner } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { requireRejectReason: true })
+    await changeProjectSettings(t.db, project.id, { requireRejectReason: true })
     const build = await changedBuild(project.id)
     const done = await reviewBuild(t.db, {
       buildId: build.id,
@@ -229,7 +229,7 @@ describe('approving builds with no changes', () => {
     await expect(
       reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' }),
     ).rejects.toThrow(/no changes/)
-    await changeProjectsettings(t.db, project.id, { autoApproveNoChanges: false })
+    await changeProjectSettings(t.db, project.id, { autoApproveNoChanges: false })
     expect(
       (await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' }))
         .reviewStatus,
@@ -240,7 +240,7 @@ describe('approving builds with no changes', () => {
 describe('telling someone else when a review is overdue', () => {
   it('tells the person the project named, once, besides the reviewer', async () => {
     const { project, owner, mate, other } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { reviewOverdueNotifyUserId: other.id })
+    await changeProjectSettings(t.db, project.id, { reviewOverdueNotifyUserId: other.id })
     const build = await seedBuild(t.db, project.id, { branch: 'feature', status: 'complete' })
     await seedReviewRequest(t.db, {
       buildId: build.id,
@@ -264,7 +264,7 @@ describe('telling someone else when a review is overdue', () => {
 
   it('sends the reviewer one notice when they are the named person', async () => {
     const { project, owner, mate } = await projectWithMates()
-    await changeProjectsettings(t.db, project.id, { reviewOverdueNotifyUserId: mate.id })
+    await changeProjectSettings(t.db, project.id, { reviewOverdueNotifyUserId: mate.id })
     const build = await seedBuild(t.db, project.id, { branch: 'feature', status: 'complete' })
     await seedReviewRequest(t.db, {
       buildId: build.id,
@@ -283,7 +283,7 @@ describe('the snooze default', () => {
     const failed = await seedBuild(t.db, project.id, { branch: 'main', status: 'error' })
     const ref = { projectId: project.id, kind: 'failed' as const, key: `build:${failed.number}` }
     const now = new Date('2026-03-10T12:00:00Z')
-    await changeProjectsettings(t.db, project.id, { snoozeDefaultDays: 3 })
+    await changeProjectSettings(t.db, project.id, { snoozeDefaultDays: 3 })
     const { until, item } = await snoozeTriage(t.db, { ...ref, now })
     expect(until).toEqual(new Date('2026-03-13T12:00:00Z'))
     expect(item.snoozeKind).toBe('date')
