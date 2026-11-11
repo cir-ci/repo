@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
+import { cpSync, existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { cpus, totalmem } from 'node:os'
 import { join } from 'node:path'
@@ -13,6 +14,7 @@ import {
   RESULTS_DIR,
   SEED_FILE,
   RUN_MANIFEST_FILE,
+  STATE_DIR,
   isEngine,
 } from './config.ts'
 import { ensureFixtures, withShots } from './fixtures.ts'
@@ -206,6 +208,12 @@ const engine: DiffEngine | undefined = isEngine(requestedEngine) ? requestedEngi
 const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', '')
 const outDir = join(RESULTS_DIR, `${stamp}-${label}`)
 await mkdir(outDir, { recursive: true })
+// The server's and the worker's logs go with the results, whatever happens to the run: the next
+// `perf:down` deletes perf/.state, and a failed run is the one whose logs matter most.
+process.on('exit', () => {
+  const logs = join(STATE_DIR, 'logs')
+  if (existsSync(logs)) cpSync(logs, join(outDir, 'logs'), { recursive: true })
+})
 
 const manifest = withShots(await ensureFixtures(log), shots)
 let current = readStack()
