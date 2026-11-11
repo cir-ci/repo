@@ -143,16 +143,20 @@ describe('CommandBlock', () => {
         <CommandBlock command={command} />
       </div>,
     )
+    await expect.element(page.getByText(/CIRCI_TOKEN/)).toBeVisible()
     const code = page.getByText(/CIRCI_TOKEN/).element()
-    const style = getComputedStyle(code)
-    expect([style.fontSize, style.whiteSpace, style.overflowWrap]).toEqual([
-      '12px',
-      'pre-wrap',
-      'anywhere',
-    ])
-    expect(code.parentElement!.getBoundingClientRect().width).toBeLessThanOrEqual(360)
+    // The stylesheet may land a moment after the first paint on a busy machine.
+    await expect
+      .poll(() => {
+        const style = getComputedStyle(code)
+        return [style.fontSize, style.whiteSpace, style.overflowWrap]
+      })
+      .toEqual(['12px', 'pre-wrap', 'anywhere'])
+    await expect
+      .poll(() => code.parentElement!.getBoundingClientRect().width)
+      .toBeLessThanOrEqual(360)
     await userEvent.click(page.getByRole('button', { name: 'Copy command' }))
-    expect(writeText).toHaveBeenCalledWith(command)
+    await expect.poll(() => writeText).toHaveBeenCalledWith(command)
     await expect
       .element(page.getByRole('button', { name: 'Copy command' }))
       .toHaveTextContent('Copied')

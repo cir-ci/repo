@@ -522,7 +522,7 @@ describe('workspace settings', () => {
         {
           slug: 'web',
           name: 'web',
-          color: 'slate',
+          color: 'olive',
           icon: null,
           flakyBlocksMerge: null,
           assignTriageToOnCall: null,

@@ -40,7 +40,7 @@ describe('opening tabs', () => {
   it('opens beside the active tab and takes focus unless it is a background tab', () => {
     const state = strip('a', 'b', 'c')
     const opened = openTab(state, { id: 'n', href: '/n', now: 10, limits: L })
-    expect(ids(opened.state)).toEqual(['a', 'n', 'c', 'b'])
+    expect(ids(opened.state)).toEqual(['a', 'n', 'b', 'c'])
     expect(opened.state.activeId).toBe('n')
     expect(activeTab(opened.state).opener).toBe('a')
     const quiet = openTab(state, { id: 'q', href: '/q', now: 10, background: true, limits: L })

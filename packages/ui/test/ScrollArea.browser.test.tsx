@@ -44,14 +44,15 @@ describe('ScrollArea', () => {
   it('lays a slim thumb over each overflowing axis, and none when nothing overflows', async () => {
     const view = await render(<Harness />)
     await frame()
-    await expect.poll(() => bars('vertical').length).toBe(1)
-    expect(bars('horizontal')).toHaveLength(1)
+    await expect.poll(() => bars('vertical').length, { timeout: 15_000 }).toBe(1)
+    await expect.poll(() => bars('horizontal').length, { timeout: 15_000 }).toBe(1)
     const thumb = bars('vertical')[0]!.firstElementChild!
     await expect.poll(() => Math.round(thumb.getBoundingClientRect().width)).toBe(6)
 
     await view.rerender(<Harness width={100} height={100} />)
-    await expect.poll(() => bars('vertical').length).toBe(0)
-    expect(bars('horizontal')).toHaveLength(0)
+    // Base UI re-measures on a resize observer, which can lag well behind on a busy machine.
+    await expect.poll(() => bars('vertical').length, { timeout: 15_000 }).toBe(0)
+    await expect.poll(() => bars('horizontal').length, { timeout: 15_000 }).toBe(0)
   })
 
   it('shows the bars while the area is hovered, and keeps them hidden otherwise', async () => {

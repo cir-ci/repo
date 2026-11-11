@@ -19,6 +19,8 @@ const SETTINGS_FILES: RegExp[] = [
   /^features\/(project-settings|workspace-settings|account|instance|members|integrations|regions)\//,
   /^features\/reviews\/settings\//,
   /^features\/projects\/DeleteProjectsection\.tsx$/,
+  // The slug editor on the project's General settings page; it only renders there.
+  /^features\/projects\/ProjectIdentity\.tsx$/,
   /^features\/sidebar\/SettingsNav\.tsx$/,
 ]
 
@@ -31,6 +33,8 @@ const ENTRY_POINTS = new Set([
   // A project's right-click menu (sidebar entry, Projects page row): Project settings, for those who may manage.
   'features/projects/ProjectContextMenu.tsx',
   'features/command/model.ts',
+  // The command menu's settings sections (Settings · Members, All workspaces, ...).
+  'features/command/settings.ts',
   // The phone's More sheet: the workspace and account settings entries (built from helpers, not route literals).
   'app/PhoneMore.tsx',
   // The Projects and Settings crumbs, which only settings pages use.

@@ -131,7 +131,7 @@ describe('GET /api/workspaces/:workspace/integrations', () => {
         built: false,
         connectable: false,
       })
-      expect(byKind.projects.status).toBe('planned')
+      expect(byKind.teams.status).toBe('planned')
       expect(byKind.penpot.status).toBe('planned')
     }
   })

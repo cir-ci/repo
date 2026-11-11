@@ -278,7 +278,7 @@ describe('mapping projects', () => {
       expect(page.json()).toMatchObject({
         canManage: cookie === ownerCookie,
         integration: { id, kind: 'linear', name: 'Acme Linear', needsAttention: false },
-        definition: { mapping: { targetLabel: 'Project', targetKind: 'select' } },
+        definition: { mapping: { targetLabel: 'Team', targetKind: 'select' } },
         projects: [
           {
             slug: 'web',

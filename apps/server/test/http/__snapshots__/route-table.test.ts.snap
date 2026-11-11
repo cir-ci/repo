@@ -4,7 +4,6 @@ exports[`the route table > has not changed (method and url, sorted) 1`] = `
 "DELETE /api/auth/sign-in/email-otp
 DELETE /api/inbox/:id
 DELETE /api/instance/health/address-checklist/dismissed
-DELETE /api/push/devices/:id
 DELETE /api/projects/:workspace/:project
 DELETE /api/projects/:workspace/:project/builds/:number/comments/:id
 DELETE /api/projects/:workspace/:project/github
@@ -13,6 +12,7 @@ DELETE /api/projects/:workspace/:project/members/:userId
 DELETE /api/projects/:workspace/:project/rules/:id
 DELETE /api/projects/:workspace/:project/sites/:site/domain
 DELETE /api/projects/:workspace/:project/webhooks/:id
+DELETE /api/push/devices/:id
 DELETE /api/workspaces/:workspace
 DELETE /api/workspaces/:workspace/domains/:id
 DELETE /api/workspaces/:workspace/integrations/:id|:kind
@@ -23,6 +23,7 @@ DELETE /api/workspaces/:workspace/pinned-projects/:project
 DELETE /api/workspaces/:workspace/sso/:providerId
 DELETE /api/workspaces/:workspace/views/:id
 GET *
+GET /api/account/email-change
 GET /api/auth-methods
 GET /api/auth/sign-in/email-otp
 GET /api/capabilities
@@ -41,9 +42,6 @@ GET /api/instance/settings
 GET /api/instance/workspaces
 GET /api/integrations/:kind/callback
 GET /api/integrations/:kind/setup
-GET /api/push/devices
-GET /api/push/public-key
-GET /api/reviews
 GET /api/projects
 GET /api/projects/:workspace/:project
 GET /api/projects/:workspace/:project/baselines
@@ -60,6 +58,9 @@ GET /api/projects/:workspace/:project/sites
 GET /api/projects/:workspace/:project/snapshots/:name/history
 GET /api/projects/:workspace/:project/token
 GET /api/projects/:workspace/:project/triage
+GET /api/push/devices
+GET /api/push/public-key
+GET /api/reviews
 GET /api/workspaces/:workspace
 GET /api/workspaces/:workspace/auth
 GET /api/workspaces/:workspace/builds
@@ -70,9 +71,9 @@ GET /api/workspaces/:workspace/github-import
 GET /api/workspaces/:workspace/insights
 GET /api/workspaces/:workspace/integrations
 GET /api/workspaces/:workspace/integrations/:id|:kind/install
-GET /api/workspaces/:workspace/integrations/:id|:kind/targets
 GET /api/workspaces/:workspace/integrations/:id|:kind/projects
 GET /api/workspaces/:workspace/integrations/:id|:kind/projects/:project/links
+GET /api/workspaces/:workspace/integrations/:id|:kind/targets
 GET /api/workspaces/:workspace/integrations/github/install
 GET /api/workspaces/:workspace/member-projects
 GET /api/workspaces/:workspace/members/sign-in
@@ -87,10 +88,11 @@ GET /healthz
 GET /internal/tls-ask
 GET /readyz
 GET /v1/builds/:id/status
-GET /v1/sites/served
 GET /v1/project
+GET /v1/sites/served
 GET /v2/project
 HEAD *
+HEAD /api/account/email-change
 HEAD /api/auth-methods
 HEAD /api/auth/sign-in/email-otp
 HEAD /api/capabilities
@@ -109,9 +111,6 @@ HEAD /api/instance/settings
 HEAD /api/instance/workspaces
 HEAD /api/integrations/:kind/callback
 HEAD /api/integrations/:kind/setup
-HEAD /api/push/devices
-HEAD /api/push/public-key
-HEAD /api/reviews
 HEAD /api/projects
 HEAD /api/projects/:workspace/:project
 HEAD /api/projects/:workspace/:project/baselines
@@ -128,6 +127,9 @@ HEAD /api/projects/:workspace/:project/sites
 HEAD /api/projects/:workspace/:project/snapshots/:name/history
 HEAD /api/projects/:workspace/:project/token
 HEAD /api/projects/:workspace/:project/triage
+HEAD /api/push/devices
+HEAD /api/push/public-key
+HEAD /api/reviews
 HEAD /api/workspaces/:workspace
 HEAD /api/workspaces/:workspace/auth
 HEAD /api/workspaces/:workspace/builds
@@ -138,9 +140,9 @@ HEAD /api/workspaces/:workspace/github-import
 HEAD /api/workspaces/:workspace/insights
 HEAD /api/workspaces/:workspace/integrations
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/install
-HEAD /api/workspaces/:workspace/integrations/:id|:kind/targets
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/projects
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/projects/:project/links
+HEAD /api/workspaces/:workspace/integrations/:id|:kind/targets
 HEAD /api/workspaces/:workspace/integrations/github/install
 HEAD /api/workspaces/:workspace/member-projects
 HEAD /api/workspaces/:workspace/members/sign-in
@@ -155,8 +157,8 @@ HEAD /healthz
 HEAD /internal/tls-ask
 HEAD /readyz
 HEAD /v1/builds/:id/status
-HEAD /v1/sites/served
 HEAD /v1/project
+HEAD /v1/sites/served
 HEAD /v2/project
 OPTIONS /api/auth/sign-in/email-otp
 PATCH /api/auth/sign-in/email-otp
@@ -178,6 +180,7 @@ POST /api/inbox/read-all
 POST /api/inbox/undo/:id
 POST /api/instance/accounts
 POST /api/instance/accounts/:id/ban
+POST /api/instance/accounts/:id/email
 POST /api/instance/accounts/:id/reset-password
 POST /api/instance/accounts/:id/sign-out
 POST /api/instance/accounts/:id/unban
@@ -189,9 +192,6 @@ POST /api/instance/workspaces
 POST /api/instance/workspaces/:id/purge
 POST /api/instance/workspaces/:id/restore
 POST /api/integrations/:kind/webhook
-POST /api/push/subscribe
-POST /api/push/unsubscribe
-POST /api/site-handoff
 POST /api/projects/:workspace/:project/builds/:number/comments
 POST /api/projects/:workspace/:project/builds/:number/issues
 POST /api/projects/:workspace/:project/builds/:number/review
@@ -215,6 +215,9 @@ POST /api/projects/:workspace/:project/triage/snooze
 POST /api/projects/:workspace/:project/undo/:id
 POST /api/projects/:workspace/:project/webhooks
 POST /api/projects/:workspace/:project/webhooks/:id/test
+POST /api/push/subscribe
+POST /api/push/unsubscribe
+POST /api/site-handoff
 POST /api/workspaces
 POST /api/workspaces/:workspace/domains
 POST /api/workspaces/:workspace/domains/:id/verify
@@ -222,8 +225,8 @@ POST /api/workspaces/:workspace/github-import
 POST /api/workspaces/:workspace/integrations/:id|:kind/connect
 POST /api/workspaces/:workspace/integrations/:id|:kind/projects/:project/links
 POST /api/workspaces/:workspace/integrations/:id|:kind/projects/:project/links/auto
-POST /api/workspaces/:workspace/sso
 POST /api/workspaces/:workspace/projects
+POST /api/workspaces/:workspace/sso
 POST /api/workspaces/:workspace/views
 POST /v1/builds
 POST /v1/builds/:id/finalize

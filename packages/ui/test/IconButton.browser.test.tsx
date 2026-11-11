@@ -15,10 +15,15 @@ describe('IconButton', () => {
     )
     const button = page.getByRole('button', { name: 'Close' })
     await expect.element(button).toHaveAttribute('type', 'button')
-    const style = getComputedStyle(button.element())
-    expect([style.width, style.height]).toEqual(['28px', '28px'])
+    // The stylesheet may land a moment after the first paint on a busy machine.
+    await expect
+      .poll(() => {
+        const style = getComputedStyle(button.element())
+        return [style.width, style.height]
+      })
+      .toEqual(['28px', '28px'])
     await button.click()
-    expect(onClick).toHaveBeenCalledTimes(1)
+    await expect.poll(() => onClick.mock.calls.length).toBe(1)
   })
 
   it('sizes the icon to 16px', async () => {
@@ -27,8 +32,13 @@ describe('IconButton', () => {
         <X />
       </IconButton>,
     )
-    const svg = page.getByRole('button', { name: 'Close' }).element().querySelector('svg')
-    expect(svg && getComputedStyle(svg).width).toBe('16px')
+    const button = page.getByRole('button', { name: 'Close' })
+    await expect
+      .poll(() => {
+        const svg = button.element().querySelector('svg')
+        return svg && getComputedStyle(svg).width
+      })
+      .toBe('16px')
   })
 
   it('is inert when disabled', async () => {

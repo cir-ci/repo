@@ -85,6 +85,8 @@ describe('merge gate defaults', () => {
     expect(projects.find((p: { slug: string }) => p.slug === 'web')).toEqual({
       slug: 'web',
       name: expect.any(String),
+      color: 'olive',
+      icon: null,
       flakyBlocksMerge: null,
       assignTriageToOnCall: null,
     })

@@ -80,6 +80,8 @@ const RADIUS_ALLOWED: Record<string, string> = {
   'packages/ui/src/Slider.module.css': '2px: half the 4px track, so the ends are round',
   'packages/ui/src/Badge.module.css': '9px: half of the 18px badge height (a pill)',
   'packages/ui/src/Switch.module.css': '9px: half of the 18px track height (a pill)',
+  'packages/ui/src/AvatarStack.module.css':
+    'half the --stack-size, so the ring and the +N chip are circles at any size',
   'apps/web/src/features/workspace-settings/Settings.module.css': '2px: half of thin 4px bars',
 }
 
@@ -90,7 +92,8 @@ const radiusOk = (value: string) =>
     .replaceAll(/var\(--circi-radius-[\w-]+(?:,[^)]*)?\)/g, '0')
     .split(/\s+/)
     .filter(Boolean)
-    .every((part) => SCALE.has(part))
+    // `inherit` takes the parent's radius, which is itself checked.
+    .every((part) => SCALE.has(part) || part === 'inherit')
 
 const unused = (allowed: Record<string, string>, used: Set<string>) =>
   Object.keys(allowed).filter((k) => !used.has(k))

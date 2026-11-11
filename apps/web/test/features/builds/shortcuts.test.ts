@@ -29,9 +29,9 @@ describe('shortcutFor', () => {
     ])
   })
 
-  it('ignores other keys and lists each key once', () => {
+  it('ignores other keys and lists each key once per scope', () => {
     expect(shortcutFor('z')).toBeUndefined()
-    expect(new Set(SHORTCUTS.map((s) => s.key)).size).toBe(SHORTCUTS.length)
+    expect(new Set(SHORTCUTS.map((s) => `${s.scope}:${s.key}`)).size).toBe(SHORTCUTS.length)
   })
 })
 
@@ -42,7 +42,12 @@ describe('build review keys', () => {
   it('declares comment, request review, submit and the Design mode once each', () => {
     expect(shortcutFor('c')?.action).toEqual({ type: 'comment' })
     expect(shortcutFor('shift+r')?.action).toEqual({ type: 'requestReview' })
-    expect(shortcutFor('mod+Enter')?.action).toEqual({ type: 'submit' })
+    // ⌘↵ is also "open in a new tab" on a list, so the build page's one is found by its scope.
+    expect(
+      SHORTCUTS.find((s) => s.key === 'mod+Enter' && s.scope === 'build-review')?.action,
+    ).toEqual({
+      type: 'submit',
+    })
     expect(shortcutFor('5')?.action).toEqual({ type: 'mode', mode: 'design' })
   })
 
