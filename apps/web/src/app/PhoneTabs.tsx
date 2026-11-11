@@ -135,7 +135,7 @@ function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
   return (
     <TeamAvatars
       aria-hidden="true"
-      teams={shown.map((t) => ({ ...t, id: `${t.workspace.slug}/${t.slug}` }))}
+      teams={shown.map((t) => Object.assign({ id: `${t.workspace.slug}/${t.slug}` }, t))}
       limit={TEAM_STACK_LIMIT}
       overflow={false}
       overlap={8}

@@ -1,9 +1,25 @@
-import { Children, type CSSProperties, type ComponentPropsWithoutRef, type ReactNode } from 'react'
+import {
+  Children,
+  isValidElement,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 import { cx } from './cx.ts'
 import { Tooltip } from './Tooltip.tsx'
 
 import styles from './AvatarStack.module.css'
+
+declare module 'react' {
+  // The custom properties the stack's CSS reads.
+  interface CSSProperties {
+    '--i'?: number
+    '--stack-size'?: string
+    '--stack-overlap'?: string
+    '--stack-gap'?: string
+  }
+}
 
 /**
  * Avatars (or links around them) laid out overlapping, each ringed in the surface colour so the
@@ -29,12 +45,12 @@ export function AvatarStack({
   ...rest
 }: AvatarStack.Props) {
   const items = Children.toArray(children)
-  const stackStyle = {
+  const stackStyle: CSSProperties = {
     ...style,
     '--stack-size': `${size}px`,
     '--stack-overlap': `${overlap}px`,
     '--stack-gap': `${gap}px`,
-  } as CSSProperties
+  }
   return (
     <span
       {...rest}
@@ -45,12 +61,16 @@ export function AvatarStack({
       data-spread={spread ? 'true' : 'false'}
     >
       {items.map((child, i) => (
-        <span key={i} className={styles.item} style={{ '--i': i } as CSSProperties}>
+        <span
+          key={isValidElement(child) ? child.key : `item-${i}`}
+          className={styles.item}
+          style={{ '--i': i }}
+        >
           {child}
         </span>
       ))}
       {more && more.count > 0 ? (
-        <span className={styles.item} style={{ '--i': items.length } as CSSProperties}>
+        <span className={styles.item} style={{ '--i': items.length }}>
           <Chip more={more} />
         </span>
       ) : null}

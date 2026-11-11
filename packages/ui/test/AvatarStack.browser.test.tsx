@@ -19,16 +19,16 @@ function People({ more }: { more?: AvatarStack.More }) {
 }
 
 const stack = () => page.getByTestId('stack')
-const items = () => [...stack().element().children] as HTMLElement[]
+const items = () => Array.from(stack().element().children)
 const lefts = () => items().map((el) => el.getBoundingClientRect().left)
 const settle = () => new Promise((resolve) => setTimeout(resolve, 600))
 
 describe('AvatarStack', () => {
   it('overlaps its items by 4px at rest, each with a 2px ring', async () => {
     await render(<People />)
-    const [a, b, c] = lefts() as [number, number, number]
-    expect(b - a).toBe(16)
-    expect(c - b).toBe(16)
+    const [a, b, c] = lefts()
+    expect(b! - a!).toBe(16)
+    expect(c! - b!).toBe(16)
     expect(getComputedStyle(items()[1]!).boxShadow).toContain('2px')
   })
 
@@ -67,7 +67,8 @@ describe('AvatarStack', () => {
     )
     const rest = lefts()
     const link = page.getByRole('link', { name: 'Grace Hopper' })
-    ;(link.element() as HTMLElement).focus()
+    const el = link.element()
+    if (el instanceof HTMLElement) el.focus()
     await settle()
     expect(lefts()[2]! - rest[2]!).toBeGreaterThan(0)
     const slot = link.element().parentElement!
@@ -108,12 +109,12 @@ describe('AvatarStack', () => {
     expect(transition.transitionTimingFunction).toBe('cubic-bezier(0.34, 1.56, 0.64, 1)')
     expect(transition.transitionDuration).toBe('0.28s')
     // The reduced-motion rule is in the stylesheet: `transition: none`.
-    const rules = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules])
+    const rules = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules))
     const reduced = rules.filter(
       (rule): rule is CSSMediaRule =>
         rule instanceof CSSMediaRule && rule.conditionText.includes('prefers-reduced-motion'),
     )
-    const texts = reduced.flatMap((rule) => [...rule.cssRules].map((r) => r.cssText))
+    const texts = reduced.flatMap((rule) => Array.from(rule.cssRules).map((r) => r.cssText))
     expect(texts.some((t) => t.includes('transition: none') && t.includes('data-spread'))).toBe(
       true,
     )
