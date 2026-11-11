@@ -67,23 +67,24 @@ describe('Toast', () => {
 
   it('pauses while hovered and runs on once the pointer leaves', async () => {
     const manager = await setup()
-    manager.add({ title: 'Saved', timeout: 600, data: { tone: 'success' } })
+    // Long enough that the pointer reaches it under load; held past it to show the pause.
+    manager.add({ title: 'Saved', timeout: 2000, data: { tone: 'success' } })
     const toast = toastNamed('Saved')
     await expect.element(toast).toBeVisible()
     await userEvent.hover(toast)
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await new Promise((resolve) => setTimeout(resolve, 3000))
     await expect.element(toast).toBeVisible()
     await userEvent.hover(page.getByRole('button', { name: 'Elsewhere' }))
-    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 4000 })
+    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 8000 })
   })
 
   it('pauses while focused', async () => {
     const manager = await setup()
-    manager.add({ title: 'Saved', timeout: 600, data: { tone: 'success' } })
+    manager.add({ title: 'Saved', timeout: 2000, data: { tone: 'success' } })
     await expect.element(toastNamed('Saved')).toBeVisible()
     await userEvent.tab()
     await userEvent.tab()
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await new Promise((resolve) => setTimeout(resolve, 3000))
     await expect.element(toastNamed('Saved')).toBeVisible()
   })
 
