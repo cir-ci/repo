@@ -132,10 +132,12 @@ describe('ListRow title, subtitle and action', () => {
       </>,
     )
     const hidden = page.getByText('Open ↗').element()
-    expect(getComputedStyle(hidden).display).toBe('none')
-    expect(getComputedStyle(page.getByText('Go ↗').element()).display).not.toBe('none')
+    await expect.poll(() => getComputedStyle(hidden).display).toBe('none')
+    await expect
+      .poll(() => getComputedStyle(page.getByText('Go ↗').element()).display)
+      .not.toBe('none')
     await page.getByRole('button', { name: /Hovered/ }).hover()
-    expect(getComputedStyle(hidden).display).not.toBe('none')
+    await expect.poll(() => getComputedStyle(hidden).display).not.toBe('none')
     await page.getByText('Open ↗').click()
     await expect.poll(() => onAction).toHaveBeenCalledTimes(1)
     expect(onClick).not.toHaveBeenCalled()
@@ -148,9 +150,9 @@ describe('ListRow title, subtitle and action', () => {
     const probe = document.createElement('span')
     probe.style.background = 'var(--circi-action-hover)'
     document.body.append(probe)
-    expect(getComputedStyle(row.element()).backgroundColor).toBe(
-      getComputedStyle(probe).backgroundColor,
-    )
+    await expect
+      .poll(() => getComputedStyle(row.element()).backgroundColor)
+      .toBe(getComputedStyle(probe).backgroundColor)
     probe.remove()
   })
 })

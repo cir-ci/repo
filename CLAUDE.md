@@ -11,7 +11,7 @@ caching of `dist/**`, with a `transit` task so a package's build is invalidated 
 not by unrelated ones. Lint and typecheck are single root commands cached as root tasks (`//#lint`, `//#typecheck` in `turbo.json`); the tests are
 one root task per Vitest project, each cached on its own inputs: `//#test:node` (the Node project: logic tests of every app and
 package, which read most of the tree, so it reruns on almost any change), `//#test:ui` (packages/ui only) and
-`//#test:web-browser` (apps/web, ui, api, core). `pnpm test` still runs every project in one Vitest process. `@circi/testing` has no database
+`//#test:web-browser` (apps/web, ui, api, core); the two browser tasks each take a quarter of the cores (`--maxWorkers=25%`), so together with the Node tests they don't overload the machine and flake. `pnpm test` still runs every project in one Vitest process. `@circi/testing` has no database
 code (the PGlite test database and seeders are `@circi/db/testing`, part of `db`), so no package pair forms a cycle and the root's
 dependency on `testing` does not reach `db` or `core`: a change in `db` reruns the Node tests, lint, typecheck, format check and the
 server build, and leaves the UI/web tests and the cli, vitest, ui and web builds cached (a change in `core` also reruns what reads
