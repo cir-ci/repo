@@ -194,14 +194,7 @@ export function SettingsNav() {
         </NavSection>
       ) : null}
       {caps?.instanceAdmin ? (
-        <NavSection
-          label={
-            <>
-              <span className={styles.teamName}>Instance</span>
-              <span className={styles.note}>Admins only</span>
-            </>
-          }
-        >
+        <NavSection label="Instance">
           <NavLink to="/instance/accounts" icon={<UserPlusIcon />}>
             Accounts
           </NavLink>
