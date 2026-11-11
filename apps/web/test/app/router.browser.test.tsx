@@ -29,6 +29,19 @@ describe('the app router', () => {
     expect(router.state.matches.at(-1)?.routeId).toBe('/instance/workspaces')
   })
 
+  it('has the Instance hub at /instance/overview, and /instance goes there', async () => {
+    const hub = await open('/instance/overview')
+    expect(hub.state.matches.at(-1)?.routeId).toBe('/instance/overview')
+    const front = await open('/instance')
+    expect(front.state.location.pathname).toBe('/instance/overview')
+  })
+
+  it('sends the GitHub App result at /instance on to Instance settings, keeping it', async () => {
+    const router = await open('/instance?githubApp=failed')
+    expect(router.state.location.pathname).toBe('/instance/settings')
+    expect(router.state.location.search).toEqual({ githubApp: 'failed' })
+  })
+
   it('still reads /<workspace>/<team> as a team', async () => {
     const router = await open('/acme/web')
     expect(router.state.location.pathname).toBe('/acme/web')
