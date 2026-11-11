@@ -1,6 +1,5 @@
 .root {
   --stack-ring: var(--circi-surface-raised);
-  --stack-step: calc(var(--stack-overlap) + var(--stack-gap));
 
   display: inline-flex;
   flex: none;
@@ -12,19 +11,12 @@
   --stack-ring: var(--circi-surface-chrome);
 }
 
-/* A spread stack reaches past its box; it is drawn above what follows. */
-.root[data-spread='true']:hover,
-.root[data-spread='true']:focus-within {
-  z-index: 1;
-}
-
 .item {
   display: inline-flex;
   flex: none;
   position: relative;
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--stack-ring);
-  transform: translateX(0);
 }
 
 .root[data-shape='rounded'] .item {
@@ -52,21 +44,22 @@
 }
 
 /*
- * The spread moves each item by its index times overlap + gap, with an overshoot that settles.
- * Only transforms move, so the row does not reflow; the last items reach into the space after the stack.
+ * The spread opens the overlap into a small gap, with a spring's overshoot that settles. It moves
+ * the items' margins, so the stack grows and what follows it (the text "inherit this", a count)
+ * moves along with it.
  */
-.root[data-spread='true'] .item {
-  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+.root[data-spread='true'] .item + .item {
+  transition: margin-inline-start 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.root[data-spread='true']:hover .item,
-.root[data-spread='true']:focus-within .item {
-  transform: translateX(calc(var(--i) * var(--stack-step)));
+.root[data-spread='true']:hover .item + .item,
+.root[data-spread='true']:focus-within .item + .item {
+  margin-inline-start: var(--stack-gap);
 }
 
 /* Reduced motion: it still spreads, at once. */
 @media (prefers-reduced-motion: reduce) {
-  .root[data-spread='true'] .item {
+  .root[data-spread='true'] .item + .item {
     transition: none;
   }
 }

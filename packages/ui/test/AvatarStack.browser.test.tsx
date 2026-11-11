@@ -32,7 +32,7 @@ describe('AvatarStack', () => {
     expect(getComputedStyle(items()[1]!).boxShadow).toContain('2px')
   })
 
-  it('spreads apart on hover: the overlap goes and a gap opens, without moving the layout box', async () => {
+  it('spreads apart on hover: the overlap goes, a gap opens and the stack grows, moving what follows', async () => {
     await render(<People />)
     const box = stack().element().getBoundingClientRect()
     await page.getByRole('img', { name: 'Ada Lovelace' }).hover()
@@ -41,8 +41,8 @@ describe('AvatarStack', () => {
     // 20px items, 2px apart.
     expect(rects[1]!.left - rects[0]!.right).toBeCloseTo(2, 0)
     expect(rects[2]!.left - rects[1]!.right).toBeCloseTo(2, 0)
-    // Only transforms moved: the stack's own box is where it was.
-    expect(stack().element().getBoundingClientRect().width).toBe(box.width)
+    // The stack itself grows by the spread (3 items: 2 × (4px overlap + 2px gap)), so text after it moves.
+    expect(Math.round(stack().element().getBoundingClientRect().width - box.width)).toBe(12)
   })
 
   it('closes again when the pointer leaves', async () => {
@@ -105,7 +105,7 @@ describe('AvatarStack', () => {
   it('animates the spread with an overshoot curve, and without any under reduced motion', async () => {
     await render(<People />)
     const transition = getComputedStyle(items()[1]!)
-    expect(transition.transitionProperty).toBe('transform')
+    expect(transition.transitionProperty).toBe('margin-inline-start')
     expect(transition.transitionTimingFunction).toBe('cubic-bezier(0.34, 1.56, 0.64, 1)')
     expect(transition.transitionDuration).toBe('0.28s')
     // The reduced-motion rule is in the stylesheet: `transition: none`.

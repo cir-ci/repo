@@ -14,7 +14,6 @@ import styles from './AvatarStack.module.css'
 declare module 'react' {
   // The custom properties the stack's CSS reads.
   interface CSSProperties {
-    '--i'?: number
     '--stack-size'?: string
     '--stack-overlap'?: string
     '--stack-gap'?: string
@@ -24,9 +23,8 @@ declare module 'react' {
 /**
  * Avatars (or links around them) laid out overlapping, each ringed in the surface colour so the
  * overlap reads. When the stack is hovered or has focus inside, the items spread apart: the
- * overlap goes and a small gap opens, with a spring-like overshoot. The spread is a `transform`
- * per item (`--i` is its index), so nothing reflows; the last items reach past the stack's box
- * into the space after it, drawn above it.
+ * overlap goes and a small gap opens, with a spring-like overshoot. The spread moves the items'
+ * margins, so the stack grows and whatever follows it on the line moves along with it.
  *
  * Each child is one item: an `Avatar`, or an `<a>`/`Tooltip` around one. `more` ends the stack
  * with a "+N" chip. The stack is a plain span: pass `aria-hidden` for a purely decorative one.
@@ -61,16 +59,12 @@ export function AvatarStack({
       data-spread={spread ? 'true' : 'false'}
     >
       {items.map((child, i) => (
-        <span
-          key={isValidElement(child) ? child.key : `item-${i}`}
-          className={styles.item}
-          style={{ '--i': i }}
-        >
+        <span key={isValidElement(child) ? child.key : `item-${i}`} className={styles.item}>
           {child}
         </span>
       ))}
       {more && more.count > 0 ? (
-        <span className={styles.item} style={{ '--i': items.length }}>
+        <span className={styles.item}>
           <Chip more={more} />
         </span>
       ) : null}
