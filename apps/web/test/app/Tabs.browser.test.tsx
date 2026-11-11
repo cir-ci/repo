@@ -252,6 +252,27 @@ describe('tabs in the installed app', () => {
     expect(document.querySelector('[role="tab"]')?.textContent).toBe('Projects page')
   })
 
+  it("keeps a tab's title and width still when hovering shows its close button", async () => {
+    installedAs('standalone')
+    await renderApp()
+    await page.getByRole('button', { name: 'New tab' }).click()
+    await expect.poll(() => tabs().elements()).toHaveLength(2)
+    // The first tab is in the background now: its close button is hidden until hovered.
+    const background = tabs().first()
+    const tab = background.element().parentElement!
+    const label = tab.querySelector('span:last-child')!
+    const before = {
+      tab: tab.getBoundingClientRect().width,
+      label: label.getBoundingClientRect().width,
+    }
+    await background.hover()
+    await expect
+      .element(page.getByRole('button', { name: `Close ${background.element().textContent}` }))
+      .toBeVisible()
+    expect(tab.getBoundingClientRect().width).toBe(before.tab)
+    expect(label.getBoundingClientRect().width).toBe(before.label)
+  })
+
   it('opens a tab from the menu, and each tab keeps its own page', async () => {
     installedAs('standalone')
     await renderApp()

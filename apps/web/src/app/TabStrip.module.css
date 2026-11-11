@@ -85,9 +85,18 @@
   white-space: nowrap;
 }
 
+/*
+ * The close button always keeps its room, hidden until the tab is hovered, focused or active: if it
+ * only took room on hover, the title would get shorter and re-truncate (the tab's text jumps).
+ */
 .close {
   appearance: none;
-  display: none;
+  display: inline-flex;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    visibility 0s linear 120ms;
   flex: none;
   align-items: center;
   justify-content: center;
@@ -109,7 +118,18 @@
 .tab:hover .close,
 .tab:focus-within .close,
 .tab[data-active] .close {
-  display: inline-flex;
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close,
+  .tab:hover .close,
+  .tab:focus-within .close,
+  .tab[data-active] .close {
+    transition: none;
+  }
 }
 
 .new {
