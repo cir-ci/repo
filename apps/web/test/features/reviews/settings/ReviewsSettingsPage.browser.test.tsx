@@ -8,7 +8,7 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { ReviewsSettingsPage } from '#features/reviews/settings/ReviewsSettingsPage.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
-import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
+import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
 import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -152,6 +152,23 @@ describe('ReviewsSettingsPage', () => {
     await expect
       .element(page.getByRole('link', { name: 'webhooks' }))
       .toHaveAttribute('href', '/acme/web/settings/webhooks')
+  })
+
+  it("names the rotation's people while the team's member list is still loading", async () => {
+    // The members never answer: the rotation must still show who is in it, never "no rotation".
+    fakeFetch({
+      [`GET ${API}/settings`]: {
+        canManage: true,
+        settings,
+        workspace: { flakyBlocksMerge: true, assignTriageToOnCall: false, retentionDays: 30 },
+      },
+      [`GET ${API}/rules`]: rules(),
+      [`GET ${API}/members`]: () => pending(),
+    })
+    await show()
+    await expect.element(page.getByText(/weekly, Mondays/)).toBeVisible()
+    await expect.element(page.getByText('Ada Lovelace').first()).toBeVisible()
+    expect(page.getByText(/No one is on triage/).elements()).toHaveLength(0)
   })
 
   it('saves the review target, and null when it is emptied', async () => {

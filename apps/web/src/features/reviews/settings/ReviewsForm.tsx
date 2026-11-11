@@ -126,6 +126,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         teamName={props.settings.name}
         defaultBranch={props.settings.defaultBranch}
         people={props.people}
+        known={props.rotation.members}
         ids={values.rotationIds}
         date={values.rotationDate}
         flakyAfter={values.flakyAfter}

@@ -39,7 +39,11 @@ export function RotationSection(props: RotationSection.Props) {
   const { ids, date, disabled } = props
   const problem = startDateProblem(date, props.dateUnreadable)
   const flaky = flakyProblem(props.flakyAfter)
-  const inRotation = ids.flatMap((id) => props.people.find((p) => p.id === id) ?? [])
+  // The saved rotation names its people itself: use it while the team's member list is loading,
+  // so the row never says "no rotation" for a moment when there is one.
+  const inRotation = ids.flatMap(
+    (id) => props.people.find((p) => p.id === id) ?? props.known.find((p) => p.id === id) ?? [],
+  )
   const days = Number(props.snoozeDays)
   const dayItems = [...new Set([...SNOOZE_DAY_CHOICES, ...(Number.isInteger(days) ? [days] : [])])]
     .toSorted((a, b) => a - b)
@@ -150,6 +154,8 @@ export namespace RotationSection {
     teamName: string
     defaultBranch: string
     people: Person[]
+    /** The saved rotation's people, with their names and pictures (the rotation answer carries them). */
+    known: Person[]
     ids: string[]
     date: string
     flakyAfter: string
