@@ -64,9 +64,9 @@ describe('the built dashboard', () => {
     expect(css).toMatch(/:where\(body\)\{[^}]*background:var\(--circi-surface-chrome\)/)
   })
 
-  it('draws the loading screen before any script runs: the logo in #root, styled by a linked stylesheet', () => {
+  it('draws the loading screen before any script runs: the logo above an empty #root, styled by a linked stylesheet', () => {
     expect(html).toMatch(
-      /<div id="root">\s*<div class="circi-boot"[^>]*>\s*<img src="\/assets\/[^"]+\.svg" alt="CirCI"/,
+      /<div id="circi-boot" class="circi-boot"[^>]*>\s*<img src="\/assets\/[^"]+\.svg" alt="CirCI"[^>]*>\s*<\/div>\s*<div id="root"><\/div>/,
     )
     const linked = [
       ...html.matchAll(/<link rel="stylesheet"[^>]*href="\/assets\/([^"]+\.css)"/g),

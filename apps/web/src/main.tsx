@@ -11,6 +11,7 @@ import { createRoot } from 'react-dom/client'
 import { Providers } from './app/providers.tsx'
 import { router } from './app/router.tsx'
 import { startPwa } from './features/pwa/start.ts'
+import { dismissBootScreen } from './lib/boot-screen.ts'
 
 startPwa()
 
@@ -23,3 +24,7 @@ createRoot(root).render(
     </Providers>
   </StrictMode>,
 )
+
+// A safety net: the app dismisses the loading screen as soon as it has drawn (lib/boot-screen.ts);
+// if it never does (an error before the first page), the screen still goes.
+setTimeout(dismissBootScreen, 8000)

@@ -1,7 +1,7 @@
 import { AnnouncerProvider, AppFrame, PanelNotices, SkipLink } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Outlet, useRouterState } from '@tanstack/react-router'
-import { lazy, type ReactNode, Suspense } from 'react'
+import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
@@ -11,6 +11,7 @@ import { ProjectDialogs } from '#features/projects/ProjectDialogs.tsx'
 import { AddToHomeScreenSheet } from '#features/pwa/AddToHomeScreenSheet.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
+import { dismissBootScreenAfter } from '#lib/boot-screen.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
@@ -46,6 +47,11 @@ const SetupContinue = lazy(() =>
  */
 export function Shell() {
   const { data: session, isPending } = authClient.useSession()
+  // Once the session is known, whatever came first (the sign-in page, the app) takes over from
+  // index.html's loading screen, after its own logo or first image is drawn.
+  useEffect(() => {
+    if (!isPending) dismissBootScreenAfter(document.querySelector<HTMLImageElement>('#content img'))
+  }, [isPending])
   const user = session?.user
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 

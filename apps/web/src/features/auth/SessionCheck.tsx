@@ -1,4 +1,7 @@
 import { Delayed } from '@circi/ui'
+import { useEffect, useRef } from 'react'
+
+import { dismissBootScreenAfter } from '#lib/boot-screen.ts'
 
 import { Logo } from './Logo.tsx'
 
@@ -12,10 +15,13 @@ import styles from './SessionCheck.module.css'
  * screen index.html draws before any script (src/boot.css), so it stays put when this takes over.
  */
 export function SessionCheck() {
+  const mark = useRef<HTMLDivElement>(null)
+  // index.html's loading screen sits above this until this logo is drawn, so there's no flash.
+  useEffect(() => dismissBootScreenAfter(mark.current?.querySelector('img')), [])
   return (
     <div className={page.page}>
       <main id="content" tabIndex={-1} className={page.column} aria-busy="true">
-        <div className={styles.mark}>
+        <div ref={mark} className={styles.mark}>
           <Logo size={56} alt="CirCI" className={page.logo} />
           <div className={styles.note}>
             <Delayed>

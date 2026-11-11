@@ -4,7 +4,8 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 100vh;
+  /* The window below the installed app's title bar: no taller, so no scrollbar narrows it. */
+  min-height: calc(100vh - var(--circi-window-top, 0px));
   padding: 48px 16px;
   background:
     radial-gradient(800px 480px at 50% -10%, var(--circi-glow), transparent 70%),

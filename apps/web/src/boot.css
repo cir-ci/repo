@@ -14,14 +14,12 @@
   box-sizing: border-box;
   /*
    * Pinned, so the body's margin before the reset loads can't move it, and laid out exactly as
-   * SessionCheck's page: from the top of the page, one window tall. The logo's centre is then the
-   * same in both, and the hand-over doesn't move it.
+   * SessionCheck's page: from the top of the page to the bottom of the window. The logo's centre is
+   * then the same in both, and the hand-over doesn't move it. Above the app while it starts.
    */
   position: fixed;
-  top: var(--boot-top);
-  right: 0;
-  left: 0;
-  height: 100vh;
+  inset: var(--boot-top) 0 0;
+  z-index: 2147483647;
   padding: 48px 16px;
   background:
     radial-gradient(800px 480px at 50% -10%, var(--circi-glow, transparent), transparent 70%),

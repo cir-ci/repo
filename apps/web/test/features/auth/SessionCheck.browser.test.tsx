@@ -45,8 +45,10 @@ describe('SessionCheck', () => {
 
   it('keeps the logo in place in the installed app, below its title bar', async () => {
     await page.viewport(1200, 800)
-    // The installed app's title bar: global.css pads the body by it, boot.css starts below it.
+    // The installed app's title bar: global.css pads the body by it (and sets the variable the
+    // page's height reads), boot.css starts below it.
     document.body.style.paddingTop = '32px'
+    document.documentElement.style.setProperty('--circi-window-top', '32px')
     const boot = document.createElement('div')
     boot.className = 'circi-boot'
     boot.style.setProperty('--boot-top', '32px')
@@ -58,8 +60,22 @@ describe('SessionCheck', () => {
     await render(<SessionCheck />)
     const logo = page.getByRole('img', { name: 'CirCI' })
     await expect.element(logo).toBeVisible()
-    expect(before).toEqual({ x: 600, y: 432 })
+    // Centred in the window below the bar: 32 + (800 - 32) / 2.
+    expect(before).toEqual({ x: 600, y: 416 })
     expect(centre(logo.element())).toEqual(before)
+    // No taller than the window, so no scrollbar appears and narrows it (a sideways jump).
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(800)
     document.body.style.paddingTop = ''
+    document.documentElement.style.removeProperty('--circi-window-top')
+  })
+
+  it('takes over from the loading screen once its logo is drawn, so nothing flashes', async () => {
+    const boot = document.createElement('div')
+    boot.id = 'circi-boot'
+    boot.className = 'circi-boot'
+    document.body.append(boot)
+    await render(<SessionCheck />)
+    await expect.element(page.getByRole('img', { name: 'CirCI' })).toBeVisible()
+    await expect.poll(() => document.getElementById('circi-boot')).toBeNull()
   })
 })
