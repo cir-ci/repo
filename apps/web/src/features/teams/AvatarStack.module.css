@@ -5,19 +5,6 @@
   min-width: 0;
 }
 
-.stack {
-  display: inline-flex;
-  flex: none;
-}
-
-.stack > * {
-  box-shadow: 0 0 0 2px var(--circi-surface-raised);
-}
-
-.stack > * + * {
-  margin-left: -4px;
-}
-
 .count {
   color: var(--circi-text-tertiary);
   font-size: 12px;

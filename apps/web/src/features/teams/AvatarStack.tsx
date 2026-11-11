@@ -1,5 +1,7 @@
 import type { Team } from '@circi/api'
-import { Avatar } from '@circi/ui'
+import { Avatar, AvatarStack } from '@circi/ui'
+
+import { TeamAvatars } from '#lib/TeamAvatars.tsx'
 
 import styles from './AvatarStack.module.css'
 
@@ -12,13 +14,11 @@ export const memberCountLabel = (n: number) => `${n} ${n === 1 ? 'member' : 'mem
 /** "1 team", "3 teams". */
 export const teamCountLabel = (n: number) => `${n} ${n === 1 ? 'team' : 'teams'}`
 
-/** Overlapping avatars followed by a count ("3 members"). The avatars are decoration; the count says it. */
+/** A stack of avatars followed by a count ("3 members"). The avatars are decoration; the count says it. */
 function Stack({ count, children }: { count: string; children: React.ReactNode }) {
   return (
     <span className={styles.root}>
-      <span className={styles.stack} aria-hidden="true">
-        {children}
-      </span>
+      <AvatarStack aria-hidden="true">{children}</AvatarStack>
       <span className={styles.count}>{count}</span>
     </span>
   )
@@ -35,22 +35,13 @@ export function MemberStack({ count, people }: MemberStack.Props) {
   )
 }
 
-/** A person's teams: marble avatars, then "N teams". */
+/** A person's teams: the team avatars, then "N teams". */
 export function TeamStack({ teams }: TeamStack.Props) {
   return (
-    <Stack count={teamCountLabel(teams.length)}>
-      {teams.slice(0, STACK_LIMIT).map((t) => (
-        <Avatar
-          key={t.slug}
-          type="team"
-          slug={t.slug}
-          name={t.name}
-          color={t.color}
-          icon={t.icon}
-          size={20}
-        />
-      ))}
-    </Stack>
+    <span className={styles.root}>
+      <TeamAvatars aria-hidden="true" teams={teams} limit={STACK_LIMIT} overflow={false} />
+      <span className={styles.count}>{teamCountLabel(teams.length)}</span>
+    </span>
   )
 }
 
