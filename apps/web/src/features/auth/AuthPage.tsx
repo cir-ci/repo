@@ -22,7 +22,12 @@ export function AuthPage({ title, subtitle, wide, children }: AuthPage.Props) {
           <Logo size={56} className={styles.logo} />
           <div>
             <h1 className={styles.title}>{title}</h1>
-            {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
+            {/* Text in a paragraph; anything else (the setup's progress bar) in a div, which a p can't hold. */}
+            {typeof subtitle === 'string' ? (
+              <p className={styles.subtitle}>{subtitle}</p>
+            ) : subtitle ? (
+              <div className={styles.subtitle}>{subtitle}</div>
+            ) : null}
           </div>
         </header>
         {children}

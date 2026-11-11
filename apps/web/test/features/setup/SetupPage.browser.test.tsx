@@ -33,6 +33,8 @@ describe('SetupPage, the account step', () => {
       .element(page.getByRole('heading', { name: 'Set up CirCI', level: 1 }))
       .toBeVisible()
     await expect.element(page.getByText('Step 1 of 4')).toBeVisible()
+    // The progress bar is the subtitle; a paragraph can't hold its divs.
+    expect(page.getByText('Step 1 of 4').element().closest('p')).toBeNull()
     await expect.element(page.getByRole('textbox', { name: 'Setup code' })).toHaveFocus()
     await expect
       .element(page.getByRole('textbox', { name: 'Setup code' }))
