@@ -1,6 +1,5 @@
 import type { InstanceAdmin } from '@circi/api'
 import {
-  ActivityIcon,
   BellIcon,
   BlocksIcon,
   BuildingIcon,
@@ -15,7 +14,6 @@ import {
   SunIcon,
   Avatar,
   UserIcon,
-  UserPlusIcon,
   UsersIcon,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -24,6 +22,7 @@ import { useRouter, useRouterState } from '@tanstack/react-router'
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
+import { onInstancePage } from '#features/instance/hub-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
@@ -38,7 +37,9 @@ import styles from './SettingsNav.module.css'
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
  * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Teams
  * (each team the person may see, opening its settings hub, then All teams) and, for the people
- * who run the instance, Instance. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
+ * who run the instance, Instance, above Workspaces and Teams (the hierarchy: Account, Instance,
+ * Workspaces, Teams): one entry (a tile and its name) that opens the Instance hub and
+ * stays selected on every Instance page but All workspaces. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
  * Instance admins get a Workspaces section (every live workspace of the instance, each opening its
  * settings hub and selected on every page of it, then All workspaces: the list, with New workspace
  * and the deleted ones) in place of the Workspace one. On a
@@ -103,6 +104,23 @@ export function SettingsNav() {
           </NavLink>
         )}
       </NavSection>
+      {caps?.instanceAdmin ? (
+        <NavSection label="Instance">
+          <NavLink
+            to="/instance/overview"
+            icon={
+              <span className={styles.instanceTile} aria-hidden>
+                <ServerIcon size={13} />
+              </span>
+            }
+            // Every Instance page belongs to this entry (the hub, Accounts, Instance settings, Health,
+            // ...) except All workspaces, which belongs to the Workspaces section.
+            selected={onInstancePage(pathname)}
+          >
+            Instance
+          </NavLink>
+        </NavSection>
+      ) : null}
       {caps?.instanceAdmin ? (
         <>
           <NavSection label="Workspaces">
@@ -218,19 +236,6 @@ export function SettingsNav() {
             }
           >
             All teams
-          </NavLink>
-        </NavSection>
-      ) : null}
-      {caps?.instanceAdmin ? (
-        <NavSection label="Instance">
-          <NavLink to="/instance/accounts" icon={<UserPlusIcon />}>
-            Accounts
-          </NavLink>
-          <NavLink to="/instance/settings" icon={<ServerIcon />}>
-            Instance settings
-          </NavLink>
-          <NavLink to="/instance/health" icon={<ActivityIcon />}>
-            Health
           </NavLink>
         </NavSection>
       ) : null}

@@ -14,3 +14,14 @@
   flex: 1;
   min-width: 0;
 }
+
+/* The Instance entry's tile: a workspace avatar's size and shape, with the server glyph in it. */
+.instanceTile {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--circi-radius-inline);
+  background: var(--circi-surface-highest);
+  color: var(--circi-tile-text);
+}

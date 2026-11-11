@@ -638,7 +638,7 @@ describe('Shell, settings', () => {
     expect(nav.getByRole('link', { name: 'Health' }).elements()).toHaveLength(0)
   })
 
-  it('shows the Instance section to an instance admin, with its three pages', async () => {
+  it('shows the Instance section to an instance admin, with one entry for every Instance page', async () => {
     await page.viewport(1280, 800)
     asInstanceAdmin()
     await renderShell('/instance/accounts')
@@ -650,9 +650,12 @@ describe('Shell, settings', () => {
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
-    expect(names).toEqual(['Accounts', 'Instance settings', 'Health'])
+    expect(names).toEqual(['Instance'])
     await expect
-      .element(section.getByRole('link', { name: 'Accounts' }))
+      .element(section.getByRole('link', { name: 'Instance' }))
+      .toHaveAttribute('href', '/instance/overview')
+    await expect
+      .element(section.getByRole('link', { name: 'Instance' }))
       .toHaveAttribute('aria-current', 'page')
   })
 
@@ -930,18 +933,17 @@ describe('Shell, narrow', () => {
       'Profile',
       'Notifications',
       'Appearance',
-      // An instance admin has every workspace of the instance (each its hub) in place of one's pages.
+      // The hierarchy: Account, then Instance, Workspaces (every workspace of the instance, each
+      // its hub, then All workspaces, in place of one's pages) and Teams.
+      'Instance',
       'Acme',
       'Globex',
+      'All workspaces',
       'web-app',
       'storybook',
       'api',
       'All teams',
-      'Accounts',
-      'Instance settings',
-      'Health',
     ])
-    await expect.element(sheet.getByRole('button', { name: 'New workspace' })).toBeVisible()
     // No way back to the app from the list: the header's Close is the one way out.
     expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await sheet.getByRole('link', { name: 'Globex' }).click()

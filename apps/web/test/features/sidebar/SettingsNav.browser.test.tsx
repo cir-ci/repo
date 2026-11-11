@@ -215,8 +215,12 @@ describe('SettingsNav', () => {
     await show({ instanceAdmin: true })
     const instance = page.getByRole('region', { name: /Instance/ })
     await expect.element(instance).toBeVisible()
-    // Workspaces are their own section now: the Instance section has no entry for them.
-    expect(names(instance.getByRole('link'))).toEqual(['Accounts', 'Instance settings', 'Health'])
+    // One entry, like a workspace's or a team's: it opens the hub, which lists the pages. The
+    // workspaces are their own section.
+    expect(names(instance.getByRole('link'))).toEqual(['Instance'])
+    await expect
+      .element(instance.getByRole('link', { name: 'Instance' }))
+      .toHaveAttribute('href', '/instance/overview')
   })
 
   it('keeps the Workspace section, General at its own address, for an owner or admin', async () => {
@@ -243,6 +247,19 @@ describe('SettingsNav', () => {
       await expect
         .element(page.getByRole('region', { name: 'Teams' }).getByRole('link', { name: 'Web App' }))
         .toBeVisible()
+    })
+
+    it('orders the sections by the hierarchy: Account, Instance, Workspaces, Teams', async () => {
+      await show({ instanceAdmin: true })
+      await expect.element(page.getByRole('region', { name: 'Teams' })).toBeVisible()
+      const order = ['Account', 'Instance', 'Workspaces', 'Teams'].map((name) =>
+        page.getByRole('region', { name }).element(),
+      )
+      order.slice(1).forEach((el, i) => {
+        expect(
+          order[i]!.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy()
+      })
     })
 
     it('ends the Workspaces section with All workspaces, which opens the list', async () => {
@@ -332,7 +349,10 @@ describe('SettingsNav', () => {
       ],
       ['All workspaces', '/instance/workspaces', '/instance/workspaces', ['All workspaces']],
       ['an account page', '/account/profile', '/account/profile', ['Profile']],
-      ['an instance page', '/instance/health', '/instance/health', ['Health']],
+      ['the Instance hub', '/instance/overview', '/instance/overview', ['Instance']],
+      ['Accounts', '/instance/accounts', '/instance/accounts', ['Instance']],
+      ['Instance settings', '/instance/settings', '/instance/settings', ['Instance']],
+      ['Health', '/instance/health', '/instance/health', ['Instance']],
     ])('for an instance admin on %s', async (_name, route, url, expected) => {
       await show({ instanceAdmin: true, route, url })
       await expect.element(page.getByRole('link', { name: 'All teams' })).toBeVisible()
@@ -393,6 +413,8 @@ describe('SettingsNav', () => {
   it('hides the Instance section from everyone else', async () => {
     await show()
     await expect.element(page.getByRole('region', { name: /^Workspace/ })).toBeVisible()
+    expect(page.getByRole('region', { name: 'Instance' }).elements()).toHaveLength(0)
+    expect(page.getByRole('link', { name: 'Instance' }).elements()).toHaveLength(0)
     expect(page.getByRole('link', { name: 'Instance settings' }).elements()).toHaveLength(0)
   })
 
