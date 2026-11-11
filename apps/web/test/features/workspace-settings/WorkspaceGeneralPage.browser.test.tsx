@@ -11,7 +11,7 @@ const ROUTE = {
   url: '/workspaces/acme/settings',
   otherRoutes: [
     '/workspaces/$workspace/settings/members',
-    '/$workspace/$team/settings',
+    '/$workspace/$team/settings/general',
     '/$workspace/$team/settings/reviews',
   ],
 }
@@ -240,7 +240,7 @@ describe('WorkspaceGeneralPage', () => {
     it('goes to the team’s General settings from the merge gate defaults', async () => {
       const { router } = await open([team('web', 'Web app')])
       await merge().getByRole('link', { name: 'Web app' }).click()
-      await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/general')
     })
 
     it('goes to the team’s Reviews and triage settings from the triage defaults', async () => {

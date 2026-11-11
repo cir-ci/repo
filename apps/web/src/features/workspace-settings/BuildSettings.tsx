@@ -53,7 +53,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
             <Followers
               split={inheritance(data.teams)}
               link={(team) => ({
-                to: '/$workspace/$team/settings',
+                to: '/$workspace/$team/settings/general',
                 params: { workspace, team: team.slug },
               })}
             />
