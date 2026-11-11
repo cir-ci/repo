@@ -249,8 +249,16 @@ describe('New project dialog', () => {
     await page.getByRole('combobox', { name: /Link a repository/ }).click()
     await page.getByRole('option', { name: 'acme/web' }).click()
     await page.getByRole('button', { name: 'Create project' }).click()
-    await expect.element(page.getByText(/not a git integration of this workspace/)).toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Checkout flows')
+    // In the form (the failure toast says it too, so the page has the text twice: unscoped, this
+    // matched both once the toast was up first, and waited out the test's timeout).
+    const dialog = page.getByRole('dialog', { name: 'New project' })
+    await expect.element(dialog.getByText(/not a git integration of this workspace/)).toBeVisible()
+    await expect
+      .element(dialog.getByRole('textbox', { name: 'Name' }))
+      .toHaveValue('Checkout flows')
+    // Once the toast is up too, the form's copy is still the one this finds.
+    await expect.poll(() => page.getByText(/not a git integration/).elements()).toHaveLength(2)
+    expect(dialog.getByText(/not a git integration/).elements()).toHaveLength(1)
   })
 
   it('creates in the chosen workspace', async () => {
