@@ -14,9 +14,9 @@ import { renderPage } from '#test/support/render.tsx'
 const ROUTE = {
   route: '/workspaces/$workspace/settings/storage',
   url: '/workspaces/acme/settings/storage',
-  otherRoutes: ['/workspaces/$workspace/settings/members', '/$workspace/$team/settings/general'],
+  otherRoutes: ['/workspaces/$workspace/settings/members', '/$workspace/$project/settings/general'],
 }
-const team = (slug: string, name: string, bytes: number, retentionDays = 90) => ({
+const project = (slug: string, name: string, bytes: number, retentionDays = 90) => ({
   slug,
   name,
   color: 'slate',
@@ -35,7 +35,7 @@ const usage = (over: object = {}) => ({
     { kind: 'thumbnail', files: 1000, bytes: 100_000 },
     { kind: 'site', files: 34, bytes: 300_000, versions: 5 },
   ],
-  teams: [team('docs', 'Docs', 1_000_000, 30), team('web', 'Web App', 3_000_000)],
+  projects: [project('docs', 'Docs', 1_000_000, 30), project('web', 'Web App', 3_000_000)],
   defaultRetentionDays: 90,
   ...over,
 })
@@ -52,7 +52,7 @@ function daysIn(body: unknown): number {
 const days = () => page.getByRole('textbox', { name: 'Default retention in days' })
 
 describe('WorkspaceStoragePage', () => {
-  it('shows the total, each kind with its size, and teams by size with their retention', async () => {
+  it('shows the total, each kind with its size, and projects by size with their retention', async () => {
     await page.viewport(1000, 1000)
     fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
@@ -61,12 +61,12 @@ describe('WorkspaceStoragePage', () => {
     await expect.element(kinds.getByText('Screenshots')).toBeVisible()
     await expect.element(kinds.getByText('3 MB')).toBeVisible()
     await expect.element(kinds.getByText('34 files, 5 versions')).toBeVisible()
-    const teams = page.getByRole('region', { name: 'By team' })
-    const links = teams.getByRole('link')
+    const projects = page.getByRole('region', { name: 'By project' })
+    const links = projects.getByRole('link')
     await expect.element(links.first()).toHaveAccessibleName('Web App')
     await expect.element(links.last()).toHaveAccessibleName('Docs')
-    await expect.element(teams.getByText('30 days')).toBeVisible()
-    // Each team opens its retention setting, which the General page holds.
+    await expect.element(projects.getByText('30 days')).toBeVisible()
+    // Each project opens its retention setting, which the General page holds.
     await expect
       .element(links.first())
       .toHaveAttribute('href', '/acme/web/settings/general#retention')
@@ -81,14 +81,14 @@ describe('WorkspaceStoragePage', () => {
     fakeApi({
       ...NAME,
       'GET /api/workspaces/acme/storage': {
-        body: usage({ teams: [], totalBytes: 0, totalFiles: 0, kinds: [] }),
+        body: usage({ projects: [], totalBytes: 0, totalFiles: 0, kinds: [] }),
       },
     })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
     await expectEmptyState('Nothing stored yet', { body: 'Upload a build to see its size here.' })
   })
 
-  it('saves the default retention, noting existing teams keep theirs', async () => {
+  it('saves the default retention, noting existing projects keep theirs', async () => {
     await page.viewport(1000, 1000)
     let retentionDays = 90
     const api = fakeApi({
@@ -102,7 +102,7 @@ describe('WorkspaceStoragePage', () => {
       },
     })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
-    await expect.element(page.getByText('Existing teams keep their own setting.')).toBeVisible()
+    await expect.element(page.getByText('Existing projects keep their own setting.')).toBeVisible()
     const save = page.getByRole('button', { name: 'Save changes' })
     await expect.element(save).toBeDisabled()
     await days().fill('30')
@@ -163,15 +163,15 @@ const framed = (width: number) => (
   </AppFrame>
 )
 
-describe('WorkspaceStoragePage By team and the days field', () => {
+describe('WorkspaceStoragePage By project and the days field', () => {
   it.each([390, 1280])(
     'puts the size bar before the days, and keeps the days field compact, at %ipx',
     async (width) => {
       fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
       await renderPage(framed(width), { ...ROUTE, viewport: [width, 2400] })
-      const teams = page.getByRole('region', { name: 'By team' })
-      const bytes = teams.getByText('1 MB').element()
-      const retention = teams.getByText('30 days').element()
+      const projects = page.getByRole('region', { name: 'By project' })
+      const bytes = projects.getByText('1 MB').element()
+      const retention = projects.getByText('30 days').element()
       // The bar and the size come first in the row; the days after them (never above the bar).
       expect(
         bytes.compareDocumentPosition(retention) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -217,13 +217,13 @@ describe('WorkspaceStoragePage in the app frame', () => {
   })
 })
 
-describe('WorkspaceStoragePage By team link', () => {
-  it('goes to the team’s retention setting', async () => {
+describe('WorkspaceStoragePage By project link', () => {
+  it('goes to the project’s retention setting', async () => {
     await page.viewport(1000, 1000)
     fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
     const { router } = await renderPage(<WorkspaceStoragePage />, ROUTE)
     await page
-      .getByRole('region', { name: 'By team' })
+      .getByRole('region', { name: 'By project' })
       .getByRole('link', { name: 'Web App' })
       .click()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/general')

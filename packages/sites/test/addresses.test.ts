@@ -20,15 +20,15 @@ describe('addresses', () => {
     expect(branchHash('main')).not.toBe(branchHash('Main'))
   })
 
-  it('chooses slugs: team-name, then with the workspace, then numbered, never over 46 characters', () => {
+  it('chooses slugs: project-name, then with the workspace, then numbered, never over 46 characters', () => {
     const taken = new Set<string>()
-    const input = { team: 'web', name: 'storybook', workspace: 'acme' }
+    const input = { project: 'web', name: 'storybook', workspace: 'acme' }
     expect(chooseSlug(input, (s) => taken.has(s))).toBe('web-storybook')
     taken.add('web-storybook')
     expect(chooseSlug(input, (s) => taken.has(s))).toBe('web-storybook-acme')
     taken.add('web-storybook-acme')
     expect(chooseSlug(input, (s) => taken.has(s))).toBe('web-storybook-acme-2')
-    const long = { team: 'p'.repeat(60), name: 'storybook', workspace: 'acme' }
+    const long = { project: 'p'.repeat(60), name: 'storybook', workspace: 'acme' }
     const all = new Set<string>()
     for (let i = 0; i < 4; i += 1) {
       const slug = chooseSlug(long, (s) => all.has(s))

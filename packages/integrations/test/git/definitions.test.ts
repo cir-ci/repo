@@ -29,12 +29,12 @@ const gitOf = (def: IntegrationDefinition) => {
 }
 
 describe('the git hosts of the registry', () => {
-  it('are the definitions with the git capability, and map teams to repositories', () => {
+  it('are the definitions with the git capability, and map projects to repositories', () => {
     expect(integrationRegistry.gitKinds().toSorted()).toEqual(['bitbucket', 'github', 'gitlab'])
     for (const def of [github, gitlab, bitbucket]) {
       expect(def.group).toBe('git')
       expect(def.mapping?.target.kind).toBe('repository')
-      expect(def.exclusive).toEqual({ account: true, team: 'group' })
+      expect(def.exclusive).toEqual({ account: true, project: 'group' })
       expect(def.events).toEqual([])
     }
   })
@@ -65,7 +65,7 @@ describe('the git hosts of the registry', () => {
         capabilities: { git: gitOf(github) },
         mapping: { target: { label: 'Repo', kind: 'text' } },
       }),
-    ).toThrow(/maps teams to repositories/)
+    ).toThrow(/maps projects to repositories/)
     expect(definitionProblems(github)).toEqual([])
   })
 })

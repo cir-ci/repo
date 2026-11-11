@@ -4,7 +4,7 @@ import { defaultIssueTitle, issueDescription } from '#src/integrations/index.ts'
 
 const facts = {
   number: 12,
-  team: 'acme/web',
+  project: 'acme/web',
   branch: 'feat/header',
   prNumber: 7,
   commitSha: 'abcdef1234567',

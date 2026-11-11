@@ -22,24 +22,24 @@ import {
   type TypedState,
   wrapIndex,
 } from '#features/command/model.ts'
-import { pageEntries, rowActionEntries, switchTeamPath } from '#features/command/pages.ts'
+import { pageEntries, rowActionEntries, switchProjectPath } from '#features/command/pages.ts'
 import {
   chipLabel,
-  completeTeamToken,
+  completeProjectToken,
   readTyped,
   withoutLastChip,
 } from '#features/command/query.ts'
 import { classifyVisit, shortAgo } from '#features/command/recent.ts'
 import { changeWords, personPath, resultEntries } from '#features/command/results.ts'
 import { settingsSections } from '#features/command/settings.ts'
-import { sidebarTeam } from '#test/support/fixtures.ts'
+import { sidebarProject } from '#test/support/fixtures.ts'
 
 const NOW = Date.parse('2026-03-10T12:00:00.000Z')
 
-const teams = [
-  sidebarTeam({ slug: 'web', name: 'Web App', pinned: true }),
-  sidebarTeam({ slug: 'docs', name: 'Docs' }),
-  sidebarTeam({ slug: 'mobile', name: 'Mobile' }),
+const projects = [
+  sidebarProject({ slug: 'web', name: 'Web App', pinned: true }),
+  sidebarProject({ slug: 'docs', name: 'Docs' }),
+  sidebarProject({ slug: 'mobile', name: 'Mobile' }),
 ]
 const views: View.Item[] = [
   {
@@ -48,14 +48,14 @@ const views: View.Item[] = [
     filters: {},
     pinned: true,
     position: 0,
-    team: null,
+    project: null,
     createdAt: '2026-03-01T00:00:00.000Z',
   },
 ]
 
 const build = (over: Partial<Search.Build> = {}): Search.Build => ({
-  teamSlug: 'web',
-  teamName: 'Web App',
+  projectslug: 'web',
+  projectName: 'Web App',
   number: 148,
   name: 'Checkout',
   branch: 'main',
@@ -71,7 +71,7 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
   query: 'x',
   builds: [],
   branches: [],
-  teams: [],
+  projects: [],
   snapshots: [],
   baselines: [],
   triage: [],
@@ -82,7 +82,7 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
   totals: {
     builds: 0,
     branches: 0,
-    teams: 0,
+    projects: 0,
     snapshots: 0,
     baselines: 0,
     triage: 0,
@@ -98,7 +98,7 @@ const input = (over: Partial<ListInput> = {}): ListInput => ({
   workspace: 'acme',
   pathname: '/inbox',
   routeWorkspace: undefined,
-  teams,
+  projects,
   views,
   workspaces: [
     { slug: 'acme', name: 'Acme' },
@@ -169,7 +169,7 @@ const footerEntry = (kind: Entry['kind'], path?: string): Entry => ({
 const hintText = (h: ReturnType<typeof footerHints>) =>
   h.map((x) => `${x.keys.join(' ')} ${x.label}`)
 
-const visitAt = (p: string, search = '') => classifyVisit(p, search, teams, views, NOW)
+const visitAt = (p: string, search = '') => classifyVisit(p, search, projects, views, NOW)
 
 describe('parseBuildQuery', () => {
   it('reads #148 and 148 as build 148', () => {
@@ -205,7 +205,7 @@ const person = (n: number) => ({
   name: `Dana ${n}`,
   email: `d${n}@acme.test`,
   image: null,
-  teams: [],
+  projects: [],
   openReviews: 0,
 })
 
@@ -217,7 +217,7 @@ describe('the empty query', () => {
       'Inbox',
       'Reviews',
       'Triage',
-      'Teams',
+      'Projects',
       'Insights',
       'Settings',
       'Web App',
@@ -225,7 +225,7 @@ describe('the empty query', () => {
     ])
     expect(labels(view).some((l) => l.startsWith('Open '))).toBe(false)
     expect(goTo?.entries.find((e) => e.label === 'Inbox')?.hint).toBe('g i')
-    expect(goTo?.entries.find((e) => e.label === 'Web App')?.kindLabel).toBe('Team')
+    expect(goTo?.entries.find((e) => e.label === 'Web App')?.kindLabel).toBe('Project')
     expect(goTo?.entries.find((e) => e.label === 'Checkout regressions')?.kindLabel).toBe(
       'Saved view',
     )
@@ -236,7 +236,7 @@ describe('the empty query', () => {
     const plain = flatten(view.groups).filter((e) => e.kind === 'action' || e.kind === 'page')
     expect(plain.length).toBeGreaterThan(5)
     expect(plain.filter((e) => e.kindLabel !== undefined)).toEqual([])
-    const items = flatten(view.groups).filter((e) => e.kind === 'team' || e.kind === 'view')
+    const items = flatten(view.groups).filter((e) => e.kind === 'project' || e.kind === 'view')
     expect(items.filter((e) => e.kindLabel === undefined)).toEqual([])
   })
 
@@ -316,37 +316,37 @@ describe('the empty query', () => {
     )
   })
 
-  it('lists Switch team…, Switch workspace… and Theme… with a chevron, then Keyboard shortcuts and Sign out', () => {
+  it('lists Switch project…, Switch workspace… and Theme… with a chevron, then Keyboard shortcuts and Sign out', () => {
     const view = buildList(input(), typed())
     const rows = view.groups.find((g) => g.label === 'Switch and change')?.entries
     expect(rows?.map((e) => e.label)).toEqual([
-      'Switch team…',
+      'Switch project…',
       'Switch workspace…',
-      'New team',
+      'New project',
       'Invite people',
       'Theme…',
       'Keyboard shortcuts',
       'Sign out',
     ])
     expect(rows?.filter((e) => e.chevron).map((e) => e.label)).toEqual([
-      'Switch team…',
+      'Switch project…',
       'Switch workspace…',
       'Theme…',
     ])
     expect(rows?.find((e) => e.label === 'Keyboard shortcuts')?.hint).toBe('?')
   })
 
-  it('offers New team and Invite people to who may manage the workspace, and New workspace to who may create one', () => {
+  it('offers New project and Invite people to who may manage the workspace, and New workspace to who may create one', () => {
     const viewer = changeRows(buildList(input({ canManage: false }), typed()))?.map((e) => e.label)
-    expect(viewer).not.toContain('New team')
+    expect(viewer).not.toContain('New project')
     expect(viewer).not.toContain('Invite people')
     const manager = changeRows(buildList(input(), typed()))?.map((e) => e.label)
     expect(manager).not.toContain('New workspace')
     const all = changeRows(buildList(input({ canCreateWorkspace: true }), typed()))
     expect(all?.map((e) => e.label)).toContain('New workspace')
-    expect(all?.find((e) => e.label === 'New team')?.target).toEqual({
+    expect(all?.find((e) => e.label === 'New project')?.target).toEqual({
       type: 'create',
-      what: 'team',
+      what: 'project',
     })
     expect(all?.find((e) => e.label === 'New workspace')?.target).toEqual({
       type: 'create',
@@ -361,12 +361,12 @@ describe('the empty query', () => {
 
   it('finds the Create entries by typing, and offers none inside settings', () => {
     expect(labels(buildList(input(), typed({ query: 'invite' })))).toContain('Invite people')
-    expect(labels(buildList(input(), typed({ query: 'new te' })))).toContain('New team')
+    expect(labels(buildList(input(), typed({ query: 'new te' })))).toContain('New project')
     const inside = buildList(
       input({ pathname: '/workspaces/acme/settings/members', inSettings: true }),
-      typed({ query: 'new team' }),
+      typed({ query: 'new project' }),
     )
-    expect(labels(inside)).not.toContain('New team')
+    expect(labels(inside)).not.toContain('New project')
   })
 
   it('lists recent searches under Recent when the field is empty, with a row that clears them', () => {
@@ -406,7 +406,10 @@ describe('the empty query', () => {
 
 describe('page actions', () => {
   it('uses the menu verbs, with the registry keys, for a build', () => {
-    const rows = contextActions('/acme/web/builds/148', pageContext('/acme/web/builds/148', teams))
+    const rows = contextActions(
+      '/acme/web/builds/148',
+      pageContext('/acme/web/builds/148', projects),
+    )
     const byLabel = Object.fromEntries(rows.map((e) => [e.label, e.hint]))
     expect(byLabel['Approve screenshot']).toBe('a')
     expect(byLabel['Approve all']).toBe('shift+a')
@@ -417,7 +420,7 @@ describe('page actions', () => {
   })
 
   it('says what it will do and to what in the peek', () => {
-    const page = pageContext('/acme/web/builds/148', teams)
+    const page = pageContext('/acme/web/builds/148', projects)
     const approveAll = contextActions('/acme/web/builds/148', page, 7).find(
       (e) => e.label === 'Approve all',
     )
@@ -438,18 +441,18 @@ describe('page actions', () => {
 })
 
 describe('the context of a page', () => {
-  it('names the team and build on a build, and the team on its other pages', () => {
-    expect(pageContext('/acme/web/builds/148', teams, 'acme', 'acme')).toMatchObject({
+  it('names the project and build on a build, and the project on its other pages', () => {
+    expect(pageContext('/acme/web/builds/148', projects, 'acme', 'acme')).toMatchObject({
       chip: 'Web App · #148',
       heading: 'Build #148',
-      team: { slug: 'web', name: 'Web App' },
+      project: { slug: 'web', name: 'Web App' },
     })
-    expect(pageContext('/acme/docs/triage', teams, 'acme', 'acme').chip).toBe('Docs')
+    expect(pageContext('/acme/docs/triage', projects, 'acme', 'acme').chip).toBe('Docs')
   })
-  it('has no chip off a team, or on a team of another workspace', () => {
-    expect(pageContext('/inbox', teams).chip).toBeUndefined()
-    expect(pageContext('/workspaces/acme/reviews', teams).chip).toBeUndefined()
-    expect(pageContext('/other/web', teams, 'other', 'acme').team).toBeUndefined()
+  it('has no chip off a project, or on a project of another workspace', () => {
+    expect(pageContext('/inbox', projects).chip).toBeUndefined()
+    expect(pageContext('/workspaces/acme/reviews', projects).chip).toBeUndefined()
+    expect(pageContext('/other/web', projects, 'other', 'acme').project).toBeUndefined()
   })
 })
 
@@ -480,12 +483,17 @@ describe('a typed query', () => {
   const found = results({
     builds: [build(), build({ number: 147, name: 'Cart' }), build({ number: 146, name: 'Nav' })],
     branches: [
-      { teamSlug: 'web', teamName: 'Web App', branch: 'feat/checkout', latestBuildNumber: 148 },
+      {
+        projectslug: 'web',
+        projectName: 'Web App',
+        branch: 'feat/checkout',
+        latestBuildNumber: 148,
+      },
     ],
     snapshots: [
       {
-        teamSlug: 'web',
-        teamName: 'Web App',
+        projectslug: 'web',
+        projectName: 'Web App',
         name: 'Checkout / Payment',
         latestBuildNumber: 148,
         thumbnail: null,
@@ -539,7 +547,7 @@ describe('a typed query', () => {
     expect(builds).not.toContain('build:web:148')
   })
 
-  it('jumps to the build number in the open team before the answer arrives', () => {
+  it('jumps to the build number in the open project before the answer arrives', () => {
     const view = buildList(
       input({ pathname: '/acme/web', routeWorkspace: 'acme' }),
       typed({ query: '148' }),
@@ -561,7 +569,7 @@ describe('a typed query', () => {
       typed({
         query: 'checkout',
         results: results({
-          views: [{ id: 'v1', name: 'Checkout regressions', team: null }],
+          views: [{ id: 'v1', name: 'Checkout regressions', project: null }],
         }),
       }),
     )
@@ -570,12 +578,12 @@ describe('a typed query', () => {
 
   it('renders the new kinds with their icon and kind label', () => {
     const rows = resultEntries(
-      { workspace: 'acme', teams, allTeams: true },
+      { workspace: 'acme', projects, allProjects: true },
       results({
         baselines: [
           {
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             name: 'checkout/summary',
             buildNumber: 140,
             thumbnail: null,
@@ -584,8 +592,8 @@ describe('a typed query', () => {
         ],
         triage: [
           {
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             kind: 'flaky',
             key: 'checkout/summary',
             snapshotName: 'checkout/summary',
@@ -603,7 +611,7 @@ describe('a typed query', () => {
             createdAt: '2026-03-10T12:00:00.000Z',
             actor: { name: 'Ada' },
             build: { number: 148, name: 'default' },
-            team: { slug: 'web', name: 'Web App' },
+            project: { slug: 'web', name: 'Web App' },
             payload: { snippet: 'cut off' },
           },
         ],
@@ -611,8 +619,8 @@ describe('a typed query', () => {
           {
             id: 'r1',
             tab: 'for-you',
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             build: { number: 148, name: 'default', branch: 'main' },
             reviewer: { name: 'Me' },
             requestedBy: { name: 'Dana Levi' },
@@ -645,27 +653,27 @@ describe('a typed query', () => {
 describe('scope', () => {
   const onWeb = { pathname: '/acme/web/builds/9', routeWorkspace: 'acme' }
 
-  it('limits a team page to its team and ends the list with a "Search all teams" row', () => {
+  it('limits a project page to its project and ends the list with a "Search all projects" row', () => {
     const view = buildList(input(onWeb), typed({ query: 'checkout', results: results() }))
     expect(view.scope).toEqual({ slug: 'web', name: 'Web App' })
     const last = flatten(view.groups).at(-1)
     expect(last).toMatchObject({
       kind: 'widen',
-      label: 'Search all teams for "checkout"',
+      label: 'Search all projects for "checkout"',
       hint: 'mod+Enter',
     })
   })
 
-  it('is workspace-wide, with no widen row, off a team page', () => {
+  it('is workspace-wide, with no widen row, off a project page', () => {
     const view = buildList(input(), typed({ query: 'checkout', results: results() }))
     expect(view.scope).toBeUndefined()
     expect(flatten(view.groups).some((e) => e.kind === 'widen')).toBe(false)
   })
 
-  it('is widened by removing the page chip, or limited to a team by a team chip', () => {
+  it('is widened by removing the page chip, or limited to a project by a project chip', () => {
     const widened = buildList(input(onWeb), typed({ query: 'x', contextCleared: true }))
     expect(widened.scope).toBeUndefined()
-    const chip: Chip = { type: 'team', slug: 'docs', name: 'Docs' }
+    const chip: Chip = { type: 'project', slug: 'docs', name: 'Docs' }
     const limited = buildList(input(), typed({ query: 'x', chips: [chip] }))
     expect(limited.scope).toEqual({ slug: 'docs', name: 'Docs' })
   })
@@ -676,7 +684,7 @@ describe('scope', () => {
     expect(view.message).toBe('No results for "chekout" in Web App.')
     expect(view.tip).toBe('Try a build number like #148.')
     expect(labels(view)).toEqual([
-      'Search all teams for "chekout"',
+      'Search all projects for "chekout"',
       'Show all builds',
       'Show all pages',
     ])
@@ -697,58 +705,60 @@ describe('scope', () => {
 
 describe('prefixes and chips', () => {
   it('turns a first # / > / character into a kind chip', () => {
-    expect(readTyped('#14', [], teams)).toEqual({
+    expect(readTyped('#14', [], projects)).toEqual({
       chips: [{ type: 'kind', kind: 'builds' }],
       text: '14',
     })
-    expect(readTyped('>theme', [], teams).chips).toEqual([{ type: 'kind', kind: 'commands' }])
-    expect(readTyped('/checkout', [], teams).chips).toEqual([{ type: 'kind', kind: 'screenshots' }])
+    expect(readTyped('>theme', [], projects).chips).toEqual([{ type: 'kind', kind: 'commands' }])
+    expect(readTyped('/checkout', [], projects).chips).toEqual([
+      { type: 'kind', kind: 'screenshots' },
+    ])
     // A second prefix is just text, and a prefix after text stays text.
-    expect(readTyped('#a#b', [], teams).text).toBe('a#b')
-    expect(readTyped('a#b', [], teams).chips).toEqual([])
+    expect(readTyped('#a#b', [], projects).text).toBe('a#b')
+    expect(readTyped('a#b', [], projects).chips).toEqual([])
   })
 
   it('reads @ as the people chip', () => {
-    expect(readTyped('@dana', [], teams)).toEqual({
+    expect(readTyped('@dana', [], projects)).toEqual({
       chips: [{ type: 'kind', kind: 'people' }],
       text: 'dana',
     })
   })
 
-  it('turns "in:name " and "team:slug " into a team chip, and keeps the rest', () => {
-    expect(readTyped('in:docs checkout', [], teams)).toEqual({
-      chips: [{ type: 'team', slug: 'docs', name: 'Docs' }],
+  it('turns "in:name " and "project:slug " into a project chip, and keeps the rest', () => {
+    expect(readTyped('in:docs checkout', [], projects)).toEqual({
+      chips: [{ type: 'project', slug: 'docs', name: 'Docs' }],
       text: 'checkout',
     })
-    expect(readTyped('in:docs', [], teams).chips).toEqual([])
-    expect(readTyped('checkout in:docs ', [], teams)).toEqual({
-      chips: [{ type: 'team', slug: 'docs', name: 'Docs' }],
+    expect(readTyped('in:docs', [], projects).chips).toEqual([])
+    expect(readTyped('checkout in:docs ', [], projects)).toEqual({
+      chips: [{ type: 'project', slug: 'docs', name: 'Docs' }],
       text: 'checkout',
     })
     // A slug or a one-word name, in any case.
-    expect(readTyped('team:WEB app', [], teams)).toEqual({
-      chips: [{ type: 'team', slug: 'web', name: 'Web App' }],
+    expect(readTyped('project:WEB app', [], projects)).toEqual({
+      chips: [{ type: 'project', slug: 'web', name: 'Web App' }],
       text: 'app',
     })
-    expect(readTyped('in:nope ', [], teams).chips).toEqual([])
+    expect(readTyped('in:nope ', [], projects).chips).toEqual([])
   })
 
-  it('completes a half-typed team with Tab', () => {
-    expect(completeTeamToken('in:mo', [], teams)).toEqual({
-      chips: [{ type: 'team', slug: 'mobile', name: 'Mobile' }],
+  it('completes a half-typed project with Tab', () => {
+    expect(completeProjectToken('in:mo', [], projects)).toEqual({
+      chips: [{ type: 'project', slug: 'mobile', name: 'Mobile' }],
       text: '',
     })
-    expect(completeTeamToken('x in:do', [], teams)?.text).toBe('x')
-    expect(completeTeamToken('in:zz', [], teams)).toBeUndefined()
-    expect(completeTeamToken('plain', [], teams)).toBeUndefined()
+    expect(completeProjectToken('x in:do', [], projects)?.text).toBe('x')
+    expect(completeProjectToken('in:zz', [], projects)).toBeUndefined()
+    expect(completeProjectToken('plain', [], projects)).toBeUndefined()
   })
 
-  it('removes the kind chip before the team chip on Backspace', () => {
+  it('removes the kind chip before the project chip on Backspace', () => {
     const chips: Chip[] = [
-      { type: 'team', slug: 'docs', name: 'Docs' },
+      { type: 'project', slug: 'docs', name: 'Docs' },
       { type: 'kind', kind: 'builds' },
     ]
-    expect(withoutLastChip(chips)).toEqual([{ type: 'team', slug: 'docs', name: 'Docs' }])
+    expect(withoutLastChip(chips)).toEqual([{ type: 'project', slug: 'docs', name: 'Docs' }])
     expect(chips.map(chipLabel)).toEqual(['Docs', 'Builds'])
   })
 
@@ -772,7 +782,7 @@ describe('prefixes and chips', () => {
       input({
         recents: [
           { kind: 'build', id: 'b', label: 'Build #1', path: '/acme/web/builds/1', at: NOW },
-          { kind: 'team', id: 't', label: 'Web App', path: '/acme/web', at: NOW },
+          { kind: 'project', id: 't', label: 'Web App', path: '/acme/web', at: NOW },
         ],
       }),
       typed({ chips: [{ type: 'kind', kind: 'builds' }] }),
@@ -785,28 +795,30 @@ describe('nested lists', () => {
   const nested = {
     workspace: 'acme',
     pathname: '/acme/web/triage',
-    teams,
+    projects,
     workspaces: [
       { slug: 'acme', name: 'Acme' },
       { slug: 'other', name: 'Other' },
     ],
-    routeTeam: 'web',
+    routeProject: 'web',
     theme: 'system' as const,
   }
 
-  it('lists the teams with the current one checked, and keeps the section on a switch', () => {
-    const rows = pageEntries({ page: 'team' }, nested, '')
+  it('lists the projects with the current one checked, and keeps the section on a switch', () => {
+    const rows = pageEntries({ page: 'project' }, nested, '')
     expect(rows.map((e) => e.label)).toEqual(['Web App', 'Docs', 'Mobile'])
     expect(rows.find((e) => e.checked)?.label).toBe('Web App')
     expect(rows.find((e) => e.label === 'Docs')?.path).toBe('/acme/docs/triage')
-    expect(switchTeamPath('/acme/web/builds/148', 'acme', 'docs')).toBe('/acme/docs')
-    expect(switchTeamPath('/inbox', 'acme', 'docs')).toBe('/acme/docs')
-    expect(switchTeamPath('/acme/web/baselines/a/b', 'acme', 'docs')).toBe('/acme/docs/baselines')
+    expect(switchProjectPath('/acme/web/builds/148', 'acme', 'docs')).toBe('/acme/docs')
+    expect(switchProjectPath('/inbox', 'acme', 'docs')).toBe('/acme/docs')
+    expect(switchProjectPath('/acme/web/baselines/a/b', 'acme', 'docs')).toBe(
+      '/acme/docs/baselines',
+    )
   })
 
   it('filters a list by what is typed', () => {
-    expect(pageEntries({ page: 'team' }, nested, 'mo').map((e) => e.label)).toEqual(['Mobile'])
-    expect(pageEntries({ page: 'team' }, nested, 'zzz')).toEqual([])
+    expect(pageEntries({ page: 'project' }, nested, 'mo').map((e) => e.label)).toEqual(['Mobile'])
+    expect(pageEntries({ page: 'project' }, nested, 'zzz')).toEqual([])
   })
 
   it('lists the workspaces and the three themes, the current one marked', () => {
@@ -823,9 +835,9 @@ describe('the people list of Request review', () => {
   const nested = {
     workspace: 'acme',
     pathname: '/acme/web/builds/148',
-    teams,
+    projects,
     workspaces: [],
-    routeTeam: 'web',
+    routeProject: 'web',
     theme: 'system' as const,
     members: [
       { id: 'u1', name: 'Me' },
@@ -838,7 +850,7 @@ describe('the people list of Request review', () => {
   const subject = {
     type: 'build' as const,
     workspace: 'acme',
-    team: 'web',
+    project: 'web',
     number: 148,
     label: 'build #148',
   }
@@ -862,7 +874,7 @@ describe('the people list of Request review', () => {
 })
 
 describe('search results with peeks', () => {
-  const ctx = { workspace: 'acme', teams, allTeams: true, now: NOW }
+  const ctx = { workspace: 'acme', projects, allProjects: true, now: NOW }
 
   it('shows a build its change counts and its largest change as a thumbnail', () => {
     const [row] = resultEntries(
@@ -887,8 +899,8 @@ describe('search results with peeks', () => {
       results({
         snapshots: [
           {
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             name: 'home',
             latestBuildNumber: 3,
             thumbnail: 'cd'.repeat(32),
@@ -896,8 +908,8 @@ describe('search results with peeks', () => {
         ],
         baselines: [
           {
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             name: 'home',
             buildNumber: 2,
             thumbnail: 'ef'.repeat(32),
@@ -917,8 +929,8 @@ describe('search results with peeks', () => {
       results({
         triage: [
           {
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             kind: 'flaky',
             key: 'home',
             snapshotName: 'home',
@@ -931,8 +943,8 @@ describe('search results with peeks', () => {
           {
             id: 'r1',
             tab: 'for-you',
-            teamSlug: 'web',
-            teamName: 'Web App',
+            projectslug: 'web',
+            projectName: 'Web App',
             build: { number: 9, name: 'default', branch: 'main' },
             reviewer: { name: 'Me' },
             requestedBy: null,
@@ -946,7 +958,7 @@ describe('search results with peeks', () => {
     expect(rows[1]?.peek.rows).toContainEqual({ label: 'Asked', value: '3 h ago' })
   })
 
-  it('lists people with their avatar, teams and open reviews, opening their review requests', () => {
+  it('lists people with their avatar, projects and open reviews, opening their review requests', () => {
     const [row] = resultEntries(
       ctx,
       results({
@@ -956,7 +968,7 @@ describe('search results with peeks', () => {
             name: 'Dana Levi',
             email: 'dana@acme.test',
             image: null,
-            teams: [
+            projects: [
               { slug: 'web', name: 'Web App' },
               { slug: 'docs', name: 'Docs' },
             ],
@@ -977,7 +989,7 @@ describe('search results with peeks', () => {
     expect(personPath('acme', 'Dana Levi')).toBe(row?.path)
     expect(row?.peek.avatar).toMatchObject({ id: 'u2' })
     expect(row?.peek.rows).toEqual([
-      { label: 'Teams', value: 'Web App, Docs' },
+      { label: 'Projects', value: 'Web App, Docs' },
       { label: 'Open reviews', value: '2 requests' },
     ])
   })
@@ -1010,7 +1022,7 @@ describe('row actions', () => {
         subject: {
           type: 'build',
           workspace: 'acme',
-          team: 'web',
+          project: 'web',
           number: 148,
           label: 'build #148',
         },
@@ -1032,7 +1044,7 @@ describe('row actions', () => {
         subject: {
           type: 'triage',
           workspace: 'acme',
-          team: 'web',
+          project: 'web',
           kind: 'flaky',
           key: 'k',
           label: 'k',
@@ -1067,7 +1079,7 @@ describe('settings is closed', () => {
     expect(headings(view)).toEqual(['In settings', 'Leave settings'])
     const sections = view.groups[0]?.entries ?? []
     expect(sections.map((e) => e.label)).toEqual(
-      expect.arrayContaining(['Profile', 'Members', 'Teams', 'Integrations']),
+      expect.arrayContaining(['Profile', 'Members', 'Projects', 'Integrations']),
     )
     expect(sections.find((e) => e.label === 'Members')?.detail).toBe('Workspace · Current')
     expect(view.groups[1]?.entries[0]).toMatchObject({
@@ -1094,7 +1106,7 @@ describe('settings is closed', () => {
   it('hides the sections a member cannot use', () => {
     const member = settingsSections({ workspace: 'acme', canManage: false, instanceAdmin: false })
     const names = member.filter((s) => s.area === 'Workspace').map((s) => s.label)
-    expect(names).toEqual(['Members', 'Teams'])
+    expect(names).toEqual(['Members', 'Projects'])
     expect(member.map((s) => s.label)).not.toContain('All workspaces')
     const admin = settingsSections({ workspace: 'acme', canManage: true, instanceAdmin: true })
     expect(admin.map((s) => s.label)).toEqual(
@@ -1179,13 +1191,13 @@ describe('the footer', () => {
 })
 
 describe('Recent', () => {
-  it('classifies builds, teams, baselines, triage items and views, and nothing else', () => {
+  it('classifies builds, projects, baselines, triage items and views, and nothing else', () => {
     expect(visitAt('/acme/web/builds/148')?.entry).toMatchObject({
       kind: 'build',
       label: 'Build #148',
       detail: 'Web App',
     })
-    expect(visitAt('/acme/web')?.entry).toMatchObject({ kind: 'team', label: 'Web App' })
+    expect(visitAt('/acme/web')?.entry).toMatchObject({ kind: 'project', label: 'Web App' })
     expect(visitAt('/acme/web/baselines/checkout/payment')?.entry).toMatchObject({
       kind: 'baseline',
       label: 'checkout/payment',

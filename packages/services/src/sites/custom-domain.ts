@@ -15,8 +15,8 @@ import {
 } from '@circi/db/repositories'
 
 /**
- * A team site's custom domain (PLAN §7.6): one domain, e.g. `storybook.acme.com`, that serves the
- * team's default-branch version of the site. Claiming it only reserves it: it is served (and a
+ * A project site's custom domain (PLAN §7.6): one domain, e.g. `storybook.acme.com`, that serves the
+ * project's default-branch version of the site. Claiming it only reserves it: it is served (and a
  * certificate issued for it) once a DNS check has seen it point at this server.
  */
 
@@ -52,7 +52,7 @@ export const systemDnsResolver: SiteDnsResolver = {
 export const customDomainTarget = (sitesHost: string) => `custom.${sitesHost}`
 
 /**
- * Claims a custom domain for the team's site `slug`. It must be a plain domain name, unrelated
+ * Claims a custom domain for the project's site `slug`. It must be a plain domain name, unrelated
  * to the dashboard (the sites cookie rule) and to the sites domain, and not used by any other
  * site. Replaces an earlier domain of the site, which stops being served at once.
  */
@@ -64,7 +64,7 @@ export async function setCustomDomain(
   const problem = customDomainProblem(domain, input.hosts)
   if (problem) throw new ValidationError(problem)
   const set = await db.transaction((tx) =>
-    setSiteCustomDomain(tx, { teamId: input.teamId, slug: input.slug, domain }),
+    setSiteCustomDomain(tx, { projectId: input.projectId, slug: input.slug, domain }),
   )
   if (!set) throw new NotFoundError('Site not found')
   return { domain, verifiedAt: set.verifiedAt }
@@ -77,7 +77,7 @@ export namespace setCustomDomain {
     sitesHost: string
   }
   export interface Input {
-    teamId: string
+    projectId: string
     slug: string
     domain: string
     hosts: setCustomDomain.Hosts
@@ -91,7 +91,7 @@ export namespace setCustomDomain {
 /** Releases the site's custom domain: it stops being served and may be claimed by another site. */
 export async function clearCustomDomain(
   db: Database,
-  input: { teamId: string; slug: string },
+  input: { projectId: string; slug: string },
 ): Promise<void> {
   const found = await db.transaction((tx) => clearSiteCustomDomain(tx, input))
   if (!found) throw new NotFoundError('Site not found')
@@ -107,7 +107,7 @@ export async function verifyCustomDomain(
   db: Database,
   input: verifyCustomDomain.Input,
 ): Promise<verifyCustomDomain.Result> {
-  const state = await getSiteCustomDomain(db, input.teamId, input.slug)
+  const state = await getSiteCustomDomain(db, input.projectId, input.slug)
   if (!state) throw new NotFoundError('Site not found')
   if (!state.domain) throw new ValidationError('This site has no custom domain')
   const domain = state.domain
@@ -129,7 +129,7 @@ export async function verifyCustomDomain(
   const verifiedAt = outcome.verified ? new Date() : null
   await db.transaction((tx) =>
     markSiteCustomDomainVerified(tx, {
-      teamId: input.teamId,
+      projectId: input.projectId,
       slug: input.slug,
       domain,
       verified: outcome.verified,
@@ -145,7 +145,7 @@ export async function verifyCustomDomain(
 }
 export namespace verifyCustomDomain {
   export interface Input {
-    teamId: string
+    projectId: string
     slug: string
     hosts: setCustomDomain.Hosts
     resolver?: SiteDnsResolver | undefined

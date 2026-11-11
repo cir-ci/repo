@@ -33,7 +33,7 @@ const item = (over: Partial<Inbox.Item> = {}): Inbox.Item => ({
   },
   changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
   request: { dueAt: null, overdueByMs: 0 },
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   alsoInReviews: false,
   ...over,
@@ -92,24 +92,26 @@ describe('notification rows', () => {
     expect(inboxCount([item(), item({ readAt: 'x' }), item()])).toBe('3 notifications, 2 unread')
   })
 
-  it('opens the build, else the team, else nothing', () => {
+  it('opens the build, else the project, else nothing', () => {
     expect(notificationTarget(item())).toEqual({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace: 'acme', team: 'web', number: '12' },
+      to: '/$workspace/$project/builds/$number',
+      params: { workspace: 'acme', project: 'web', number: '12' },
     })
     expect(notificationTarget(item({ build: null }))).toEqual({
-      to: '/$workspace/$team',
-      params: { workspace: 'acme', team: 'web' },
+      to: '/$workspace/$project',
+      params: { workspace: 'acme', project: 'web' },
     })
-    expect(notificationTarget(item({ build: null, team: null, workspace: null }))).toBeUndefined()
+    expect(
+      notificationTarget(item({ build: null, project: null, workspace: null })),
+    ).toBeUndefined()
   })
 
   it('opens a mention on the Comments tab, at its comment', () => {
     expect(
       notificationTarget(item({ kind: 'mentioned', payload: { commentId: 'c9', snippet: 'hi' } })),
     ).toEqual({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace: 'acme', team: 'web', number: '12' },
+      to: '/$workspace/$project/builds/$number',
+      params: { workspace: 'acme', project: 'web', number: '12' },
       search: { sidebar: 'comments', comment: 'c9' },
     })
     // Without a comment id (an older notice) it is the plain build.
@@ -156,7 +158,9 @@ describe('the pane', () => {
     expect(openLabel(item())).toBe('Open review')
     expect(openLabel(item({ kind: 'mentioned' }))).toBe('Open thread')
     expect(openLabel(item({ kind: 'build_rejected' }))).toBe('Open build')
-    expect(openLabel(item({ kind: 'connection_needs_attention', build: null }))).toBe('Open team')
+    expect(openLabel(item({ kind: 'connection_needs_attention', build: null }))).toBe(
+      'Open project',
+    )
   })
 
   it('counts the Snoozed tab only when something is snoozed', () => {

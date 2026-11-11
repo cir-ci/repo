@@ -41,7 +41,7 @@ const checks = (...findings: ReturnType<typeof finding>[]) => ({
 })
 
 const created = {
-  team: { slug: 'checkout-flows', name: 'Checkout flows', color: 'slate', icon: null },
+  project: { slug: 'checkout-flows', name: 'Checkout flows', color: 'slate', icon: null },
   token: 'circi_secret_token_value',
 }
 
@@ -50,11 +50,11 @@ function server(options: { pending?: boolean; storage?: ReturnType<typeof checks
   let pending = options.pending ?? true
   return {
     'GET /api/capabilities': () => ({ body: caps(pending) }),
-    'GET /api/teams': { body: { teams: [] } },
+    'GET /api/projects': { body: { projects: [] } },
     'GET /api/instance/health/checks': {
       body: options.storage ?? checks(finding('ok', 'Reachable and writable.')),
     },
-    'POST /api/workspaces/acme/teams': { status: 201, body: created },
+    'POST /api/workspaces/acme/projects': { status: 201, body: created },
     'POST /api/instance/setup/finish': () => {
       pending = false
       return { status: 204 }
@@ -65,7 +65,7 @@ function server(options: { pending?: boolean; storage?: ReturnType<typeof checks
 async function open(routes: Record<string, ReplyHandler>) {
   return renderPage(<Shell />, {
     api: routes,
-    otherRoutes: ['/$workspace/$team'],
+    otherRoutes: ['/$workspace/$project'],
     viewport: [1280, 800],
   })
 }
@@ -128,53 +128,53 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
     await vi.waitFor(() => expect(runs).toBe(2))
   })
 
-  it('goes on to the team step and Back to the storage check', async () => {
+  it('goes on to the project step and Back to the storage check', async () => {
     await open(server())
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect.element(page.getByText('Step 4 of 4')).toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Team name' })).toHaveFocus()
+    await expect.element(page.getByRole('textbox', { name: 'Project name' })).toHaveFocus()
     await page.getByRole('button', { name: 'Back' }).click()
     await expect.element(page.getByText('Step 3 of 4')).toBeVisible()
   })
 
-  it('asks for a team name before creating anything', async () => {
+  it('asks for a project name before creating anything', async () => {
     const { calls } = await open(server())
     await page.getByRole('button', { name: 'Continue' }).click()
-    await page.getByRole('button', { name: 'Create team' }).click()
+    await page.getByRole('button', { name: 'Create project' }).click()
     await expect.element(page.getByText('Enter a name')).toBeVisible()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
   })
 
-  it('creates the team, ends the setup, and keeps the token on screen until Done', async () => {
+  it('creates the project, ends the setup, and keeps the token on screen until Done', async () => {
     const { calls } = await open(server())
     await page.getByRole('button', { name: 'Continue' }).click()
-    await page.getByRole('textbox', { name: 'Team name' }).fill('Checkout flows')
-    await page.getByRole('button', { name: 'Create team' }).click()
+    await page.getByRole('textbox', { name: 'Project name' }).fill('Checkout flows')
+    await page.getByRole('button', { name: 'Create project' }).click()
 
     await expect.element(page.getByText('circi_secret_token_value').first()).toBeVisible()
     await expect.element(page.getByRole('tab', { name: 'GitHub Actions' })).toBeVisible()
     await vi.waitFor(() =>
       expect(calls.some((c) => c.path === '/api/instance/setup/finish')).toBe(true),
     )
-    expect(calls.find((c) => c.path === '/api/workspaces/acme/teams')?.body).toMatchObject({
+    expect(calls.find((c) => c.path === '/api/workspaces/acme/projects')?.body).toMatchObject({
       name: 'Checkout flows',
     })
     // The server's setup is over, but the page stays: the token is shown once.
     await new Promise((r) => setTimeout(r, 300))
     await expect.element(page.getByText('circi_secret_token_value').first()).toBeVisible()
-    expect(useSetupStore.getState().team?.slug).toBe('checkout-flows')
+    expect(useSetupStore.getState().project?.slug).toBe('checkout-flows')
 
     await page.getByRole('button', { name: 'Done' }).click()
-    await vi.waitFor(() => expect(useSetupStore.getState().team).toBeUndefined())
+    await vi.waitFor(() => expect(useSetupStore.getState().project).toBeUndefined())
     expect(page.getByText('Step 4 of 4').elements()).toHaveLength(0)
   })
 
-  it('skips the team and opens the app', async () => {
+  it('skips the project and opens the app', async () => {
     const { calls } = await open(server())
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Skip for now' }).click()
     await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
     expect(calls.some((c) => c.path === '/api/instance/setup/finish')).toBe(true)
-    expect(calls.some((c) => c.path === '/api/workspaces/acme/teams')).toBe(false)
+    expect(calls.some((c) => c.path === '/api/workspaces/acme/projects')).toBe(false)
   })
 })

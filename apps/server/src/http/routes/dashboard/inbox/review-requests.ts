@@ -12,18 +12,18 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { loadBuild, loadTeam } from '#http/lib/team-access.ts'
+import { loadBuild, loadProject } from '#http/lib/project-access.ts'
 import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const listQuery = z.object({ tab: z.enum(REVIEW_TABS).default('for-you') })
-const teamParams = z.object({ workspace: z.string(), team: z.string() })
+const projectParams = z.object({ workspace: z.string(), project: z.string() })
 const requestBody = z.object({ reviewerId: z.string().min(1) })
-const dismissParams = teamParams.extend({ id: z.string().uuid() })
+const dismissParams = projectParams.extend({ id: z.string().uuid() })
 
 /**
  * Review requests (who was asked to look at which build). The list spans the signed-in user's
- * workspaces; asking and dropping a request work on one team's builds. Everyone outside
+ * workspaces; asking and dropping a request work on one project's builds. Everyone outside
  * the workspace gets "not found", as everywhere else on the dashboard.
  */
 export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
@@ -53,7 +53,7 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   })
 
   /** Any member may ask any other member of the workspace to review; asking yourself is a 400. */
-  app.post('/teams/:workspace/:team/builds/:number/review-requests', async (req, reply) => {
+  app.post('/projects/:workspace/:project/builds/:number/review-requests', async (req, reply) => {
     const { reviewerId } = parse(requestBody, req.body)
     const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
@@ -72,11 +72,11 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   })
 
   /** The reviewer or whoever asked may drop an open request. */
-  app.post('/teams/:workspace/:team/review-requests/:id/dismiss', async (req, reply) => {
+  app.post('/projects/:workspace/:project/review-requests/:id/dismiss', async (req, reply) => {
     const p = parse(dismissParams, req.params)
-    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const { project, user } = await loadProject(deps, req, { notFound: 'Review request not found' })
     const dismissed = await dismissReviewRequest(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: p.id,
       userId: user.id,
     })
@@ -90,12 +90,12 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   })
 
   /** Only the reviewer may put an open request off, or bring it back. */
-  app.post('/teams/:workspace/:team/review-requests/:id/snooze', async (req) => {
+  app.post('/projects/:workspace/:project/review-requests/:id/snooze', async (req) => {
     const p = parse(dismissParams, req.params)
     const { kind, date } = parse(snoozeBody, req.body)
-    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const { project, user } = await loadProject(deps, req, { notFound: 'Review request not found' })
     const { request: row, undo } = await snoozeReviewRequestUndoable(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: p.id,
       userId: user.id,
       kind,
@@ -111,22 +111,22 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   })
 
   /** Only whoever asked may tell the reviewer again, once per 24 hours (409 before that). */
-  app.post('/teams/:workspace/:team/review-requests/:id/nudge', async (req) => {
+  app.post('/projects/:workspace/:project/review-requests/:id/nudge', async (req) => {
     const p = parse(dismissParams, req.params)
-    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const { project, user } = await loadProject(deps, req, { notFound: 'Review request not found' })
     const row = await nudgeReviewRequest(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: p.id,
       userId: user.id,
     })
     return { id: row.id, nudged: true }
   })
 
-  app.post('/teams/:workspace/:team/review-requests/:id/unsnooze', async (req) => {
+  app.post('/projects/:workspace/:project/review-requests/:id/unsnooze', async (req) => {
     const p = parse(dismissParams, req.params)
-    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const { project, user } = await loadProject(deps, req, { notFound: 'Review request not found' })
     const row = await unsnoozeReviewRequest(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: p.id,
       userId: user.id,
     })

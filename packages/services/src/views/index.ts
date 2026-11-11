@@ -1,11 +1,11 @@
 export {
   createView,
   deleteView,
-  pinTeam,
+  pinProject,
   renameView,
   reorderViews,
   setViewPinned,
-  unpinTeam,
+  unpinProject,
   updateView,
   updateViewFilters,
 } from './views.ts'

@@ -9,8 +9,8 @@ export interface PushMessage {
   url: string
   /** One per notification, so a repeat replaces rather than stacks. */
   tag: string
-  /** The team's name: notifications from one team group together on the lock screen. */
-  team: string | null
+  /** The project's name: notifications from one project group together on the lock screen. */
+  project: string | null
 }
 
 export interface PushSubject {
@@ -21,20 +21,20 @@ export interface PushSubject {
   build: {
     number: number
     branch: string | null
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     workspaceSlug: string
   } | null
 }
 
-/** Title says what happened; the body names the commit and team, and a rejection's reason. */
+/** Title says what happened; the body names the commit and project, and a rejection's reason. */
 export function composePushMessage(n: PushSubject): PushMessage {
   const who = n.actorName ?? 'Someone'
   const what = n.build
-    ? `#${n.build.number}${n.build.branch ? ` (${n.build.branch})` : ''}, ${n.build.teamName}`
+    ? `#${n.build.number}${n.build.branch ? ` (${n.build.branch})` : ''}, ${n.build.projectName}`
     : 'a build'
   const url = n.build
-    ? `/${n.build.workspaceSlug}/${n.build.teamSlug}/builds/${n.build.number}`
+    ? `/${n.build.workspaceSlug}/${n.build.projectslug}/builds/${n.build.number}`
     : '/'
   const rawReason = n.payload['reason']
   const reason =
@@ -57,5 +57,5 @@ export function composePushMessage(n: PushSubject): PushMessage {
         return { title: 'CirCI', body: 'Something needs your attention' }
     }
   })()
-  return { ...parts, url, tag: n.id, team: n.build?.teamName ?? null }
+  return { ...parts, url, tag: n.id, project: n.build?.projectName ?? null }
 }

@@ -22,7 +22,7 @@ async function renderBuild() {
       <BuildPage />
     </AppFrame>,
     {
-      route: '$workspace/$team/builds/$number',
+      route: '$workspace/$project/builds/$number',
       url: '/acme/web-app/builds/7',
       announcer: true,
       validateSearch: validateBuildSearch,

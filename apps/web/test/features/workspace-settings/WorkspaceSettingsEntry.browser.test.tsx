@@ -24,7 +24,7 @@ const entry = () =>
     otherRoutes: [
       '/workspaces/$workspace/settings/general',
       '/workspaces/$workspace/settings/members',
-      '/workspaces/$workspace/settings/teams',
+      '/workspaces/$workspace/settings/projects',
       '/instance/settings',
     ],
   })

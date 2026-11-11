@@ -17,7 +17,7 @@ const body = codeBody.extend({
   workspaceName: z.string().min(1).max(100),
   /** The workspace's address; made from its name when left out. */
   workspaceSlug: z.string().max(100).optional(),
-  /** The dashboard's setup steps made this request and will go on with the storage check and the first team. */
+  /** The dashboard's setup steps made this request and will go on with the storage check and the first project. */
   steps: z.boolean().optional(),
 })
 
@@ -31,7 +31,7 @@ const WRONG_CODE = 'That setup code is wrong. Find it in the server log.'
  * - `POST /api/setup` creates the first account (an instance admin) and its workspace as one:
  *   everything is validated first, and if the workspace can't be made the account is removed
  *   again, so a failure leaves nothing and the steps start over. With `steps: true` (the
- *   dashboard's own request) it then notes that the storage check and the first team are still to
+ *   dashboard's own request) it then notes that the storage check and the first project are still to
  *   do (`GET /api/capabilities` says `setupPending`, and `POST /api/instance/setup/finish` ends
  *   it), which is how a reload resumes at the right step; a script that sends no `steps` gets
  *   the account and workspace and nothing more.

@@ -15,15 +15,15 @@ import {
   reviewRequests,
   screenshotDiffs,
   screenshots,
-  teams,
+  projects,
 } from '#schema/index.ts'
 import type { getBuildCounts } from '#shared/build-counts.ts'
 import { containsPattern, prefixPattern } from '#shared/like.ts'
 import type { Database } from '#src/client.ts'
 
-import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'
+import { buildAfterCursor, buildOrderBy, projectTie } from './builds-order.ts'
 import { figmaFramesForSnapshots } from './figma.ts'
-import { type GitKinds, getTeamLink } from './git-links.ts'
+import { type GitKinds, getProjectLink } from './git-links.ts'
 import { listBuildLinks } from './integration-links.ts'
 import {
   listBuildReviews,
@@ -34,7 +34,7 @@ import {
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
 
-export namespace listBuildsForTeam {
+export namespace listBuildsForProject {
   export interface Item {
     id: string
     number: number
@@ -47,7 +47,7 @@ export namespace listBuildsForTeam {
     reviewStatus: ReviewStatus
     createdAt: Date
     counts: getBuildCounts.Counts
-    author: listBuildsForTeam.Author | null
+    author: listBuildsForProject.Author | null
   }
 
   /** Who made a build: the login the CI or git host gave, and the member it matched, if any. */
@@ -59,7 +59,7 @@ export namespace listBuildsForTeam {
     avatarUrl: string | null
   }
 
-  /** Narrows a team's builds list; every field given must match. */
+  /** Narrows a project's builds list; every field given must match. */
   export interface Filters {
     /** The build's own status (uploading, complete, error…). */
     status?: BuildStatus
@@ -75,7 +75,7 @@ export namespace listBuildsForTeam {
     author?: string
     /** A member's user id: builds with an open review request for them. */
     reviewer?: string
-    /** The build's name (a team can upload several per commit). */
+    /** The build's name (a project can upload several per commit). */
     name?: string
     /** Created at or after. */
     from?: Date
@@ -87,7 +87,7 @@ export namespace listBuildsForTeam {
 function toAuthor(
   build: { authorLogin: string | null },
   member: { name: string; image: string | null } | null,
-): listBuildsForTeam.Author | null {
+): listBuildsForProject.Author | null {
   const login = build.authorLogin ?? member?.name
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
@@ -109,7 +109,7 @@ function textCondition(text: string) {
   )
 }
 
-export function buildFilterConditions(f: listBuildsForTeam.Filters) {
+export function buildFilterConditions(f: listBuildsForProject.Filters) {
   return [
     f.text === undefined ? undefined : textCondition(f.text),
     f.status ? eq(builds.status, f.status) : undefined,
@@ -130,18 +130,18 @@ export function buildFilterConditions(f: listBuildsForTeam.Filters) {
   ]
 }
 
-export async function listBuildsForTeam(
+export async function listBuildsForProject(
   db: Database,
-  teamId: string,
+  projectId: string,
   options: {
     limit: number
     /** The build number the page starts after, in `order`. */
     beforeNumber?: number
-    filters?: listBuildsForTeam.Filters
+    filters?: listBuildsForProject.Filters
     /** Default newest first. */
     order?: BuildOrder
   },
-): Promise<listBuildsForTeam.Item[]> {
+): Promise<listBuildsForProject.Item[]> {
   const order = options.order ?? 'newest'
   const after = options.beforeNumber
   const found = await db
@@ -150,7 +150,7 @@ export async function listBuildsForTeam(
     .leftJoin(user, eq(user.id, builds.authorUserId))
     .where(
       and(
-        eq(builds.teamId, teamId),
+        eq(builds.projectId, projectId),
         after === undefined
           ? undefined
           : order === 'newest'
@@ -159,13 +159,13 @@ export async function listBuildsForTeam(
               ? gt(builds.number, after)
               : buildAfterCursor(
                   order,
-                  teamTie,
-                  (c) => sql`${c.teamId} = ${teamId} and ${c.number} = ${after}`,
+                  projectTie,
+                  (c) => sql`${c.projectId} = ${projectId} and ${c.number} = ${after}`,
                 ),
         ...buildFilterConditions(options.filters ?? {}),
       ),
     )
-    .orderBy(...buildOrderBy(order, teamTie))
+    .orderBy(...buildOrderBy(order, projectTie))
     .limit(options.limit)
   return hydrateBuildList(db, found)
 }
@@ -177,7 +177,7 @@ export async function hydrateBuildList(
     build: typeof builds.$inferSelect
     member: { name: string; image: string | null } | null
   }[],
-): Promise<listBuildsForTeam.Item[]> {
+): Promise<listBuildsForProject.Item[]> {
   if (found.length === 0) return []
   const rows = found.map((f) => f.build)
   const members = new Map(found.map((f) => [f.build.id, f.member]))
@@ -249,7 +249,7 @@ export namespace getBuildDetail {
   }
 
   export interface Detail {
-    build: Omit<listBuildsForTeam.Item, 'counts'> & {
+    build: Omit<listBuildsForProject.Item, 'counts'> & {
       baseBranch: string | null
       ancestryStatus: AncestryStatus
       baselineSource: BaselineSource | null
@@ -264,8 +264,8 @@ export namespace getBuildDetail {
     /** Issues created from the build, oldest first. */
     issues: { key: string; url: string; title: string }[]
     /**
-     * The team's review target and when the soonest open request runs out (null when no request
-     * is open and unsnoozed, or the team has no target).
+     * The project's review target and when the soonest open request runs out (null when no request
+     * is open and unsnoozed, or the project has no target).
      */
     reviewTarget: { hours: number | null; dueAt: Date | null }
     /** The member the build's author is matched to; null when the author is only a git login. */
@@ -279,16 +279,16 @@ export namespace getBuildDetail {
 
 export async function getBuildDetail(
   db: Database,
-  teamId: string,
+  projectId: string,
   number: number,
   gitKinds: GitKinds = [],
 ): Promise<getBuildDetail.Detail | undefined> {
   const [build] = await db
     .select()
     .from(builds)
-    .where(and(eq(builds.teamId, teamId), eq(builds.number, number)))
+    .where(and(eq(builds.projectId, projectId), eq(builds.number, number)))
   if (!build) return undefined
-  const [list] = await listBuildsForTeam(db, teamId, { limit: 1, beforeNumber: number + 1 })
+  const [list] = await listBuildsForProject(db, projectId, { limit: 1, beforeNumber: number + 1 })
   const counts = list?.id === build.id ? list.counts : emptyCounts()
 
   const baseline = build.baseBuildId
@@ -329,7 +329,7 @@ export async function getBuildDetail(
   )
   const frames = await figmaFramesForSnapshots(
     db,
-    teamId,
+    projectId,
     rows.map((r) => r.diff.name),
   )
   const issues = (await listBuildLinks(db, build.id, ISSUE_LINK_KIND)).map((l) => ({
@@ -338,10 +338,10 @@ export async function getBuildDetail(
     title: l.title ?? l.externalRef,
   }))
 
-  const [team] = await db
-    .select({ hours: teams.reviewTargetHours })
-    .from(teams)
-    .where(eq(teams.id, teamId))
+  const [project] = await db
+    .select({ hours: projects.reviewTargetHours })
+    .from(projects)
+    .where(eq(projects.id, projectId))
   const asked = await db
     .select({
       id: user.id,
@@ -367,11 +367,11 @@ export async function getBuildDetail(
   const watchers = new Map<string, string>()
   if (author) watchers.set(author.id, author.name)
   for (const r of asked) watchers.set(r.id, r.name)
-  const link = build.prNumber ? await getTeamLink(db, teamId, gitKinds) : undefined
+  const link = build.prNumber ? await getProjectLink(db, projectId, gitKinds) : undefined
 
   return {
     reviewTarget: {
-      hours: team?.hours ?? null,
+      hours: project?.hours ?? null,
       dueAt: dues.length > 0 ? new Date(Math.min(...dues.map((d) => d.getTime()))) : null,
     },
     authorUserId: author?.id ?? null,

@@ -17,7 +17,7 @@ import {
 } from '@circi/ui'
 import type { MouseEventHandler, ReactNode } from 'react'
 
-import { useTeamMark } from '#features/integrations/TeamMark.tsx'
+import { useProjectMark } from '#features/integrations/ProjectMark.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
@@ -57,7 +57,7 @@ export function ReviewList({
   rowMenu,
   onTab,
 }: ReviewList.Props) {
-  const teamMark = useTeamMark(workspace)
+  const projectMark = useProjectMark(workspace)
   const person = (r: Review.Request) =>
     tab === 'created' || tab === 'all-open' ? r.reviewer : r.requestedBy
 
@@ -154,8 +154,8 @@ export function ReviewList({
                           title={<span title={requestName(r)}>{requestTitle(r)}</span>}
                           subtitle={
                             <span className={styles.itemSub}>
-                              {teamMark(r.team.slug, r.team.name)}
-                              <span>{r.team.name}</span>
+                              {projectMark(r.project.slug, r.project.name)}
+                              <span>{r.project.name}</span>
                               <span aria-hidden="true">·</span>
                               <span className={styles.branch}>{requestRef(r.build)}</span>
                             </span>

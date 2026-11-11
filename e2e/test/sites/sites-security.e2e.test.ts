@@ -4,7 +4,7 @@ import { rm } from 'node:fs/promises'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { createProject, type CreatedProject } from '#clients/admin.ts'
 import {
   makeSiteDir,
   postSiteArchive,
@@ -29,7 +29,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
     sitesHost: 'sites.localhost',
     env: { STATIC_SITES_MAX_MB: '1' },
   })
-  let team: CreatedTeam
+  let project: CreatedProject
   let workspace: string
   let repo: Repo
   const scratch: string[] = []
@@ -38,8 +38,8 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
   beforeAll(async () => {
     const { setup, stack } = ctx
     workspace = setup.workspace.slug
-    team = await createTeam(setup.session, workspace, 'Secure')
-    await setup.session.patch(`/api/teams/${workspace}/${team.slug}/settings`, {
+    project = await createProject(setup.session, workspace, 'Secure')
+    await setup.session.patch(`/api/projects/${workspace}/${project.slug}/settings`, {
       staticHostingEnabled: true,
     })
     repo = await Repo.create()
@@ -57,7 +57,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
   })
 
   const post = (entries: tarOf.Entry[], query: Record<string, string> = {}) =>
-    postSiteArchive(ctx.stack, team.token, tgzOf(entries), query)
+    postSiteArchive(ctx.stack, project.token, tgzOf(entries), query)
 
   const healthy = async () => {
     const res = await fetch(`${ctx.stack.url}/readyz`)
@@ -107,7 +107,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
       expect(typeof (res.body as { error?: string }).error).toBe('string')
       // Nothing was published: no site exists for this name.
       const listed = await ctx.setup.session.get<{ sites: unknown[] }>(
-        `/api/teams/${workspace}/${team.slug}/sites`,
+        `/api/projects/${workspace}/${project.slug}/sites`,
       )
       expect(listed.sites).toEqual([])
       await healthy()
@@ -131,7 +131,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
     )
     const out = await uploadSiteCli({
       stack: ctx.stack,
-      token: team.token,
+      token: project.token,
       repo,
       dir,
       name: 'link',
@@ -158,7 +158,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
       'blob.bin': randomBytes(1_600_000),
     })
     scratch.push(dir)
-    const out = await uploadSiteCli({ stack, token: team.token, repo, dir, name: 'big' })
+    const out = await uploadSiteCli({ stack, token: project.token, repo, dir, name: 'big' })
     expect(out.exitCode).not.toBe(0)
     expect(out.stderr).toMatch(/larger than 1048576 bytes|too large|413/i)
     await healthy()
@@ -186,7 +186,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
   it('refuses things that are not archives, and an archive with no files', async () => {
     const garbage = await postSiteArchive(
       ctx.stack,
-      team.token,
+      project.token,
       Buffer.from('not a tarball at all'),
     )
     expect(garbage.status, garbage.text).toBeGreaterThanOrEqual(400)

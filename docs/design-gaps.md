@@ -24,10 +24,10 @@ below is kept as history and is superseded where it disagrees.
   the light scheme (the `MainLight` board; `canvas-palette.json` pins it), flaky as amber with its
   own tilde glyph, and the status glyph shapes (§8).
 - **Settled, new components:** `Badge` (count or tag; neutral, accent or state), `Switch`
-  (instant-apply settings only), `Pane` (preview pane), `TeamTile` (identity in a team colour with
+  (instant-apply settings only), `Pane` (preview pane), `ProjectTile` (identity in a project colour with
   `tile-text` on top, never state), `NavSection`, the settings navigation, the Add integration
   dialog, `PageHeading`'s rule (the current breadcrumb is the page's `<h1>`).
-- **Settled, copy:** the words are Team and Workspace (never project or organisation).
+- **Settled, copy:** the words are Project and Workspace (never team or organisation).
 - **Still open:** logo and favicon (§15), a human sign-off of components (§16), the 5px row inset on
   `NavItem`, group headers at 32px, and motion (120ms ease-out is provisional).
 
@@ -71,8 +71,8 @@ per section or per page? Instant-apply switches vs explicit Save?
 - Inline field errors: §2.
 - Toasts: **none**. Results show where the action happened (row updates, banner); screen readers
   get the existing announcer.
-- Destructive actions (delete team, webhook, member, revoke token): `ConfirmDialog` naming the
-  thing; deleting a team requires typing its slug.
+- Destructive actions (delete project, webhook, member, revoke token): `ConfirmDialog` naming the
+  thing; deleting a project requires typing its slug.
 
 **Needs a decision:** really no toasts? Invitation and address-change banners: in the panel, or
 above the whole frame?
@@ -96,45 +96,45 @@ above the whole frame?
 
 **Provisional:**
 - `EmptyState`: centred in the panel, 32px Lucide icon in `text.tertiary`, title 15px/600, one
-  line of `text.secondary`, one optional primary action. For "no teams", "no builds", "no
+  line of `text.secondary`, one optional primary action. For "no projects", "no builds", "no
   sites", "no members besides you".
 - Loading: `ListSkeleton` (rows of 44 with two shimmer bars at `surface.raised`), shown only after
   300ms (`Delayed`) so fast loads don't flash. `Spinner` (12/16, `text.tertiary`) inside buttons
   and for background refresh.
 - Error: an `EmptyState` with the `rejected` tone, the page's own words ("This build doesn't
   exist"), and a retry button for 5xx/network errors.
-- 404 page: the error state inside the frame, with a link back to Teams.
+- 404 page: the error state inside the frame, with a link back to Projects.
 
 **Needs a decision:** illustrations, or icons only?
 
 ## 6. Sidebar
 
 **Provisional (top to bottom):** workspace switcher (24px workspace avatar + name + chevron, opens a `Menu`
-listing workspaces and "New workspace"); main `NavItem`s: Teams, Members, Settings; a "Teams"
-group listing the workspace's teams (alphabetical, max 10, then "All teams"); bottom: user menu
+listing workspaces and "New workspace"); main `NavItem`s: Projects, Members, Settings; a "Projects"
+group listing the workspace's projects (alphabetical, max 10, then "All projects"); bottom: user menu
 (avatar + name; menu holds Account, Theme (`ColorSchemeControl`), Sign out) and the CirCI version.
 
-Inside a team: the team's items appear under its name in the group: Builds, Sites,
+Inside a project: the project's items appear under its name in the group: Builds, Sites,
 Settings.
 
 Under 820px: a 44px top bar with the logo, current page and a menu button that opens the sidebar
 as a `Drawer` (Base UI `drawer`). Today the frame stacks the whole sidebar above the panel, which
 pushes content below the fold on phones.
 
-**Built, with deviations (2026-11-08):** the workspace list is derived from the teams and capabilities
-the viewer has, because there is no workspace-list endpoint (a workspace with no teams that the viewer
+**Built, with deviations (2026-11-08):** the workspace list is derived from the projects and capabilities
+the viewer has, because there is no workspace-list endpoint (a workspace with no projects that the viewer
 can't manage is missing); the switcher has no "New workspace" item (no API or flow); no CirCI
-version in the footer (the web app has no version source); inside a team the team name
-itself is the Builds entry; the sidebar lists at most 10 teams alphabetically
-(`SIDEBAR_TEAM_LIMIT`); the mobile top bar and `Drawer` are built.
+version in the footer (the web app has no version source); inside a project the project name
+itself is the Builds entry; the sidebar lists at most 10 projects alphabetically
+(`SIDEBAR_PROJECT_LIMIT`); the mobile top bar and `Drawer` are built.
 
-**Needs a decision:** recent vs alphabetical vs pinned teams; whether the workspace switcher shows
+**Needs a decision:** recent vs alphabetical vs pinned projects; whether the workspace switcher shows
 when there is only one workspace; the drawer on mobile.
 
 ## 7. Build review screen
 
 The main screen, and the least designed. **Provisional:**
-- `PanelHeader`: breadcrumb `team / Build #148`, branch `Ref`, then on the right `StatusChip`,
+- `PanelHeader`: breadcrumb `project / Build #148`, branch `Ref`, then on the right `StatusChip`,
   Reject (`danger`), Approve all (`primary`), each with its `Kbd` hint in a tooltip.
 - Below it, two columns: the screenshot list (280 wide, its own scroll) and the viewer.
 - List: groups Changed / Added / Removed / Flaky / Failed / Unchanged (collapsed, with a count),

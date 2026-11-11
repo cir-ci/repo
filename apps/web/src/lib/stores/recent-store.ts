@@ -2,11 +2,11 @@ import { create } from 'zustand'
 
 /** One visited thing, as the command menu's Recent lists it. */
 export interface RecentEntry {
-  kind: 'build' | 'team' | 'baseline' | 'triage' | 'view'
+  kind: 'build' | 'project' | 'baseline' | 'triage' | 'view'
   /** Stable across visits: a visit to the same thing replaces the old one. */
   id: string
   label: string
-  /** The team's name, for what belongs to one. */
+  /** The project's name, for what belongs to one. */
   detail?: string
   path: string
   /** When it was visited (ms since the epoch). */
@@ -19,7 +19,7 @@ export const RECENT_CAP = 20
 
 type ByWorkspace = Record<string, RecentEntry[]>
 
-const KINDS: ReadonlySet<string> = new Set(['build', 'team', 'baseline', 'triage', 'view'])
+const KINDS: ReadonlySet<string> = new Set(['build', 'project', 'baseline', 'triage', 'view'])
 
 function isRecent(value: unknown): value is RecentEntry {
   return (
@@ -63,7 +63,7 @@ function write(value: ByWorkspace): void {
 }
 
 /**
- * The last things a person visited, per workspace (a build, team, baseline, triage item or saved
+ * The last things a person visited, per workspace (a build, project, baseline, triage item or saved
  * view), newest first. Kept in the browser only: nothing is sent to the server.
  */
 export const useRecentStore = create<RecentStore.State & RecentStore.Actions>()((set, get) => ({

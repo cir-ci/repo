@@ -2,14 +2,14 @@ import type { Baseline, Snapshot } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
 import { DIFF_LABEL, screenshotLabel, shotReview } from '#features/builds/diff-status.ts'
-import { teamPath } from '#lib/api-paths.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { getJson } from '#lib/http.ts'
 import { keys } from '#lib/query-keys.ts'
 
-export const baselinesQuery = (workspace: string, team: string) =>
+export const baselinesQuery = (workspace: string, project: string) =>
   queryOptions({
-    queryKey: keys.baselines(workspace, team),
-    queryFn: () => getJson<Baseline.List>(teamPath(workspace, team, 'baselines')),
+    queryKey: keys.baselines(workspace, project),
+    queryFn: () => getJson<Baseline.List>(projectPath(workspace, project, 'baselines')),
   })
 
 /** The identity of a baseline: a name is unique within a build name. */

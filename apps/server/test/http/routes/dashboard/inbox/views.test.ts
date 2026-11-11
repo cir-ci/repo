@@ -1,4 +1,4 @@
-import { teamColorFor } from '@circi/core'
+import { projectColorFor } from '@circi/core'
 import { getWorkspaceBySlug } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { addTestMember, seedSavedView, seedUser } from '@circi/db/testing'
@@ -33,7 +33,7 @@ describe('saved view routes', () => {
     ).toBe(404)
     expect(
       (
-        await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`, {
+        await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-projects/web`, {
           cookie: rivalCookie,
         })
       ).statusCode,
@@ -42,14 +42,14 @@ describe('saved view routes', () => {
 
   it('creates, lists, patches and deletes a view', async () => {
     const created = await send('POST', views, {
-      payload: { name: 'Failing', team: 'web', filters: { status: 'error', branch: 'main' } },
+      payload: { name: 'Failing', project: 'web', filters: { status: 'error', branch: 'main' } },
     })
     expect(created.statusCode).toBe(201)
     const view = created.json()
     expect(view).toMatchObject({
       name: 'Failing',
       pinned: false,
-      team: { slug: 'web' },
+      project: { slug: 'web' },
       filters: { status: 'error', branch: 'main' },
     })
     expect((await get(views)).json().views.map((v: { id: string }) => v.id)).toEqual([view.id])
@@ -73,7 +73,7 @@ describe('saved view routes', () => {
     expect((await bad({ name: 'x', filters: { colour: 'red' } })).statusCode).toBe(400)
     expect((await bad({ name: 'x', filters: { from: 'yesterday' } })).statusCode).toBe(400)
     expect((await bad({ name: '', filters: {} })).statusCode).toBe(400)
-    expect((await bad({ name: 'x', team: 'missing', filters: {} })).statusCode).toBe(404)
+    expect((await bad({ name: 'x', project: 'missing', filters: {} })).statusCode).toBe(404)
     expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(201)
     expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(409)
   })
@@ -119,29 +119,32 @@ describe('saved view routes', () => {
     ).toBe(400)
   })
 
-  it("counts a team's sites in the sidebar, so the Sites entry shows only when there are some", async () => {
+  it("counts a project's sites in the sidebar, so the Sites entry shows only when there are some", async () => {
     const count = async () =>
-      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().teams[0].siteCount
+      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().projects[0].siteCount
     expect(await count()).toBe(0)
-    await db
-      .insert(schema.teamSites)
-      .values({ teamId: acme.team.id, name: 'Storybook', kind: 'storybook', slug: 'sb-views-1' })
+    await db.insert(schema.projectsites).values({
+      projectId: acme.project.id,
+      name: 'Storybook',
+      kind: 'storybook',
+      slug: 'sb-views-1',
+    })
     expect(await count()).toBe(1)
   })
 
-  it('pins and unpins a team, and the sidebar reflects it', async () => {
-    const pin = `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`
+  it('pins and unpins a project, and the sidebar reflects it', async () => {
+    const pin = `/api/workspaces/${acme.workspaceSlug}/pinned-projects/web`
     expect(
       (await send('POST', views, { payload: { name: 'Failing', filters: {} } })).statusCode,
     ).toBe(201)
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: true })
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
     const bar = (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json()
-    expect(bar.teams).toEqual([
+    expect(bar.projects).toEqual([
       {
         slug: 'web',
         name: 'web',
-        color: teamColorFor('web'),
+        color: projectColorFor('web'),
         icon: null,
         pinned: true,
         triage: 0,
@@ -155,10 +158,10 @@ describe('saved view routes', () => {
     expect(bar.views.length).toBeGreaterThan(0)
     expect((await send('DELETE', pin)).json()).toEqual({ pinned: false, changed: true })
     expect(
-      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().teams[0].pinned,
+      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().projects[0].pinned,
     ).toBe(false)
     expect(
-      (await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-teams/nope`)).statusCode,
+      (await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-projects/nope`)).statusCode,
     ).toBe(404)
   })
 })

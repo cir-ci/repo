@@ -23,7 +23,7 @@
       "default": "./dist/theme.js"
     },
     "./tokens-css": "./tokens-css.ts",
-    "./team-icons": "./src/team-icons.ts",
+    "./project-icons": "./src/project-icons.ts",
     "./lucide-names": "./src/lucide-names.ts",
     "./global.css": "./src/global.css",
     "./utilities.module.css": "./src/utilities.module.css",

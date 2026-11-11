@@ -2,14 +2,14 @@ import type { Build } from '@circi/api'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { regionsOf, toPixels } from '#features/regions/ignore-regions.ts'
-import { IgnoreRegionsPanel } from '#features/regions/IgnoreRegionsPanel.tsx'
 import {
   ignoreRegionsQuery,
   settingsQuery,
   useAddIgnoreRegion,
   useAdjustIgnoreRegion,
-} from '#features/teams/api/index.ts'
+} from '#features/projects/api/index.ts'
+import { regionsOf, toPixels } from '#features/regions/ignore-regions.ts'
+import { IgnoreRegionsPanel } from '#features/regions/IgnoreRegionsPanel.tsx'
 import { toast } from '#lib/toast.ts'
 
 import type { IgnoreMode } from './DiffViewer.tsx'
@@ -22,18 +22,18 @@ import type { RegionSide } from './region-draft.ts'
  */
 export function useIgnoreMode(
   workspace: string,
-  team: string,
+  project: string,
   shot: Build.DiffItem | undefined,
 ): IgnoreMode | undefined {
-  const settings = useQuery(settingsQuery(workspace, team))
+  const settings = useQuery(settingsQuery(workspace, project))
   const canManage = settings.data?.canManage === true
   const name = shot?.name
   const list = useQuery({
-    ...ignoreRegionsQuery(workspace, team, name),
+    ...ignoreRegionsQuery(workspace, project, name),
     enabled: canManage && name !== undefined,
   })
-  const add = useAddIgnoreRegion(workspace, team)
-  const adjust = useAdjustIgnoreRegion(workspace, team)
+  const add = useAddIgnoreRegion(workspace, project)
+  const adjust = useAdjustIgnoreRegion(workspace, project)
   const [mode, setMode] = useState<IgnoreMode['mode']>('comments')
   const [pending, setPending] = useState<IgnoreMode['pending']>(null)
   if (!canManage || !shot) return undefined
@@ -63,7 +63,7 @@ export function useIgnoreMode(
     panel: (
       <IgnoreRegionsPanel
         workspace={workspace}
-        team={team}
+        project={project}
         name={shot.name}
         size={image?.width && image.height ? { width: image.width, height: image.height } : null}
         regions={regions}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'

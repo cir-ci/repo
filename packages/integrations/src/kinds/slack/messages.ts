@@ -10,7 +10,7 @@
 export namespace SlackMessage {
   /** The build a message is about. */
   export interface Build {
-    teamName: string
+    projectName: string
     number: number
     branch?: string | null
     /** The build's page in the dashboard. */
@@ -80,10 +80,10 @@ const link = (url: string, label: string) =>
 const person = (name: string) =>
   escapeMrkdwn(truncate(name.replaceAll(/\s+/g, ' ').trim(), NAME_MAX))
 
-const buildLabel = (b: SlackMessage.Build) => `${b.teamName} #${b.number}`
+const buildLabel = (b: SlackMessage.Build) => `${b.projectName} #${b.number}`
 
 const buildLink = (b: SlackMessage.Build) =>
-  link(b.url, truncate(`${b.teamName} #${b.number}`, 150))
+  link(b.url, truncate(`${b.projectName} #${b.number}`, 150))
 
 const branchText = (b: SlackMessage.Build) =>
   b.branch ? ` on \`${escapeMrkdwn(truncate(b.branch, 100)).replaceAll('`', "'")}\`` : ''

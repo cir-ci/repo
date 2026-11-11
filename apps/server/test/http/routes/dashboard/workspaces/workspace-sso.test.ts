@@ -129,8 +129,10 @@ describe("a workspace's own single sign-on", () => {
       headers: { cookie },
     })
     expect(sidebar.statusCode).toBe(200)
-    // Signing in puts nobody in a team.
-    expect((await app.inject({ url: '/api/teams', headers: { cookie } })).json().teams).toEqual([])
+    // Signing in puts nobody in a project.
+    expect(
+      (await app.inject({ url: '/api/projects', headers: { cookie } })).json().projects,
+    ).toEqual([])
 
     const [user] = await t.db
       .select()
@@ -164,7 +166,7 @@ describe("a workspace's own single sign-on", () => {
     expect((await open(acme.workspaceSlug)).statusCode).toBe(200)
     expect((await open(rival.workspaceSlug)).statusCode).toBe(404)
     expect(
-      (await app.inject({ url: `/api/teams/${rival.workspaceSlug}/web`, headers: { cookie } }))
+      (await app.inject({ url: `/api/projects/${rival.workspaceSlug}/web`, headers: { cookie } }))
         .statusCode,
     ).toBe(404)
     const caps = (await app.inject({ url: '/api/capabilities', headers: { cookie } })).json()

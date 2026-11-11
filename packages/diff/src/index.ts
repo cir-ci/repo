@@ -43,11 +43,11 @@ export namespace diffImages {
   export interface Options {
     /**
      * Per-pixel colour tolerance passed to pixelmatch (0–1, perceptual distance). The default
-     * 0.1 ignores imperceptible noise. This is not the team's diff threshold, which applies
+     * 0.1 ignores imperceptible noise. This is not the project's diff threshold, which applies
      * to the share of changed pixels.
      */
     pixelTolerance?: number
-    /** Team diff threshold: share of changed pixels (0–1) still considered unchanged. */
+    /** Project diff threshold: share of changed pixels (0–1) still considered unchanged. */
     threshold?: number
     /** Rectangles (in pixels) that are blanked in both images first: clocks, ads, avatars… */
     ignore?: readonly diffImages.IgnoreRegion[]

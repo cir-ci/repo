@@ -4,13 +4,13 @@ import { createTestDb } from '@circi/db/testing'
 import Fastify from 'fastify'
 
 import { jsonErrorHandler } from '#http/lib/errors.ts'
-import { loadTeam } from '#http/lib/team-access.ts'
+import { loadProject } from '#http/lib/project-access.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 import { createTestAuth, seedTenant, addMember } from './helpers.ts'
 
 /**
- * `loadTeam` and `loadWorkspace` on their own: a bare server whose "session" is two headers
+ * `loadProject` and `loadWorkspace` on their own: a bare server whose "session" is two headers
  * (`x-user`, and `x-method` as JSON), with one route per helper variant, so the access rules
  * can be tested without the dashboard around them. The routes answer 200 `{ ok, role }` when
  * the helper let the caller through.
@@ -56,13 +56,13 @@ export async function startAccess() {
     }
   })
   app.setErrorHandler(jsonErrorHandler)
-  app.get('/team/:workspace/:team', async (req) => {
-    const found = await loadTeam(deps, req)
-    return { ok: true, team: found.team.slug }
+  app.get('/project/:workspace/:project', async (req) => {
+    const found = await loadProject(deps, req)
+    return { ok: true, project: found.project.slug }
   })
-  app.get('/manage/:workspace/:team', async (req) => {
-    const found = await loadTeam(deps, req, { manage: true })
-    return { ok: true, team: found.team.slug }
+  app.get('/manage/:workspace/:project', async (req) => {
+    const found = await loadProject(deps, req, { manage: true })
+    return { ok: true, project: found.project.slug }
   })
   app.get('/workspace/:workspace', async (req) => {
     const found = await loadWorkspace(deps, req)

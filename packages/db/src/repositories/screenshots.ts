@@ -58,17 +58,17 @@ export async function updateDiff(
   await db.update(screenshotDiffs).set(values).where(eq(screenshotDiffs.id, diffId))
 }
 
-/** Distinct snapshot names the team's builds have uploaded, most recently seen first. */
-export async function listTeamSnapshotNames(
+/** Distinct snapshot names the project's builds have uploaded, most recently seen first. */
+export async function listProjectsnapshotNames(
   db: Database,
-  teamId: string,
+  projectId: string,
   limit = 2000,
 ): Promise<string[]> {
   const rows = await db
     .select({ name: screenshots.name, last: max(screenshots.createdAt) })
     .from(screenshots)
     .innerJoin(builds, eq(builds.id, screenshots.buildId))
-    .where(eq(builds.teamId, teamId))
+    .where(eq(builds.projectId, projectId))
     .groupBy(screenshots.name)
     .orderBy(desc(max(screenshots.createdAt)), asc(screenshots.name))
     .limit(limit)

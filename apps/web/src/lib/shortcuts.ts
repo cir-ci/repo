@@ -38,7 +38,7 @@ export namespace Shortcut {
     | 'Build review'
     | 'Triage'
 
-  export type GoTarget = 'inbox' | 'reviews' | 'teams' | 'triage' | 'settings'
+  export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
 
   export type Action =
     | { type: 'next' }
@@ -111,7 +111,7 @@ const TAB_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const
 const GO: readonly [string, Shortcut.GoTarget, string][] = [
   ['g i', 'inbox', 'Open Inbox'],
   ['g r', 'reviews', 'Open Reviews'],
-  ['g p', 'teams', 'Open Teams'],
+  ['g p', 'projects', 'Open Projects'],
   ['g t', 'triage', 'Open Triage'],
   ['g s', 'settings', 'Open Settings'],
 ]

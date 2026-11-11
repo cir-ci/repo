@@ -18,7 +18,7 @@ const query = z.object({ domain: z.string().optional() })
  * Routes for the reverse proxy, never for browsers. `GET /internal/tls-ask?domain=<host>` is
  * Caddy's `on_demand_tls { ask }` check: it answers 200 when the host is a verified custom domain
  * of a site and 404 for anything else, with an empty body either way, so a certificate is issued
- * only for domains a team proved are pointed here. It is no secret (a TLS handshake reveals the
+ * only for domains a project proved are pointed here. It is no secret (a TLS handshake reveals the
  * same), but it is kept narrow: yes or no, nothing else; a request that came through a proxy
  * (it carries `X-Forwarded-For`: Caddy asks directly, the public does not reach it) is refused;
  * and the number of answers per minute is capped, so it can't be used to hammer the database.

@@ -41,7 +41,7 @@ export function normalizeCustomDomain(input: string): string {
 }
 
 /**
- * Why `domain` (already normalized) can't be a team site's custom domain, or undefined. It
+ * Why `domain` (already normalized) can't be a project site's custom domain, or undefined. It
  * must be a plain host name (no scheme, port, path, wildcard or IP address), unrelated to the
  * dashboard (the same cookie rules as the sites domain) and outside the sites domain, which
  * belongs to CirCI's own addresses: not the domain itself, not below it, not a parent of it.

@@ -37,14 +37,14 @@ export async function publishSite(
       if (input.branchTip && isSha256(input.branchTip.padEnd(64, '0').slice(0, 64))) {
         moveBranch = input.branchTip.toLowerCase() === commitSha
       } else if (input.descends) {
-        const served = await servedCommitForBranch(tx, input.teamId, input.name, input.branch)
+        const served = await servedCommitForBranch(tx, input.projectId, input.name, input.branch)
         // No address yet: this upload starts the branch's address.
         moveBranch = served === undefined || input.descends
       }
     }
 
     const published = await publishSiteVersion(tx, {
-      teamId: input.teamId,
+      projectId: input.projectId,
       name: input.name,
       kind: input.kind,
       spa: input.spa,
@@ -61,7 +61,7 @@ export async function publishSite(
     // request of this commit gets its comment rewritten, in the transaction that stored the site.
     await queueGitNotifyForCommit(
       tx,
-      { teamId: input.teamId, commitSha },
+      { projectId: input.projectId, commitSha },
       integrationRegistry.gitKinds(),
       `site:${published.version.id}:${Date.now()}`,
     )
@@ -71,7 +71,7 @@ export async function publishSite(
 
 export namespace publishSite {
   export interface Input {
-    teamId: string
+    projectId: string
     name: string
     kind: string
     spa: boolean

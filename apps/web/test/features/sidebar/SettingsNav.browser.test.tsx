@@ -4,7 +4,7 @@ import { page } from 'vitest/browser'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { workspace as instanceWorkspace } from '#test/features/instance/fixtures.ts'
-import { overview, sidebarModel, sidebarTeam } from '#test/support/fixtures.ts'
+import { overview, sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 function show(
@@ -21,7 +21,7 @@ function show(
     beforeRender: () => {
       if (options.from) useSettingsReturnStore.getState().noteAppPage(options.from)
     },
-    route: options.route ?? '/$workspace/$team/settings/reviews',
+    route: options.route ?? '/$workspace/$project/settings/reviews',
     url: options.url ?? '/acme/web/settings/reviews',
     viewport: [1000, 900],
     api: {
@@ -49,11 +49,11 @@ function show(
           ],
         },
       },
-      'GET /api/teams': { body: { teams: [overview('acme', 'web')] } },
+      'GET /api/projects': { body: { projects: [overview('acme', 'web')] } },
       'GET /api/workspaces/acme/sidebar': {
         body: sidebarModel({
           canManage: options.canManage ?? true,
-          teams: [sidebarTeam(), sidebarTeam({ slug: 'storybook', name: 'Storybook' })],
+          projects: [sidebarProject(), sidebarProject({ slug: 'storybook', name: 'Storybook' })],
         }),
       },
     },
@@ -72,7 +72,7 @@ const names = (locator: ReturnType<typeof page.getByRole>) =>
   locator.elements().map((el) => el.textContent)
 
 describe('SettingsNav', () => {
-  it('lists every workspace page, with no Teams entry among them, for owners and admins', async () => {
+  it('lists every workspace page, with no Projects entry among them, for owners and admins', async () => {
     await show()
     const workspace = page.getByRole('region', { name: /^Workspace/ })
     await expect
@@ -87,17 +87,17 @@ describe('SettingsNav', () => {
     ])
   })
 
-  it('has a Teams section: each team opens its settings hub, then All teams opens the list', async () => {
+  it('has a Projects section: each project opens its settings hub, then All projects opens the list', async () => {
     await show()
-    const teams = page.getByRole('region', { name: 'Teams' })
-    await expect.element(teams).toBeVisible()
-    expect(names(teams.getByRole('link'))).toEqual(['Web App', 'Storybook', 'All teams'])
+    const projects = page.getByRole('region', { name: 'Projects' })
+    await expect.element(projects).toBeVisible()
+    expect(names(projects.getByRole('link'))).toEqual(['Web App', 'Storybook', 'All projects'])
     await expect
-      .element(teams.getByRole('link', { name: 'Storybook' }))
+      .element(projects.getByRole('link', { name: 'Storybook' }))
       .toHaveAttribute('href', '/acme/storybook/settings')
     await expect
-      .element(teams.getByRole('link', { name: 'All teams' }))
-      .toHaveAttribute('href', '/workspaces/acme/settings/teams')
+      .element(projects.getByRole('link', { name: 'All projects' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings/projects')
   })
 
   it('follows the sidebar numbers: 32px rows, 14px text, 18px icons at stroke 2, 13px secondary labels', async () => {
@@ -114,21 +114,23 @@ describe('SettingsNav', () => {
     expect(getComputedStyle(label).fontSize).toBe('13px')
   })
 
-  it('has no section per team and no team switcher: the Teams section is the switcher', async () => {
+  it('has no section per project and no project switcher: the Projects section is the switcher', async () => {
     await show()
     await expect.element(page.getByRole('region', { name: /^Workspace/ })).toBeVisible()
-    expect(page.getByRole('region', { name: /^Team · / }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: /Switch team/ }).elements()).toHaveLength(0)
+    expect(page.getByRole('region', { name: /^Project · / }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: /Switch project/ }).elements()).toHaveLength(0)
     expect(page.getByRole('link', { name: 'CI token' }).elements()).toHaveLength(0)
   })
 
-  it('leaves out what members cannot use: they keep Members, and the teams they can see', async () => {
+  it('leaves out what members cannot use: they keep Members, and the projects they can see', async () => {
     await show({ canManage: false })
     const workspace = page.getByRole('region', { name: /^Workspace/ })
     await expect.element(workspace.getByRole('link', { name: 'Members' })).toBeVisible()
     expect(names(workspace.getByRole('link'))).toEqual(['Members'])
     await expect
-      .element(page.getByRole('region', { name: 'Teams' }).getByRole('link', { name: 'All teams' }))
+      .element(
+        page.getByRole('region', { name: 'Projects' }).getByRole('link', { name: 'All projects' }),
+      )
       .toBeVisible()
   })
 
@@ -140,7 +142,7 @@ describe('SettingsNav', () => {
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
   })
 
-  it('names a team page by the team, and falls to the Inbox when there is no page to return to', async () => {
+  it('names a project page by the project, and falls to the Inbox when there is no page to return to', async () => {
     await show({ from: '/acme/web' })
     await expect
       .element(page.getByRole('link', { name: 'Back to Web App' }))
@@ -160,7 +162,7 @@ describe('SettingsNav', () => {
     ])
   })
 
-  it('marks the team while any page of its settings is open, and not the others or All teams', async () => {
+  it('marks the project while any page of its settings is open, and not the others or All projects', async () => {
     await show()
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
@@ -169,27 +171,27 @@ describe('SettingsNav', () => {
       .element(page.getByRole('link', { name: 'Storybook' }))
       .not.toHaveAttribute('aria-current')
     await expect
-      .element(page.getByRole('link', { name: 'All teams' }))
+      .element(page.getByRole('link', { name: 'All projects' }))
       .not.toHaveAttribute('aria-current')
     await expect
       .element(page.getByRole('link', { name: 'Members' }))
       .not.toHaveAttribute('aria-current')
   })
 
-  it('marks the team on its hub too', async () => {
-    await show({ route: '/$workspace/$team/settings', url: '/acme/web/settings' })
+  it('marks the project on its hub too', async () => {
+    await show({ route: '/$workspace/$project/settings', url: '/acme/web/settings' })
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
       .toHaveAttribute('aria-current', 'page')
   })
 
-  it('marks All teams on the teams list', async () => {
+  it('marks All projects on the projects list', async () => {
     await show({
-      route: '/workspaces/$workspace/settings/teams',
-      url: '/workspaces/acme/settings/teams',
+      route: '/workspaces/$workspace/settings/projects',
+      url: '/workspaces/acme/settings/projects',
     })
     await expect
-      .element(page.getByRole('link', { name: 'All teams' }))
+      .element(page.getByRole('link', { name: 'All projects' }))
       .toHaveAttribute('aria-current', 'page')
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
@@ -215,7 +217,7 @@ describe('SettingsNav', () => {
     await show({ instanceAdmin: true })
     const instance = page.getByRole('region', { name: /Instance/ })
     await expect.element(instance).toBeVisible()
-    // One entry, like a workspace's or a team's: it opens the hub, which lists the pages. The
+    // One entry, like a workspace's or a project's: it opens the hub, which lists the pages. The
     // workspaces are their own section.
     expect(names(instance.getByRole('link'))).toEqual(['Instance'])
     await expect
@@ -243,16 +245,18 @@ describe('SettingsNav', () => {
       // Creating and the deleted ones live on the list page, not in the sidebar.
       expect(page.getByRole('button', { name: 'New workspace' }).elements()).toHaveLength(0)
       expect(page.getByRole('link', { name: 'Old Co' }).elements()).toHaveLength(0)
-      // The Teams section stays, for the workspace being viewed.
+      // The Projects section stays, for the workspace being viewed.
       await expect
-        .element(page.getByRole('region', { name: 'Teams' }).getByRole('link', { name: 'Web App' }))
+        .element(
+          page.getByRole('region', { name: 'Projects' }).getByRole('link', { name: 'Web App' }),
+        )
         .toBeVisible()
     })
 
-    it('orders the sections by the hierarchy: Account, Instance, Workspaces, Teams', async () => {
+    it('orders the sections by the hierarchy: Account, Instance, Workspaces, Projects', async () => {
       await show({ instanceAdmin: true })
-      await expect.element(page.getByRole('region', { name: 'Teams' })).toBeVisible()
-      const order = ['Account', 'Instance', 'Workspaces', 'Teams'].map((name) =>
+      await expect.element(page.getByRole('region', { name: 'Projects' })).toBeVisible()
+      const order = ['Account', 'Instance', 'Workspaces', 'Projects'].map((name) =>
         page.getByRole('region', { name }).element(),
       )
       order.slice(1).forEach((el, i) => {
@@ -299,10 +303,10 @@ describe('SettingsNav', () => {
   describe('selects exactly one entry on every settings page', () => {
     it.each([
       [
-        'the teams list',
-        '/workspaces/$workspace/settings/teams',
-        '/workspaces/acme/settings/teams',
-        ['All teams'],
+        'the projects list',
+        '/workspaces/$workspace/settings/projects',
+        '/workspaces/acme/settings/projects',
+        ['All projects'],
       ],
       [
         'the workspace hub',
@@ -340,10 +344,10 @@ describe('SettingsNav', () => {
         '/workspaces/acme/settings/storage',
         ['Acme'],
       ],
-      ['a team hub', '/$workspace/$team/settings', '/acme/web/settings', ['Web App']],
+      ['a project hub', '/$workspace/$project/settings', '/acme/web/settings', ['Web App']],
       [
-        'a team page',
-        '/$workspace/$team/settings/reviews',
+        'a project page',
+        '/$workspace/$project/settings/reviews',
         '/acme/web/settings/reviews',
         ['Web App'],
       ],
@@ -355,16 +359,16 @@ describe('SettingsNav', () => {
       ['Health', '/instance/health', '/instance/health', ['Instance']],
     ])('for an instance admin on %s', async (_name, route, url, expected) => {
       await show({ instanceAdmin: true, route, url })
-      await expect.element(page.getByRole('link', { name: 'All teams' })).toBeVisible()
+      await expect.element(page.getByRole('link', { name: 'All projects' })).toBeVisible()
       await expect.poll(selected).toEqual(expected)
     })
 
     it.each([
       [
-        'the teams list',
-        '/workspaces/$workspace/settings/teams',
-        '/workspaces/acme/settings/teams',
-        ['All teams'],
+        'the projects list',
+        '/workspaces/$workspace/settings/projects',
+        '/workspaces/acme/settings/projects',
+        ['All projects'],
       ],
       [
         'General',
@@ -396,16 +400,16 @@ describe('SettingsNav', () => {
         '/workspaces/acme/settings/storage',
         ['Storage and retention'],
       ],
-      ['a team hub', '/$workspace/$team/settings', '/acme/web/settings', ['Web App']],
+      ['a project hub', '/$workspace/$project/settings', '/acme/web/settings', ['Web App']],
       [
-        'a team page',
-        '/$workspace/$team/settings/reviews',
+        'a project page',
+        '/$workspace/$project/settings/reviews',
         '/acme/web/settings/reviews',
         ['Web App'],
       ],
     ])('for an owner or admin on %s', async (_name, route, url, expected) => {
       await show({ route, url })
-      await expect.element(page.getByRole('link', { name: 'All teams' })).toBeVisible()
+      await expect.element(page.getByRole('link', { name: 'All projects' })).toBeVisible()
       await expect.poll(selected).toEqual(expected)
     })
   })

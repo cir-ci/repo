@@ -5,8 +5,8 @@ import {
   getWorkspaceStorage,
   getWorkspaceSettings,
   listMemberSignIn,
-  listTeamFlakyOverrides,
-  listWorkspaceMemberTeams,
+  listProjectFlakyOverrides,
+  listWorkspaceMemberProjects,
 } from '@circi/db/queries'
 import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
@@ -32,7 +32,7 @@ const generalBody = z
   .strict()
 
 /**
- * A workspace's name and address, its defaults for its teams (flaky gate, retention) and its
+ * A workspace's name and address, its defaults for its projects (flaky gate, retention) and its
  * storage usage. Members can see them, owners and admins change them; anyone outside the
  * workspace gets "not found".
  */
@@ -74,13 +74,13 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     },
   )
 
-  /** The teams each person belongs to, as far as the signed-in person may see them. */
+  /** The projects each person belongs to, as far as the signed-in person may see them. */
   app.get(
-    '/workspaces/:workspace/member-teams',
-    async (req): Promise<Workspace.MemberTeams | void> => {
+    '/workspaces/:workspace/member-projects',
+    async (req): Promise<Workspace.MemberProjects | void> => {
       const found = await loadWorkspace(deps, req)
       return {
-        teams: await listWorkspaceMemberTeams(deps.db, {
+        projects: await listWorkspaceMemberProjects(deps.db, {
           workspaceId: found.workspace.id,
           viewerId: found.user.id,
         }),
@@ -88,7 +88,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     },
   )
 
-  /** What the workspace's builds and hosted sites take up, by kind and by team. */
+  /** What the workspace's builds and hosted sites take up, by kind and by project. */
   app.get('/workspaces/:workspace/storage', async (req): Promise<Storage.Usage | void> => {
     const found = await loadWorkspace(deps, req)
     return {
@@ -122,7 +122,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     return {
       canManage: found.canManage,
       settings: await getWorkspaceSettings(deps.db, found.workspace.id),
-      teams: await listTeamFlakyOverrides(deps.db, found.workspace.id, found.user.id),
+      projects: await listProjectFlakyOverrides(deps.db, found.workspace.id, found.user.id),
     }
   })
 

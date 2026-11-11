@@ -14,7 +14,7 @@ import {
   NotFoundError,
   type ReviewRequest,
 } from '@circi/db'
-import { getBuild, getTeamById, listTeamBuildsByIds } from '@circi/db/queries'
+import { getBuild, getProjectById, listProjectBuildsByIds } from '@circi/db/queries'
 import { queueGitNotify, queueWebhookEvent } from '@circi/db/queue'
 import {
   buildsInDeletedWorkspaces,
@@ -62,16 +62,16 @@ export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input
  */
 export async function reviewSnapshotsUndoable(
   db: Database,
-  input: reviewSnapshots.Input & { teamId: string },
+  input: reviewSnapshots.Input & { projectId: string },
 ): Promise<{ build: Build; undo: UndoToken | null }> {
-  const { teamId, ...rest } = input
-  return db.transaction((tx) => decideSnapshots(tx, rest, { teamId }))
+  const { projectId, ...rest } = input
+  return db.transaction((tx) => decideSnapshots(tx, rest, { projectId }))
 }
 
 async function decideSnapshots(
   tx: Database,
   input: reviewSnapshots.Input,
-  undo: { teamId: string } | undefined,
+  undo: { projectId: string } | undefined,
 ): Promise<{ build: Build; undo: UndoToken | null }> {
   const { reason, userId, ...decision } = input
   await assertRejectReason(tx, input)
@@ -147,11 +147,11 @@ async function decideSnapshots(
   }
   return {
     build,
-    undo: await recordUndo(tx, { userId, teamId: undo.teamId, kind: 'build_review', data }),
+    undo: await recordUndo(tx, { userId, projectId: undo.projectId, kind: 'build_review', data }),
   }
 }
 /**
- * A team that asks for a reason when someone rejects refuses a rejection from the dashboard
+ * A project that asks for a reason when someone rejects refuses a rejection from the dashboard
  * (or the API) without one. A code host's approve and reject buttons and comment commands have
  * nowhere to write a reason, so they are exempt.
  */
@@ -159,8 +159,8 @@ async function assertRejectReason(db: Database, input: reviewSnapshots.Input): P
   if (input.decision !== 'rejected' || input.reason?.trim()) return
   if (input.source !== undefined && input.source !== 'ui') return
   const build = await getBuild(db, input.buildId)
-  const team = build ? await getTeamById(db, build.teamId) : undefined
-  if (team?.requireRejectReason) {
+  const project = build ? await getProjectById(db, build.projectId) : undefined
+  if (project?.requireRejectReason) {
     throw new ValidationError('Add a reason for rejecting', {
       fields: { reason: 'Add a reason for rejecting' },
     })
@@ -192,7 +192,7 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
 /** `reviewBuild` for a person at the dashboard, with a token to take the decision back. */
 export async function reviewBuildUndoable(
   db: Database,
-  input: reviewBuild.Input & { teamId: string },
+  input: reviewBuild.Input & { projectId: string },
 ): ReturnType<typeof reviewSnapshotsUndoable> {
   const { state, ...rest } = input
   return reviewSnapshotsUndoable(db, { ...rest, decision: state, snapshotNames: 'all' })
@@ -212,8 +212,8 @@ export namespace reviewBuild {
 const REQUEST_KINDS = ['review_requested', 'review_re_requested', 'review_overdue'] as const
 
 /**
- * Asks `reviewerId` to review a build; asking yourself is refused. The request is due when the team's review target runs
- * out (never, for a team without one). Asking again while the request is open returns it
+ * Asks `reviewerId` to review a build; asking yourself is refused. The request is due when the project's review target runs
+ * out (never, for a project without one). Asking again while the request is open returns it
  * unchanged; asking after it closed opens a new one.
  */
 export async function requestReview(
@@ -223,13 +223,13 @@ export async function requestReview(
   if (input.reviewerId === input.requestedById) throw new ValidationError(SELF_REQUEST)
   return db.transaction(async (tx) => {
     const build = await getBuild(tx, input.buildId)
-    const team = build ? await getTeamById(tx, build.teamId) : undefined
-    if (!build || !team) throw new NotFoundError('Build not found')
+    const project = build ? await getProjectById(tx, build.projectId) : undefined
+    if (!build || !project) throw new NotFoundError('Build not found')
     const result = await openReviewRequest(tx, {
       buildId: build.id,
       reviewerId: input.reviewerId,
       requestedById: input.requestedById,
-      dueAt: reviewDueAt(input.now ?? new Date(), team.reviewTargetHours),
+      dueAt: reviewDueAt(input.now ?? new Date(), project.reviewTargetHours),
     })
     if (!result.created) return result
     const notice = await notifyReviewRequested(tx, result.request, input.requestedById)
@@ -257,9 +257,9 @@ export const MAX_BULK_REQUEST_REVIEW = 50
 const MAX_REQUEST_REVIEWERS = 20
 
 /**
- * Asks each of `reviewerIds` to review each of `buildIds`, all builds of one team, in a single
+ * Asks each of `reviewerIds` to review each of `buildIds`, all builds of one project, in a single
  * transaction: every pair goes through `requestReview` (so each new request notifies its
- * reviewer), and if any id is not a build of the team, or any pair cannot be asked (a build
+ * reviewer), and if any id is not a build of the project, or any pair cannot be asked (a build
  * that cannot be reviewed, a reviewer outside the workspace), nothing changes at all. A pair
  * that already has an open request keeps it and is reported as not created.
  */
@@ -279,7 +279,7 @@ export async function requestReviews(
   }
   if (reviewerIds.includes(input.requestedById)) throw new ValidationError(SELF_REQUEST)
   return db.transaction(async (tx) => {
-    const own = await listTeamBuildsByIds(tx, input.teamId, buildIds)
+    const own = await listProjectBuildsByIds(tx, input.projectId, buildIds)
     if (own.length !== buildIds.length) throw new NotFoundError('Build not found')
     const requests: requestReviews.Item[] = []
     for (const buildId of buildIds) {
@@ -300,7 +300,7 @@ export async function requestReviews(
 }
 export namespace requestReviews {
   export interface Input {
-    teamId: string
+    projectId: string
     buildIds: string[]
     reviewerIds: string[]
     requestedById: string
@@ -338,7 +338,7 @@ export async function requestReviewsUndoable(
     }
     const undo = await recordUndo(tx, {
       userId: input.requestedById,
-      teamId: input.teamId,
+      projectId: input.projectId,
       kind: 'request_review',
       data,
     })
@@ -347,12 +347,12 @@ export async function requestReviewsUndoable(
 }
 
 /**
- * Drops a review request of a build in `teamId`. Only its reviewer or whoever asked may;
+ * Drops a review request of a build in `projectId`. Only its reviewer or whoever asked may;
  * returns the request, or undefined when there was nothing of theirs to drop.
  */
 export async function dismissReviewRequest(
   db: Database,
-  input: { teamId: string; requestId: string; userId: string },
+  input: { projectId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest | undefined> {
   return db.transaction(async (tx) => {
     const dismissed = await dismissRequest(tx, input)
@@ -402,7 +402,7 @@ export async function nudgeReviewRequest(
 }
 export namespace nudgeReviewRequest {
   export interface Input {
-    teamId: string
+    projectId: string
     requestId: string
     userId: string
     /** For tests; defaults to the current time. */
@@ -454,9 +454,9 @@ export async function notifyReviewRequested(
 export const MAX_BULK_REVIEW = 50
 
 /**
- * Approves or rejects several builds of one team at once, in a single transaction: every
+ * Approves or rejects several builds of one project at once, in a single transaction: every
  * build goes through `reviewBuild` (so each one that changed queues its own webhook and git
- * notices, and each one's review requests close), and if any id is not a build of the team, or
+ * notices, and each one's review requests close), and if any id is not a build of the project, or
  * any build cannot be reviewed, nothing changes at all. `reason` is stored with a rejection
  * and goes to each build's author.
  */
@@ -470,7 +470,7 @@ export async function reviewBuilds(
     throw new ValidationError(`Pick at most ${MAX_BULK_REVIEW} builds at once`)
   }
   return db.transaction(async (tx) => {
-    const own = await listTeamBuildsByIds(tx, input.teamId, ids)
+    const own = await listProjectBuildsByIds(tx, input.projectId, ids)
     if (own.length !== ids.length) throw new NotFoundError('Build not found')
     const reviewed: Build[] = []
     for (const id of ids) {
@@ -490,7 +490,7 @@ export async function reviewBuilds(
 }
 export namespace reviewBuilds {
   export interface Input {
-    teamId: string
+    projectId: string
     buildIds: string[]
     userId: string
     state: reviewBuild.Input['state']
@@ -506,12 +506,12 @@ export namespace reviewBuilds {
  * Puts an open request of yours off. `next_push` lasts until a newer build on the branch
  * (finalizing it supersedes the request, which ends the snooze with it); the other choices end at
  * a time (`date` is the end for `choice: 'date'`). Overdue reminders pause while it lasts.
- * Throws NotFoundError when the request is not an open one of yours in the team.
+ * Throws NotFoundError when the request is not an open one of yours in the project.
  */
 export async function snoozeReviewRequest(
   db: Database,
   input: {
-    teamId: string
+    projectId: string
     requestId: string
     userId: string
     kind: SnoozeChoice
@@ -521,7 +521,7 @@ export async function snoozeReviewRequest(
 ): Promise<ReviewRequest> {
   const until = snoozeUntil(input.kind, input.now ?? new Date(), input.date)
   const row = await setReviewRequestSnooze(db, {
-    teamId: input.teamId,
+    projectId: input.projectId,
     requestId: input.requestId,
     userId: input.userId,
     kind: input.kind,
@@ -552,7 +552,7 @@ export async function snoozeReviewRequestUndoable(
     }
     const undo = await recordUndo(tx, {
       userId: input.userId,
-      teamId: input.teamId,
+      projectId: input.projectId,
       kind: 'request_snooze',
       data,
     })
@@ -563,7 +563,7 @@ export async function snoozeReviewRequestUndoable(
 /** Brings a snoozed request back to For you now. */
 export async function unsnoozeReviewRequest(
   db: Database,
-  input: { teamId: string; requestId: string; userId: string },
+  input: { projectId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest> {
   const row = await setReviewRequestSnooze(db, { ...input, kind: null, until: null })
   assertFound(row, 'Review request not found')
@@ -574,7 +574,7 @@ export async function unsnoozeReviewRequest(
  * Tells reviewers their request is overdue: once per request, ever. A request qualifies when it
  * is open, past `due_at`, not snoozed, and no `review_overdue` notification for it exists yet
  * (the notification's `requestId` is the memory, so a deleted or read notice is not re-sent).
- * The team's overdue contact, when it has one, is told too. Returns how many reviewers were told.
+ * The project's overdue contact, when it has one, is told too. Returns how many reviewers were told.
  */
 export async function notifyOverdueReviews(
   db: Database,
@@ -602,12 +602,12 @@ export async function notifyOverdueReviews(
           overdueByMs: request.dueAt ? now.getTime() - request.dueAt.getTime() : 0,
         },
       })
-      // The team can name someone who is also told when a request misses its target.
+      // The project can name someone who is also told when a request misses its target.
       // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
       const build = await getBuild(tx, request.buildId)
       // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
-      const team = build ? await getTeamById(tx, build.teamId) : undefined
-      const ccId = team?.reviewOverdueNotifyUserId ?? null
+      const project = build ? await getProjectById(tx, build.projectId) : undefined
+      const ccId = project?.reviewOverdueNotifyUserId ?? null
       if (ccId && ccId !== request.reviewerId) {
         // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
         await notify(tx, {

@@ -30,17 +30,17 @@ export function siteSlug(text: string, max = MAX_SLUG_LENGTH): string {
 }
 
 /**
- * The slug for a team's site, trying in order: `<team>-<name>`, then with the
+ * The slug for a project's site, trying in order: `<project>-<name>`, then with the
  * workspace appended, then numbered. The first one `taken` doesn't claim wins; each is cut to
  * 46 characters *before* its suffix, so a suffix never pushes it over.
  */
 export function chooseSlug(
-  input: { team: string; name: string; workspace: string },
+  input: { project: string; name: string; workspace: string },
   taken: (slug: string) => boolean,
 ): string {
-  const base = siteSlug(`${input.team}-${input.name}`)
+  const base = siteSlug(`${input.project}-${input.name}`)
   if (!taken(base)) return base
-  const withWorkspace = `${siteSlug(`${input.team}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.workspace.length)}-${siteSlug(input.workspace)}`
+  const withWorkspace = `${siteSlug(`${input.project}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.workspace.length)}-${siteSlug(input.workspace)}`
   const trimmed = withWorkspace.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, '')
   if (!taken(trimmed)) return trimmed
   for (let n = 2; n < 1000; n += 1) {

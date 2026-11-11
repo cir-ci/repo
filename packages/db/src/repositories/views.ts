@@ -2,12 +2,12 @@ import { type BuildFilterValues, ValidationError, assertFound } from '@circi/cor
 import { and, eq, sql } from 'drizzle-orm'
 
 import { type SavedViewRow, viewColumns, listSavedViews } from '#queries/saved-views.ts'
-import { teams, savedViews, userPinnedTeams } from '#schema/index.ts'
+import { projects, savedViews, userPinnedProjects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 /**
- * Saved views and pinned teams: a person's own sidebar. Every function takes the owner and
+ * Saved views and pinned projects: a person's own sidebar. Every function takes the owner and
  * only ever touches that person's rows, so someone else's view is "not found". The caller has
  * already checked that the person belongs to the workspace.
  */
@@ -29,7 +29,7 @@ async function getSavedView(
   const [row] = await db
     .select(viewColumns)
     .from(savedViews)
-    .leftJoin(teams, eq(teams.id, savedViews.teamId))
+    .leftJoin(projects, eq(projects.id, savedViews.projectId))
     .where(
       and(
         eq(savedViews.id, input.id),
@@ -47,12 +47,12 @@ export async function createSavedView(
   input: createSavedView.Input,
 ): Promise<SavedViewRow> {
   const name = checkName(input.name)
-  if (input.teamId) {
+  if (input.projectId) {
     const [p] = await db
-      .select({ id: teams.id })
-      .from(teams)
-      .where(and(eq(teams.id, input.teamId), eq(teams.workspaceId, input.workspaceId)))
-    if (!p) throw new ValidationError('That team is not in this workspace')
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, input.projectId), eq(projects.workspaceId, input.workspaceId)))
+    if (!p) throw new ValidationError('That project is not in this workspace')
   }
   const scope = and(
     eq(savedViews.userId, input.userId),
@@ -72,7 +72,7 @@ export async function createSavedView(
       .values({
         userId: input.userId,
         workspaceId: input.workspaceId,
-        teamId: input.teamId ?? null,
+        projectId: input.projectId ?? null,
         name,
         filters: input.filters,
         pinned: input.pinned ?? false,
@@ -90,7 +90,7 @@ export namespace createSavedView {
   export interface Input {
     userId: string
     workspaceId: string
-    teamId?: string | null
+    projectId?: string | null
     name: string
     filters: BuildFilterValues
     pinned?: boolean
@@ -184,31 +184,36 @@ export async function deleteSavedView(
   assertFound(rows[0], 'View not found')
 }
 
-/** Pins a team after the person's other pins. Returns false when it was already pinned. */
-export async function pinTeam(
+/** Pins a project after the person's other pins. Returns false when it was already pinned. */
+export async function pinProject(
   db: Database,
-  input: { userId: string; teamId: string },
+  input: { userId: string; projectId: string },
 ): Promise<boolean> {
   const [last] = await db
-    .select({ max: sql<number>`coalesce(max(${userPinnedTeams.position}), -1)` })
-    .from(userPinnedTeams)
-    .where(eq(userPinnedTeams.userId, input.userId))
+    .select({ max: sql<number>`coalesce(max(${userPinnedProjects.position}), -1)` })
+    .from(userPinnedProjects)
+    .where(eq(userPinnedProjects.userId, input.userId))
   const rows = await db
-    .insert(userPinnedTeams)
+    .insert(userPinnedProjects)
     .values({ ...input, position: (last?.max ?? -1) + 1 })
     .onConflictDoNothing()
-    .returning({ teamId: userPinnedTeams.teamId })
+    .returning({ projectId: userPinnedProjects.projectId })
   return rows.length > 0
 }
 
-/** Unpins a team. Returns false when it was not pinned. */
-export async function unpinTeam(
+/** Unpins a project. Returns false when it was not pinned. */
+export async function unpinProject(
   db: Database,
-  input: { userId: string; teamId: string },
+  input: { userId: string; projectId: string },
 ): Promise<boolean> {
   const rows = await db
-    .delete(userPinnedTeams)
-    .where(and(eq(userPinnedTeams.userId, input.userId), eq(userPinnedTeams.teamId, input.teamId)))
-    .returning({ teamId: userPinnedTeams.teamId })
+    .delete(userPinnedProjects)
+    .where(
+      and(
+        eq(userPinnedProjects.userId, input.userId),
+        eq(userPinnedProjects.projectId, input.projectId),
+      ),
+    )
+    .returning({ projectId: userPinnedProjects.projectId })
   return rows.length > 0
 }

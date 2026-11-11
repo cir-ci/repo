@@ -1,5 +1,5 @@
 /** The build page's route id and search params, kept render-free so components and tests can share them. */
-export const ROUTE = '/$workspace/$team/builds/$number'
+export const ROUTE = '/$workspace/$project/builds/$number'
 
 /** The compare modes that need nothing but the build (keys 1 to 4). */
 export type ImageMode = 'side' | 'overlay' | 'diff' | 'slider'

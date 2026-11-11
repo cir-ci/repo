@@ -74,14 +74,14 @@ describe('parsePushPayload', () => {
       body: 'Dana asked you to review #148',
       url: '/acme/web/builds/148',
       tag: 'n1',
-      team: 'Web app',
+      project: 'Web app',
     })
     expect(parsePushPayload(body)).toEqual({
       title: 'Review requested',
       body: 'Dana asked you to review #148',
       url: '/acme/web/builds/148',
       tag: 'n1',
-      team: 'Web app',
+      project: 'Web app',
     })
   })
 
@@ -101,10 +101,10 @@ describe('parsePushPayload', () => {
 describe('notificationOptions', () => {
   it('carries the target and the notification ID, and replaces a repeat by its tag', () => {
     expect(
-      notificationOptions({ title: 't', body: 'b', url: '/x', tag: 'n1', team: null }),
+      notificationOptions({ title: 't', body: 'b', url: '/x', tag: 'n1', project: null }),
     ).toMatchObject({ body: 'b', tag: 'n1', data: { url: '/x', tag: 'n1' } })
     expect(
-      notificationOptions({ title: 't', body: 'b', url: '/x', tag: '', team: null }),
+      notificationOptions({ title: 't', body: 'b', url: '/x', tag: '', project: null }),
     ).not.toHaveProperty('tag')
   })
 })

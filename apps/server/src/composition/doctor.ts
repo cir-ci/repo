@@ -185,7 +185,7 @@ export async function checkDisk(
         label: 'Disk space',
         detail: 'The storage disk is running low.',
         value,
-        fix: "Free space (`circi admin storage gc`), lower the teams' retention, grow the volume or move to S3 (`circi admin storage migrate`).",
+        fix: "Free space (`circi admin storage gc`), lower the projects' retention, grow the volume or move to S3 (`circi admin storage migrate`).",
       })
     }
     return finding({

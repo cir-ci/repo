@@ -46,12 +46,12 @@ describe('QueryBoundary', () => {
     await renderPage(
       <QueryBoundary
         query={{ data: undefined, error: new HttpError(404, 'nope'), refetch: idle }}
-        notFound="This team doesn't exist"
+        notFound="This project doesn't exist"
       >
         {() => null}
       </QueryBoundary>,
     )
-    await expect.element(page.getByText("This team doesn't exist")).toBeVisible()
+    await expect.element(page.getByText("This project doesn't exist")).toBeVisible()
   })
 
   it('shows the forbidden state instead of the error when the check accepts it', async () => {

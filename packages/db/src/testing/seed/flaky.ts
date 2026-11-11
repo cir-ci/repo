@@ -31,11 +31,11 @@ export namespace seedMainRun {
  */
 export async function seedMainRun(
   db: Database,
-  teamId: string,
+  projectId: string,
   input: seedMainRun.Input,
 ): Promise<Build> {
   n += 1
-  const build = await seedBuild(db, teamId, {
+  const build = await seedBuild(db, projectId, {
     branch: input.branch ?? 'main',
     status: 'complete',
     commitSha: input.commit ?? `ffff${String(n).padStart(8, '0')}`,
@@ -61,14 +61,14 @@ export async function seedMainRun(
  */
 export async function seedFlipFlops(
   db: Database,
-  teamId: string,
+  projectId: string,
   name: string,
   images: readonly string[],
   score = 0.02,
 ): Promise<Build[]> {
   const made: Build[] = []
   for (const [i, image] of images.entries()) {
-    const run = seedMainRun(db, teamId, {
+    const run = seedMainRun(db, projectId, {
       images: { [name]: image },
       ...(i === 0 ? {} : { changed: { [name]: score } }),
     })

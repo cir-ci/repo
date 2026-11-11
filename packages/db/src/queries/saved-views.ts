@@ -1,11 +1,11 @@
 import type { BuildFilterValues } from '@circi/core'
 import { and, asc, eq, isNull, or } from 'drizzle-orm'
 
-import { savedViews, teams, userPinnedTeams } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { savedViews, projects, userPinnedProjects } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
-/** A person's saved views and pinned teams: reads shared by the sidebar and the repository. */
+/** A person's saved views and pinned projects: reads shared by the sidebar and the repository. */
 
 export interface SavedViewRow {
   id: string
@@ -14,7 +14,7 @@ export interface SavedViewRow {
   pinned: boolean
   position: number
   /** Null for a view across the whole workspace. */
-  team: { slug: string; name: string } | null
+  project: { slug: string; name: string } | null
   createdAt: Date
 }
 
@@ -25,10 +25,10 @@ export const viewColumns = {
   pinned: savedViews.pinned,
   position: savedViews.position,
   createdAt: savedViews.createdAt,
-  team: { slug: teams.slug, name: teams.name },
+  project: { slug: projects.slug, name: projects.name },
 }
 
-/** A person's views in a workspace, in their order (those of a team they can't see left out). */
+/** A person's views in a workspace, in their order (those of a project they can't see left out). */
 export async function listSavedViews(
   db: Database,
   input: { userId: string; workspaceId: string },
@@ -36,25 +36,25 @@ export async function listSavedViews(
   const rows = await db
     .select(viewColumns)
     .from(savedViews)
-    .leftJoin(teams, eq(teams.id, savedViews.teamId))
+    .leftJoin(projects, eq(projects.id, savedViews.projectId))
     .where(
       and(
         eq(savedViews.userId, input.userId),
         eq(savedViews.workspaceId, input.workspaceId),
-        // A view of a team the person can no longer see stays out of sight.
-        or(isNull(savedViews.teamId), teamVisibleTo(input.userId, teams)),
+        // A view of a project the person can no longer see stays out of sight.
+        or(isNull(savedViews.projectId), projectVisibleTo(input.userId, projects)),
       ),
     )
     .orderBy(asc(savedViews.position), asc(savedViews.createdAt), asc(savedViews.id))
   return rows
 }
 
-/** The ids of the teams a person pinned, in pin order. */
-export async function listPinnedTeamIds(db: Database, userId: string): Promise<string[]> {
+/** The ids of the projects a person pinned, in pin order. */
+export async function listPinnedProjectIds(db: Database, userId: string): Promise<string[]> {
   const rows = await db
-    .select({ id: userPinnedTeams.teamId })
-    .from(userPinnedTeams)
-    .where(eq(userPinnedTeams.userId, userId))
-    .orderBy(asc(userPinnedTeams.position), asc(userPinnedTeams.createdAt))
+    .select({ id: userPinnedProjects.projectId })
+    .from(userPinnedProjects)
+    .where(eq(userPinnedProjects.userId, userId))
+    .orderBy(asc(userPinnedProjects.position), asc(userPinnedProjects.createdAt))
   return rows.map((r) => r.id)
 }

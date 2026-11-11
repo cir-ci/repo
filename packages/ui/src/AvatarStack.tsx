@@ -103,7 +103,7 @@ export namespace AvatarStack {
     overlap?: number
     /** The gap between items once spread, in px; 2. */
     gap?: number
-    /** The ring's shape: `round` for people, `rounded` for the rounded squares of teams; `round`. */
+    /** The ring's shape: `round` for people, `rounded` for the rounded squares of projects; `round`. */
     shape?: 'round' | 'rounded'
     /** The surface the stack sits on, which the ring matches: `raised` (cards, rows) or `chrome` (the bars); `raised`. */
     ring?: 'raised' | 'chrome'

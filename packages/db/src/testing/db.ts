@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { inject } from 'vitest'
 
-import { createTeam } from '#repositories/index.ts'
+import { createProject } from '#repositories/index.ts'
 import * as schema from '#schema/index.ts'
 import {
   type Database,
@@ -124,9 +124,9 @@ export async function seedUser(db: Database, email?: string): Promise<User> {
 }
 
 /**
- * Adds a user to a workspace. Like the upgrade did for the teams that existed, they join every
- * team the workspace has now (pass `teams: []` to join none, or the team ids to join only
- * those); a team made later has to be joined on purpose.
+ * Adds a user to a workspace. Like the upgrade did for the projects that existed, they join every
+ * project the workspace has now (pass `projects: []` to join none, or the project ids to join only
+ * those); a project made later has to be joined on purpose.
  */
 export async function addTestMember(
   db: Database,
@@ -134,7 +134,7 @@ export async function addTestMember(
     workspaceId: string
     userId: string
     role?: 'owner' | 'admin' | 'member'
-    teams?: string[]
+    projects?: string[]
   },
 ): Promise<void> {
   n += 1
@@ -145,55 +145,55 @@ export async function addTestMember(
     role: input.role ?? 'member',
     createdAt: nextCreatedAt(),
   })
-  const teamIds =
-    input.teams ??
+  const projectIds =
+    input.projects ??
     (
       await db
-        .select({ id: schema.teams.id })
-        .from(schema.teams)
-        .where(eq(schema.teams.workspaceId, input.workspaceId))
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(eq(schema.projects.workspaceId, input.workspaceId))
     ).map((t) => t.id)
-  if (teamIds.length > 0) {
+  if (projectIds.length > 0) {
     await db
-      .insert(schema.teamMembers)
-      .values(teamIds.map((teamId) => ({ teamId, userId: input.userId })))
+      .insert(schema.projectMembers)
+      .values(projectIds.map((projectId) => ({ projectId, userId: input.userId })))
       .onConflictDoNothing()
   }
 }
 
-/** Puts a user in a team (they must already belong to its workspace). */
-export async function addTestTeamMember(
+/** Puts a user in a project (they must already belong to its workspace). */
+export async function addTestProjectMember(
   db: Database,
-  input: { teamId: string; userId: string },
+  input: { projectId: string; userId: string },
 ): Promise<void> {
   await db
-    .insert(schema.teamMembers)
-    .values({ teamId: input.teamId, userId: input.userId })
+    .insert(schema.projectMembers)
+    .values({ projectId: input.projectId, userId: input.userId })
     .onConflictDoNothing()
 }
 
-/** A new workspace (with an owner) and a team in it. */
-export async function seedTeam(
+/** A new workspace (with an owner) and a project in it. */
+export async function seedProject(
   db: Database,
   options: { defaultBranch?: string; slug?: string; workspace?: seedWorkspace.Result } = {},
 ) {
   const seeded = options.workspace ?? (await seedWorkspace(db))
-  const team = await createTeam(db, {
+  const project = await createProject(db, {
     workspaceSlug: seeded.workspace.slug,
     name: options.slug ?? 'web',
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
-  // Everyone already in the workspace is in the new team too, so a test that adds members and
-  // then reads as one of them sees the team (a test of hiding adds the members after, or removes them).
+  // Everyone already in the workspace is in the new project too, so a test that adds members and
+  // then reads as one of them sees the project (a test of hiding adds the members after, or removes them).
   const existing = await db
     .select({ userId: schema.member.userId })
     .from(schema.member)
     .where(eq(schema.member.workspaceId, seeded.workspace.id))
   if (existing.length > 0) {
     await db
-      .insert(schema.teamMembers)
-      .values(existing.map((m) => ({ teamId: team.id, userId: m.userId })))
+      .insert(schema.projectMembers)
+      .values(existing.map((m) => ({ projectId: project.id, userId: m.userId })))
       .onConflictDoNothing()
   }
-  return { team, workspace: seeded.workspace, owner: seeded.owner }
+  return { project, workspace: seeded.workspace, owner: seeded.owner }
 }

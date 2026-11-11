@@ -3,7 +3,7 @@ export namespace Baseline {
   export interface Item {
     /** The screenshot's name. */
     name: string
-    /** The name of the build it came from (a team can upload several). */
+    /** The name of the build it came from (a project can upload several). */
     buildName: string
     width: number | null
     height: number | null
@@ -20,9 +20,9 @@ export namespace Baseline {
     approvedBy: { id: string; name: string } | null
   }
 
-  /** `GET /api/teams/:workspace/:team/baselines`: the default branch's current baselines. */
+  /** `GET /api/projects/:workspace/:project/baselines`: the default branch's current baselines. */
   export interface List {
-    team: { slug: string; name: string; defaultBranch: string }
+    project: { slug: string; name: string; defaultBranch: string }
     baselines: Item[]
   }
 }

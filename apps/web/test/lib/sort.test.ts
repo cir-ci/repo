@@ -106,13 +106,13 @@ describe('the sort in text', () => {
   })
 
   it('keeps several tables in one string and changes one at a time', () => {
-    let text = withTableSort(undefined, 'teams', { key: 'builds', direction: 'desc' })
+    let text = withTableSort(undefined, 'projects', { key: 'builds', direction: 'desc' })
     text = withTableSort(text, 'reviewers', { key: 'name', direction: 'asc' })
-    expect(text).toBe('teams:-builds,reviewers:name')
-    expect(sortFromMap(text, 'teams', ['builds'])).toEqual({ key: 'builds', direction: 'desc' })
+    expect(text).toBe('projects:-builds,reviewers:name')
+    expect(sortFromMap(text, 'projects', ['builds'])).toEqual({ key: 'builds', direction: 'desc' })
     expect(sortFromMap(text, 'reviewers', keys)).toEqual({ key: 'name', direction: 'asc' })
     expect(sortFromMap(text, 'storage', keys)).toBeNull()
-    text = withTableSort(text, 'teams', null)
+    text = withTableSort(text, 'projects', null)
     expect(text).toBe('reviewers:name')
     expect(withTableSort(text, 'reviewers', null)).toBeUndefined()
   })

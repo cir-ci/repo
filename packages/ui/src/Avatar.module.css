@@ -18,7 +18,7 @@
   border-radius: 50%;
 }
 
-/* Teams and workspaces are rounded squares; the radius grows with the size. */
+/* Projects and workspaces are rounded squares; the radius grows with the size. */
 .root:not([data-type='user'], [data-type='instance']) {
   border-radius: var(--circi-radius-control);
 }
@@ -27,7 +27,7 @@
   border-radius: var(--circi-radius-inline);
 }
 
-.root[data-type='team'][data-size='40'],
+.root[data-type='project'][data-size='40'],
 .root[data-type='workspace'][data-size='40'],
 .root[data-type='workspace'][data-size='48'] {
   border-radius: var(--circi-radius-panel);

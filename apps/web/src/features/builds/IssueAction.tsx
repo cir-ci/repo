@@ -10,16 +10,16 @@ import { CreateIssueDialog } from './CreateIssueDialog.tsx'
 
 /**
  * "Create issue" in the review header, for the selected snapshot (the whole build when none is
- * selected). Shown only when the team has a tracker (Linear or Jira) mapped, so a team
+ * selected). Shown only when the project has a tracker (Linear or Jira) mapped, so a project
  * without one sees nothing.
  */
 export function IssueAction({ data, snapshotName }: IssueAction.Props) {
-  const { team, build } = data
+  const { project, build } = data
   const { data: issues } = useQuery({
-    ...issuesQuery(team.workspaceSlug, team.slug, build.number),
+    ...issuesQuery(project.workspaceSlug, project.slug, build.number),
     enabled: !isActive(build.status) && build.status !== 'expired',
   })
-  const create = useCreateIssue(team.workspaceSlug, team.slug, build.number)
+  const create = useCreateIssue(project.workspaceSlug, project.slug, build.number)
   const [open, setOpen] = useState(false)
   if (!issues || issues.trackers.length === 0) return null
   const preview = issuePreview(data, snapshotName, window.location.origin)

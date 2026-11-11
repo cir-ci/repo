@@ -1,18 +1,18 @@
-import { teamColorFor } from '@circi/core'
+import { projectColorFor } from '@circi/core'
 import {
   addTestMember,
   createTestDb,
   seedBuild,
   seedNotification,
-  seedPinnedTeam,
-  seedTeam,
+  seedPinnedProject,
+  seedProject,
   seedReviewRequest,
   seedSavedView,
   seedUser,
 } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { teamSites } from '#schema/index.ts'
+import { projectsites } from '#schema/index.ts'
 import { getSidebar } from '#src/queries/index.ts'
 import { assignTriageItem, snoozeTriageItem } from '#src/repositories/index.ts'
 
@@ -27,24 +27,24 @@ afterAll(async () => {
 const now = new Date('2026-03-10T12:00:00.000Z')
 
 describe('getSidebar', () => {
-  it('orders pinned teams first then A to Z, with known counts', async () => {
-    const first = await seedTeam(t.db, { slug: 'mid' })
+  it('orders pinned projects first then A to Z, with known counts', async () => {
+    const first = await seedProject(t.db, { slug: 'mid' })
     const { workspace, owner } = first
-    const zeta = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'zeta' })
-    const alpha = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'alpha' })
+    const zeta = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'zeta' })
+    const alpha = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'alpha' })
     const mate = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
 
-    await seedPinnedTeam(t.db, { userId: owner.id, teamId: zeta.team.id, position: 0 })
+    await seedPinnedProject(t.db, { userId: owner.id, projectId: zeta.project.id, position: 0 })
     // Triage: two errored default-branch builds with nothing after them in `mid`.
-    await seedBuild(t.db, first.team.id, { branch: 'main', status: 'error' })
-    await seedBuild(t.db, first.team.id, { branch: 'main', status: 'error' })
+    await seedBuild(t.db, first.project.id, { branch: 'main', status: 'error' })
+    await seedBuild(t.db, first.project.id, { branch: 'main', status: 'error' })
     // Reviews: one open request for the owner here, one for a mate, one in another workspace.
-    const build = await seedBuild(t.db, alpha.team.id, { branch: 'feature' })
+    const build = await seedBuild(t.db, alpha.project.id, { branch: 'feature' })
     await seedReviewRequest(t.db, { buildId: build.id, reviewerId: owner.id })
     await seedReviewRequest(t.db, { buildId: build.id, reviewerId: mate.id })
-    const other = await seedTeam(t.db)
-    const otherBuild = await seedBuild(t.db, other.team.id, { branch: 'feature' })
+    const other = await seedProject(t.db)
+    const otherBuild = await seedBuild(t.db, other.project.id, { branch: 'feature' })
     await addTestMember(t.db, { workspaceId: other.workspace.id, userId: owner.id })
     await seedReviewRequest(t.db, { buildId: otherBuild.id, reviewerId: owner.id })
     // Inbox: one unread, one read.
@@ -61,37 +61,41 @@ describe('getSidebar', () => {
 
     const bar = await getSidebar(t.db, { userId: owner.id, workspace, now })
     expect(
-      bar.teams.map(({ slug, name, pinned, triage }) => ({ slug, name, pinned, triage })),
+      bar.projects.map(({ slug, name, pinned, triage }) => ({ slug, name, pinned, triage })),
     ).toEqual([
       { slug: 'zeta', name: 'zeta', pinned: true, triage: 0 },
       { slug: 'alpha', name: 'alpha', pinned: false, triage: 0 },
       { slug: 'mid', name: 'mid', pinned: false, triage: 2 },
     ])
-    // Each team carries its tile: a colour from its name, and no icon until one is chosen.
-    expect(bar.teams.map((p) => [p.color, p.icon])).toEqual([
-      [teamColorFor('zeta'), null],
-      [teamColorFor('alpha'), null],
-      [teamColorFor('mid'), null],
+    // Each project carries its tile: a colour from its name, and no icon until one is chosen.
+    expect(bar.projects.map((p) => [p.color, p.icon])).toEqual([
+      [projectColorFor('zeta'), null],
+      [projectColorFor('alpha'), null],
+      [projectColorFor('mid'), null],
     ])
     expect(bar.reviews).toBe(1)
     expect(bar.inboxUnread).toBe(1)
     expect(bar.views.map((v) => v.name)).toEqual(['Mine'])
 
     const mates = await getSidebar(t.db, { userId: mate.id, workspace, now })
-    expect(mates.teams.map((p) => p.pinned)).toEqual([false, false, false])
+    expect(mates.projects.map((p) => p.pinned)).toEqual([false, false, false])
     expect(mates.reviews).toBe(1)
     expect(mates.views.map((v) => v.name)).toEqual(['Theirs'])
   })
 
   it("counts the awake triage items assigned to the person, not those asleep or someone else's", async () => {
-    const one = await seedTeam(t.db, { slug: 'queue' })
+    const one = await seedProject(t.db, { slug: 'queue' })
     const { workspace, owner } = one
     const mate = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
-    const failed = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
-    const failed2 = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
-    const failed3 = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
-    const ref = (n: number) => ({ teamId: one.team.id, kind: 'failed' as const, key: `build:${n}` })
+    const failed = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })
+    const failed2 = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })
+    const failed3 = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })
+    const ref = (n: number) => ({
+      projectId: one.project.id,
+      kind: 'failed' as const,
+      key: `build:${n}`,
+    })
     await assignTriageItem(t.db, { ...ref(failed.number), assigneeId: owner.id })
     await assignTriageItem(t.db, { ...ref(failed2.number), assigneeId: owner.id })
     await assignTriageItem(t.db, { ...ref(failed3.number), assigneeId: mate.id })
@@ -105,16 +109,16 @@ describe('getSidebar', () => {
     expect((await getSidebar(t.db, { userId: mate.id, workspace, now })).triageAssigned).toBe(1)
   })
 
-  it('counts the sites each team hosts', async () => {
-    const withSites = await seedTeam(t.db, { slug: 'with-sites' })
+  it('counts the sites each project hosts', async () => {
+    const withSites = await seedProject(t.db, { slug: 'with-sites' })
     const { workspace, owner } = withSites
-    await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'no-sites' })
-    await t.db.insert(teamSites).values([
-      { teamId: withSites.team.id, name: 'Storybook', kind: 'storybook', slug: 'sb-sites-1' },
-      { teamId: withSites.team.id, name: 'Docs', kind: 'docs', slug: 'docs-sites-1' },
+    await seedProject(t.db, { workspace: { workspace, owner }, slug: 'no-sites' })
+    await t.db.insert(projectsites).values([
+      { projectId: withSites.project.id, name: 'Storybook', kind: 'storybook', slug: 'sb-sites-1' },
+      { projectId: withSites.project.id, name: 'Docs', kind: 'docs', slug: 'docs-sites-1' },
     ])
     const bar = await getSidebar(t.db, { userId: owner.id, workspace, now })
-    expect(bar.teams.map((p) => [p.slug, p.siteCount])).toEqual([
+    expect(bar.projects.map((p) => [p.slug, p.siteCount])).toEqual([
       ['no-sites', 0],
       ['with-sites', 2],
     ])

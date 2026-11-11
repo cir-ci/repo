@@ -23,7 +23,7 @@ left is listed below by kind.
 - **`serve.ts-E` deleted, stale `dist/` folders gone**: the only `dist/` folders are the five real
   build outputs; no `*-E` files remain.
 - **Decisions of 2026-11-08, built in `4a4b138`**:
-  - flaky-only merge setting (workspace setting, per-team override: `resolveFlakyBlocksMerge`,
+  - flaky-only merge setting (workspace setting, per-project override: `resolveFlakyBlocksMerge`,
     `onlyFlakyChanges` in `@circi/core`, `gateInputs` in `@circi/services`);
   - a webhook needs at least one event (400 in the API, `createWebhook`, `circi admin webhook add`;
     the table has had `CHECK (cardinality(events) > 0)` since `0005_webhooks`);
@@ -38,7 +38,7 @@ left is listed below by kind.
   in time". Tested only against a TCP server that accepts and never answers.
 - **Revoked GitHub installation**: 401/404 minting the installation token, a 401 that survives
   the token refresh, or 403 "suspended" set `provider_connections.needs_attention` (migration
-  0016); the notify job stops retrying, and the team and settings pages show a banner. Cleared
+  0016); the notify job stops retrying, and the project and settings pages show a banner. Cleared
   by the next successful notify or by linking the repository again. The failing build's check run
   is not replayed after a reinstall. Tested against fakes only.
 - **`circi admin storage gc --dry-run`**: count, bytes and sample keys of what a run would
@@ -92,7 +92,7 @@ left is listed below by kind.
 
 ## 1. Bugs, safety and cleanup (open)
 
-- Webhooks: no regenerate-secret endpoint; no per-team webhook limit; a delivery-time
+- Webhooks: no regenerate-secret endpoint; no per-project webhook limit; a delivery-time
   private-address skip is only logged.
 - An undecodable PNG counts as a failed screenshot, not a build error.
 - No handler for GitHub `installation`, `pull_request` and `push` events (accepted and ignored);
@@ -108,10 +108,10 @@ left is listed below by kind.
   processes (two earlier agents left stuck ones that made the suite hang once).
 - Observed on the real stack, not fixed: `ref`-based browser automation can't click Base UI menu
   items (real clicks and the keyboard work, and the tests cover both).
-- The Button link variant exists, but the four TeamPage links (Sites, Settings, Older builds,
+- The Button link variant exists, but the four ProjectPage links (Sites, Settings, Older builds,
   Newest builds) use `href` with the secondary look: decide whether they should be link-styled.
-- Teams rows no longer show "·" separators or truncate long branch names (they use the builds
-  feature's `BuildMeta`): check on a real team.
+- Projects rows no longer show "·" separators or truncate long branch names (they use the builds
+  feature's `BuildMeta`): check on a real project.
 
 ## 2. `@circi/ui` follow-ups (open)
 
@@ -137,12 +137,12 @@ All of the open decisions were answered by the owner on 2026-11-10:
 6. **Forms:** label column (label and help left, control right) from about 900px wide; stacked
    below that. Saving stays per the settings save rule.
 7. **Confirmations:** undo when reversible (approve, reject, dismiss, snooze...: act at once with
-   an Undo toast, plus the reason prompt where the team requires one); confirm when not
+   an Undo toast, plus the reason prompt where the project requires one); confirm when not
    reversible and risky (remove a member, a domain or an SSO provider, delete anything).
 8. **Remembered workspace:** on the server, with the user's account, so every device opens the
    workspace last used.
 9. **Sortable columns:** every table gets click-to-sort headers.
-10. **First-run setup:** steps (admin account, workspace, storage check, first team with its CI
+10. **First-run setup:** steps (admin account, workspace, storage check, first project with its CI
     snippet), with progress and Back.
 11. **Workspace switcher with one workspace:** shown, as a menu (settings, New workspace).
 12. **Component sign-off:** the owner approves on the canvas; `Provisional` is a label only and
@@ -158,7 +158,7 @@ All of the open decisions were answered by the owner on 2026-11-10:
     several pages of the app open at once as tabs. Design first, owner approves, then build.
     **Approved 2026-11-10** (canvas rows "Light palette proposal" and "Apps · PWA, phone, tabs",
     version 145): the proposed light palette as is; phones get a bottom tab bar (Inbox, Reviews,
-    Triage, Teams, More) and a full-bleed panel; tabs only in the installed app; the desktop tab
+    Triage, Projects, More) and a full-bleed panel; tabs only in the installed app; the desktop tab
     strip is the window's first row with the ⌥ shortcuts (⌥T, ⌥W, ⌥1-9, ⌘⇧T, ⌘Enter on a row).
     The rest follows the boards' defaults: comment regions drawable on phones through a draw mode,
     ignore regions view-only; install banner after the second visit or first approval; push asked
@@ -174,18 +174,18 @@ All of the open decisions were answered by the owner on 2026-11-10:
   build today; PLAN.md lists per-screenshot comments as later); what a reviewer sees after
   approving (next build or stay) is undecided; resizable list width; synced zoom/pan across
   panes (PLAN.md M4).
-- **Teams:** webhook "test delivery" button and "delete team" (design describes both; the
+- **Projects:** webhook "test delivery" button and "delete project" (design describes both; the
   API has neither); "New workspace" item in the workspace switcher (no API/flow in the web app).
 - **Shell:**
-  - The workspace list is derived from teams and capabilities, because there is no workspace-list
-    endpoint: a workspace with no teams that you can't manage does not appear. Add an endpoint
+  - The workspace list is derived from projects and capabilities, because there is no workspace-list
+    endpoint: a workspace with no projects that you can't manage does not appear. Add an endpoint
     (`@circi/api` + `db/queries` + route) and use it.
   - No CirCI version anywhere (sidebar footer, sign-in screens): expose it from the server
     (`/api/instance` or the health route).
-  - Recent/pinned teams in the sidebar (alphabetical, max 10 today).
+  - Recent/pinned projects in the sidebar (alphabetical, max 10 today).
 - **Sites page:** site switcher, embedded live view, PR-comment sites row, slug rename, S3
   per-file transport (PLAN.md; unbuilt).
-- **Settings:** the settings breadcrumb takes the workspace name from the cached teams list because
+- **Settings:** the settings breadcrumb takes the workspace name from the cached projects list because
   the settings response has no workspace name: add it to the API.
 - **Auth screens:** logo (needs the SVG, §3) and version footer.
 - **Members:** role change (`updateMemberRole`) is new in the UI and has never run against a real

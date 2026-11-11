@@ -14,7 +14,14 @@ import {
   sql,
 } from 'drizzle-orm'
 
-import { builds, member, notifications, teamMembers, teams, reviewRequests } from '#schema/index.ts'
+import {
+  builds,
+  member,
+  notifications,
+  projectMembers,
+  projects,
+  reviewRequests,
+} from '#schema/index.ts'
 import type { SnoozeKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound, ConflictError } from '#src/errors.ts'
@@ -29,7 +36,7 @@ import type { ReviewRequest } from '#src/types.ts'
 
 /**
  * Opens a request for `reviewerId` on a build. The reviewer must belong to the build's
- * team (`ValidationError` otherwise), and the build must still be reviewable (not failed or expired, and with changes).
+ * project (`ValidationError` otherwise), and the build must still be reviewable (not failed or expired, and with changes).
  * Asking again while a request is open changes nothing (`created: false`); once it is closed,
  * asking makes a new one.
  */
@@ -44,31 +51,36 @@ export async function openReviewRequest(
         number: builds.number,
         status: builds.status,
         conclusion: builds.conclusion,
-        workspaceId: teams.workspaceId,
-        teamId: teams.id,
-        autoApproveNoChanges: teams.autoApproveNoChanges,
+        workspaceId: projects.workspaceId,
+        projectId: projects.id,
+        autoApproveNoChanges: projects.autoApproveNoChanges,
       })
       .from(builds)
-      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .innerJoin(projects, eq(projects.id, builds.projectId))
       .where(eq(builds.id, input.buildId))
       .for('update', { of: builds })
     assertFound(build, 'Build not found')
     if (build.status === 'error' || build.status === 'expired') {
       throw new ConflictError(`Build #${build.number} is ${build.status}; it can't be reviewed`)
     }
-    // A team that approves no-change builds by hand asks for reviews of them like any other.
+    // A project that approves no-change builds by hand asks for reviews of them like any other.
     if (build.conclusion === 'no_changes' && build.autoApproveNoChanges) {
       throw new ConflictError(`Build #${build.number} has no changes to review`)
     }
     const [reviewer] = await tx
-      .select({ id: teamMembers.userId })
-      .from(teamMembers)
+      .select({ id: projectMembers.userId })
+      .from(projectMembers)
       .innerJoin(
         member,
-        and(eq(member.workspaceId, build.workspaceId), eq(member.userId, teamMembers.userId)),
+        and(eq(member.workspaceId, build.workspaceId), eq(member.userId, projectMembers.userId)),
       )
-      .where(and(eq(teamMembers.teamId, build.teamId), eq(teamMembers.userId, input.reviewerId)))
-    if (!reviewer) throw new ValidationError('The reviewer must be a member of this team')
+      .where(
+        and(
+          eq(projectMembers.projectId, build.projectId),
+          eq(projectMembers.userId, input.reviewerId),
+        ),
+      )
+    if (!reviewer) throw new ValidationError('The reviewer must be a member of this project')
 
     const [created] = await tx
       .insert(reviewRequests)
@@ -104,7 +116,7 @@ export namespace openReviewRequest {
     reviewerId: string
     /** Null when the system asked (a review rule or the triage rotation). */
     requestedById: string | null
-    /** From the team's review target; null when it has none. */
+    /** From the project's review target; null when it has none. */
     dueAt: Date | null
   }
 
@@ -128,19 +140,19 @@ export async function closeReviewRequestsForBuild(
 }
 
 /**
- * Closes the open requests on builds older than `beforeNumber` on the same branch of a team as
+ * Closes the open requests on builds older than `beforeNumber` on the same branch of a project as
  * `superseded` (a newer build replaced them). Returns the ones it closed.
  */
 export async function supersedeReviewRequests(
   db: Database,
-  input: { teamId: string; branch: string; beforeNumber: number },
+  input: { projectId: string; branch: string; beforeNumber: number },
 ): Promise<ReviewRequest[]> {
   const older = db
     .select({ id: builds.id })
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, input.teamId),
+        eq(builds.projectId, input.projectId),
         eq(builds.branch, input.branch),
         lt(builds.number, input.beforeNumber),
       ),
@@ -153,15 +165,18 @@ export async function supersedeReviewRequests(
 }
 
 /**
- * Drops an open request of a build in `teamId`. Only the reviewer or whoever asked may. Returns
+ * Drops an open request of a build in `projectId`. Only the reviewer or whoever asked may. Returns
  * the closed request, or undefined when there is nothing of theirs to dismiss (unknown, already
- * closed, in another team, or someone else's).
+ * closed, in another project, or someone else's).
  */
 export async function dismissReviewRequest(
   db: Database,
-  input: { teamId: string; requestId: string; userId: string },
+  input: { projectId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest | undefined> {
-  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
+  const inProject = db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(eq(builds.projectId, input.projectId))
   const [row] = await db
     .update(reviewRequests)
     .set({ state: 'dismissed', closedAt: sql`now()` })
@@ -169,7 +184,7 @@ export async function dismissReviewRequest(
       and(
         eq(reviewRequests.id, input.requestId),
         eq(reviewRequests.state, 'open'),
-        inArray(reviewRequests.buildId, inTeam),
+        inArray(reviewRequests.buildId, inProject),
         or(
           eq(reviewRequests.reviewerId, input.userId),
           eq(reviewRequests.requestedById, input.userId),
@@ -182,20 +197,23 @@ export async function dismissReviewRequest(
 
 /**
  * Sets (`until` and `kind`) or clears (`kind: null`) the snooze of an open request of a build in
- * `teamId`. Only the reviewer may. Returns the request, or undefined when there is nothing of
- * theirs to change (unknown, closed, in another team, or someone else's).
+ * `projectId`. Only the reviewer may. Returns the request, or undefined when there is nothing of
+ * theirs to change (unknown, closed, in another project, or someone else's).
  */
 export async function setReviewRequestSnooze(
   db: Database,
   input: {
-    teamId: string
+    projectId: string
     requestId: string
     userId: string
     kind: SnoozeKind | null
     until: Date | null
   },
 ): Promise<ReviewRequest | undefined> {
-  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
+  const inProject = db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(eq(builds.projectId, input.projectId))
   const [row] = await db
     .update(reviewRequests)
     .set({
@@ -207,7 +225,7 @@ export async function setReviewRequestSnooze(
         eq(reviewRequests.id, input.requestId),
         eq(reviewRequests.state, 'open'),
         eq(reviewRequests.reviewerId, input.userId),
-        inArray(reviewRequests.buildId, inTeam),
+        inArray(reviewRequests.buildId, inProject),
       ),
     )
     .returning()
@@ -255,12 +273,15 @@ export async function lockOverdueUnnotifiedRequests(
     .for('update', { skipLocked: true })
 }
 
-/** An open request of a build in `teamId`; undefined when unknown, closed or in another team. */
+/** An open request of a build in `projectId`; undefined when unknown, closed or in another project. */
 export async function findOpenReviewRequest(
   db: Database,
-  input: { teamId: string; requestId: string },
+  input: { projectId: string; requestId: string },
 ): Promise<ReviewRequest | undefined> {
-  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
+  const inProject = db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(eq(builds.projectId, input.projectId))
   const [row] = await db
     .select()
     .from(reviewRequests)
@@ -268,7 +289,7 @@ export async function findOpenReviewRequest(
       and(
         eq(reviewRequests.id, input.requestId),
         eq(reviewRequests.state, 'open'),
-        inArray(reviewRequests.buildId, inTeam),
+        inArray(reviewRequests.buildId, inProject),
       ),
     )
   return row

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  addTeamMembers,
-  createTeam,
+  addProjectMembers,
+  createProject,
   createUserViaCli,
   fullWorkspace,
   newAccount,
@@ -167,7 +167,7 @@ describe('invitations and members', () => {
       await p.goto(link ?? '')
       await p.getByText(`You're invited to join ${ctx.setup.workspace.name} as admin.`).waitFor()
       // Before accepting, the new workspace is not theirs to see.
-      expect((await session.get<{ teams: unknown[] }>('/api/teams')).teams).toEqual([])
+      expect((await session.get<{ projects: unknown[] }>('/api/projects')).projects).toEqual([])
       await p.getByRole('button', { name: 'Join' }).click()
       await p
         .getByText(`You're invited to join ${ctx.setup.workspace.name} as admin.`)
@@ -177,9 +177,9 @@ describe('invitations and members', () => {
       (m) => m.user.email === erin.email,
     )
     expect(member?.role).toBe('admin')
-    // Now an admin: may create teams here.
-    const team = await createTeam(session, workspace(), 'By Erin')
-    expect(team.slug).toBe('by-erin')
+    // Now an admin: may create projects here.
+    const project = await createProject(session, workspace(), 'By Erin')
+    expect(project.slug).toBe('by-erin')
   })
 
   it('refuses an invitation opened by someone else, and one for another address', async () => {
@@ -319,8 +319,8 @@ describe('invitations and members', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect.poll(roleOf).toBe('admin')
     await page.getByText(`${mia.name} is now Admin`).first().waitFor({ state: 'attached' })
-    // And she really is one now: she can create a team.
-    await createTeam(miaSession, workspace(), 'Mia made this')
+    // And she really is one now: she can create a project.
+    await createProject(miaSession, workspace(), 'Mia made this')
     await select.click()
     await page.getByRole('option', { name: 'Member' }).click()
     // A role decides what someone can change, so the page asks first.
@@ -328,8 +328,11 @@ describe('invitations and members', () => {
     await expect.poll(roleOf).toBe('member')
     // Demoted: the same call is refused again.
     expect(
-      (await miaSession.request('POST', `/api/workspaces/${workspace()}/teams`, { name: 'Nope' }))
-        .status,
+      (
+        await miaSession.request('POST', `/api/workspaces/${workspace()}/projects`, {
+          name: 'Nope',
+        })
+      ).status,
     ).toBe(403)
 
     // The owner has no role picker and no actions menu for themselves; for the last owner the API
@@ -381,28 +384,28 @@ describe('invitations and members', () => {
 
   it('removing a member asks first, and their open session loses access at once', async () => {
     const { stack, setup } = ctx
-    const team = await createTeam(setup.session, workspace(), 'Secret')
+    const project = await createProject(setup.session, workspace(), 'Secret')
     const lou = await createUserViaCli(stack, { account: newAccount('lou') })
     await stack.cli('member', 'add', '--org', workspace(), '--email', lou.email, '--role', 'member')
     const louSession = await signIn(stack, lou.email, lou.password)
-    // A new member sees no team until someone adds them to it.
-    expect((await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status).toBe(
-      404,
-    )
-    const louId = (await stack.sql(`select id from "user" where email = '${lou.email}'`))[0]?.[0]
-    await addTeamMembers(setup.session, workspace(), team.slug, [String(louId)])
+    // A new member sees no project until someone adds them to it.
     expect(
-      (await louSession.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
-        (p) => p.team.slug,
-      ),
-    ).toContain(team.slug)
+      (await louSession.request('GET', `/api/projects/${workspace()}/${project.slug}`)).status,
+    ).toBe(404)
+    const louId = (await stack.sql(`select id from "user" where email = '${lou.email}'`))[0]?.[0]
+    await addProjectMembers(setup.session, workspace(), project.slug, [String(louId)])
+    expect(
+      (
+        await louSession.get<{ projects: { project: { slug: string } }[] }>('/api/projects')
+      ).projects.map((p) => p.project.slug),
+    ).toContain(project.slug)
 
     const page = await browser.as(setup.session)
-    expect((await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status).toBe(
-      200,
-    )
+    expect(
+      (await louSession.request('GET', `/api/projects/${workspace()}/${project.slug}`)).status,
+    ).toBe(200)
     await withSessionPage(browser.browser, louSession, async (loPage) => {
-      await loPage.goto(`${stack.url}/${workspace()}/${team.slug}`)
+      await loPage.goto(`${stack.url}/${workspace()}/${project.slug}`)
       await loPage.getByText('Secret', { exact: true }).first().waitFor()
 
       await page.goto(membersUrl())
@@ -418,7 +421,7 @@ describe('invitations and members', () => {
         ),
       ).toBe(true)
       expect(
-        (await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status,
+        (await louSession.request('GET', `/api/projects/${workspace()}/${project.slug}`)).status,
       ).toBe(200)
 
       await page.getByRole('button', { name: `Actions for ${lou.name}` }).click()
@@ -440,16 +443,16 @@ describe('invitations and members', () => {
         .waitFor({ state: 'detached' })
 
       // The session is still valid, but the data is gone: nothing but "not found".
-      const get = await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)
+      const get = await louSession.request('GET', `/api/projects/${workspace()}/${project.slug}`)
       expect([403, 404]).toContain(get.status)
       expect(JSON.stringify(get.body)).not.toContain('Secret')
-      const list = await louSession.get<{ teams: unknown[] }>('/api/teams')
-      expect(list.teams).toEqual([])
+      const list = await louSession.get<{ projects: unknown[] }>('/api/projects')
+      expect(list.projects).toEqual([])
       expect((await louSession.request('GET', `/api/workspaces/${workspace()}/auth`)).status).toBe(
         404,
       )
       await loPage.reload()
-      await loPage.getByText("This team doesn't exist").waitFor()
+      await loPage.getByText("This project doesn't exist").waitFor()
       expect(await loPage.getByText('Secret', { exact: true }).count()).toBe(0)
     })
     // They can be invited again.

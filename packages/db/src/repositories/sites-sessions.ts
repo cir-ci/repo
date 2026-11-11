@@ -2,8 +2,8 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import { and, eq, exists, gt, lt, sql } from 'drizzle-orm'
 
-import { member, session, siteSessions, siteTokens, teams } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { member, session, siteSessions, siteTokens, projects } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** The sign-in handoff: single-use tokens and the sessions they open. */
@@ -72,11 +72,11 @@ export async function createSiteSession(
 /**
  * Whether a site session still stands for a person who may open this address: the session
  * exists for this address and hasn't expired, the dashboard session behind it is still valid,
- * and the person still belongs to the site's workspace (and sees its team, when `teamId` is given).
+ * and the person still belongs to the site's workspace (and sees its project, when `projectId` is given).
  */
 export async function siteSessionValid(
   db: Database,
-  input: { id: string; label: string; workspaceId: string; teamId?: string },
+  input: { id: string; label: string; workspaceId: string; projectId?: string },
 ): Promise<boolean> {
   const [row] = await db
     .select({ userId: siteSessions.userId })
@@ -92,14 +92,19 @@ export async function siteSessionValid(
         eq(siteSessions.label, input.label),
         gt(siteSessions.expiresAt, new Date()),
         gt(session.expiresAt, new Date()),
-        // The site belongs to a team: the person must still be able to see it.
-        input.teamId === undefined
+        // The site belongs to a project: the person must still be able to see it.
+        input.projectId === undefined
           ? undefined
           : exists(
               db
                 .select({ one: sql`1` })
-                .from(teams)
-                .where(and(eq(teams.id, input.teamId), teamVisibleTo(siteSessions.userId, teams))),
+                .from(projects)
+                .where(
+                  and(
+                    eq(projects.id, input.projectId),
+                    projectVisibleTo(siteSessions.userId, projects),
+                  ),
+                ),
             ),
       ),
     )

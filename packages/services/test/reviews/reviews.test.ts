@@ -4,7 +4,7 @@ import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedReviewRequest,
   seedUser,
   seedChangedSnapshots,
@@ -37,13 +37,13 @@ const requestsOf = async (buildId: string) =>
     .where(eq(schema.reviewRequests.buildId, buildId))
     .orderBy(asc(schema.reviewRequests.createdAt), asc(schema.reviewRequests.id))
 
-/** A team whose owner asks a teammate to review a finished build with changes. */
+/** A project whose owner asks a teammate to review a finished build with changes. */
 async function setup(options: { branch?: string } = {}) {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const teammate = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: options.branch ?? 'feature',
   })
@@ -52,12 +52,12 @@ async function setup(options: { branch?: string } = {}) {
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
   await seedChangedSnapshots(t.db, build.id)
-  return { team, workspace, owner, teammate, build }
+  return { project, workspace, owner, teammate, build }
 }
 
 /** Uploads and finalizes a new build, the way CI does, and returns it. */
-async function pushBuild(teamId: string, branch: string, commit: string, hash: string) {
-  const build = await createBuild(t.db, { teamId, commitSha: commit, branch })
+async function pushBuild(projectId: string, branch: string, commit: string, hash: string) {
+  const build = await createBuild(t.db, { projectId, commitSha: commit, branch })
   await planUploads(t.db, {
     buildId: build.id,
     kind: 'screenshot',
@@ -81,7 +81,7 @@ describe('requestReview', () => {
     expect(await requestsOf(build.id)).toEqual([])
   })
 
-  it('opens a request due when the team review target runs out', async () => {
+  it('opens a request due when the project review target runs out', async () => {
     const { owner, teammate, build } = await setup()
     const now = new Date('2026-03-10T12:00:00.000Z')
     const { request, created } = await requestReview(t.db, {
@@ -99,12 +99,12 @@ describe('requestReview', () => {
     })
   })
 
-  it('has no due time for a team without a review target', async () => {
-    const { team, owner, teammate, build } = await setup()
+  it('has no due time for a project without a review target', async () => {
+    const { project, owner, teammate, build } = await setup()
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ reviewTargetHours: null })
-      .where(eq(schema.teams.id, team.id))
+      .where(eq(schema.projects.id, project.id))
     const { request } = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
@@ -155,7 +155,7 @@ describe('requestReview', () => {
     const stranger = await seedUser(t.db)
     await expect(
       requestReview(t.db, { buildId: build.id, reviewerId: stranger.id, requestedById: owner.id }),
-    ).rejects.toThrow(/must be a member of this team/)
+    ).rejects.toThrow(/must be a member of this project/)
     expect(await requestsOf(build.id)).toEqual([])
   })
 
@@ -173,8 +173,12 @@ describe('requestReview', () => {
 })
 
 async function several() {
-  const { team, workspace, owner, teammate, build } = await setup()
-  const second = await createBuild(t.db, { teamId: team.id, commitSha: 'def5678', branch: 'x' })
+  const { project, workspace, owner, teammate, build } = await setup()
+  const second = await createBuild(t.db, {
+    projectId: project.id,
+    commitSha: 'def5678',
+    branch: 'x',
+  })
   await t.db
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
@@ -183,16 +187,16 @@ async function several() {
   await t.db.delete(schema.notifications)
   const third = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: third.id })
-  return { team, owner, teammate, third, builds: [build, second] }
+  return { project, owner, teammate, third, builds: [build, second] }
 }
 const notices = () => t.db.select().from(schema.notifications)
 
 describe('requestReviews', () => {
   it('refuses a request from yourself, whole, changing nothing', async () => {
-    const { team, owner, teammate, builds } = await several()
+    const { project, owner, teammate, builds } = await several()
     await expect(
       requestReviews(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         buildIds: builds.map((b) => b.id),
         reviewerIds: [teammate.id, owner.id],
         requestedById: owner.id,
@@ -203,9 +207,9 @@ describe('requestReviews', () => {
   })
 
   it('asks every reviewer about every build in one go, notifying each new request', async () => {
-    const { team, owner, teammate, third, builds } = await several()
+    const { project, owner, teammate, third, builds } = await several()
     const result = await requestReviews(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: builds.map((b) => b.id),
       reviewerIds: [teammate.id, third.id],
       requestedById: owner.id,
@@ -218,7 +222,7 @@ describe('requestReviews', () => {
     expect((await notices()).filter((n) => n.userId === teammate.id)).toHaveLength(2)
 
     const again = await requestReviews(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: builds.map((b) => b.id),
       reviewerIds: [teammate.id],
       requestedById: owner.id,
@@ -227,17 +231,17 @@ describe('requestReviews', () => {
     expect((await notices()).filter((n) => n.userId === teammate.id)).toHaveLength(2)
   })
 
-  it("changes nothing when one build is another team's", async () => {
-    const { team, owner, teammate, builds } = await several()
-    const other = await seedTeam(t.db)
+  it("changes nothing when one build is another project's", async () => {
+    const { project, owner, teammate, builds } = await several()
+    const other = await seedProject(t.db)
     const foreign = await createBuild(t.db, {
-      teamId: other.team.id,
+      projectId: other.project.id,
       commitSha: 'fff9999',
       branch: 'x',
     })
     await expect(
       requestReviews(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         buildIds: [...builds.map((b) => b.id), foreign.id],
         reviewerIds: [teammate.id],
         requestedById: owner.id,
@@ -248,23 +252,23 @@ describe('requestReviews', () => {
   })
 
   it('rolls back the earlier requests when a later pair cannot be asked', async () => {
-    const { team, owner, teammate, builds } = await several()
+    const { project, owner, teammate, builds } = await several()
     const stranger = await seedUser(t.db)
     await expect(
       requestReviews(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         buildIds: builds.map((b) => b.id),
         reviewerIds: [teammate.id, stranger.id],
         requestedById: owner.id,
       }),
-    ).rejects.toThrow(/must be a member of this team/)
+    ).rejects.toThrow(/must be a member of this project/)
     expect(await Promise.all(builds.map((b) => requestsOf(b.id)))).toEqual([[], []])
     expect(await notices()).toEqual([])
   })
 
   it('refuses empty lists and too many builds', async () => {
-    const { team, owner, teammate, builds } = await several()
-    const base = { teamId: team.id, requestedById: owner.id }
+    const { project, owner, teammate, builds } = await several()
+    const base = { projectId: project.id, requestedById: owner.id }
     await expect(
       requestReviews(t.db, { ...base, buildIds: [], reviewerIds: [teammate.id] }),
     ).rejects.toThrow('at least one build')
@@ -280,9 +284,9 @@ describe('requestReviews', () => {
 
 describe('a newer build on the branch', () => {
   it('supersedes the open requests of older builds on that branch, and only those', async () => {
-    const { team, owner, teammate } = await setup()
-    const older = await pushBuild(team.id, 'feature', 'a000001', fakeSha('1'))
-    const sameCommitOtherBranch = await pushBuild(team.id, 'other', 'a000002', fakeSha('2'))
+    const { project, owner, teammate } = await setup()
+    const older = await pushBuild(project.id, 'feature', 'a000001', fakeSha('1'))
+    const sameCommitOtherBranch = await pushBuild(project.id, 'other', 'a000002', fakeSha('2'))
     await Promise.all(
       [older, sameCommitOtherBranch].map(async (b) => {
         await t.db
@@ -303,7 +307,7 @@ describe('a newer build on the branch', () => {
       state: 'done',
     })
 
-    const newer = await pushBuild(team.id, 'feature', 'a000003', fakeSha('3'))
+    const newer = await pushBuild(project.id, 'feature', 'a000003', fakeSha('3'))
 
     expect((await requestsOf(older.id)).map((r) => r.state).toSorted()).toEqual([
       'done',
@@ -311,7 +315,7 @@ describe('a newer build on the branch', () => {
     ])
     expect((await requestsOf(older.id)).find((r) => r.id === done.id)?.state).toBe('done')
     expect((await requestsOf(sameCommitOtherBranch.id)).map((r) => r.state)).toEqual(['open'])
-    // The person the owner asked is asked again on the newer build (the team default).
+    // The person the owner asked is asked again on the newer build (the project default).
     expect((await requestsOf(newer.id)).map((r) => [r.reviewerId, r.requestedById])).toEqual([
       [teammate.id, owner.id],
     ])
@@ -321,14 +325,14 @@ describe('a newer build on the branch', () => {
   })
 
   it('does not supersede anything while the build is still waiting for shards', async () => {
-    const { team, owner, teammate, build } = await setup({ branch: 'feature' })
+    const { project, owner, teammate, build } = await setup({ branch: 'feature' })
     await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
       requestedById: owner.id,
     })
     const waiting = await createBuild(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       commitSha: 'b000001',
       branch: 'feature',
       parallel: { nonce: 'n', total: 2 },
@@ -390,18 +394,18 @@ describe('reviewBuild', () => {
 
 describe('dismissReviewRequest', () => {
   it('lets the reviewer or the requester drop an open request, and nobody else', async () => {
-    const { team, owner, teammate, build } = await setup()
+    const { project, owner, teammate, build } = await setup()
     const bystander = await seedUser(t.db)
     const { request } = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
       requestedById: owner.id,
     })
-    const ask = { teamId: team.id, requestId: request.id }
+    const ask = { projectId: project.id, requestId: request.id }
     expect(await dismissReviewRequest(t.db, { ...ask, userId: bystander.id })).toBeUndefined()
     expect(
       await dismissReviewRequest(t.db, {
-        teamId: (await seedTeam(t.db)).team.id,
+        projectId: (await seedProject(t.db)).project.id,
         requestId: request.id,
         userId: teammate.id,
       }),

@@ -14,27 +14,27 @@ import type { MouseEvent } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
-import { useYourTeams } from '#features/sidebar/use-your-teams.ts'
+import { useYourProjects } from '#features/sidebar/use-your-projects.ts'
+import { ProjectAvatars } from '#lib/ProjectAvatars.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
-import { TeamAvatars } from '#lib/TeamAvatars.tsx'
 
 import {
   countOrUndefined,
   currentSection,
   goPath,
-  phoneTeam,
-  teamSections,
-  TEAM_STACK_LIMIT,
-  teamsTabLabel,
-  type YourTeam,
+  phoneProject,
+  projectsections,
+  PROJECT_STACK_LIMIT,
+  projectsTabLabel,
+  type YourProject,
 } from './shell-model.ts'
 
 /**
- * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Teams, Reviews, Triage and
+ * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Projects, Reviews, Triage and
  * More, with the sidebar's counts. Inbox, Reviews and Triage are real links that navigate through
- * the router. Teams shows up to three of your teams' tiles (its label is the team's name when
- * you are in exactly one) and opens a menu of your teams; More opens the sheet
+ * the router. Projects shows up to three of your projects' tiles (its label is the project's name when
+ * you are in exactly one) and opens a menu of your projects; More opens the sheet
  * of the rest, with the workspace switcher (`PhoneMore`).
  */
 export function PhoneTabs() {
@@ -46,17 +46,17 @@ export function PhoneTabs() {
   const { data: model } = useSidebarModel(workspace?.slug)
   const moreOpen = useOverlayStore((s) => s.moreOpen)
   const setMoreOpen = useOverlayStore((s) => s.setMoreOpen)
-  const team = phoneTeam(model?.teams, params.team)
-  const teams = useYourTeams()
-  const teamsOpen = useOverlayStore((s) => s.teamsOpen)
-  const setTeamsOpen = useOverlayStore((s) => s.setTeamsOpen)
-  const teamItems = teamMenuItems(teams, (href) => void navigate({ href }))
+  const project = phoneProject(model?.projects, params.project)
+  const projects = useYourProjects()
+  const projectsOpen = useOverlayStore((s) => s.projectsOpen)
+  const setProjectsOpen = useOverlayStore((s) => s.setProjectsOpen)
+  const projectItems = projectMenuItems(projects, (href) => void navigate({ href }))
 
   const reviews = goPath('reviews', { workspace: workspace?.slug })
   const triage = goPath('triage', {
     workspace: workspace?.slug,
-    team: team?.slug,
-    teams: model?.teams,
+    project: project?.slug,
+    projects: model?.projects,
   })
   const inbox = countOrUndefined(model?.inboxUnread)
   const waiting = countOrUndefined(model?.reviews)
@@ -81,23 +81,23 @@ export function PhoneTabs() {
         Inbox
       </BottomBarItem>
       <Menu
-        open={teamsOpen}
-        onOpenChange={setTeamsOpen}
+        open={projectsOpen}
+        onOpenChange={setProjectsOpen}
         size="md"
         align="center"
-        items={teamItems}
+        items={projectItems}
         trigger={
           <BottomBarItem
-            icon={<TeamStack teams={teams} />}
+            icon={<Projectstack projects={projects} />}
             selected={
-              teamsOpen ||
-              section === 'teams' ||
+              projectsOpen ||
+              section === 'projects' ||
               section === 'builds' ||
               section === 'baselines' ||
               section === 'sites'
             }
           >
-            {teamsTabLabel(teams)}
+            {projectsTabLabel(projects)}
           </BottomBarItem>
         }
       />
@@ -128,15 +128,15 @@ export function PhoneTabs() {
   )
 }
 
-/** The Teams tab's icon: your first few teams' tiles, overlapping and still; the folder before any is known. */
-function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
-  const shown = teams.slice(0, TEAM_STACK_LIMIT)
+/** The Projects tab's icon: your first few projects' tiles, overlapping and still; the folder before any is known. */
+function Projectstack({ projects }: { projects: readonly YourProject[] }) {
+  const shown = projects.slice(0, PROJECT_STACK_LIMIT)
   if (shown.length === 0) return <FolderOpenIcon />
   return (
-    <TeamAvatars
+    <ProjectAvatars
       aria-hidden="true"
-      teams={shown.map((t) => Object.assign({ id: `${t.workspace.slug}/${t.slug}` }, t))}
-      limit={TEAM_STACK_LIMIT}
+      projects={shown.map((t) => Object.assign({ id: `${t.workspace.slug}/${t.slug}` }, t))}
+      limit={PROJECT_STACK_LIMIT}
       overflow={false}
       overlap={8}
       ring="chrome"
@@ -146,18 +146,18 @@ function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
 }
 
 /**
- * The Teams tab's menu: your teams (pinned first, then by workspace when there are several, a
- * separator between the groups; the workspace's name beside a pinned team from another), each
- * with its triage count, then All teams.
+ * The Projects tab's menu: your projects (pinned first, then by workspace when there are several, a
+ * separator between the groups; the workspace's name beside a pinned project from another), each
+ * with its triage count, then All projects.
  */
-function teamMenuItems(
-  teams: readonly YourTeam[],
+function projectMenuItems(
+  projects: readonly YourProject[],
   go: (href: string) => void,
 ): (Menu.Item | Menu.Separator)[] {
   const items: (Menu.Item | Menu.Separator)[] = []
-  for (const section of teamSections(teams)) {
+  for (const section of projectsections(projects)) {
     if (items.length > 0) items.push({ type: 'separator' })
-    for (const t of section.teams) {
+    for (const t of section.projects) {
       const triage = countOrUndefined(t.triage)
       const note = [section.showWorkspace ? t.workspace.name : undefined, triage]
         .filter((part) => part !== undefined)
@@ -166,7 +166,7 @@ function teamMenuItems(
         label: t.name,
         icon: (
           <Avatar
-            type="team"
+            type="project"
             aria-hidden
             slug={t.slug}
             name={t.name}
@@ -182,6 +182,6 @@ function teamMenuItems(
     }
   }
   if (items.length > 0) items.push({ type: 'separator' })
-  items.push({ label: 'All teams', onSelect: () => go('/') })
+  items.push({ label: 'All projects', onSelect: () => go('/') })
   return items
 }

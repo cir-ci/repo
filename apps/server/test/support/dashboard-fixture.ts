@@ -63,13 +63,13 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   const rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 
   async function buildWith(
-    teamId: string,
+    projectId: string,
     commitSha: string,
     ancestors: string[],
     shots: Record<string, Buffer>,
   ) {
     const b = await createBuild(t.db, {
-      teamId,
+      projectId,
       commitSha,
       branch: 'main',
       ancestorShas: ancestors,
@@ -99,14 +99,14 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
     return b
   }
 
-  // A team's first build has no baseline, so it waits for review: someone approves it once.
+  // A project's first build has no baseline, so it waits for review: someone approves it once.
   // Build 2 then has that baseline, and on the default branch it is approved automatically.
-  const first = await buildWith(acme.team.id, 'aaaa001', [], {
+  const first = await buildWith(acme.project.id, 'aaaa001', [], {
     home: await png('#ffffff'),
     about: await png('#eeeeee'),
   })
   await reviewBuild(t.db, { buildId: first.id, userId: acme.owner.id, state: 'approved' })
-  await buildWith(acme.team.id, 'aaaa002', ['aaaa001'], {
+  await buildWith(acme.project.id, 'aaaa002', ['aaaa001'], {
     home: await png('#ff0000'),
     about: await png('#eeeeee'),
   })
@@ -116,7 +116,7 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
     app.inject({ method: 'GET', url, headers: cookie ? { cookie } : {} })
 
   async function buildDetail(cookie: string, workspaceSlug = acme.workspaceSlug) {
-    return get(`/api/teams/${workspaceSlug}/web/builds/2`, cookie)
+    return get(`/api/projects/${workspaceSlug}/web/builds/2`, cookie)
   }
 
   const review = (
@@ -131,7 +131,7 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   ) =>
     app.inject({
       method: 'POST',
-      url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/review`,
+      url: `/api/projects/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/review`,
       headers: {
         'content-type': 'application/json',
         ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),

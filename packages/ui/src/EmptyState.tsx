@@ -70,7 +70,7 @@ function shown(query: string) {
 }
 
 /**
- * A search that found nothing: "No team matches “x”" with a Clear search button that empties the
+ * A search that found nothing: "No project matches “x”" with a Clear search button that empties the
  * field. `noun` is singular and lower case.
  */
 export function NoResults({ noun, query, onClear, size = 'page', className }: NoResults.Props) {
@@ -122,7 +122,7 @@ export namespace NoFilterResults {
   export interface Props {
     /** Plural, lower case: "builds". */
     plural: string
-    /** Where it looked: a team or workspace name. */
+    /** Where it looked: a project or workspace name. */
     scope: string
     /** Resets every filter. */
     onClear: () => void

@@ -70,7 +70,7 @@ Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files s
   `isolate: false` is what keeps a worker's pool alive between files.
 - Every file gets **its own tenant** on a shared stack: `ctx.setup` is a fresh workspace with
   its own owner (an instance admin, like the first-run account) and a signed-in session, so files
-  never see each other's data. `await ctx.tenant({ team: 'Web' })` makes more of them (a test
+  never see each other's data. `await ctx.tenant({ project: 'Web' })` makes more of them (a test
   that needs two workspaces, or its own provider or domain); `ctx.admin` is the first-run admin.
   Anything global that a test creates needs a name of its own: a workspace email domain, a
   GitHub user id, a repository (`owner/name`), a client address.
@@ -116,7 +116,7 @@ e2e/
       images.ts          screenshot(): deterministic PNGs with sharp
       docker.ts, paths.ts, dns-preload.ts, global-setup.ts   compose helpers, paths, DNS for the CLI, Docker preflight + image build + teardown
     clients/           talking to the stack
-      admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createTeam, invite, CLI users
+      admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createProject, invite, CLI users
       upload.ts          uploadBuild()/uploadOrThrow(): the real CLI against the stack
       browser.ts         Chromium (host.docker.internal mapped), sessions, sign-in through the UI
       mail.ts            Mailbox: Mailpit client, waitFor(), extractCode(), extractLinks()
@@ -135,20 +135,20 @@ e2e/
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { createTeam, Repo, uploadOrThrow, useBrowser, useStack } from '../../src/index.ts'
+import { createProject, Repo, uploadOrThrow, useBrowser, useStack } from '../../src/index.ts'
 
 describe('my feature', () => {
   const ctx = useStack({ profile: 'default', setup: true }) // shared stack + this file's own workspace, owner and session
   const browser = useBrowser() // fresh page per test; trace + screenshot only on failure
   it('does the thing', async () => {
     const { stack, setup } = ctx
-    const team = await createTeam(setup.session, setup.workspace.slug, 'Web')
+    const project = await createProject(setup.session, setup.workspace.slug, 'Web')
     const repo = await Repo.create()
     await repo.writeShots({ home: {} })
     await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
     const page = await browser.as(setup.session) // a page already signed in
-    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${up.build.number}`)
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${project.slug}/builds/${up.build.number}`)
     expect(up.exitCode).toBe(0)
   })
 })

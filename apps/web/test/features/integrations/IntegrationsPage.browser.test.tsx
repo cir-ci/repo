@@ -37,7 +37,7 @@ describe('IntegrationsPage', () => {
             kind: 'github',
             id: 'c1',
             name: 'Installation 501',
-            teamCount: 2,
+            projectCount: 2,
             needsAttention: true,
             attentionReason: 'installation_revoked',
           }),
@@ -47,11 +47,11 @@ describe('IntegrationsPage', () => {
     })
     await show()
     const git = page.getByRole('region', { name: 'Git hosts' })
-    await expect.element(git.getByText('Installation 501 · 2 teams')).toBeVisible()
+    await expect.element(git.getByText('Installation 501 · 2 projects')).toBeVisible()
     await expect.element(git.getByText('Needs attention')).toBeVisible()
     await expect.element(git.getByRole('link', { name: /Configure/ })).toBeVisible()
     const chat = page.getByRole('region', { name: 'Chat' })
-    await expect.element(chat.getByText('Acme Slack · No teams yet')).toBeVisible()
+    await expect.element(chat.getByText('Acme Slack · No projects yet')).toBeVisible()
     await expect.element(chat.getByText('Connected')).toBeVisible()
     expect(page.getByRole('region', { name: 'Design tools' }).elements()).toHaveLength(0)
     // Providers have a mark, not read aloud.
@@ -85,7 +85,7 @@ describe('IntegrationsPage', () => {
     await expect
       .poll(() => router.state.location.pathname)
       .toBe('/workspaces/acme/settings/members')
-    expect(page.getByText('Acme Slack · No teams yet').elements()).toHaveLength(0)
+    expect(page.getByText('Acme Slack · No projects yet').elements()).toHaveLength(0)
   })
 
   it('opens the Add dialog from the header', async () => {

@@ -9,7 +9,7 @@ import {
   reviews,
   screenshotDiffs,
   snapshotReviews,
-  teams,
+  projects,
   user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -45,13 +45,13 @@ export async function recordSnapshotReviews(
       )
     }
     if (build.conclusion !== 'changes_detected') {
-      const [team] = await tx
-        .select({ autoApprove: teams.autoApproveNoChanges })
-        .from(teams)
-        .where(eq(teams.id, build.teamId))
-      // A team that doesn't approve no-change builds on their own has them decided by a person:
+      const [project] = await tx
+        .select({ autoApprove: projects.autoApproveNoChanges })
+        .from(projects)
+        .where(eq(projects.id, build.projectId))
+      // A project that doesn't approve no-change builds on their own has them decided by a person:
       // there are no snapshots to decide, so the decision is the build's.
-      if (build.conclusion === 'no_changes' && team && !team.autoApprove) {
+      if (build.conclusion === 'no_changes' && project && !project.autoApprove) {
         return decideBuildWithoutChanges(tx, build, input)
       }
       throw new ConflictError(`Build #${build.number} has no changes to review`)

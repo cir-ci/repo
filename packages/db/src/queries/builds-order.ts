@@ -22,11 +22,11 @@ type BuildRow = typeof builds
 
 /** How a list identifies a build uniquely, and what its cursor names. */
 export interface BuildTie {
-  /** The unique columns, most significant first (a team: `number`; a workspace: `created_at, id`). */
+  /** The unique columns, most significant first (a project: `number`; a workspace: `created_at, id`). */
   columns(t: BuildRow): SQL[]
 }
 
-export const teamTie: BuildTie = { columns: (t) => [sql`${t.number}`] }
+export const projectTie: BuildTie = { columns: (t) => [sql`${t.number}`] }
 export const workspaceTie: BuildTie = { columns: (t) => [sql`${t.createdAt}`, sql`${t.id}`] }
 
 /** Screenshots that differ from their baseline: added, removed or changed. */

@@ -1,7 +1,7 @@
-import { createTeam } from '@circi/db/repositories'
+import { createProject } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestTeamMember,
+  addTestProjectMember,
   seedBuild,
   seedNotification,
   seedReviewRequest,
@@ -19,27 +19,29 @@ const { acme, rival, rivalCookie, get } = fx
 
 afterAll(() => fx.close())
 
-// The fixture: Acme's `web` team has builds 1 (approved) and 2 (main, auto-approved), each
+// The fixture: Acme's `web` project has builds 1 (approved) and 2 (main, auto-approved), each
 // with screenshots `home` and `about`. Rival has nothing.
 
 const search = (workspace: string, q: string, cookie?: string) =>
   get(`/api/workspaces/${workspace}/search?q=${encodeURIComponent(q)}`, cookie)
 
 const list = async (query: string): Promise<number[]> =>
-  (await get(`/api/teams/${acme.workspaceSlug}/web${query}`))
+  (await get(`/api/projects/${acme.workspaceSlug}/web${query}`))
     .json()
     .builds.map((b: { number: number }) => b.number)
 
 describe('GET /api/workspaces/:workspace/search', () => {
-  it('finds builds, branches, teams and snapshots', async () => {
+  it('finds builds, branches, projects and snapshots', async () => {
     const byNumber = (await search(acme.workspaceSlug, '#2')).json()
-    expect(byNumber.builds).toMatchObject([{ teamSlug: 'web', number: 2 }])
+    expect(byNumber.builds).toMatchObject([{ projectslug: 'web', number: 2 }])
     const byName = (await search(acme.workspaceSlug, 'ab')).json()
     expect(byName.snapshots).toMatchObject([{ name: 'about', latestBuildNumber: 2 }])
     expect((await search(acme.workspaceSlug, 'mai')).json().branches).toMatchObject([
       { branch: 'main', latestBuildNumber: 2 },
     ])
-    expect((await search(acme.workspaceSlug, 'we')).json().teams).toMatchObject([{ slug: 'web' }])
+    expect((await search(acme.workspaceSlug, 'we')).json().projects).toMatchObject([
+      { slug: 'web' },
+    ])
     expect((await search(acme.workspaceSlug, '')).json().builds).toEqual([])
   })
 
@@ -57,7 +59,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
     for (const group of [
       'builds',
       'branches',
-      'teams',
+      'projects',
       'snapshots',
       'baselines',
       'triage',
@@ -72,7 +74,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
 
   it('finds a baseline by a path segment of its screenshot name', async () => {
     const found = (await search(acme.workspaceSlug, 'hom')).json()
-    expect(found.baselines).toMatchObject([{ teamSlug: 'web', name: 'home', buildNumber: 2 }])
+    expect(found.baselines).toMatchObject([{ projectslug: 'web', name: 'home', buildNumber: 2 }])
   })
 
   it("finds the person's own notifications, review requests and views, as ISO dates", async () => {
@@ -87,7 +89,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
     await seedReviewRequest(fx.db, { buildId: build.id, reviewerId: acme.owner.id })
     await seedSavedView(fx.db, {
       userId: acme.owner.id,
-      workspaceId: acme.team.workspaceId,
+      workspaceId: acme.project.workspaceId,
       name: 'Header regressions',
     })
     const found = (await search(acme.workspaceSlug, 'header')).json()
@@ -95,9 +97,9 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
       { id: note.id, kind: 'mentioned', tab: 'everything', read: false },
     ])
     expect(typeof found.notifications[0].createdAt).toBe('string')
-    expect(found.views).toMatchObject([{ name: 'Header regressions', team: null }])
+    expect(found.views).toMatchObject([{ name: 'Header regressions', project: null }])
     expect((await search(acme.workspaceSlug, 'web')).json().reviews).toMatchObject([
-      { tab: 'for-you', teamSlug: 'web' },
+      { tab: 'for-you', projectslug: 'web' },
     ])
     // Another person in the workspace sees none of them.
     expect(
@@ -105,9 +107,9 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
     ).toMatchObject({ notifications: [], views: [] })
   })
 
-  it('never shows a team the person cannot see, in any group', async () => {
+  it('never shows a project the person cannot see, in any group', async () => {
     const member = await fx.addMember('member')
-    const hidden = await createTeam(fx.db, { workspaceSlug: acme.workspaceSlug, name: 'hush' })
+    const hidden = await createProject(fx.db, { workspaceSlug: acme.workspaceSlug, name: 'hush' })
     const b = await seedBuild(fx.db, hidden.id, {
       branch: 'main',
       status: 'complete',
@@ -121,22 +123,22 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
       // eslint-disable-next-line no-await-in-loop -- reads
       const body = (await member.get(`/api/workspaces/${acme.workspaceSlug}/search?q=${q}`)).json()
       expect(JSON.stringify({ ...body, query: '' })).not.toMatch(/hush/)
-      expect(body.triage.map((i: { teamSlug: string }) => i.teamSlug)).not.toContain('hush')
+      expect(body.triage.map((i: { projectslug: string }) => i.projectslug)).not.toContain('hush')
     }
     const owner = (await search(acme.workspaceSlug, 'hush')).json()
-    expect(owner.teams).toMatchObject([{ slug: 'hush' }])
+    expect(owner.projects).toMatchObject([{ slug: 'hush' }])
     expect((await search(acme.workspaceSlug, 'hush/page')).json().baselines).toMatchObject([
-      { teamSlug: 'hush' },
+      { projectslug: 'hush' },
     ])
   })
 })
 
-describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals', () => {
+describe('GET /api/workspaces/:workspace/search, project, kinds, limit and totals', () => {
   const ws = acme.workspaceSlug
   const emptyTotals = {
     builds: 0,
     branches: 0,
-    teams: 0,
+    projects: 0,
     snapshots: 0,
     baselines: 0,
     triage: 0,
@@ -156,36 +158,36 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
   })
 
   it('answers only the kinds asked for, the others empty with a total of 0', async () => {
-    const found = (await get(`/api/workspaces/${ws}/search?q=web&kinds=teams,builds`)).json()
-    expect(found.teams).toMatchObject([{ slug: 'web' }])
-    expect(found.totals.teams).toBe(1)
+    const found = (await get(`/api/workspaces/${ws}/search?q=web&kinds=projects,builds`)).json()
+    expect(found.projects).toMatchObject([{ slug: 'web' }])
+    expect(found.totals.projects).toBe(1)
     const onlyShots = (await get(`/api/workspaces/${ws}/search?q=hom&kinds=snapshots`)).json()
     expect(onlyShots.snapshots).toMatchObject([{ name: 'home' }])
     expect(onlyShots.baselines).toEqual([])
     expect(onlyShots.totals).toEqual({ ...emptyTotals, snapshots: 1 })
   })
 
-  it('keeps to one team, and a hidden team stays hidden when asked for by name', async () => {
-    const inWeb = (await get(`/api/workspaces/${ws}/search?q=hush&team=web`)).json()
-    expect(inWeb.teams).toEqual([])
-    const inHush = (await get(`/api/workspaces/${ws}/search?q=hush&team=hush`)).json()
-    expect(inHush.teams).toMatchObject([{ slug: 'hush' }])
-    expect(inHush.totals.teams).toBe(1)
-    const homeInHush = (await get(`/api/workspaces/${ws}/search?q=home&team=hush`)).json()
+  it('keeps to one project, and a hidden project stays hidden when asked for by name', async () => {
+    const inWeb = (await get(`/api/workspaces/${ws}/search?q=hush&project=web`)).json()
+    expect(inWeb.projects).toEqual([])
+    const inHush = (await get(`/api/workspaces/${ws}/search?q=hush&project=hush`)).json()
+    expect(inHush.projects).toMatchObject([{ slug: 'hush' }])
+    expect(inHush.totals.projects).toBe(1)
+    const homeInHush = (await get(`/api/workspaces/${ws}/search?q=home&project=hush`)).json()
     expect(homeInHush.snapshots).toEqual([])
-    const homeInWeb = (await get(`/api/workspaces/${ws}/search?q=home&team=web`)).json()
-    expect(homeInWeb.snapshots).toMatchObject([{ teamSlug: 'web' }])
-    // A member who isn't in a team (added first: a team made later is not theirs) finds nothing in it.
+    const homeInWeb = (await get(`/api/workspaces/${ws}/search?q=home&project=web`)).json()
+    expect(homeInWeb.snapshots).toMatchObject([{ projectslug: 'web' }])
+    // A member who isn't in a project (added first: a project made later is not theirs) finds nothing in it.
     const member = await fx.addMember('member')
-    await createTeam(fx.db, { workspaceSlug: ws, name: 'quiet' })
-    const asMember = (await member.get(`/api/workspaces/${ws}/search?q=quiet&team=quiet`)).json()
-    expect(asMember.teams).toEqual([])
+    await createProject(fx.db, { workspaceSlug: ws, name: 'quiet' })
+    const asMember = (await member.get(`/api/workspaces/${ws}/search?q=quiet&project=quiet`)).json()
+    expect(asMember.projects).toEqual([])
     expect(asMember.totals).toEqual(emptyTotals)
-    const asOwner = (await get(`/api/workspaces/${ws}/search?q=quiet&team=quiet`)).json()
-    expect(asOwner.teams).toMatchObject([{ slug: 'quiet' }])
+    const asOwner = (await get(`/api/workspaces/${ws}/search?q=quiet&project=quiet`)).json()
+    expect(asOwner.projects).toMatchObject([{ slug: 'quiet' }])
   })
 
-  it('finds people by name or email with their avatar data, teams and open reviews', async () => {
+  it('finds people by name or email with their avatar data, projects and open reviews', async () => {
     const member = await fx.addMember('member')
     const found = (await get(`/api/workspaces/${ws}/search?q=member&kinds=people`)).json()
     expect(found.people.length).toBeGreaterThan(0)
@@ -194,7 +196,7 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
       name: expect.stringMatching(/^member /),
       email: expect.stringMatching(/@acme\.test$/),
       image: null,
-      teams: expect.any(Array),
+      projects: expect.any(Array),
       openReviews: 0,
     })
     expect(found.totals.people).toBe(found.people.length)
@@ -202,17 +204,20 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
     expect(
       (await get(`/api/workspaces/${ws}/search?q=owner&kinds=people`)).json().people,
     ).not.toEqual([])
-    // A plain member scoped to a team they can't see finds nobody in it; the owner finds its members.
-    const hush = await fx.db.query.teams.findFirst({ where: eq(schema.teams.slug, 'hush') })
-    if (!hush) throw new Error('team hush missing')
-    await addTestTeamMember(fx.db, { teamId: hush.id, userId: acme.owner.id })
-    // Members join the teams that exist when they are added: take the plain member out of this one.
+    // A plain member scoped to a project they can't see finds nobody in it; the owner finds its members.
+    const hush = await fx.db.query.projects.findFirst({ where: eq(schema.projects.slug, 'hush') })
+    if (!hush) throw new Error('project hush missing')
+    await addTestProjectMember(fx.db, { projectId: hush.id, userId: acme.owner.id })
+    // Members join the projects that exist when they are added: take the plain member out of this one.
     await fx.db
-      .delete(schema.teamMembers)
+      .delete(schema.projectMembers)
       .where(
-        and(eq(schema.teamMembers.teamId, hush.id), ne(schema.teamMembers.userId, acme.owner.id)),
+        and(
+          eq(schema.projectMembers.projectId, hush.id),
+          ne(schema.projectMembers.userId, acme.owner.id),
+        ),
       )
-    const inHush = `/api/workspaces/${ws}/search?q=owner&kinds=people&team=hush`
+    const inHush = `/api/workspaces/${ws}/search?q=owner&kinds=people&project=hush`
     expect((await member.get(inHush)).json().people).toEqual([])
     expect((await member.get(inHush)).json().totals.people).toBe(0)
     expect((await get(inHush)).json().people.length).toBeGreaterThan(0)
@@ -226,7 +231,7 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
   })
 })
 
-describe('GET /api/teams/:workspace/:team with filters', () => {
+describe('GET /api/projects/:workspace/:project with filters', () => {
   it('keeps the unfiltered list and narrows by each filter', async () => {
     expect(await list('')).toEqual([2, 1])
     expect(await list('?review=pending')).toEqual([])
@@ -247,7 +252,7 @@ describe('GET /api/teams/:workspace/:team with filters', () => {
   it('rejects unknown values', async () => {
     for (const q of ['?status=bogus', '?review=maybe', '?from=yesterday', '?branch=', '?q=']) {
       // eslint-disable-next-line no-await-in-loop
-      expect((await get(`/api/teams/${acme.workspaceSlug}/web${q}`)).statusCode).toBe(400)
+      expect((await get(`/api/projects/${acme.workspaceSlug}/web${q}`)).statusCode).toBe(400)
     }
   })
 })

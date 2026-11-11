@@ -2,7 +2,7 @@ import { FIGMA_FRAME_LINK_KIND, figmaFrameUrl, globMatches, pickFigmaLink } from
 
 import type { Database } from '#src/client.ts'
 
-import { listTeamLinks } from './integration-links.ts'
+import { listProjectLinks } from './integration-links.ts'
 
 export namespace figmaFramesForSnapshots {
   export interface Frame {
@@ -25,12 +25,12 @@ const text = (value: unknown): string | undefined => (typeof value === 'string' 
  */
 export async function figmaFramesForSnapshots(
   db: Database,
-  teamId: string,
+  projectId: string,
   snapshotNames: readonly string[],
 ): Promise<Map<string, figmaFramesForSnapshots.Frame>> {
   const out = new Map<string, figmaFramesForSnapshots.Frame>()
   if (snapshotNames.length === 0) return out
-  const links = (await listTeamLinks(db, teamId, FIGMA_FRAME_LINK_KIND)).flatMap((l) => {
+  const links = (await listProjectLinks(db, projectId, FIGMA_FRAME_LINK_KIND)).flatMap((l) => {
     const fileKey = text(l.payload.fileKey)
     const nodeId = text(l.payload.nodeId)
     return fileKey && nodeId && l.subject

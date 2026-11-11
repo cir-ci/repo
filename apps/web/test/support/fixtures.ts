@@ -1,9 +1,9 @@
-import type { Sidebar, Team } from '@circi/api'
+import type { Sidebar, Project } from '@circi/api'
 
 import type { SessionUser } from '#lib/auth-client.ts'
 
-/** `team.info` as the API returns it: the "web" team of the "acme" workspace. */
-export const teamInfo = (over: Partial<Team.Info> = {}): Team.Info => ({
+/** `project.info` as the API returns it: the "web" project of the "acme" workspace. */
+export const projectInfo = (over: Partial<Project.Info> = {}): Project.Info => ({
   id: 'p1',
   slug: 'web',
   name: 'Web App',
@@ -15,8 +15,8 @@ export const teamInfo = (over: Partial<Team.Info> = {}): Team.Info => ({
   ...over,
 })
 
-/** One team of the sidebar (a team row's appearance and counts). */
-export const sidebarTeam = (over: Partial<Sidebar.Team> = {}): Sidebar.Team => ({
+/** One project of the sidebar (a project row's appearance and counts). */
+export const sidebarProject = (over: Partial<Sidebar.Project> = {}): Sidebar.Project => ({
   slug: 'web',
   name: 'Web App',
   color: 'slate',
@@ -30,9 +30,9 @@ export const sidebarTeam = (over: Partial<Sidebar.Team> = {}): Sidebar.Team => (
   ...over,
 })
 
-/** `GET /api/workspaces/:workspace/sidebar`: the web team, no views, nothing unread. */
+/** `GET /api/workspaces/:workspace/sidebar`: the web project, no views, nothing unread. */
 export const sidebarModel = (over: Partial<Sidebar.Model> = {}): Sidebar.Model => ({
-  teams: [sidebarTeam()],
+  projects: [sidebarProject()],
   views: [],
   inboxUnread: 0,
   reviews: 0,
@@ -41,16 +41,16 @@ export const sidebarModel = (over: Partial<Sidebar.Model> = {}): Sidebar.Model =
   ...over,
 })
 
-/** One entry of `GET /api/teams`: a team of a workspace, with its people (three members, you among them). */
+/** One entry of `GET /api/projects`: a project of a workspace, with its people (three members, you among them). */
 export const overview = (
   workspace: string,
-  team: string,
-  over: Partial<Team.Overview['team']> = {},
-): Team.Overview => ({
+  project: string,
+  over: Partial<Project.Overview['project']> = {},
+): Project.Overview => ({
   workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null, role: 'owner' },
-  team: {
-    slug: team,
-    name: team,
+  project: {
+    slug: project,
+    name: project,
     defaultBranch: 'main',
     color: 'slate',
     icon: null,

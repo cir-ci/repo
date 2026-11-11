@@ -44,7 +44,7 @@ type Editing = { id: string | null; draft: RuleDraft } | null
  * confirmed (there is no Save for rules).
  */
 export function RulesSection(props: RulesSection.Props) {
-  const actions = useRuleActions(props.workspace, props.team)
+  const actions = useRuleActions(props.workspace, props.project)
   const [editing, setEditing] = useState<Editing>(null)
   // The page header's "Add rule" counts up; each new count opens the dialog for a new rule.
   const [seenAddRequests, setSeenAddRequests] = useState(props.addRequests ?? 0)
@@ -74,7 +74,7 @@ export function RulesSection(props: RulesSection.Props) {
   return (
     <SettingsSection
       title="Review rules"
-      description={`When a build has changes, CirCI requests review from the first matching rule's people, who are ${props.teamName}'s members. Like CODEOWNERS for screenshots.`}
+      description={`When a build has changes, CirCI requests review from the first matching rule's people, who are ${props.projectName}'s members. Like CODEOWNERS for screenshots.`}
       bare
     >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
@@ -225,7 +225,7 @@ export function RulesSection(props: RulesSection.Props) {
   )
 }
 
-/** Adds a rule or edits one: what it matches, the pattern and the team members it asks. */
+/** Adds a rule or edits one: what it matches, the pattern and the project members it asks. */
 function RuleDialog(props: RuleDialog.Props) {
   const [touched, setTouched] = useState(false)
   const { draft } = props
@@ -308,8 +308,8 @@ namespace RuleDialog {
 export namespace RulesSection {
   export interface Props {
     workspace: string
-    team: string
-    teamName: string
+    project: string
+    projectName: string
     rules: ReviewRule.Item[]
     rotation: Triage.Rotation
     people: Person[]

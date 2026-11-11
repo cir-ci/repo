@@ -1,4 +1,4 @@
-import { teamColorFor } from '@circi/core'
+import { projectColorFor } from '@circi/core'
 import { seedBuild, seedScreenshot, seedSite } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
@@ -14,7 +14,7 @@ afterAll(() => fx.close())
 const reset = await fx.snapshot()
 beforeEach(reset)
 
-const team = () => `/api/teams/${acme.workspaceSlug}/web`
+const project = () => `/api/projects/${acme.workspaceSlug}/web`
 const workspace = () => `/api/workspaces/${acme.workspaceSlug}`
 const call = caller(() => app)
 
@@ -56,7 +56,7 @@ describe('workspace name, address and default retention', () => {
     expect(back.statusCode).toBe(200)
   })
 
-  it('saves the default retention for new teams and leaves existing teams alone', async () => {
+  it('saves the default retention for new projects and leaves existing projects alone', async () => {
     const url = `${workspace()}/settings`
     expect((await call('PATCH', url, ownerCookie, { retentionDays: 90 })).json().settings).toEqual({
       flakyBlocksMerge: true,
@@ -66,37 +66,39 @@ describe('workspace name, address and default retention', () => {
     expect((await call('PATCH', url, ownerCookie, { retentionDays: 0 })).statusCode).toBe(400)
     expect((await call('PATCH', url, memberCookie, { retentionDays: 5 })).statusCode).toBe(403)
     expect((await call('PATCH', url, rivalCookie, { retentionDays: 5 })).statusCode).toBe(404)
-    const existing = (await call('GET', `${team()}/settings`, ownerCookie)).json()
+    const existing = (await call('GET', `${project()}/settings`, ownerCookie)).json()
     expect(existing.settings.retentionDays).toBe(30)
     expect(existing.workspace.retentionDays).toBe(90)
-    await call('POST', `${workspace()}/teams`, ownerCookie, { name: 'Late team' })
+    await call('POST', `${workspace()}/projects`, ownerCookie, { name: 'Late project' })
     const late = (
-      await call('GET', `${team().replace('/web', '/late-team')}/settings`, ownerCookie)
+      await call('GET', `${project().replace('/web', '/late-project')}/settings`, ownerCookie)
     ).json()
     expect(late.settings.retentionDays).toBe(90)
   })
 })
 
 describe('merge gate defaults', () => {
-  it('lists each team with its own flaky setting, null when it follows the default', async () => {
+  it('lists each project with its own flaky setting, null when it follows the default', async () => {
     const res = await call('GET', `${workspace()}/settings`, memberCookie)
     expect(res.statusCode).toBe(200)
-    const { teams } = res.json()
-    expect(teams.find((p: { slug: string }) => p.slug === 'web')).toEqual({
+    const { projects } = res.json()
+    expect(projects.find((p: { slug: string }) => p.slug === 'web')).toEqual({
       slug: 'web',
       name: expect.any(String),
       flakyBlocksMerge: null,
       assignTriageToOnCall: null,
     })
-    await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: false })
+    await call('PATCH', `${project()}/settings`, ownerCookie, { flakyBlocksMerge: false })
     const after = (await call('GET', `${workspace()}/settings`, memberCookie)).json()
-    expect(after.teams.find((p: { slug: string }) => p.slug === 'web').flakyBlocksMerge).toBe(false)
-    await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: null })
+    expect(after.projects.find((p: { slug: string }) => p.slug === 'web').flakyBlocksMerge).toBe(
+      false,
+    )
+    await call('PATCH', `${project()}/settings`, ownerCookie, { flakyBlocksMerge: null })
   })
 })
 
 describe('triage assignment default', () => {
-  it('is off, changes for owners and admins only, and shows each team that overrides it', async () => {
+  it('is off, changes for owners and admins only, and shows each project that overrides it', async () => {
     const url = `${workspace()}/settings`
     expect((await call('GET', url, memberCookie)).json().settings.assignTriageToOnCall).toBe(false)
     const on = await call('PATCH', url, ownerCookie, { assignTriageToOnCall: true })
@@ -110,24 +112,24 @@ describe('triage assignment default', () => {
     expect(
       (await call('PATCH', url, rivalCookie, { assignTriageToOnCall: false })).statusCode,
     ).toBe(404)
-    await call('PATCH', `${team()}/settings`, ownerCookie, { assignTriageToOnCall: false })
+    await call('PATCH', `${project()}/settings`, ownerCookie, { assignTriageToOnCall: false })
     const after = (await call('GET', url, memberCookie)).json()
     expect(after.settings.assignTriageToOnCall).toBe(true)
-    expect(after.teams.find((p: { slug: string }) => p.slug === 'web').assignTriageToOnCall).toBe(
-      false,
-    )
-    await call('PATCH', `${team()}/settings`, ownerCookie, { assignTriageToOnCall: null })
+    expect(
+      after.projects.find((p: { slug: string }) => p.slug === 'web').assignTriageToOnCall,
+    ).toBe(false)
+    await call('PATCH', `${project()}/settings`, ownerCookie, { assignTriageToOnCall: null })
     await call('PATCH', url, ownerCookie, { assignTriageToOnCall: false })
   })
 })
 
 describe('storage usage', () => {
-  it('reports bytes by kind and by team with the retention settings, to members only', async () => {
+  it('reports bytes by kind and by project with the retention settings, to members only', async () => {
     expect(
       (await call('PATCH', `${workspace()}/settings`, ownerCookie, { retentionDays: 90 }))
         .statusCode,
     ).toBe(200)
-    const build = await seedBuild(t.db, acme.team.id)
+    const build = await seedBuild(t.db, acme.project.id)
     await seedScreenshot(t.db, {
       buildId: build.id,
       fileSha256: fakeSha('a'),
@@ -136,7 +138,7 @@ describe('storage usage', () => {
       thumbnailSize: 100,
     })
     await seedSite(t.db, {
-      teamId: acme.team.id,
+      projectId: acme.project.id,
       files: [{ path: 'index.html', sha256: fakeSha('c'), size: 500 }],
     })
     const res = await call('GET', `${workspace()}/storage`, memberCookie)
@@ -149,12 +151,12 @@ describe('storage usage', () => {
       { kind: 'thumbnail', files: 1, bytes: 100 },
       { kind: 'site', files: 1, bytes: 500, versions: 1 },
     ])
-    const web = usage.teams.find((p: { slug: string }) => p.slug === 'web')
+    const web = usage.projects.find((p: { slug: string }) => p.slug === 'web')
     expect(web).toMatchObject({
       bytes: 1600,
       files: 3,
       retentionDays: 30,
-      color: teamColorFor('web'),
+      color: projectColorFor('web'),
     })
     expect(usage.defaultRetentionDays).toBe(90)
 

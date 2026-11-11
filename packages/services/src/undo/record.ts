@@ -18,8 +18,8 @@ export async function recordUndo(
   db: Database,
   input: {
     userId: string
-    /** The team the undo route is scoped to; null for the person's own inbox. */
-    teamId: string | null
+    /** The project the undo route is scoped to; null for the person's own inbox. */
+    projectId: string | null
     kind: UndoKind
     data: object
     now?: Date
@@ -27,7 +27,7 @@ export async function recordUndo(
 ): Promise<UndoToken> {
   const row = await createUndoAction(db, {
     userId: input.userId,
-    teamId: input.teamId,
+    projectId: input.projectId,
     kind: input.kind,
     data: { ...input.data },
     expiresAt: new Date((input.now ?? new Date()).getTime() + UNDO_WINDOW_MS),

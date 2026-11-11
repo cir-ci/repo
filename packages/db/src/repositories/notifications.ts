@@ -7,7 +7,7 @@ import {
   notificationPreferences,
   notifications,
   workspace,
-  teams,
+  projects,
   reviewRequests,
   user,
 } from '#schema/index.ts'
@@ -213,8 +213,8 @@ export namespace getNotificationEmailData {
     build: {
       number: number
       branch: string | null
-      teamSlug: string
-      teamName: string
+      projectslug: string
+      projectName: string
       workspaceSlug: string
     } | null
     preferences: getNotificationPreferences.Preferences
@@ -240,13 +240,13 @@ export async function getNotificationEmailData(
         .select({
           number: builds.number,
           branch: builds.branch,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
           workspaceSlug: workspace.slug,
         })
         .from(builds)
-        .innerJoin(teams, eq(teams.id, builds.teamId))
-        .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
+        .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
         .where(eq(builds.id, n.buildId))
     : []
   return {

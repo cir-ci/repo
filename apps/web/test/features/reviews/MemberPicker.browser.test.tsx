@@ -43,13 +43,13 @@ describe('MemberPicker', () => {
     expect(onPick).toHaveBeenCalledWith({ id: 'u2', name: 'Grace Hopper' })
   })
 
-  it("offers only the team's members when it is asked for a team", async () => {
+  it("offers only the project's members when it is asked for a project", async () => {
     const onPick = vi.fn<(m: { id: string; name: string }) => void>()
     await renderPage(
-      <MemberPicker workspace="acme" team="web" open onOpenChange={() => {}} onPick={onPick} />,
+      <MemberPicker workspace="acme" project="web" open onOpenChange={() => {}} onPick={onPick} />,
       {
         api: {
-          'GET /api/teams/acme/web/members': {
+          'GET /api/projects/acme/web/members': {
             body: {
               members: [
                 {
@@ -77,7 +77,7 @@ describe('MemberPicker', () => {
     )
     const dialog = page.getByRole('dialog', { name: 'Request a review from' })
     await expect.element(dialog.getByRole('button', { name: /Alan Turing/ })).toBeVisible()
-    // Grace is in the workspace but not the team: never offered.
+    // Grace is in the workspace but not the project: never offered.
     expect(dialog.getByRole('button', { name: /Grace Hopper/ }).elements()).toHaveLength(0)
     await dialog.getByRole('button', { name: /Alan Turing/ }).click()
     expect(onPick).toHaveBeenCalledWith({ id: 'u3', name: 'Alan Turing' })

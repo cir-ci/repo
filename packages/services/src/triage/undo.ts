@@ -36,8 +36,8 @@ export function triageFields(state: TriageState, action: keyof typeof FIELDS): F
   return out
 }
 
-export async function undoTriage(tx: Database, data: TriageUndo, teamId: string): Promise<void> {
-  const ref = { teamId, kind: data.kind, key: data.key }
+export async function undoTriage(tx: Database, data: TriageUndo, projectId: string): Promise<void> {
+  const ref = { projectId, kind: data.kind, key: data.key }
   const now = await getTriageState(tx, ref)
   const touched = ALL_FIELDS.filter((f) => f in data.after)
   const same = touched.every((f) => {

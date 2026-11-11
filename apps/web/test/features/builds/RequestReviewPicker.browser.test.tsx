@@ -23,8 +23,8 @@ const member = (id: string, name: string, email: string) => ({
   addedAt: '2026-11-01T00:00:00.000Z',
 })
 
-// The team's own members: the picker never offers anyone outside the team.
-const TEAM_MEMBERS = {
+// The project's own members: the picker never offers anyone outside the project.
+const PROJECT_MEMBERS = {
   members: [
     member('u1', 'Ada Lovelace', 'ada@example.test'),
     member('u2', 'Grace Hopper', 'grace@example.test'),
@@ -34,7 +34,7 @@ const TEAM_MEMBERS = {
 }
 
 // Asking goes through the bulk endpoint, whose answer carries the token for Undo.
-const ENDPOINT = 'POST /api/teams/acme/web/builds/request-review'
+const ENDPOINT = 'POST /api/projects/acme/web/builds/request-review'
 const ASKED = {
   requests: [
     { id: 'r1', state: 'open', dueAt: null, created: true, buildId: 'b7', reviewerId: 'u2' },
@@ -51,23 +51,23 @@ function show(
   const ready = renderPage(
     <RequestReviewPicker
       open={open}
-      teamName="web-app"
+      projectName="web-app"
       onOpenChange={onOpenChange}
       trigger={<Button variant="ghost">Request review</Button>}
       workspace="acme"
-      team="web"
+      project="web"
       number={7}
     />,
     {
       announcer: true,
       api: {
         [ENDPOINT]: reply,
-        'GET /api/teams/acme/web/builds/7': {
+        'GET /api/projects/acme/web/builds/7': {
           body: { build: { id: 'b7', number: 7, status: 'complete' } },
         },
-        'POST /api/teams/acme/web/undo/undo-1': { body: { undone: true } },
-        'GET /api/teams/acme/web/members': { body: TEAM_MEMBERS },
-        'GET /api/teams/acme/web/builds/7/activity': { body: { events } },
+        'POST /api/projects/acme/web/undo/undo-1': { body: { undone: true } },
+        'GET /api/projects/acme/web/members': { body: PROJECT_MEMBERS },
+        'GET /api/projects/acme/web/builds/7/activity': { body: { events } },
       },
     },
   )
@@ -154,8 +154,8 @@ describe('RequestReviewPicker', () => {
     await toastNamed('Asked Grace Hopper to review').getByRole('button', { name: 'Undo' }).click()
     await expect.element(toastNamed('Undone')).toBeVisible()
     expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual([
-      '/api/teams/acme/web/builds/request-review',
-      '/api/teams/acme/web/undo/undo-1',
+      '/api/projects/acme/web/builds/request-review',
+      '/api/projects/acme/web/undo/undo-1',
     ])
   })
 

@@ -9,7 +9,7 @@ export namespace seedReviewRequest {
     reviewerId: string
     requestedById?: string | null
     state?: ReviewRequest['state']
-    /** Null for a team without a review target; unset means no due time either. */
+    /** Null for a project without a review target; unset means no due time either. */
     dueAt?: Date | null
     snoozedUntil?: Date | null
     snoozeKind?: ReviewRequest['snoozeKind']

@@ -3,7 +3,7 @@ import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { askForReview } from '#features/builds/api/discussion.ts'
-import { teamPath } from '#lib/api-paths.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { findParam } from '#lib/find.ts'
 import { getJson, post, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
@@ -26,14 +26,14 @@ export interface ReviewsSearch {
   q?: string
 }
 
-/** What a find text is looked for in: the build, its branch, commit and pull request, the team and the two people. */
+/** What a find text is looked for in: the build, its branch, commit and pull request, the project and the two people. */
 export const requestFields = (r: Review.Request) => [
   `Build #${r.build.number} #${r.build.number}`,
   r.build.name === 'default' ? undefined : r.build.name,
   r.build.branch,
   r.build.commitSha,
   r.build.prNumber === null ? undefined : `PR #${r.build.prNumber}`,
-  r.team.name,
+  r.project.name,
   r.reviewer.name,
   r.requestedBy?.name,
 ]
@@ -226,7 +226,7 @@ export function requestRef(build: Review.Request['build']): string {
 /** What a row is called for screen readers: "Build 12 of Acme / Web on main, asked by Ada, overdue 3h". */
 export function requestName(r: Review.Request): string {
   return [
-    `Build ${r.build.number} of ${r.team.name} on ${requestRef(r.build)}`,
+    `Build ${r.build.number} of ${r.project.name} on ${requestRef(r.build)}`,
     r.requestedBy ? `asked by ${r.requestedBy.name}` : undefined,
     overdueLabel(r.overdueByMs)?.toLowerCase(),
   ]
@@ -255,10 +255,10 @@ export const firstName = (name: string) => name.split(/\s+/)[0] ?? name
 export const requestCount = (n: number) => `${n} ${n === 1 ? 'review' : 'reviews'}`
 
 const requestPath = (r: Review.Request, ...rest: (string | number)[]) =>
-  teamPath(r.workspace.slug, r.team.slug, ...rest)
+  projectPath(r.workspace.slug, r.project.slug, ...rest)
 
 /** Every list that shows the same facts a review changes; refetched after each of them. */
-const AFFECTED = [keys.reviews(), keys.inbox(), keys.sidebar(), keys.teams()] as const
+const AFFECTED = [keys.reviews(), keys.inbox(), keys.sidebar(), keys.projects()] as const
 
 function useRefresh() {
   const queryClient = useQueryClient()
@@ -275,7 +275,8 @@ export function useApproveRequest() {
       post<Review.Decided>(requestPath(r, 'builds', r.build.number, 'review'), {
         state: 'approved',
       }),
-    onSuccess: (_data, r) => refresh([keys.build(r.workspace.slug, r.team.slug, r.build.number)]),
+    onSuccess: (_data, r) =>
+      refresh([keys.build(r.workspace.slug, r.project.slug, r.build.number)]),
   })
 }
 
@@ -326,7 +327,7 @@ export function useRequestReview() {
         queryClient,
         {
           workspace: request.workspace.slug,
-          team: request.team.slug,
+          project: request.project.slug,
           number: request.build.number,
         },
         reviewerId,

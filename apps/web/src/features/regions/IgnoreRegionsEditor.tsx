@@ -8,7 +8,7 @@ import {
   ignoreRegionsQuery,
   useAddIgnoreRegion,
   useAdjustIgnoreRegion,
-} from '#features/teams/api/index.ts'
+} from '#features/projects/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { toast } from '#lib/toast.ts'
 import { usePhone } from '#lib/use-phone.ts'
@@ -29,7 +29,7 @@ import styles from './IgnoreRegionsEditor.module.css'
  */
 export function IgnoreRegionsEditor({
   workspace,
-  team,
+  project,
   name,
   latest,
   defaultBranch,
@@ -38,9 +38,9 @@ export function IgnoreRegionsEditor({
   // Drawing or moving a region needs pixel-level handles: on a phone the regions are shown, not edited.
   const phone = usePhone()
   const canManage = allowed && !phone
-  const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team, name))
-  const add = useAddIgnoreRegion(workspace, team)
-  const adjust = useAdjustIgnoreRegion(workspace, team)
+  const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, project, name))
+  const add = useAddIgnoreRegion(workspace, project)
+  const adjust = useAdjustIgnoreRegion(workspace, project)
   // The keyboard way to place a region; dragging needs no switch.
   const [keyboardTool, setKeyboardTool] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
@@ -135,7 +135,7 @@ export function IgnoreRegionsEditor({
       ) : null}
       <IgnoreRegionsPanel
         workspace={workspace}
-        team={team}
+        project={project}
         name={name}
         size={size}
         regions={regions}
@@ -176,7 +176,7 @@ export function IgnoreRegionsEditor({
 export namespace IgnoreRegionsEditor {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     /** The screenshot's name: the regions of this name are listed. */
     name: string
     /** The baseline image to draw on; null when the screenshot has none (nothing can be drawn). */

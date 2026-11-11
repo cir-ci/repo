@@ -14,7 +14,7 @@ import { renderPage } from '#test/support/render.tsx'
 
 mockAuthClient()
 
-const API = '/api/teams/acme/web'
+const API = '/api/projects/acme/web'
 
 const settings = {
   name: 'Web App',
@@ -97,9 +97,9 @@ function api(
 const show = async () => {
   await page.viewport(1000, 1400)
   return renderPage(<ReviewsSettingsPage />, {
-    route: '/$workspace/$team/settings/reviews',
+    route: '/$workspace/$project/settings/reviews',
     url: '/acme/web/settings/reviews',
-    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings'],
+    otherRoutes: ['/$workspace/$project', '/$workspace/$project/settings'],
   })
 }
 
@@ -154,7 +154,7 @@ describe('ReviewsSettingsPage', () => {
       .toHaveAttribute('href', '/acme/web/settings/webhooks')
   })
 
-  it("names the rotation's people while the team's member list is still loading", async () => {
+  it("names the rotation's people while the project's member list is still loading", async () => {
     // The members never answer: the rotation must still show who is in it, never "no rotation".
     fakeFetch({
       [`GET ${API}/settings`]: {
@@ -240,7 +240,7 @@ describe('ReviewsSettingsPage', () => {
     await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ assignTriageToOnCall: false })
   })
 
-  it('starts from the team’s own value and sends null to inherit again', async () => {
+  it('starts from the project’s own value and sends null to inherit again', async () => {
     const calls = api()
     settings.assignTriageToOnCall = true
     try {
@@ -434,7 +434,7 @@ describe('ReviewsSettingsPage', () => {
       .toHaveTextContent('Only owners and admins can change settings')
   })
 
-  it("sends members to the team's settings hub instead of showing the rules", async () => {
+  it("sends members to the project's settings hub instead of showing the rules", async () => {
     api({ canManage: false }, { [`GET ${API}/settings`]: { body: { canManage: false, settings } } })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
@@ -447,9 +447,9 @@ describe('ReviewsSettingsPage opened at a setting', () => {
     api()
     await page.viewport(1000, 500)
     await renderPage(<ReviewsSettingsPage />, {
-      route: '/$workspace/$team/settings/reviews',
+      route: '/$workspace/$project/settings/reviews',
       url: '/acme/web/settings/reviews#assign-on-call',
-      otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings'],
+      otherRoutes: ['/$workspace/$project', '/$workspace/$project/settings'],
     })
     await expect
       .element(page.getByRole('combobox', { name: /^Assign new items to whoever is on triage/ }))

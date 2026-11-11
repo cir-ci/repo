@@ -1,14 +1,14 @@
 import { randomBytes } from 'node:crypto'
 
 import { assertValidSlug, slugify, ValidationError } from '@circi/core'
-import { ConflictError, type Database, NotFoundError, type Team } from '@circi/db'
+import { ConflictError, type Database, NotFoundError, type Project } from '@circi/db'
 import {
   findWorkspaceOwnerId,
   getWorkspaceBySlug,
-  getTeamBySlugs,
-  getTeamContext,
+  getProjectBySlugs,
+  getProjectContext,
 } from '@circi/db/queries'
-import { createTeam, deleteTeam, setTeamCiKey } from '@circi/db/repositories'
+import { createProject, deleteProject, setProjectCiKey } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { eq } from 'drizzle-orm'
 
@@ -17,7 +17,7 @@ import { CI_KEY_CONFIG, CI_KEY_PREFIX, MIN_PASSWORD_LENGTH } from '#src/constant
 
 /**
  * Operations that span better-auth and CirCI's own data: accounts, workspaces, members, and
- * each team's CI key. Used by the admin CLI and the CI API. Writes to better-auth's tables
+ * each project's CI key. Used by the admin CLI and the CI API. Writes to better-auth's tables
  * always go through its API, so its invariants (hashing, ids, hooks) hold.
  */
 
@@ -225,13 +225,13 @@ export async function addMember(
 }
 
 export interface IssuedToken {
-  team: Team
+  project: Project
   /** The CI token, shown exactly once. better-auth stores only its hash. */
   token: string
 }
 
-/** Creates a team and its first CI token. */
-export async function createTeamWithToken(
+/** Creates a project and its first CI token. */
+export async function createProjectWithToken(
   auth: Auth,
   db: Database,
   input: {
@@ -241,19 +241,19 @@ export async function createTeamWithToken(
     defaultBranch?: string
     color?: string
     icon?: string | null
-    /** The person creating it: recorded as who issued the first token, and added to the team. */
+    /** The person creating it: recorded as who issued the first token, and added to the project. */
     createdBy?: string
-    /** More workspace members to add to the team (none by default). */
+    /** More workspace members to add to the project (none by default). */
     memberIds?: string[]
     /** The same by email address (the admin CLI); the accounts must exist. */
     memberEmails?: string[]
   },
 ): Promise<IssuedToken> {
-  const { createdBy, memberEmails, ...team } = input
+  const { createdBy, memberEmails, ...project } = input
   const fromEmails = await Promise.all((memberEmails ?? []).map((e) => getUserIdByEmail(db, e)))
-  const memberIds = [...(team.memberIds ?? []), ...fromEmails]
-  const created = await createTeam(db, {
-    ...team,
+  const memberIds = [...(project.memberIds ?? []), ...fromEmails]
+  const created = await createProject(db, {
+    ...project,
     ...(memberIds.length === 0 ? {} : { memberIds }),
     ...(createdBy === undefined ? {} : { createdBy }),
   })
@@ -261,21 +261,21 @@ export async function createTeamWithToken(
 }
 
 /**
- * Replaces a team's CI token. The old one stops working immediately. The token is returned
+ * Replaces a project's CI token. The old one stops working immediately. The token is returned
  * once; only its hash is stored (better-auth hashes the key).
  */
-export async function rotateTeamToken(
+export async function rotateProjectToken(
   auth: Auth,
   db: Database,
-  input: { workspaceSlug: string; teamSlug: string; rotatedBy?: string },
+  input: { workspaceSlug: string; projectslug: string; rotatedBy?: string },
 ): Promise<IssuedToken> {
-  const team = await getTeamBySlugs(db, input)
-  return issueToken(auth, db, input.workspaceSlug, team, input.rotatedBy)
+  const project = await getProjectBySlugs(db, input)
+  return issueToken(auth, db, input.workspaceSlug, project, input.rotatedBy)
 }
 
-/** Deletes a team (see `deleteTeam`) and revokes its CI key, so the token stops working at once. */
-export async function deleteTeamWithToken(db: Database, teamId: string): Promise<void> {
-  const keyId = await deleteTeam(db, teamId)
+/** Deletes a project (see `deleteProject`) and revokes its CI key, so the token stops working at once. */
+export async function deleteProjectWithToken(db: Database, projectId: string): Promise<void> {
+  const keyId = await deleteProject(db, projectId)
   if (keyId) await db.delete(schema.apikey).where(eq(schema.apikey.id, keyId))
 }
 
@@ -283,12 +283,12 @@ async function issueToken(
   auth: Auth,
   db: Database,
   workspaceSlug: string,
-  team: Team,
+  project: Project,
   issuedBy?: string,
 ): Promise<IssuedToken> {
-  const previousKeyId = team.ciKeyId
+  const previousKeyId = project.ciKeyId
   // Workspace-owned keys are issued on behalf of a user who may manage them: an owner.
-  const ownerId = await findWorkspaceOwnerId(db, team.workspaceId)
+  const ownerId = await findWorkspaceOwnerId(db, project.workspaceId)
   if (!ownerId) {
     throw new NotFoundError(`Workspace "${workspaceSlug}" has no owner to issue CI tokens for`)
   }
@@ -296,48 +296,48 @@ async function issueToken(
     body: {
       userId: ownerId,
       configId: CI_KEY_CONFIG,
-      organizationId: team.workspaceId,
-      name: `${workspaceSlug}/${team.slug}`.slice(0, 32),
+      organizationId: project.workspaceId,
+      name: `${workspaceSlug}/${project.slug}`.slice(0, 32),
       prefix: CI_KEY_PREFIX,
-      metadata: { teamId: team.id },
+      metadata: { projectId: project.id },
     },
   })
-  await setTeamCiKey(db, team.id, key.id, issuedBy ?? null)
-  // The team now points at the new key; remove the old one so it can't be used either.
+  await setProjectCiKey(db, project.id, key.id, issuedBy ?? null)
+  // The project now points at the new key; remove the old one so it can't be used either.
   if (previousKeyId) await db.delete(schema.apikey).where(eq(schema.apikey.id, previousKeyId))
-  return { team: { ...team, ciKeyId: key.id }, token: key.key }
+  return { project: { ...project, ciKeyId: key.id }, token: key.key }
 }
 
 /**
- * Resolves a CI token to its team. Valid only if better-auth accepts the key, it's the
- * team's *current* key, and the key belongs to the team's workspace.
+ * Resolves a CI token to its project. Valid only if better-auth accepts the key, it's the
+ * project's *current* key, and the key belongs to the project's workspace.
  */
-export async function verifyTeamToken(
+export async function verifyProjectToken(
   auth: Auth,
   db: Database,
   token: string,
-): Promise<getTeamContext.Context | undefined> {
+): Promise<getProjectContext.Context | undefined> {
   if (!token.startsWith(CI_KEY_PREFIX)) return undefined
   const result = await auth.api.verifyApiKey({ body: { key: token, configId: CI_KEY_CONFIG } })
   if (!result.valid || !result.key) return undefined
-  const teamId = readTeamId(result.key.metadata)
-  if (!teamId) return undefined
-  const ctx = await getTeamContext(db, teamId)
+  const projectId = readProjectId(result.key.metadata)
+  if (!projectId) return undefined
+  const ctx = await getProjectContext(db, projectId)
   if (
     !ctx ||
-    ctx.team.ciKeyId !== result.key.id ||
-    ctx.team.workspaceId !== result.key.referenceId
+    ctx.project.ciKeyId !== result.key.id ||
+    ctx.project.workspaceId !== result.key.referenceId
   ) {
     return undefined
   }
   return ctx
 }
 
-function readTeamId(metadata: unknown): string | undefined {
+function readProjectId(metadata: unknown): string | undefined {
   const value: unknown = typeof metadata === 'string' ? safeJson(metadata) : metadata
   if (typeof value !== 'object' || value === null) return undefined
-  const teamId: unknown = Reflect.get(value, 'teamId')
-  return typeof teamId === 'string' ? teamId : undefined
+  const projectId: unknown = Reflect.get(value, 'projectId')
+  return typeof projectId === 'string' ? projectId : undefined
 }
 
 function safeJson(text: string): unknown {

@@ -1,6 +1,6 @@
 export namespace View {
   /**
-   * The filters of a builds list: the query parameters of `GET /api/teams/:workspace/:team`
+   * The filters of a builds list: the query parameters of `GET /api/projects/:workspace/:project`
    * (`@circi/core`'s `BuildFilterValues` is the server-side twin; the contract check ties them).
    */
   export interface Filters {
@@ -28,7 +28,7 @@ export namespace View {
     pinned: boolean
     position: number
     /** Null for a view across the whole workspace. */
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
     createdAt: string
   }
 
@@ -40,8 +40,8 @@ export namespace View {
   /** `POST /api/workspaces/:workspace/views`. */
   export interface CreateBody {
     name: string
-    /** A team's slug; omit for a view across the workspace. */
-    team?: string
+    /** A project's slug; omit for a view across the workspace. */
+    project?: string
     filters: Filters
     pinned?: boolean
   }

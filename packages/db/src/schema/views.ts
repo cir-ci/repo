@@ -15,11 +15,11 @@ import {
 
 import { createdAt, id } from './_columns.ts'
 import { workspace, user } from './auth.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /**
  * A person's saved builds filters ("Your views" in the sidebar). Private to the owner. A view
- * belongs to one workspace; `team_id` null means across all of its teams.
+ * belongs to one workspace; `project_id` null means across all of its projects.
  */
 export const savedViews = pgTable(
   'saved_views',
@@ -31,7 +31,7 @@ export const savedViews = pgTable(
     workspaceId: text('workspace_id')
       .notNull()
       .references(() => workspace.id, { onDelete: 'cascade' }),
-    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     filters: jsonb('filters').$type<BuildFilterValues>().notNull().default({}),
     pinned: boolean('pinned').notNull().default(false),
@@ -45,18 +45,18 @@ export const savedViews = pgTable(
   ],
 )
 
-/** Teams a person pinned to the top of their sidebar, in `position` order. */
-export const userPinnedTeams = pgTable(
-  'user_pinned_teams',
+/** Projects a person pinned to the top of their sidebar, in `position` order. */
+export const userPinnedProjects = pgTable(
+  'user_pinned_projects',
   {
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     position: integer('position').notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.teamId] })],
+  (t) => [primaryKey({ columns: [t.userId, t.projectId] })],
 )

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type { Build } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import { approveBuild, createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { approveBuild, createProject, type CreatedProject } from '#clients/admin.ts'
 import { GIT_ENV } from '#github/git-repo.ts'
 import { REPO_ROOT } from '#stack/paths.ts'
 import { useStack } from '#stack/vitest.ts'
@@ -60,21 +60,21 @@ function runVisualSuite(options: {
 
 describe('the design system tests itself with @circi/vitest', () => {
   const ctx = useStack({ profile: 'default', setup: true })
-  let team: CreatedTeam
+  let project: CreatedProject
   let expected = 0
 
   const workspace = () => ctx.setup.workspace.slug
   const detail = (n: number) =>
-    ctx.setup.session.get<Build.Detail>(`/api/teams/${workspace()}/${team.slug}/builds/${n}`)
+    ctx.setup.session.get<Build.Detail>(`/api/projects/${workspace()}/${project.slug}/builds/${n}`)
 
   it(
     'the first run uploads every screenshot as added, waiting for review',
     { timeout: 300_000 },
     async () => {
       const { stack, setup } = ctx
-      team = await createTeam(setup.session, workspace(), 'Design system')
+      project = await createProject(setup.session, workspace(), 'Design system')
 
-      const run = await runVisualSuite({ apiUrl: stack.url, token: team.token })
+      const run = await runVisualSuite({ apiUrl: stack.url, token: project.token })
       // `wait: true` in the reporter: the run fails while the build needs review.
       expect({ exitCode: run.exitCode, tail: run.output.slice(-3000) }).toMatchObject({
         exitCode: 1,
@@ -86,7 +86,7 @@ describe('the design system tests itself with @circi/vitest', () => {
       expect(expected).toBeGreaterThan(80)
 
       const { builds } = await setup.session.get<{ builds: Build.ListItem[] }>(
-        `/api/teams/${workspace()}/${team.slug}`,
+        `/api/projects/${workspace()}/${project.slug}`,
       )
       expect(builds).toHaveLength(1)
       const first = await detail(builds[0]?.number ?? 0)
@@ -112,9 +112,9 @@ describe('the design system tests itself with @circi/vitest', () => {
     { timeout: 300_000 },
     async () => {
       const { stack, setup } = ctx
-      await approveBuild(setup.session, workspace(), team.slug, 1)
+      await approveBuild(setup.session, workspace(), project.slug, 1)
 
-      const run = await runVisualSuite({ apiUrl: stack.url, token: team.token })
+      const run = await runVisualSuite({ apiUrl: stack.url, token: project.token })
       expect({ exitCode: run.exitCode, tail: run.output.slice(-3000) }).toMatchObject({
         exitCode: 0,
       })

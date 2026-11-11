@@ -3,7 +3,7 @@ import { desc, eq, inArray, sql } from 'drizzle-orm'
 import { webhookDeliveries, webhooks } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
-/** A team's webhooks and the recent attempts to deliver to them. */
+/** A project's webhooks and the recent attempts to deliver to them. */
 
 export type Webhook = typeof webhooks.$inferSelect
 
@@ -11,8 +11,12 @@ export type WebhookDelivery = typeof webhookDeliveries.$inferSelect
 
 export const RECENT_DELIVERIES = 20
 
-export async function listWebhooks(db: Database, teamId: string): Promise<Webhook[]> {
-  return db.select().from(webhooks).where(eq(webhooks.teamId, teamId)).orderBy(webhooks.createdAt)
+export async function listWebhooks(db: Database, projectId: string): Promise<Webhook[]> {
+  return db
+    .select()
+    .from(webhooks)
+    .where(eq(webhooks.projectId, projectId))
+    .orderBy(webhooks.createdAt)
 }
 
 /** The newest attempts (at most `limit`, default 20) of each of the given webhooks, newest first. */

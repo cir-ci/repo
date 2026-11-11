@@ -20,7 +20,7 @@ export const notifications = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     kind: text('kind').$type<NotificationKind>().notNull(),
-    /** The build it is about; null for notices about a connection or a team. */
+    /** The build it is about; null for notices about a connection or a project. */
     buildId: uuid('build_id').references(() => builds.id, { onDelete: 'cascade' }),
     /** Who caused it; null for the system (a rule, the sweep) or a deleted account. */
     actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),

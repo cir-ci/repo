@@ -44,17 +44,17 @@ export async function sendNotificationEmail(
 function compose(data: getNotificationEmailData.Data, origin: string) {
   const { build, actorName, recipient } = data
   const what = build
-    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} in ${build.teamName}`
+    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} in ${build.projectName}`
     : 'a build'
   const link = build
-    ? `${origin}/${build.workspaceSlug}/${build.teamSlug}/builds/${build.number}`
+    ? `${origin}/${build.workspaceSlug}/${build.projectslug}/builds/${build.number}`
     : origin
   const overdue = data.notification.kind === 'review_overdue'
   const again = data.notification.kind === 'review_re_requested'
   const subject = overdue
     ? `Review overdue: ${what}`
     : `${actorName ?? 'CirCI'} ${again ? 'asked you to review again' : 'asked you to review'}: ${what}`
-  // A copy to the person the team named: the reviewer is the actor.
+  // A copy to the person the project named: the reviewer is the actor.
   const copied = overdue && data.notification.payload['cc'] === true
   const lead = overdue
     ? copied

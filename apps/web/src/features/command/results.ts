@@ -13,10 +13,10 @@ import { shortAgo } from './recent.ts'
  */
 
 const enc = encodeURIComponent
-const teamPath = (workspace: string, team: string) => `/${enc(workspace)}/${enc(team)}`
+const projectPath = (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}`
 
-export const buildPath = (workspace: string, team: string, number: number) =>
-  `${teamPath(workspace, team)}/builds/${number}`
+export const buildPath = (workspace: string, project: string, number: number) =>
+  `${projectPath(workspace, project)}/builds/${number}`
 
 /** The path segments of a screenshot name (the baseline route's splat), each encoded. */
 const splat = (name: string) => name.split('/').map(enc).join('/')
@@ -41,9 +41,9 @@ const REVIEW_TAB_NAME: Record<Search.Review['tab'], string> = {
 
 export interface ResultsContext {
   workspace: string
-  teams: readonly Sidebar.Team[] | undefined
-  /** Whether results may come from several teams: then a row names its team. */
-  allTeams: boolean
+  projects: readonly Sidebar.Project[] | undefined
+  /** Whether results may come from several projects: then a row names its project. */
+  allProjects: boolean
   /** The time the ages are counted to (ms); now when left out. */
   now?: number
 }
@@ -93,15 +93,15 @@ export const triageTitle = (t: Pick<Search.Triage, 'snapshotName' | 'buildNumber
 const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
   const title = `#${b.number} ${b.name === 'default' ? '' : b.name}`.trim()
   const { status, label } = buildStatus(b)
-  const path = buildPath(c.workspace, b.teamSlug, b.number)
+  const path = buildPath(c.workspace, b.projectslug, b.number)
   return {
-    id: `build:${b.teamSlug}:${b.number}`,
+    id: `build:${b.projectslug}:${b.number}`,
     group: 'Builds',
     kind: 'build',
     label: title,
     detail: joinDetail(
       b.branch,
-      c.allTeams && b.teamName,
+      c.allProjects && b.projectName,
       b.prNumber !== null && `PR #${b.prNumber}`,
     ),
     kindLabel: 'Build',
@@ -112,7 +112,7 @@ const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
     subject: {
       type: 'build',
       workspace: c.workspace,
-      team: b.teamSlug,
+      project: b.projectslug,
       number: b.number,
       label: `build #${b.number}`,
     },
@@ -121,7 +121,7 @@ const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
       title,
       [`${label}. ${REVIEW_LABEL[b.reviewStatus]}.`],
       [
-        { label: 'Team', value: b.teamName },
+        { label: 'Project', value: b.projectName },
         ...(b.branch ? [{ label: 'Branch', value: b.branch }] : []),
         ...(b.prNumber === null ? [] : [{ label: 'Pull request', value: `#${b.prNumber}` }]),
         ...(changeWords(b.changes) ? [{ label: 'Changes', value: changeWords(b.changes) }] : []),
@@ -131,25 +131,25 @@ const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
   }
 }
 
-/** The build the field asks for by number, in the open team, before the answer arrives. */
+/** The build the field asks for by number, in the open project, before the answer arrives. */
 export function jumpBuildEntry(
   workspace: string,
-  team: { slug: string; name: string },
+  project: { slug: string; name: string },
   number: number,
 ): Entry {
-  const path = buildPath(workspace, team.slug, number)
+  const path = buildPath(workspace, project.slug, number)
   return {
-    id: `build:${team.slug}:${number}`,
+    id: `build:${project.slug}:${number}`,
     group: 'Builds',
     kind: 'build',
     label: `Build #${number}`,
-    detail: team.name,
+    detail: project.name,
     kindLabel: 'Build',
     icon: 'status',
     status: 'needs-review',
     target: { type: 'path', path },
     path,
-    peek: peek('Build', `Build #${number}`, [`Goes to build #${number} of ${team.name}.`]),
+    peek: peek('Build', `Build #${number}`, [`Goes to build #${number} of ${project.name}.`]),
   }
 }
 
@@ -158,13 +158,13 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
   const { workspace } = c
   const entries: Entry[] = results.builds.map((b) => buildEntry(c, b))
   for (const b of results.branches) {
-    const path = buildPath(workspace, b.teamSlug, b.latestBuildNumber)
+    const path = buildPath(workspace, b.projectslug, b.latestBuildNumber)
     entries.push({
-      id: `branch:${b.teamSlug}:${b.branch}`,
+      id: `branch:${b.projectslug}:${b.branch}`,
       group: 'Branches',
       kind: 'branch',
       label: b.branch,
-      detail: c.allTeams ? b.teamName : '',
+      detail: c.allProjects ? b.projectName : '',
       kindLabel: 'Branch',
       icon: 'branch',
       target: { type: 'path', path },
@@ -174,35 +174,37 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         'Branch',
         b.branch,
         [`Goes to its latest build, #${b.latestBuildNumber}.`],
-        [{ label: 'Team', value: b.teamName }],
+        [{ label: 'Project', value: b.projectName }],
       ),
     })
   }
-  for (const t of results.teams) {
-    const team = c.teams?.find((x) => x.slug === t.slug)
-    const path = teamPath(workspace, t.slug)
+  for (const t of results.projects) {
+    const project = c.projects?.find((x) => x.slug === t.slug)
+    const path = projectPath(workspace, t.slug)
     entries.push({
-      id: `team:${t.slug}`,
-      group: 'Teams',
-      kind: 'team',
+      id: `project:${t.slug}`,
+      group: 'Projects',
+      kind: 'project',
       label: t.name,
-      kindLabel: 'Team',
-      icon: team ? 'team' : 'teams',
-      ...(team ? { team: { slug: t.slug, name: t.name, color: team.color, icon: team.icon } } : {}),
+      kindLabel: 'Project',
+      icon: project ? 'project' : 'projects',
+      ...(project
+        ? { project: { slug: t.slug, name: t.name, color: project.color, icon: project.icon } }
+        : {}),
       target: { type: 'path', path },
       path,
-      subject: { type: 'link', label: `team ${t.name}` },
-      peek: peek('Team', t.name, [`Goes to the builds of ${t.name}.`]),
+      subject: { type: 'link', label: `project ${t.name}` },
+      peek: peek('Project', t.name, [`Goes to the builds of ${t.name}.`]),
     })
   }
   for (const s of results.snapshots) {
-    const path = `${buildPath(workspace, s.teamSlug, s.latestBuildNumber)}?shot=${enc(s.name)}`
+    const path = `${buildPath(workspace, s.projectslug, s.latestBuildNumber)}?shot=${enc(s.name)}`
     entries.push({
-      id: `snapshot:${s.teamSlug}:${s.name}`,
+      id: `snapshot:${s.projectslug}:${s.name}`,
       group: 'Screenshots',
       kind: 'screenshot',
       label: s.name,
-      detail: c.allTeams ? s.teamName : '',
+      detail: c.allProjects ? s.projectName : '',
       kindLabel: 'Screenshot',
       icon: 'image',
       target: { type: 'path', path },
@@ -212,19 +214,19 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         'Screenshot',
         s.name,
         [`Latest in build #${s.latestBuildNumber}.`],
-        [{ label: 'Team', value: s.teamName }],
+        [{ label: 'Project', value: s.projectName }],
         s.thumbnail ? { thumb: s.thumbnail } : {},
       ),
     })
   }
   for (const b of results.baselines) {
-    const path = `${teamPath(workspace, b.teamSlug)}/baselines/${splat(b.name)}`
+    const path = `${projectPath(workspace, b.projectslug)}/baselines/${splat(b.name)}`
     entries.push({
-      id: `baseline:${b.teamSlug}:${b.name}`,
+      id: `baseline:${b.projectslug}:${b.name}`,
       group: 'Baselines',
       kind: 'baseline',
       label: b.name,
-      detail: c.allTeams ? b.teamName : '',
+      detail: c.allProjects ? b.projectName : '',
       kindLabel: 'Baseline',
       icon: 'layers',
       target: { type: 'path', path },
@@ -235,7 +237,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         b.name,
         [`Approved in build #${b.buildNumber}.`],
         [
-          { label: 'Team', value: b.teamName },
+          { label: 'Project', value: b.projectName },
           ...(b.approvedBy ? [{ label: 'Approved by', value: b.approvedBy }] : []),
         ],
         b.thumbnail ? { thumb: b.thumbnail } : {},
@@ -244,13 +246,13 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
   }
   for (const t of results.triage) {
     const title = triageTitle(t)
-    const path = `${teamPath(workspace, t.teamSlug)}/triage?item=${enc(`${t.kind}:${t.key}`)}`
+    const path = `${projectPath(workspace, t.projectslug)}/triage?item=${enc(`${t.kind}:${t.key}`)}`
     entries.push({
-      id: `triage:${t.teamSlug}:${t.kind}:${t.key}`,
+      id: `triage:${t.projectslug}:${t.kind}:${t.key}`,
       group: 'Triage',
       kind: 'triage',
       label: title,
-      detail: joinDetail(triageReason(t), c.allTeams && t.teamName),
+      detail: joinDetail(triageReason(t), c.allProjects && t.projectName),
       kindLabel: 'Triage',
       icon: 'alert',
       target: { type: 'path', path },
@@ -258,7 +260,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       subject: {
         type: 'triage',
         workspace,
-        team: t.teamSlug,
+        project: t.projectslug,
         kind: t.kind,
         key: t.key,
         label: title,
@@ -268,7 +270,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         title,
         [`${triageReason(t)}.`],
         [
-          { label: 'Team', value: t.teamName },
+          { label: 'Project', value: t.projectName },
           { label: 'Build', value: `#${t.buildNumber}` },
           { label: 'Assignee', value: t.assignee?.name ?? 'Nobody' },
         ],
@@ -283,7 +285,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       group: 'Inbox',
       kind: 'notice',
       label: title,
-      detail: c.allTeams ? (n.team?.name ?? '') : '',
+      detail: c.allProjects ? (n.project?.name ?? '') : '',
       kindLabel: 'Inbox',
       icon: 'bell',
       unread: !n.read,
@@ -296,7 +298,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         [detail ?? (n.read ? 'Read.' : 'Unread.')],
         [
           ...(n.actor ? [{ label: 'From', value: n.actor.name }] : []),
-          ...(n.team ? [{ label: 'Team', value: n.team.name }] : []),
+          ...(n.project ? [{ label: 'Project', value: n.project.name }] : []),
           { label: 'Status', value: n.read ? 'Read' : 'Unread' },
         ],
       ),
@@ -312,7 +314,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       label: title,
       detail: joinDetail(
         r.requestedBy ? `from ${r.requestedBy.name}` : r.build.branch,
-        c.allTeams && r.teamName,
+        c.allProjects && r.projectName,
       ),
       kindLabel: 'Review request',
       icon: 'eye',
@@ -321,7 +323,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       subject: {
         type: 'review',
         workspace,
-        team: r.teamSlug,
+        project: r.projectslug,
         number: r.build.number,
         id: r.id,
         label: `build #${r.build.number}`,
@@ -335,7 +337,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
             : `${r.reviewer.name} is asked to review it.`,
         ],
         [
-          { label: 'Team', value: r.teamName },
+          { label: 'Project', value: r.projectName },
           ...(r.build.branch ? [{ label: 'Branch', value: r.build.branch }] : []),
           { label: 'Asked', value: shortAgo(Date.parse(r.createdAt), c.now ?? Date.now()) },
           { label: 'In', value: REVIEW_TAB_NAME[r.tab] },
@@ -363,8 +365,9 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         [p.email],
         [
           {
-            label: 'Teams',
-            value: p.teams.length > 0 ? p.teams.map((t) => t.name).join(', ') : 'None you can see',
+            label: 'Projects',
+            value:
+              p.projects.length > 0 ? p.projects.map((t) => t.name).join(', ') : 'None you can see',
           },
           { label: 'Open reviews', value: count(p.openReviews, 'request', 'requests') },
         ],
@@ -395,7 +398,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
 export const KIND_NOUN: Record<Search.Kind, [string, string]> = {
   builds: ['build', 'builds'],
   branches: ['branch', 'branches'],
-  teams: ['team', 'teams'],
+  projects: ['project', 'projects'],
   snapshots: ['screenshot', 'screenshots'],
   baselines: ['baseline', 'baselines'],
   triage: ['triage item', 'triage items'],
@@ -416,7 +419,7 @@ export const RESULT_GROUPS = [
   'Review requests',
   'Saved views',
   'People',
-  'Teams',
+  'Projects',
 ] as const
 
 /** Which kind of the answer each group heading shows. */
@@ -430,5 +433,5 @@ export const GROUP_KIND: Record<(typeof RESULT_GROUPS)[number], Search.Kind> = {
   'Review requests': 'reviews',
   'Saved views': 'views',
   People: 'people',
-  Teams: 'teams',
+  Projects: 'projects',
 }

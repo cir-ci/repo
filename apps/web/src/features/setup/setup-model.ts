@@ -2,7 +2,7 @@ import type { InstanceAdmin } from '@circi/api'
 import { isValidSlug, slugify } from '@circi/core'
 
 /** The steps of first-run setup, in order. The first two happen before there is an account. */
-export const SETUP_STEPS = ['Account', 'Workspace', 'Storage', 'Team'] as const
+export const SETUP_STEPS = ['Account', 'Workspace', 'Storage', 'Project'] as const
 
 /** `Step 2 of 4` for a step number from 1. */
 export const stepLabel = (step: number): string => `Step ${step} of ${SETUP_STEPS.length}`

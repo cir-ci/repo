@@ -61,8 +61,8 @@ const SETTINGS = {
       { userId: 'u2', methods: ['github', 'google', 'oidc'] },
     ],
   },
-  'GET /api/workspaces/%24workspace/member-teams': {
-    teams: {
+  'GET /api/workspaces/%24workspace/member-projects': {
+    projects: {
       u1: [
         { slug: 'web', name: 'web-app', color: 'slate', icon: null },
         { slug: 'docs', name: 'docs', color: 'plum', icon: null },
@@ -89,13 +89,13 @@ beforeEach(() => {
   fakeFetch(SETTINGS)
 })
 describe('MembersPage', () => {
-  it("shows each person's teams: marble avatars and a count", async () => {
+  it("shows each person's projects: marble avatars and a count", async () => {
     await show()
-    await expect.element(page.getByText('2 teams')).toBeVisible()
-    await expect.element(page.getByText('0 teams')).toBeVisible()
-    expect(document.querySelectorAll('[data-type="team"]')).toHaveLength(2)
+    await expect.element(page.getByText('2 projects')).toBeVisible()
+    await expect.element(page.getByText('0 projects')).toBeVisible()
+    expect(document.querySelectorAll('[data-type="project"]')).toHaveLength(2)
     // The stack is decoration (the count says it), and its avatars are not links.
-    for (const el of document.querySelectorAll('[data-type="team"]')) {
+    for (const el of document.querySelectorAll('[data-type="project"]')) {
       expect(el.closest('[aria-hidden="true"]')).not.toBeNull()
       expect(el.closest('a')).toBeNull()
     }
@@ -446,7 +446,7 @@ const box = (el: Element) => el.getBoundingClientRect()
 const overlap = (a: DOMRect, b: DOMRect) =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
-/** Grace's row: her name, email and teams, the role select and the menu button. */
+/** Grace's row: her name, email and projects, the role select and the menu button. */
 async function graceRow() {
   await expect.element(page.getByRole('list', { name: 'How Grace Hopper signs in' })).toBeVisible()
   return {
@@ -477,7 +477,7 @@ describe('MembersPage layout', () => {
     expectNoSidewaysScroll()
   })
 
-  it('keeps the person, the teams, the role and the menu on one line when the list is wide', async () => {
+  it('keeps the person, the projects, the role and the menu on one line when the list is wide', async () => {
     await page.viewport(1280, 800)
     await show()
     await expect.element(page.getByText('Grace Hopper')).toBeVisible()

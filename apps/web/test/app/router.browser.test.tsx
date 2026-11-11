@@ -10,7 +10,7 @@ async function open(url: string) {
 }
 
 describe('the app router', () => {
-  it('sends /<workspace>/settings to the workspace settings, not to a team called "settings"', async () => {
+  it('sends /<workspace>/settings to the workspace settings, not to a project called "settings"', async () => {
     const router = await open('/acme/settings')
     expect(router.state.location.pathname).toBe('/workspaces/acme/settings')
     expect(router.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')
@@ -42,20 +42,20 @@ describe('the app router', () => {
     expect(router.state.location.search).toEqual({ githubApp: 'failed' })
   })
 
-  it('still reads /<workspace>/<team> as a team', async () => {
+  it('still reads /<workspace>/<project> as a project', async () => {
     const router = await open('/acme/web')
     expect(router.state.location.pathname).toBe('/acme/web')
-    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$project')
   })
 
   it('keeps the baselines list at its own address, not a baseline with no name', async () => {
     const router = await open('/acme/web/baselines')
-    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/baselines/')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$project/baselines/')
   })
 
   it('opens a baseline page on its screenshot name, slashes included', async () => {
     const router = await open('/acme/web/baselines/checkout/payment-form')
-    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/baselines/$')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$project/baselines/$')
     expect(router.state.matches.at(-1)?.params).toMatchObject({ _splat: 'checkout/payment-form' })
   })
 
@@ -63,8 +63,8 @@ describe('the app router', () => {
     const name = 'cart/price (€) 50% off?#1 + 2'
     const router = await open('/acme/web')
     const href = router.buildLocation({
-      to: '/$workspace/$team/baselines/$',
-      params: { workspace: 'acme', team: 'web', _splat: name },
+      to: '/$workspace/$project/baselines/$',
+      params: { workspace: 'acme', project: 'web', _splat: name },
     }).href
     expect(href.split('/baselines/')[1]).not.toMatch(/[ ?#]/)
     const back = await open(href)
@@ -81,22 +81,24 @@ describe('the app router', () => {
 
   it('keeps the ignore regions overview at its address', async () => {
     const router = await open('/acme/web/settings/ignore-regions')
-    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/settings/ignore-regions/')
+    expect(router.state.matches.at(-1)?.routeId).toBe(
+      '/$workspace/$project/settings/ignore-regions/',
+    )
   })
 
   it.each([
-    ['/acme/web/settings', '/$workspace/$team/settings'],
-    ['/acme/web/settings/general', '/$workspace/$team/settings/general'],
-    ['/acme/web/settings/token', '/$workspace/$team/settings/token'],
-    ['/acme/web/settings/reviews', '/$workspace/$team/settings/reviews'],
-    ['/acme/web/settings/webhooks', '/$workspace/$team/settings/webhooks'],
-    ['/acme/web/settings/members', '/$workspace/$team/settings/members'],
-    ['/acme/web/settings/sites', '/$workspace/$team/settings/sites'],
+    ['/acme/web/settings', '/$workspace/$project/settings'],
+    ['/acme/web/settings/general', '/$workspace/$project/settings/general'],
+    ['/acme/web/settings/token', '/$workspace/$project/settings/token'],
+    ['/acme/web/settings/reviews', '/$workspace/$project/settings/reviews'],
+    ['/acme/web/settings/webhooks', '/$workspace/$project/settings/webhooks'],
+    ['/acme/web/settings/members', '/$workspace/$project/settings/members'],
+    ['/acme/web/settings/sites', '/$workspace/$project/settings/sites'],
     [
       '/acme/web/settings/ignore-regions/checkout/form',
-      '/$workspace/$team/settings/ignore-regions/$',
+      '/$workspace/$project/settings/ignore-regions/$',
     ],
-    ['/workspaces/acme/settings/teams', '/workspaces/$workspace/settings/teams'],
+    ['/workspaces/acme/settings/projects', '/workspaces/$workspace/settings/projects'],
   ])('keeps %s working: it opens %s', async (url, routeId) => {
     const router = await open(url)
     expect(router.state.location.pathname).toBe(url)

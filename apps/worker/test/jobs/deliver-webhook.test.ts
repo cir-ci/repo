@@ -2,7 +2,7 @@ import { verifyWebhookSignature } from '@circi/core/node'
 import { type Job } from '@circi/db'
 import { listWebhookDeliveries } from '@circi/db/queries'
 import { claimJob, createWebhook, enqueueJob, QUEUES, queueTestWebhook } from '@circi/db/queue'
-import { seedTeam } from '@circi/db/testing'
+import { seedProject } from '@circi/db/testing'
 import { createTestDb } from '@circi/db/testing'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -28,7 +28,7 @@ async function jobFor(webhookId: string): Promise<Job> {
       createdAt: '2026-01-01T00:00:00.000Z',
       data: {
         workspace: { slug: 'acme' },
-        team: { slug: 'web' },
+        project: { slug: 'web' },
         build: { number: 7 },
       },
     },
@@ -51,9 +51,9 @@ const publicDns = async () => ['93.184.216.34']
 
 describe('deliverWebhook', () => {
   it('posts the signed body, with a link to the build', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -91,9 +91,9 @@ describe('deliverWebhook', () => {
   })
 
   it('throws on a non-2xx answer (so the queue retries) and on a redirect', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -114,9 +114,9 @@ describe('deliverWebhook', () => {
   })
 
   it('skips a receiver whose name now points at a private address', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -133,9 +133,9 @@ describe('deliverWebhook', () => {
   })
 
   it('records every attempt: the status, the failure, and the attempt number', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -158,9 +158,9 @@ describe('deliverWebhook', () => {
   })
 
   it('delivers a queued test event, marked as a test with no build', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -193,9 +193,9 @@ describe('deliverWebhook', () => {
   })
 
   it('is not affected by a failing history insert: a delivered event stays delivered, a network error stays the error', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })

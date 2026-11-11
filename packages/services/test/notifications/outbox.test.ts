@@ -7,7 +7,7 @@ import {
   createReviewRule,
   markFileVerified,
   planUploads,
-  setIntegrationTeam,
+  setIntegrationProject,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
@@ -17,7 +17,7 @@ import {
   seedChangedSnapshots,
   seedGitLink,
   seedReviewRequest,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import type { IntegrationDefinition } from '@circi/integrations'
@@ -56,9 +56,9 @@ async function queued() {
 
 async function setup() {
   await t.db.delete(schema.jobs)
-  const { team, owner } = await seedTeam(t.db)
+  const { project, owner } = await seedProject(t.db)
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'feature',
   })
@@ -67,14 +67,14 @@ async function setup() {
     .set({ status: 'processing' })
     .where(eq(schema.builds.id, build.id))
   const processing = { ...build, status: 'processing' as const }
-  return { team, owner, build: processing }
+  return { project, owner, build: processing }
 }
 
 describe('webhook events', () => {
-  it('queues build.completed with the build and team details', async () => {
-    const { team, build } = await setup()
+  it('queues build.completed with the build and project details', async () => {
+    const { project, build } = await setup()
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed', 'build.reviewed'],
     })
@@ -86,7 +86,7 @@ describe('webhook events', () => {
       webhookId: hook.id,
       event: 'build.completed',
       data: {
-        team: { slug: team.slug },
+        project: { slug: project.slug },
         build: {
           number: 1,
           status: 'complete',
@@ -98,9 +98,9 @@ describe('webhook events', () => {
   })
 
   it('queues build.reviewed with the reviewer', async () => {
-    const { team, owner, build } = await setup()
+    const { project, owner, build } = await setup()
     await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.reviewed'],
     })
@@ -118,16 +118,16 @@ describe('webhook events', () => {
     })
   })
 
-  it('skips disabled webhooks and other teams', async () => {
-    const { team, build } = await setup()
-    const other = await seedTeam(t.db)
+  it('skips disabled webhooks and other projects', async () => {
+    const { project, build } = await setup()
+    const other = await seedProject(t.db)
     const hook = await createWebhook(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
     await createWebhook(t.db, {
-      teamId: other.team.id,
+      projectId: other.project.id,
       url: 'https://hooks.other.io/x',
       events: ['build.completed'],
     })
@@ -166,7 +166,7 @@ function rollingBack(db: Database): Database {
 }
 
 interface World {
-  teamId: string
+  projectId: string
   ownerId: string
   reviewerId: string
   /** Uploaded, with a verified file, ready to finalize. */
@@ -178,7 +178,7 @@ interface World {
 }
 
 async function seedWorld(): Promise<World> {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const ann = await seedUser(t.db)
   const bob = await seedUser(t.db)
   const reviewer = await seedUser(t.db)
@@ -188,9 +188,9 @@ async function seedWorld(): Promise<World> {
     ),
   )
   await seedAccount(t.db, { userId: reviewer.id, accountId: '99' })
-  await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'acme/web' })
+  await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'acme/web' })
   await createWebhook(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     url: 'https://hooks.acme.io/x',
     events: ['build.completed', 'build.reviewed'],
   })
@@ -201,9 +201,9 @@ async function seedWorld(): Promise<World> {
     externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     encryptedCredentials: 'sealed',
   })
-  await setIntegrationTeam(t.db, {
+  await setIntegrationProject(t.db, {
     integrationId: slack.id,
-    teamId: team.id,
+    projectId: project.id,
     externalRef: 'C1',
     extra: {
       name: 'reviews',
@@ -217,13 +217,17 @@ async function seedWorld(): Promise<World> {
     },
   })
   await createReviewRule(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     kind: 'snapshot-name',
     pattern: 'home',
     reviewerIds: [reviewer.id],
   })
 
-  const uploading = await createBuild(t.db, { teamId: team.id, commitSha: 'abc1001', branch: 'a' })
+  const uploading = await createBuild(t.db, {
+    projectId: project.id,
+    commitSha: 'abc1001',
+    branch: 'a',
+  })
   const hash = fakeSha('1')
   await planUploads(t.db, {
     buildId: uploading.id,
@@ -234,7 +238,7 @@ async function seedWorld(): Promise<World> {
   await markFileVerified(t.db, hash, { size: 10 })
 
   const processingRow = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1002',
     branch: 'b',
   })
@@ -246,7 +250,7 @@ async function seedWorld(): Promise<World> {
   const processing = await getBuild(t.db, processingRow.id)
 
   const done = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1003',
     branch: 'c',
     author: { login: 'ann', userId: ann.id },
@@ -256,7 +260,7 @@ async function seedWorld(): Promise<World> {
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, done.id))
   await seedChangedSnapshots(t.db, done.id, ['a', 'b'])
-  await linkBuildsToPullRequest(t.db, { teamId: team.id, prNumber: 7, commitSha: 'abc1003' })
+  await linkBuildsToPullRequest(t.db, { projectId: project.id, prNumber: 7, commitSha: 'abc1003' })
   const bobRequest = await seedReviewRequest(t.db, {
     buildId: done.id,
     reviewerId: bob.id,
@@ -268,7 +272,7 @@ async function seedWorld(): Promise<World> {
   await t.db.delete(schema.jobs)
   await t.db.delete(schema.notifications)
   return {
-    teamId: team.id,
+    projectId: project.id,
     ownerId: owner.id,
     reviewerId: reviewer.id,
     uploading,
@@ -347,7 +351,7 @@ const services: ServiceCase[] = [
     leaves: { queues: [QUEUES.webhook, QUEUES.integrationEvent, GIT_NOTIFY], notifications: true },
     run: (db, w) =>
       reviewBuilds(db, {
-        teamId: w.teamId,
+        projectId: w.projectId,
         buildIds: [w.done.id],
         userId: w.ownerId,
         state: 'approved',
@@ -368,7 +372,7 @@ const services: ServiceCase[] = [
     leaves: { queues: [QUEUES.integrationEvent], notifications: true },
     run: (db, w) =>
       requestReviews(db, {
-        teamId: w.teamId,
+        projectId: w.projectId,
         buildIds: [w.done.id],
         reviewerIds: [w.reviewerId],
         requestedById: w.ownerId,

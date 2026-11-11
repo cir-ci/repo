@@ -6,7 +6,7 @@ import { ChevronRightIcon } from './icons.ts'
 import styles from './SettingsLinkRow.module.css'
 
 /**
- * A row of a `SettingsSection` that opens another settings page (a team's settings hub): an icon,
+ * A row of a `SettingsSection` that opens another settings page (a project's settings hub): an icon,
  * the page's name with a one-line description, a short summary `value` ("4 members", "None") and a
  * chevron. It is an `<a>`: pass `href` and `onClick` (a client-side router link) as for any link.
  * At least 56px tall, so it is a comfortable target on a phone.

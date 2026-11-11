@@ -3,15 +3,15 @@ import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
 import {
   files,
   workspace,
-  teams,
-  teamSites,
+  projects,
+  projectsites,
   siteHostnames,
   staticSiteFiles,
   staticSites,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
-/** What serving and the dashboard look up: by label, file, branch and team. */
+/** What serving and the dashboard look up: by label, file, branch and project. */
 
 export namespace findSiteByLabel {
   /** What an address serves, with who owns it. */
@@ -22,7 +22,7 @@ export namespace findSiteByLabel {
     commitSha: string
     entryPath: string
     site: { id: string; name: string; kind: string; slug: string; spa: boolean }
-    team: { id: string; slug: string; name: string }
+    project: { id: string; slug: string; name: string }
     workspace: { id: string; slug: string; name: string }
   }
 }
@@ -38,15 +38,15 @@ export async function findSiteByLabel(
       versionId: staticSites.id,
       commitSha: staticSites.commitSha,
       entryPath: staticSites.entryPath,
-      site: teamSites,
-      team: teams,
+      site: projectsites,
+      project: projects,
       workspace: workspace,
     })
     .from(siteHostnames)
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
-    .innerJoin(teamSites, eq(teamSites.id, siteHostnames.teamSiteId))
-    .innerJoin(teams, eq(teams.id, teamSites.teamId))
-    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .innerJoin(projectsites, eq(projectsites.id, siteHostnames.projectsiteId))
+    .innerJoin(projects, eq(projects.id, projectsites.projectId))
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .where(eq(siteHostnames.label, label))
   if (!row) return undefined
   return {
@@ -62,13 +62,13 @@ export async function findSiteByLabel(
       slug: row.site.slug,
       spa: row.site.spa,
     },
-    team: { id: row.team.id, slug: row.team.slug, name: row.team.name },
+    project: { id: row.project.id, slug: row.project.slug, name: row.project.name },
     workspace: { id: row.workspace.id, slug: row.workspace.slug, name: row.workspace.name },
   }
 }
 
 /**
- * What a verified custom domain serves: the site's version on the team's default branch, the
+ * What a verified custom domain serves: the site's version on the project's default branch, the
  * same as that branch's address (`linkKind: 'branch'`). The site's address is the domain itself,
  * so `label` is the domain. Undefined when the domain isn't a verified one, or the default
  * branch has no upload yet: both are answered like an address that doesn't exist.
@@ -82,27 +82,27 @@ export async function findSiteByCustomDomain(
       versionId: staticSites.id,
       commitSha: staticSites.commitSha,
       entryPath: staticSites.entryPath,
-      site: teamSites,
-      team: teams,
+      site: projectsites,
+      project: projects,
       workspace: workspace,
     })
-    .from(teamSites)
-    .innerJoin(teams, eq(teams.id, teamSites.teamId))
-    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .from(projectsites)
+    .innerJoin(projects, eq(projects.id, projectsites.projectId))
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .innerJoin(
       siteHostnames,
       and(
-        eq(siteHostnames.teamSiteId, teamSites.id),
+        eq(siteHostnames.projectsiteId, projectsites.id),
         eq(siteHostnames.linkKind, 'branch'),
-        eq(siteHostnames.branch, teams.defaultBranch),
+        eq(siteHostnames.branch, projects.defaultBranch),
       ),
     )
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(
-        eq(teamSites.customDomain, domain),
-        isNotNull(teamSites.customDomainVerifiedAt),
-        isNotNull(teamSites.customDomain),
+        eq(projectsites.customDomain, domain),
+        isNotNull(projectsites.customDomainVerifiedAt),
+        isNotNull(projectsites.customDomain),
       ),
     )
   if (!row) return undefined
@@ -119,7 +119,7 @@ export async function findSiteByCustomDomain(
       slug: row.site.slug,
       spa: row.site.spa,
     },
-    team: { id: row.team.id, slug: row.team.slug, name: row.team.name },
+    project: { id: row.project.id, slug: row.project.slug, name: row.project.name },
     workspace: { id: row.workspace.id, slug: row.workspace.slug, name: row.workspace.name },
   }
 }
@@ -130,13 +130,13 @@ export async function findSiteByCustomDomain(
  */
 export async function isVerifiedCustomDomain(db: Database, domain: string): Promise<boolean> {
   const [row] = await db
-    .select({ id: teamSites.id })
-    .from(teamSites)
+    .select({ id: projectsites.id })
+    .from(projectsites)
     .where(
       and(
-        eq(teamSites.customDomain, domain),
-        isNotNull(teamSites.customDomain),
-        isNotNull(teamSites.customDomainVerifiedAt),
+        eq(projectsites.customDomain, domain),
+        isNotNull(projectsites.customDomain),
+        isNotNull(projectsites.customDomainVerifiedAt),
       ),
     )
   return row !== undefined
@@ -166,37 +166,37 @@ export namespace sitesForCommit {
 }
 
 /**
- * The sites a team has uploaded for a commit, by site name. `commitSha` may be abbreviated (a
+ * The sites a project has uploaded for a commit, by site name. `commitSha` may be abbreviated (a
  * build's SHA can be short): it matches an upload whose SHA starts with it, or the other way
  * round, never fewer than 7 characters.
  */
 export async function sitesForCommit(
   db: Database,
-  teamId: string,
+  projectId: string,
   commitSha: string,
 ): Promise<sitesForCommit.Row[]> {
   const sha = commitSha.toLowerCase()
   if (sha.length < 7) return []
   const rows = await db
     .select({
-      name: teamSites.name,
-      kind: teamSites.kind,
-      slug: teamSites.slug,
+      name: projectsites.name,
+      kind: projectsites.kind,
+      slug: projectsites.slug,
       label: siteHostnames.label,
     })
     .from(staticSites)
-    .innerJoin(teamSites, eq(teamSites.id, staticSites.teamSiteId))
+    .innerJoin(projectsites, eq(projectsites.id, staticSites.projectsiteId))
     .leftJoin(
       siteHostnames,
       and(eq(siteHostnames.staticSiteId, staticSites.id), eq(siteHostnames.linkKind, 'commit')),
     )
     .where(
       and(
-        eq(teamSites.teamId, teamId),
+        eq(projectsites.projectId, projectId),
         sql`(starts_with(${staticSites.commitSha}, ${sha}) or starts_with(${sha}, ${staticSites.commitSha}))`,
       ),
     )
-    .orderBy(teamSites.name)
+    .orderBy(projectsites.name)
   return rows.map((r) => ({
     name: r.name,
     kind: r.kind,
@@ -205,16 +205,16 @@ export async function sitesForCommit(
   }))
 }
 
-/** A team site's custom domain and whether it is verified; undefined when the team has no such site. */
+/** A project site's custom domain and whether it is verified; undefined when the project has no such site. */
 export async function getSiteCustomDomain(
   db: Database,
-  teamId: string,
+  projectId: string,
   slug: string,
 ): Promise<{ domain: string | null; verifiedAt: Date | null } | undefined> {
   const [row] = await db
-    .select({ domain: teamSites.customDomain, verifiedAt: teamSites.customDomainVerifiedAt })
-    .from(teamSites)
-    .where(and(eq(teamSites.teamId, teamId), eq(teamSites.slug, slug)))
+    .select({ domain: projectsites.customDomain, verifiedAt: projectsites.customDomainVerifiedAt })
+    .from(projectsites)
+    .where(and(eq(projectsites.projectId, projectId), eq(projectsites.slug, slug)))
   return row
 }
 
@@ -248,7 +248,7 @@ export async function commitLabelOfVersion(
   return row?.label
 }
 
-export namespace listTeamSites {
+export namespace listProjectsites {
   export interface Listing {
     name: string
     kind: string
@@ -265,26 +265,26 @@ export namespace listTeamSites {
   }
 }
 
-/** Every site of a team with its newest versions and the branches that have an address. */
-export async function listTeamSites(
+/** Every site of a project with its newest versions and the branches that have an address. */
+export async function listProjectsites(
   db: Database,
-  teamId: string,
-): Promise<listTeamSites.Listing[]> {
-  const sites = await db.select().from(teamSites).where(eq(teamSites.teamId, teamId))
-  const result: listTeamSites.Listing[] = []
+  projectId: string,
+): Promise<listProjectsites.Listing[]> {
+  const sites = await db.select().from(projectsites).where(eq(projectsites.projectId, projectId))
+  const result: listProjectsites.Listing[] = []
   for (const site of sites) {
-    // eslint-disable-next-line no-await-in-loop -- a team has a handful of sites
+    // eslint-disable-next-line no-await-in-loop -- a project has a handful of sites
     const versions = await db
       .select()
       .from(staticSites)
-      .where(eq(staticSites.teamSiteId, site.id))
+      .where(eq(staticSites.projectsiteId, site.id))
       .orderBy(desc(staticSites.createdAt))
       .limit(30)
     // eslint-disable-next-line no-await-in-loop
     const hostnames = await db
       .select()
       .from(siteHostnames)
-      .where(eq(siteHostnames.teamSiteId, site.id))
+      .where(eq(siteHostnames.projectsiteId, site.id))
     const byVersion = new Map(
       hostnames.filter((h) => h.linkKind === 'commit').map((h) => [h.staticSiteId, h.label]),
     )
@@ -320,19 +320,19 @@ export async function listTeamSites(
 /** The commit a branch address serves now, for a CLI deciding whether to move it. */
 export async function servedCommitForBranch(
   db: Database,
-  teamId: string,
+  projectId: string,
   name: string,
   branch: string,
 ): Promise<string | undefined> {
   const [row] = await db
     .select({ commitSha: staticSites.commitSha })
     .from(siteHostnames)
-    .innerJoin(teamSites, eq(teamSites.id, siteHostnames.teamSiteId))
+    .innerJoin(projectsites, eq(projectsites.id, siteHostnames.projectsiteId))
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(
-        eq(teamSites.teamId, teamId),
-        eq(teamSites.name, name),
+        eq(projectsites.projectId, projectId),
+        eq(projectsites.name, name),
         eq(siteHostnames.linkKind, 'branch'),
         eq(siteHostnames.branch, branch),
       ),

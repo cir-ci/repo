@@ -20,7 +20,7 @@ storage). Facts are from the code; items marked **proposal** are not built, and 
 - **Content-addressed uploads.** Files are stored by SHA-256 and verified; an unchanged screenshot is uploaded and
   stored once (the CLI plans uploads and skips what the server has). Most builds change few screenshots, so storage
   grows with *changes*, not with builds.
-- **Retention per team** (default 30 days, workspace default copied to new teams). Files are collected after a grace
+- **Retention per project** (default 30 days, workspace default copied to new projects). Files are collected after a grace
   period when nothing references them.
 - **WebP thumbnails** (at most 480×720) for lists, so list pages don't pull full images.
 - **One bundle, one process option.** The server bundle inlines the worker, so a single container is enough.

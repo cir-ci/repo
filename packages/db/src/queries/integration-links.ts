@@ -17,7 +17,7 @@ export namespace IntegrationLink {
 
   export interface Input {
     integrationId: string
-    teamId?: string | null
+    projectId?: string | null
     buildId?: string | null
     subject?: string | null
     kind: string
@@ -61,10 +61,10 @@ export async function listBuildLinks(
   )
 }
 
-/** A team's team-wide links of a kind, by subject. */
-export async function listTeamLinks(
+/** A project's project-wide links of a kind, by subject. */
+export async function listProjectLinks(
   db: Database,
-  teamId: string,
+  projectId: string,
   kind: string,
 ): Promise<IntegrationLink.Row[]> {
   return db
@@ -72,7 +72,7 @@ export async function listTeamLinks(
     .from(integrationLinks)
     .where(
       and(
-        eq(integrationLinks.teamId, teamId),
+        eq(integrationLinks.projectId, projectId),
         eq(integrationLinks.kind, kind),
         isNull(integrationLinks.buildId),
       ),

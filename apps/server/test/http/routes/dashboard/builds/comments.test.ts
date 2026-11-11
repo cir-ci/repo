@@ -18,8 +18,8 @@ await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email,
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const base = (workspace = acme.workspaceSlug, build = 2) =>
-  `/api/teams/${workspace}/web/builds/${build}`
-const build = `/api/teams/${acme.workspaceSlug}/web/builds/2`
+  `/api/projects/${workspace}/web/builds/${build}`
+const build = `/api/projects/${acme.workspaceSlug}/web/builds/2`
 const reset = await fx.snapshot()
 beforeEach(reset)
 const send = sender(() => app, acmeCookie)

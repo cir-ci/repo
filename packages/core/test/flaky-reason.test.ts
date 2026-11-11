@@ -75,20 +75,20 @@ describe('the reason', () => {
       'Differed across 2 runs of one commit and came back to an earlier image 2 times',
     )
     expect(flakyReasonText(reason!, { detail: true })).toBe(
-      "Differed across 2 runs of one commit and came back to an earlier image 2 times in the last 4 commits; the team's limit is 2, and one disagreement is enough.",
+      "Differed across 2 runs of one commit and came back to an earlier image 2 times in the last 4 commits; the project's limit is 2, and one disagreement is enough.",
     )
   })
 
-  it("words the short form, and the detailed one with the window and the team's limit", () => {
+  it("words the short form, and the detailed one with the window and the project's limit", () => {
     const abab = why(sequence('A', 'B', 'A', 'B', 'A', 'B', 'A'), 3)!
     expect(flakyReasonText(abab)).toBe('Came back to an earlier image 5 times')
     expect(flakyReasonText(abab, { detail: true })).toBe(
-      "Came back to an earlier image 5 times in the last 7 commits; the team's limit is 3.",
+      "Came back to an earlier image 5 times in the last 7 commits; the project's limit is 3.",
     )
     expect(flakyReasonText(abab, { inline: true })).toBe('came back to an earlier image 5 times')
   })
 
-  it('never takes a limit below the lowest a team may ask for', () => {
+  it('never takes a limit below the lowest a project may ask for', () => {
     expect(why(sequence('A', 'B', 'A', 'B'), 0)).toMatchObject({ flipFlop: { threshold: 2 } })
   })
 

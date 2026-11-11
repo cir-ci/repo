@@ -1,5 +1,5 @@
 import { BUILD_FILTER_REVIEWS, BUILD_FILTER_STATUSES } from '@circi/core'
-import type { listBuildsForTeam } from '@circi/db/queries'
+import type { listBuildsForProject } from '@circi/db/queries'
 import { z } from 'zod'
 
 /**
@@ -25,7 +25,7 @@ export const savedFilters = z.strictObject(buildFilterShape)
 /** The parsed filters (a request's query) as the builds queries take them. */
 export function toBuildFilters(
   q: Partial<z.infer<z.ZodObject<typeof buildFilterShape>>>,
-): listBuildsForTeam.Filters {
+): listBuildsForProject.Filters {
   return {
     ...(q.status ? { status: q.status } : {}),
     ...(q.review ? { reviewStatus: q.review } : {}),

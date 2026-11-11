@@ -4,11 +4,11 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { useSignOut } from '#features/auth/use-sign-out.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useSwitchWorkspace } from '#features/sidebar/use-switch-workspace.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
@@ -18,10 +18,10 @@ import { pinnedViews, workspaceSettingsPath } from './shell-model.ts'
 import styles from './PhoneMore.module.css'
 
 /**
- * The phone's More sheet (the last bottom tab; canvas: Phone, Insights, Teams, search and
+ * The phone's More sheet (the last bottom tab; canvas: Phone, Insights, Projects, search and
  * navigation), what the tabs don't reach: the workspace switcher at the top, then Insights, the
  * pinned views, and one Settings entry (the workspace's settings, or the account's without one), with Sign out.
- * Teams live in the Teams tab's sheet, and a team's Baselines and Sites in the tabs on its pages.
+ * Projects live in the Projects tab's sheet, and a project's Baselines and Sites in the tabs on its pages.
  * Rows are 48px links; choosing one closes the sheet.
  */
 export function PhoneMore() {

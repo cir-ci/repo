@@ -2,7 +2,7 @@ import { sealSecret } from '@circi/core/node'
 import { claimJob, GIT_NOTIFY_QUEUE } from '@circi/db/queue'
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedGitLink, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedGitLink, seedProject } from '@circi/db/testing'
 import { providerRegistry } from '@circi/integrations/git'
 import { GithubApiError } from '@circi/integrations/github'
 import { completeBuild } from '@circi/services'
@@ -20,13 +20,13 @@ afterAll(async () => {
 })
 
 async function queuedJob(sealed?: string) {
-  const { team } = await seedTeam(t.db)
-  await seedGitLink(t.db, team.id, { externalId: '5', repoRef: 'acme/web' })
+  const { project } = await seedProject(t.db)
+  await seedGitLink(t.db, project.id, { externalId: '5', repoRef: 'acme/web' })
   if (sealed) {
     await t.db.update(schema.integrations).set({ encryptedCredentials: sealed })
   }
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'x',
   })

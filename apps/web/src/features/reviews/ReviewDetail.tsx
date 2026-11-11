@@ -3,7 +3,7 @@ import { Avatar, SettingsRow, SettingsSection, StatusChip, visuallyHidden } from
 import type { MouseEventHandler, ReactNode } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { useTeamMark } from '#features/integrations/TeamMark.tsx'
+import { useProjectMark } from '#features/integrations/ProjectMark.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 
@@ -22,16 +22,16 @@ import styles from './Reviews.module.css'
 /** The selected review: its status, title, meta line, the Details box and the largest changes. */
 export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewDetail.Props) {
   const clientLink = useClientLink()
-  const teamMark = useTeamMark(r.workspace.slug)
+  const projectMark = useProjectMark(r.workspace.slug)
   const { status, label } = requestStatus(r)
   const overdue = overdueLabel(r.overdueByMs)
   const counts = changeSummary(r.changes)
   const buildLink = (shot?: string) =>
     clientLink({
-      to: '/$workspace/$team/builds/$number',
+      to: '/$workspace/$project/builds/$number',
       params: {
         workspace: r.workspace.slug,
-        team: r.team.slug,
+        project: r.project.slug,
         number: String(r.build.number),
       },
       ...(shot ? { search: { shot } } : {}),
@@ -46,8 +46,8 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         <StatusChip status={status}>{label}</StatusChip>
         <h2 className={styles.title}>Build #{r.build.number}</h2>
         <span className={styles.meta}>
-          {teamMark(r.team.slug, r.team.name)}
-          <span>{r.team.name}</span>
+          {projectMark(r.project.slug, r.project.name)}
+          <span>{r.project.name}</span>
           <span aria-hidden="true">·</span>
           <span className={styles.mono}>{requestRef(r.build)}</span>
           {r.requestedBy ? (

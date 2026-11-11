@@ -7,7 +7,7 @@ import { toast } from '#lib/toast.ts'
 import styles from './Discussion.module.css'
 
 /**
- * "Create issue": a title, the tracker when the team has two, and a preview of the description
+ * "Create issue": a title, the tracker when the project has two, and a preview of the description
  * the tracker will get (the build link, branch, author, why it was rejected and the diff link).
  * The server calls the tracker; a failure is shown here and nothing is recorded.
  */

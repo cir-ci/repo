@@ -4,7 +4,7 @@ import {
   imageSha,
   seedBuild,
   seedDiff,
-  seedTeam,
+  seedProject,
   seedReview,
   seedReviewRequest,
   seedScreenshot,
@@ -14,7 +14,7 @@ import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'
-import { createTeam, updateTeamSettings } from '#src/repositories/index.ts'
+import { createProject, updateProjectsettings } from '#src/repositories/index.ts'
 import * as schemaTables from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -28,7 +28,7 @@ afterAll(async () => {
 const at = (iso: string) => new Date(`2026-${iso}:00Z`)
 
 /**
- * The history (UTC), for team `web` (default branch main, 24h review target) in an
+ * The history (UTC), for project `web` (default branch main, 24h review target) in an
  * workspace with members Owner (O) and Mia (M). The range is Mon 9 March to Mon 23 March,
  * so the previous stretch is 23 February to 9 March.
  *
@@ -48,11 +48,11 @@ const at = (iso: string) => new Date(`2026-${iso}:00Z`)
  *  Requests: f4 to O (created 03-18 10:00, due 03-19 10:00, open); f3 to M (03-17 10:00, due
  *   03-18 10:00, done 03-19 10:00); f2 to M (03-10 08:00, due 03-11 08:00, done 03-10 20:00).
  *  Files: f1 has "home" (1000 bytes) with a 100 byte thumbnail; f3 has the same "home" file; f2 has
- *   a 50 byte diff image. A second team `docs` holds the same home file (1000 bytes).
+ *   a 50 byte diff image. A second project `docs` holds the same home file (1000 bytes).
  */
 async function history() {
-  const { team, workspace, owner } = await seedTeam(t.db, { slug: 'web' })
-  const docs = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'docs' })
+  const { project, workspace, owner } = await seedProject(t.db, { slug: 'web' })
+  const docs = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'docs' })
   const mia = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: mia.id })
 
@@ -61,7 +61,7 @@ async function history() {
     ready: string,
     conclusion: 'changes_detected' | 'no_changes' = 'changes_detected',
   ) =>
-    seedBuild(t.db, team.id, {
+    seedBuild(t.db, project.id, {
       branch,
       status: 'complete',
       conclusion,
@@ -207,13 +207,13 @@ describe('getInsights', () => {
     ])
   })
 
-  it('sums distinct stored bytes per team, counting a shared file in each', async () => {
+  it('sums distinct stored bytes per project, counting a shared file in each', async () => {
     const { workspace, owner } = await history()
     const r = await getInsights(t.db, { userId: owner.id, workspaceSlug: workspace.slug, ...range })
     // web: home 1000 (once, though two builds use it) + thumbnail 100 + diff 50 + the hero
     // and nav images of main (1 byte each: A, B, N)
     expect(r?.storage).toEqual({
-      teams: [
+      projects: [
         { slug: 'docs', name: 'docs', colour: expect.any(String), icon: null, bytes: 1000 },
         { slug: 'web', name: 'web', colour: expect.any(String), icon: null, bytes: 1153 },
       ],
@@ -251,12 +251,12 @@ describe('getInsights', () => {
   })
 
   it('counts a member for every build they decided snapshots on, even when someone else finished it', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
+    const { project, workspace, owner } = await seedProject(t.db)
     const mia = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: mia.id })
     const at0 = at('03-10T10:00')
     const mk = (ready: string) =>
-      seedBuild(t.db, team.id, {
+      seedBuild(t.db, project.id, {
         branch: 'feature/x',
         status: 'complete',
         conclusion: 'changes_detected',
@@ -297,9 +297,9 @@ describe('getInsights', () => {
   })
 
   it('counts what happened in the last minutes before `to`', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
+    const { project, workspace, owner } = await seedProject(t.db)
     const made = at('03-22T23:50')
-    const b = await seedBuild(t.db, team.id, {
+    const b = await seedBuild(t.db, project.id, {
       branch: 'feature/x',
       status: 'complete',
       conclusion: 'changes_detected',
@@ -317,34 +317,34 @@ describe('getInsights', () => {
     expect(r?.reviewers.find((m) => m.id === owner.id)?.reviews).toBe(1)
   })
 
-  it('narrows to one team', async () => {
+  it('narrows to one project', async () => {
     const { workspace, owner } = await history()
     const r = await getInsights(t.db, {
       userId: owner.id,
       workspaceSlug: workspace.slug,
-      teamSlug: 'docs',
+      projectslug: 'docs',
       ...range,
     })
-    expect(r?.team).toBe('docs')
+    expect(r?.project).toBe('docs')
     expect(r?.summary).toMatchObject({
       buildsReviewed: 0,
       medianReviewHours: null,
       changeRate: null,
     })
-    expect(r?.storage.teams).toEqual([
+    expect(r?.storage.projects).toEqual([
       { slug: 'docs', name: 'docs', colour: expect.any(String), icon: null, bytes: 1000 },
     ])
     expect(r?.weeks.map((w) => w.flaky)).toEqual([0, 0])
   })
 
-  it("reports the scope's review target, retention and flaky threshold when its teams agree", async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
-    const other = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'docs' })
-    const ask = (teamSlug?: string) =>
+  it("reports the scope's review target, retention and flaky threshold when its projects agree", async () => {
+    const { project, workspace, owner } = await seedProject(t.db)
+    const other = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'docs' })
+    const ask = (projectslug?: string) =>
       getInsights(t.db, {
         userId: owner.id,
         workspaceSlug: workspace.slug,
-        ...(teamSlug ? { teamSlug } : {}),
+        ...(projectslug ? { projectslug } : {}),
         ...range,
       })
     expect(await ask()).toMatchObject({
@@ -352,18 +352,18 @@ describe('getInsights', () => {
       retentionDays: { min: 30, max: 30 },
       flakyAfterChanges: 3,
     })
-    await updateTeamSettings(t.db, other.team.id, {
+    await updateProjectsettings(t.db, other.project.id, {
       reviewTargetHours: null,
       retentionDays: 90,
       flakyAfterChanges: 5,
     })
-    // Teams that differ have no shared target or threshold; retention shows its span.
+    // Projects that differ have no shared target or threshold; retention shows its span.
     expect(await ask()).toMatchObject({
       reviewTargetHours: null,
       retentionDays: { min: 30, max: 90 },
       flakyAfterChanges: null,
     })
-    expect(await ask(team.slug)).toMatchObject({ reviewTargetHours: 24, flakyAfterChanges: 3 })
+    expect(await ask(project.slug)).toMatchObject({ reviewTargetHours: 24, flakyAfterChanges: 3 })
     expect(await ask('docs')).toMatchObject({
       reviewTargetHours: null,
       retentionDays: { min: 90, max: 90 },
@@ -371,7 +371,7 @@ describe('getInsights', () => {
     })
   })
 
-  it('is undefined for a stranger, another workspace or an unknown team', async () => {
+  it('is undefined for a stranger, another workspace or an unknown project', async () => {
     const { workspace, owner } = await history()
     const stranger = await seedUser(t.db)
     expect(
@@ -384,7 +384,7 @@ describe('getInsights', () => {
       await getInsights(t.db, {
         userId: owner.id,
         workspaceSlug: workspace.slug,
-        teamSlug: 'nope',
+        projectslug: 'nope',
         ...range,
       }),
     ).toBeUndefined()

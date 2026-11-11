@@ -23,12 +23,12 @@
   padding-block: 4px;
 }
 
-/* The teams stack and the role and menu are the grid's own items; the wrapper adds nothing. */
+/* The projects stack and the role and menu are the grid's own items; the wrapper adds nothing. */
 .controls {
   display: contents;
 }
 
-.teams:empty {
+.projects:empty {
   display: none;
 }
 
@@ -39,12 +39,12 @@
 }
 
 /* A narrow list (a phone, or a wide window with a narrow panel): the left column stacks the name,
-   the email, how they sign in and the teams; the right one has the role and the menu. */
+   the email, how they sign in and the projects; the right one has the role and the menu. */
 @container members (max-width: 520px) {
   .member {
     grid-template-areas:
       'who actions'
-      'teams actions';
+      'projects actions';
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
@@ -53,8 +53,8 @@
     grid-area: who;
   }
 
-  .teams {
-    grid-area: teams;
+  .projects {
+    grid-area: projects;
   }
 
   .actions {

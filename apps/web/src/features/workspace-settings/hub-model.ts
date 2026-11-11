@@ -2,7 +2,7 @@
 export type WorkspaceHubKey =
   | 'general'
   | 'members'
-  | 'teams'
+  | 'projects'
   | 'sign-in'
   | 'integrations'
   | 'storage'
@@ -15,11 +15,11 @@ export type WorkspaceHubKey =
 export interface WorkspaceHubFacts {
   /** The viewer belongs to the workspace: only members may open its pages. */
   member: boolean
-  /** Owners and admins see every page; members see Members and Teams. */
+  /** Owners and admins see every page; members see Members and Projects. */
   canManage: boolean | undefined
   slug: string
   memberCount: number
-  teamCount: number
+  projectCount: number
   /** The workspace's storage, already formatted ("1.2 GB"). */
   storage: string
   /** How many sign-in methods are on. */
@@ -52,14 +52,14 @@ const row = (
   value?: string,
 ): WorkspaceHubRow => ({ key, label, detail, value })
 
-/** "N members · N teams", under the workspace's name. */
-export function hubSubtitle(memberCount: number, teamCount: number): string {
-  return `${plural(memberCount, 'member', 'members')} · ${plural(teamCount, 'team', 'teams')}`
+/** "N members · N projects", under the workspace's name. */
+export function hubSubtitle(memberCount: number, projectCount: number): string {
+  return `${plural(memberCount, 'member', 'members')} · ${plural(projectCount, 'project', 'projects')}`
 }
 
 /**
  * The hub's groups and rows in order, for the pages the viewer can open. Someone outside the
- * workspace gets none (the page says so); members get Members and Teams; empty groups are left out.
+ * workspace gets none (the page says so); members get Members and Projects; empty groups are left out.
  */
 export function workspaceHubGroups(facts: WorkspaceHubFacts): WorkspaceHubGroup[] {
   if (!facts.member) return []
@@ -85,10 +85,10 @@ export function workspaceHubGroups(facts: WorkspaceHubFacts): WorkspaceHubGroup[
           plural(facts.memberCount, 'member', 'members'),
         ),
         row(
-          'teams',
-          'Teams',
-          'Every team in the workspace',
-          countOrNone(facts.teamCount, 'team', 'teams'),
+          'projects',
+          'Projects',
+          'Every project in the workspace',
+          countOrNone(facts.projectCount, 'project', 'projects'),
         ),
       ],
     },

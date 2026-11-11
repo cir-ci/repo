@@ -2,7 +2,7 @@ import { HOUR_MS, NotFoundError, type SnoozeChoice, snoozeUntil } from '@circi/c
 import { type Database } from '@circi/db'
 import {
   getBuildByNumber,
-  getTeamById,
+  getProjectById,
   type IgnoreRegionRow,
   latestDefaultBranchBuildNumber,
 } from '@circi/db/queries'
@@ -23,7 +23,7 @@ import { type UndoToken, recordUndo } from '#src/undo/record.ts'
 import { type TriageUndo, triageFields } from './undo.ts'
 
 /**
- * What people do with a team's triage queue. Each function owns its transaction; the queue
+ * What people do with a project's triage queue. Each function owns its transaction; the queue
  * itself is derived from builds (`listTriage`), so these only record who has it, when it comes
  * back, and that it is done with.
  */
@@ -39,7 +39,7 @@ export async function assignTriage(
 /**
  * Puts an item off. `date` is the end for `choice: 'date'`; `next_push` ends when a new build
  * arrives on the default branch. Without a choice, or a `date` choice with no date, the snooze
- * lasts the team's default (`snoozeDefaultDays`). Returns the stored item and when the snooze
+ * lasts the project's default (`snoozeDefaultDays`). Returns the stored item and when the snooze
  * ends (null for `next_push`).
  */
 export async function snoozeTriage(
@@ -50,20 +50,20 @@ export async function snoozeTriage(
   const choice = input.choice ?? 'date'
   let date = input.date
   if (choice === 'date' && !date) {
-    const team = await getTeamById(db, input.teamId)
-    if (!team) throw new NotFoundError('Team not found')
-    date = new Date(now.getTime() + team.snoozeDefaultDays * 24 * HOUR_MS)
+    const project = await getProjectById(db, input.projectId)
+    if (!project) throw new NotFoundError('Project not found')
+    date = new Date(now.getTime() + project.snoozeDefaultDays * 24 * HOUR_MS)
   }
   const until = snoozeUntil(choice, now, date)
   return db.transaction(async (tx) => {
     const item = await snoozeTriageItem(tx, {
-      teamId: input.teamId,
+      projectId: input.projectId,
       kind: input.kind,
       key: input.key,
       snoozeKind: choice,
       snoozedUntil: until,
       snoozedAfterBuild:
-        choice === 'next_push' ? await latestDefaultBranchBuildNumber(tx, input.teamId) : null,
+        choice === 'next_push' ? await latestDefaultBranchBuildNumber(tx, input.projectId) : null,
     })
     return { item, until }
   })
@@ -96,7 +96,7 @@ export async function snoozeTriageUndoable(
   input: Parameters<typeof snoozeTriage>[1] & { userId: string },
 ): Promise<Undoable<{ item: TriageItem.Row; until: Date | null }>> {
   const { userId, ...rest } = input
-  const { teamId, kind, key } = rest
+  const { projectId, kind, key } = rest
   return db.transaction(async (tx) => {
     let until: Date | null = null
     const result = await undoable(
@@ -104,7 +104,7 @@ export async function snoozeTriageUndoable(
       'triage_snooze',
       'snooze',
       userId,
-      { teamId, kind, key },
+      { projectId, kind, key },
       async () => {
         const snoozed = await snoozeTriage(tx, rest)
         until = snoozed.until
@@ -139,20 +139,20 @@ async function undoable(
   const after = triageFields(item, action)
   if (JSON.stringify(previous) === JSON.stringify(after)) return { item, undo: null }
   const data: TriageUndo = { kind: ref.kind, key: ref.key, previous, after }
-  const undo = await recordUndo(tx, { userId, teamId: ref.teamId, kind, data })
+  const undo = await recordUndo(tx, { userId, projectId: ref.projectId, kind, data })
   return { item, undo }
 }
 
 /**
  * Compares a failed build again from scratch (a failed item's "Re-run comparison"); the build
- * leaves the queue once it is processing. Any member of the team's workspace may, as for the
- * `/circi rerun` comment. Throws `NotFoundError` for a build that isn't the team's or isn't failed.
+ * leaves the queue once it is processing. Any member of the project's workspace may, as for the
+ * `/circi rerun` comment. Throws `NotFoundError` for a build that isn't the project's or isn't failed.
  */
 export async function rerunFailedBuild(
   db: Database,
-  input: { teamId: string; number: number },
+  input: { projectId: string; number: number },
 ): Promise<{ number: number; status: 'processing' }> {
-  const build = await getBuildByNumber(db, input.teamId, input.number)
+  const build = await getBuildByNumber(db, input.projectId, input.number)
   if (build?.status !== 'error') throw new NotFoundError('Failed build not found')
   await requeueBuild(db, build.id)
   return { number: build.number, status: 'processing' }
@@ -166,7 +166,7 @@ export async function rerunFailedBuild(
 export async function createIgnoreRegion(
   db: Database,
   input: {
-    teamId: string
+    projectId: string
     name: string
     x: number
     y: number
@@ -178,9 +178,9 @@ export async function createIgnoreRegion(
   },
 ): Promise<IgnoreRegionRow> {
   return db.transaction(async (tx) => {
-    const { teamId, resolves, ...region } = input
-    const added = await addIgnoreRegion(tx, teamId, region)
-    if (resolves) await dismissTriageItem(tx, { teamId, ...resolves })
+    const { projectId, resolves, ...region } = input
+    const added = await addIgnoreRegion(tx, projectId, region)
+    if (resolves) await dismissTriageItem(tx, { projectId, ...resolves })
     return added
   })
 }
@@ -188,14 +188,18 @@ export async function createIgnoreRegion(
 /** Moves, resizes or renames a region; every later comparison uses the new rectangle. */
 export async function editIgnoreRegion(
   db: Database,
-  teamId: string,
+  projectId: string,
   id: string,
   patch: Parameters<typeof changeIgnoreRegion>[3],
 ): Promise<IgnoreRegionRow> {
-  return db.transaction((tx) => changeIgnoreRegion(tx, teamId, id, patch))
+  return db.transaction((tx) => changeIgnoreRegion(tx, projectId, id, patch))
 }
 
-/** Stops ignoring a region (throws `NotFoundError` when the team has no such region). */
-export async function deleteIgnoreRegion(db: Database, teamId: string, id: string): Promise<void> {
-  await db.transaction((tx) => removeIgnoreRegion(tx, teamId, id))
+/** Stops ignoring a region (throws `NotFoundError` when the project has no such region). */
+export async function deleteIgnoreRegion(
+  db: Database,
+  projectId: string,
+  id: string,
+): Promise<void> {
+  await db.transaction((tx) => removeIgnoreRegion(tx, projectId, id))
 }

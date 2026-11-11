@@ -21,8 +21,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { memberTeamsQuery } from '#features/teams/api/members.ts'
-import { TeamStack } from '#features/teams/AvatarStack.tsx'
+import { memberProjectsQuery } from '#features/projects/api/members.ts'
+import { Projectstack } from '#features/projects/AvatarStack.tsx'
 import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
@@ -126,8 +126,8 @@ export function MembersPage() {
   // Only owners and admins may see how people sign in; the tags are left out while loading or on error.
   const signIn = useQuery({ ...memberSignInQuery(workspace), enabled: canManage })
   const methodsOf = new Map((signIn.data?.members ?? []).map((m) => [m.userId, m.methods]))
-  // The teams each person is in, beside their role.
-  const memberTeams = useQuery(memberTeamsQuery(workspace))
+  // The projects each person is in, beside their role.
+  const memberProjects = useQuery(memberProjectsQuery(workspace))
   const pending = pendingInvitations(data?.invitations ?? [])
   const failure = cancel.error ?? resend.error ?? remove.error ?? changeRole.error
 
@@ -221,9 +221,11 @@ export function MembersPage() {
                             ) : null}
                           </div>
                           <div className={styles.controls}>
-                            {memberTeams.data ? (
-                              <div className={styles.teams}>
-                                <TeamStack teams={memberTeams.data.teams[m.userId] ?? []} />
+                            {memberProjects.data ? (
+                              <div className={styles.projects}>
+                                <Projectstack
+                                  projects={memberProjects.data.projects[m.userId] ?? []}
+                                />
                               </div>
                             ) : null}
                             <div className={styles.actions}>
@@ -362,7 +364,7 @@ export function MembersPage() {
         title={`Make ${roleChange?.name ?? 'this member'} ${roleChange?.role === 'admin' ? 'an admin' : 'a member'}?`}
         description={
           roleChange?.role === 'admin'
-            ? "Admins can invite and remove people, change roles and change every team's settings."
+            ? "Admins can invite and remove people, change roles and change every project's settings."
             : 'They will no longer be able to invite or remove people, or change settings.'
         }
         confirmLabel="Change role"
@@ -381,7 +383,7 @@ export function MembersPage() {
           if (!open) setRemoving(null)
         }}
         title={`Remove ${removing?.name ?? 'this member'}?`}
-        description={`${removing?.email ?? 'They'} will lose access to ${data?.name ?? workspace} and its teams. You can invite them again later.`}
+        description={`${removing?.email ?? 'They'} will lose access to ${data?.name ?? workspace} and its projects. You can invite them again later.`}
         confirmLabel="Remove"
         loading={remove.isPending}
         onConfirm={() => {

@@ -25,7 +25,7 @@ import {
   screenshotDiffs,
   screenshots,
   session,
-  teams,
+  projects,
   user,
   workspace,
   workspaceDeletions,
@@ -140,20 +140,20 @@ export namespace listInstanceWorkspaces {
     /** Its uploaded picture's address; null when it has none. */
     picture: string | null
     memberCount: number
-    teamCount: number
+    projectCount: number
     storageBytes: number
     createdAt: Date
     /** When an owner deleted it (it is purged 30 days later); null while it is live. */
     deletedAt: Date | null
     /** The display name of its longest-standing owner; null when it has none. */
     ownerName: string | null
-    /** Whether the asking account is a member of it (only members may open its teams). */
+    /** Whether the asking account is a member of it (only members may open its projects). */
     youAreMember: boolean
   }
 }
 
 /**
- * Every workspace by name (deleted ones too, marked), with member and team counts, the owner's
+ * Every workspace by name (deleted ones too, marked), with member and project counts, the owner's
  * name, whether `userId` (the asking instance admin) belongs to it, and the bytes its builds refer to.
  */
 export async function listInstanceWorkspaces(
@@ -185,31 +185,37 @@ export async function listInstanceWorkspaces(
       (r) => r.id,
     ),
   )
-  const teamCounts = new Map(
+  const projectCounts = new Map(
     (
-      await db.select({ id: teams.workspaceId, n: count() }).from(teams).groupBy(teams.workspaceId)
+      await db
+        .select({ id: projects.workspaceId, n: count() })
+        .from(projects)
+        .groupBy(projects.workspaceId)
     ).map((r) => [r.id, r.n]),
   )
   const refs = union(
     db
-      .select({ workspaceId: teams.workspaceId, sha: screenshots.fileSha256 })
+      .select({ workspaceId: projects.workspaceId, sha: screenshots.fileSha256 })
       .from(screenshots)
       .innerJoin(builds, eq(builds.id, screenshots.buildId))
-      .innerJoin(teams, eq(teams.id, builds.teamId)),
+      .innerJoin(projects, eq(projects.id, builds.projectId)),
     db
-      .select({ workspaceId: teams.workspaceId, sha: sql<string>`${screenshots.thumbnailSha256}` })
+      .select({
+        workspaceId: projects.workspaceId,
+        sha: sql<string>`${screenshots.thumbnailSha256}`,
+      })
       .from(screenshots)
       .innerJoin(builds, eq(builds.id, screenshots.buildId))
-      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .innerJoin(projects, eq(projects.id, builds.projectId))
       .where(isNotNull(screenshots.thumbnailSha256)),
     db
       .select({
-        workspaceId: teams.workspaceId,
+        workspaceId: projects.workspaceId,
         sha: sql<string>`${screenshotDiffs.diffFileSha256}`,
       })
       .from(screenshotDiffs)
       .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
-      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .innerJoin(projects, eq(projects.id, builds.projectId))
       .where(isNotNull(screenshotDiffs.diffFileSha256)),
   ).as('refs')
   const bytes = new Map(
@@ -227,7 +233,7 @@ export async function listInstanceWorkspaces(
     slug: w.slug,
     picture: workspacePictureUrl(w.slug, w.logo),
     memberCount: members.get(w.id) ?? 0,
-    teamCount: teamCounts.get(w.id) ?? 0,
+    projectCount: projectCounts.get(w.id) ?? 0,
     storageBytes: bytes.get(w.id) ?? 0,
     createdAt: w.createdAt,
     deletedAt: deletions.get(w.id) ?? null,

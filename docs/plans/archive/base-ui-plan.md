@@ -15,7 +15,7 @@ shared chunk is still over Vite's 250 kB warning (see `docs/plans/remaining-work
   elevation, spacing) in `theme.ts` overrides that grow with every control.
 - Most of the design system is still to be built (buttons, fields, dialogs, menus, banners, empty
   states), so it is new code either way.
-- Base UI (`@base-ui/react`, 1.9.0, stable, by the MUI team) gives the parts that are hard to get
+- Base UI (`@base-ui/react`, 1.9.0, stable, by the MUI project) gives the parts that are hard to get
   right (focus management, keyboard, ARIA, popup positioning) and no styling at all.
 - Two earlier decisions make the switch cheap: `apps/web` will import only `@circi/ui`, so the
   switch never reaches the pages; and the tokens are already CSS variables, so any styling method
@@ -74,7 +74,7 @@ in 7 files.
 | `Typography` | — | `Text`, `Heading` |
 | `Button`, `IconButton` | `button` | `Button` (`primary`/`secondary`/`danger`/`ghost`), `IconButton` |
 | `TextField` | `field`, `input` | `TextField` (label, description, error) |
-| `TextField select` + `MenuItem` (create team, invite) | `select` | `Select` |
+| `TextField select` + `MenuItem` (create project, invite) | `select` | `Select` |
 | `Checkbox`, `FormControlLabel`, `FormGroup` | `checkbox`, `checkbox-group`, `fieldset` | `Checkbox`, `CheckboxGroup` |
 | `Dialog*` (create dialogs) | `dialog`, `alert-dialog` | `Dialog`, `ConfirmDialog` (destructive actions) |
 | `Menu`, `MenuItem`, `Avatar` (user menu) | `menu`, `avatar` | `Menu`, `Avatar` |
@@ -113,7 +113,7 @@ Each step is one or more commits with all checks green.
 4. **New components** from §4, each with a test, a design-sync preview in both schemes, and
    provisional styling where the design is missing (refactor-plan §6), marked as provisional in
    its doc comment.
-5. **Pages** (refactor-plan §4.2): shell, then Account → Members → Teams → Team → Team
+5. **Pages** (refactor-plan §4.2): shell, then Account → Members → Projects → Project → Project
    settings → Sites → Build review → Login/Setup/Site handoff. `layers.test.ts` holds an allowlist
    of files still importing `@mui/*`; it only shrinks.
 6. **Remove MUI.** When the allowlist is empty: our own scheme manager replaces MUI's

@@ -10,9 +10,9 @@ import {
   listBuildScreenshots,
   markFileVerified,
   planUploads,
-  updateTeamSettings,
+  updateProjectsettings,
 } from '@circi/db/repositories'
-import { createTestDb, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { sha256 } from '@circi/testing'
@@ -53,7 +53,7 @@ async function png(
 
 /** Creates a build the way the API does: plan, store bytes, verify, finalize. */
 async function uploadBuild(
-  teamId: string,
+  projectId: string,
   build: {
     commitSha: string
     branch: string
@@ -63,7 +63,7 @@ async function uploadBuild(
   },
   shots: Record<string, Buffer>,
 ) {
-  const created = await createBuild(t.db, { teamId, ...build })
+  const created = await createBuild(t.db, { projectId, ...build })
   const entries = Object.entries(shots)
   const planned = await planUploads(t.db, {
     buildId: created.id,
@@ -100,13 +100,17 @@ async function diffsOf(buildId: string) {
 
 describe('processBuild', () => {
   it('runs a main → PR → main sequence end to end', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const home = await png(320, 200)
     const login = await png(320, 200, { x: 20, y: 20 })
 
     // 1. First build on main: no baseline, everything added. Never auto-approved: someone
     // approves every screenshot once.
-    const b1 = await uploadBuild(team.id, { commitSha: 'aaaa001', branch: 'main' }, { home, login })
+    const b1 = await uploadBuild(
+      project.id,
+      { commitSha: 'aaaa001', branch: 'main' },
+      { home, login },
+    )
     expect(await processBuild({ db: t.db, storage }, b1.id)).toEqual({
       status: 'complete',
       conclusion: 'changes_detected',
@@ -126,7 +130,7 @@ describe('processBuild', () => {
     const loginChanged = await png(320, 200, { x: 200, y: 120 })
     const signup = await png(320, 240)
     const b2 = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'bbbb001', branch: 'feature', prNumber: 7, ancestorShas: ['aaaa001'] },
       { home, login: loginChanged, signup },
     )
@@ -155,7 +159,7 @@ describe('processBuild', () => {
 
     // 3. Main again, same screenshots as build 1: no changes, not auto-approved (nothing to approve).
     const b3 = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'aaaa002', branch: 'main', ancestorShas: ['aaaa001'] },
       { home, login },
     )
@@ -166,13 +170,13 @@ describe('processBuild', () => {
     expect((await getBuild(t.db, b3.id))?.flakyDecision).toBeNull()
   })
 
-  it('holds the first build of a team with no baseline for review, and blocks the gate', async () => {
+  it('holds the first build of a project with no baseline for review, and blocks the gate', async () => {
     // No neutral state: with nothing to compare against, every screenshot is "added", which is a
     // change a person must look at.
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const home = await png(320, 200)
     const first = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0001', branch: 'feature', prNumber: 1 },
       { home },
     )
@@ -191,10 +195,10 @@ describe('processBuild', () => {
   })
 
   it('holds the first default-branch build for review even with auto-approval on', async () => {
-    const { team } = await seedTeam(t.db)
-    expect(team.autoApproveDefaultBranch).toBe(true)
+    const { project } = await seedProject(t.db)
+    expect(project.autoApproveDefaultBranch).toBe(true)
     const first = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0002', branch: 'main' },
       { home: await png(320, 200) },
     )
@@ -212,14 +216,14 @@ describe('processBuild', () => {
   })
 
   it('has no baseline after a pending first build until someone approves it', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const home = await png(320, 200)
-    const first = await uploadBuild(team.id, { commitSha: 'fff0003', branch: 'main' }, { home })
+    const first = await uploadBuild(project.id, { commitSha: 'fff0003', branch: 'main' }, { home })
     await processBuild({ db: t.db, storage }, first.id)
 
     // Still unapproved: the next build finds no baseline and is held as well.
     const second = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0004', branch: 'main', ancestorShas: ['fff0003'] },
       { home },
     )
@@ -234,7 +238,7 @@ describe('processBuild', () => {
 
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
     const third = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0005', branch: 'main', ancestorShas: ['fff0003'] },
       { home },
     )
@@ -245,9 +249,9 @@ describe('processBuild', () => {
   })
 
   it('auto-approves a default-branch build once an approved baseline exists', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const first = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0006', branch: 'main' },
       { home: await png(320, 200) },
     )
@@ -255,7 +259,7 @@ describe('processBuild', () => {
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
 
     const second = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0007', branch: 'main', ancestorShas: ['fff0006'] },
       { home: await png(320, 200, { x: 30, y: 30 }) },
     )
@@ -274,13 +278,13 @@ describe('processBuild', () => {
   })
 
   it('compares a snapshot with its approved version in a default-branch build still waiting on review', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    await updateTeamSettings(t.db, team.id, { autoApproveDefaultBranch: false })
+    const { project, owner } = await seedProject(t.db)
+    await updateProjectsettings(t.db, project.id, { autoApproveDefaultBranch: false })
     const plain = await png(320, 200)
     const marked = await png(320, 200, { x: 30, y: 30 })
     const other = await png(320, 200, { x: 90, y: 90 })
     const first = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0b01', branch: 'main' },
       { home: plain, about: plain },
     )
@@ -288,7 +292,7 @@ describe('processBuild', () => {
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
 
     const second = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0b02', branch: 'main', ancestorShas: ['fff0b01'] },
       { home: marked, about: other },
     )
@@ -302,7 +306,7 @@ describe('processBuild', () => {
     expect(await getBuild(t.db, second.id)).toMatchObject({ reviewStatus: 'pending' })
 
     const third = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0b03', branch: 'main', ancestorShas: ['fff0b02', 'fff0b01'] },
       { home: marked, about: other },
     )
@@ -315,10 +319,10 @@ describe('processBuild', () => {
   })
 
   it('holds a default-branch build with a baseline when auto-approval is off', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    await updateTeamSettings(t.db, team.id, { autoApproveDefaultBranch: false })
+    const { project, owner } = await seedProject(t.db)
+    await updateProjectsettings(t.db, project.id, { autoApproveDefaultBranch: false })
     const first = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0008', branch: 'main' },
       { home: await png(320, 200) },
     )
@@ -327,7 +331,7 @@ describe('processBuild', () => {
     })
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
     const second = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'fff0009', branch: 'main', ancestorShas: ['fff0008'] },
       { home: await png(320, 200, { x: 30, y: 30 }) },
     )
@@ -339,16 +343,16 @@ describe('processBuild', () => {
   })
 
   it('reports a removed screenshot and a 1px size change as changes', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const b1 = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'cccc001', branch: 'main' },
       { a: await png(100, 400), gone: await png(100, 100) },
     )
     await processBuild({ db: t.db, storage }, b1.id)
     await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
     const b2 = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'cccc002', branch: 'main', ancestorShas: ['cccc001'] },
       { a: await png(100, 401) },
     )
@@ -359,10 +363,10 @@ describe('processBuild', () => {
   })
 
   it('marks screenshots that are not PNGs as failed instead of crashing', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const notPng = Buffer.from('definitely not a png')
     const b = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'dddd001', branch: 'main' },
       { broken: notPng },
     )
@@ -377,9 +381,9 @@ describe('processBuild', () => {
   })
 
   it('skips builds that are not waiting to be processed', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const b = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'eeee001', branch: 'main' },
       { x: await png(10, 10) },
     )
@@ -401,23 +405,23 @@ function pr(extra: { name?: string } = {}) {
   }
 }
 
-/** A team on main with a baseline, and a PR whose screenshot changed. */
+/** A project on main with a baseline, and a PR whose screenshot changed. */
 async function prSetup() {
-  const { team, owner } = await seedTeam(t.db)
+  const { project, owner } = await seedProject(t.db)
   const home = await png(200, 100)
-  const base = await uploadBuild(team.id, { commitSha: 'aaaa001', branch: 'main' }, { home })
+  const base = await uploadBuild(project.id, { commitSha: 'aaaa001', branch: 'main' }, { home })
   await processBuild({ db: t.db, storage }, base.id)
   const changed = await png(200, 100, { x: 50, y: 50 })
-  return { team, owner, home, changed }
+  return { project, owner, home, changed }
 }
 
 describe('ignored regions', () => {
   it('leaves a changing clock out of the comparison, but not the rest of the page', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const before = await png(320, 200, { x: 20, y: 20 })
     const clockMoved = await png(320, 200, { x: 24, y: 24 }) // the "clock" differs
     const base = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'bbbb001', branch: 'main' },
       { home: before },
     )
@@ -426,7 +430,7 @@ describe('ignored regions', () => {
 
     // Without a rule, the changed clock is a change.
     const plain = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'bbbb002', branch: 'main', ancestorShas: ['bbbb001'] },
       { home: clockMoved },
     )
@@ -434,9 +438,9 @@ describe('ignored regions', () => {
     expect((await diffsOf(plain.id)).home?.status).toBe('changed')
 
     // With a rule covering the clock, the same difference no longer counts.
-    await addIgnoreRegion(t.db, team.id, { name: 'home', x: 10, y: 10, width: 40, height: 40 })
+    await addIgnoreRegion(t.db, project.id, { name: 'home', x: 10, y: 10, width: 40, height: 40 })
     const masked = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'bbbb003', branch: 'main', ancestorShas: ['bbbb001'] },
       { home: clockMoved },
     )
@@ -454,9 +458,9 @@ describe('ignored regions', () => {
     })
 
     // A rule for another screenshot name changes nothing here.
-    await addIgnoreRegion(t.db, team.id, { name: 'login', x: 0, y: 0, width: 320, height: 200 })
+    await addIgnoreRegion(t.db, project.id, { name: 'login', x: 0, y: 0, width: 320, height: 200 })
     const stillMasked = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'bbbb004', branch: 'main', ancestorShas: ['bbbb001'] },
       { home: await png(320, 200, { x: 200, y: 150 }) },
     )
@@ -467,20 +471,20 @@ describe('ignored regions', () => {
 
 describe('re-runs of an approved commit', () => {
   it('approves a re-run with the same screenshots, and says why', async () => {
-    const { team, owner, changed } = await prSetup()
-    const first = await uploadBuild(team.id, pr(), { home: changed })
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, first.id)).toMatchObject({
       conclusion: 'changes_detected',
       autoApproved: false,
     })
     // Nothing is approved yet, so an identical re-run still needs a decision.
-    const early = await uploadBuild(team.id, pr(), { home: changed })
+    const early = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, early.id)).toMatchObject({
       autoApproved: false,
     })
 
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
-    const rerun = await uploadBuild(team.id, pr(), { home: changed })
+    const rerun = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
       conclusion: 'changes_detected',
       autoApproved: true,
@@ -492,43 +496,43 @@ describe('re-runs of an approved commit', () => {
   })
 
   it('does not approve a re-run that differs in any screenshot', async () => {
-    const { team, owner, changed, home } = await prSetup()
-    const first = await uploadBuild(team.id, pr(), { home: changed })
+    const { project, owner, changed, home } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
     await processBuild({ db: t.db, storage }, first.id)
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
 
     const different = await png(200, 100, { x: 120, y: 10 })
-    const another = await uploadBuild(team.id, pr(), { home: different })
+    const another = await uploadBuild(project.id, pr(), { home: different })
     expect(await processBuild({ db: t.db, storage }, another.id)).toMatchObject({
       autoApproved: false,
     })
-    const extra = await uploadBuild(team.id, pr(), { home: changed, about: home })
+    const extra = await uploadBuild(project.id, pr(), { home: changed, about: home })
     expect(await processBuild({ db: t.db, storage }, extra.id)).toMatchObject({
       autoApproved: false,
     })
   })
 
   it('does not carry approval to another commit, another build name, or past a rejection', async () => {
-    const { team, owner, changed } = await prSetup()
-    const first = await uploadBuild(team.id, pr(), { home: changed })
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
     await processBuild({ db: t.db, storage }, first.id)
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
 
     const otherCommit = await uploadBuild(
-      team.id,
+      project.id,
       { ...pr(), commitSha: 'cccc001' },
       { home: changed },
     )
     expect(await processBuild({ db: t.db, storage }, otherCommit.id)).toMatchObject({
       autoApproved: false,
     })
-    const otherName = await uploadBuild(team.id, pr({ name: 'mobile' }), { home: changed })
+    const otherName = await uploadBuild(project.id, pr({ name: 'mobile' }), { home: changed })
     expect(await processBuild({ db: t.db, storage }, otherName.id)).toMatchObject({
       autoApproved: false,
     })
 
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
-    const afterRejection = await uploadBuild(team.id, pr(), { home: changed })
+    const afterRejection = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, afterRejection.id)).toMatchObject({
       autoApproved: false,
     })
@@ -542,8 +546,8 @@ const outcomeOf = async (id: string) => {
 
 describe('re-runs of a rejected commit', () => {
   it('stays rejected: the re-run carries the rejection and the merge stays blocked', async () => {
-    const { team, owner, changed } = await prSetup()
-    const first = await uploadBuild(team.id, pr(), { home: changed })
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
     await processBuild({ db: t.db, storage }, first.id)
     await reviewBuild(t.db, {
       buildId: first.id,
@@ -552,7 +556,7 @@ describe('re-runs of a rejected commit', () => {
       reason: 'the header moved',
     })
 
-    const rerun = await uploadBuild(team.id, pr(), { home: changed })
+    const rerun = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
       conclusion: 'changes_detected',
       autoApproved: false,
@@ -567,15 +571,15 @@ describe('re-runs of a rejected commit', () => {
     expect(await outcomeOf(rerun.id)).toMatchObject({ state: 'fail', summary: 'Changes rejected' })
 
     // Another re-run of the re-run is still rejected.
-    const again = await uploadBuild(team.id, pr(), { home: changed })
+    const again = await uploadBuild(project.id, pr(), { home: changed })
     await processBuild({ db: t.db, storage }, again.id)
     expect(await getBuild(t.db, again.id)).toMatchObject({ reviewStatus: 'rejected' })
   })
 
   it('carries each snapshot decision, as an approval does', async () => {
-    const { team, owner, home, changed } = await prSetup()
+    const { project, owner, home, changed } = await prSetup()
     const other = await png(200, 100, { x: 90, y: 10 })
-    const first = await uploadBuild(team.id, pr(), { home: changed, about: other })
+    const first = await uploadBuild(project.id, pr(), { home: changed, about: other })
     await processBuild({ db: t.db, storage }, first.id)
     await reviewSnapshots(t.db, {
       buildId: first.id,
@@ -592,7 +596,7 @@ describe('re-runs of a rejected commit', () => {
     })
     expect(await getBuild(t.db, first.id)).toMatchObject({ reviewStatus: 'rejected' })
 
-    const rerun = await uploadBuild(team.id, pr(), { home: changed, about: other })
+    const rerun = await uploadBuild(project.id, pr(), { home: changed, about: other })
     await processBuild({ db: t.db, storage }, rerun.id)
     expect(await getBuild(t.db, rerun.id)).toMatchObject({ reviewStatus: 'rejected' })
     const decisions = await t.db.query.snapshotReviews.findMany({
@@ -610,19 +614,19 @@ describe('re-runs of a rejected commit', () => {
   })
 
   it('is decided again by approving, and by changing an image', async () => {
-    const { team, owner, changed } = await prSetup()
-    const first = await uploadBuild(team.id, pr(), { home: changed })
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
     await processBuild({ db: t.db, storage }, first.id)
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
 
     const different = await png(200, 100, { x: 120, y: 10 })
-    const edited = await uploadBuild(team.id, pr(), { home: different })
+    const edited = await uploadBuild(project.id, pr(), { home: different })
     await processBuild({ db: t.db, storage }, edited.id)
     expect(await getBuild(t.db, edited.id)).toMatchObject({ reviewStatus: 'pending' })
 
     // Someone approves the rejected build: the next re-run is approved.
     await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
-    const rerun = await uploadBuild(team.id, pr(), { home: changed })
+    const rerun = await uploadBuild(project.id, pr(), { home: changed })
     expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
       autoApproved: true,
     })
@@ -632,9 +636,9 @@ describe('re-runs of a rejected commit', () => {
 
 describe('startWorker', () => {
   it('picks up the job finalize enqueued and completes the build', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const b = await uploadBuild(
-      team.id,
+      project.id,
       { commitSha: 'ffff001', branch: 'main' },
       { x: await png(10, 10) },
     )

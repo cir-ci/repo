@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { PushPrompt } from '#features/pwa/PushPrompt.tsx'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
@@ -126,8 +126,12 @@ export function ReviewsPage() {
 
   const openBuild = (r: Review.Request) =>
     void navigate({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
+      to: '/$workspace/$project/builds/$number',
+      params: {
+        workspace: r.workspace.slug,
+        project: r.project.slug,
+        number: String(r.build.number),
+      },
     })
 
   /** Runs `act` for a request about to leave the list; once done, shows its toast and selects the next. */
@@ -144,7 +148,7 @@ export function ReviewsPage() {
     withUndo(
       message,
       undo,
-      { workspace: r.workspace.slug, team: r.team.slug },
+      { workspace: r.workspace.slug, project: r.project.slug },
       refreshAll(queryClient),
     )
   const doApprove = (r: Review.Request) =>
@@ -201,8 +205,12 @@ export function ReviewsPage() {
     const canApprove =
       !waitingOnOther && tab !== 'created' && tab !== 'reviewed' && !isProcessing(r.build)
     const href = clientLink({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
+      to: '/$workspace/$project/builds/$number',
+      params: {
+        workspace: r.workspace.slug,
+        project: r.project.slug,
+        number: String(r.build.number),
+      },
     }).href
     return menuEntries([
       { label: 'Open review', onSelect: () => openBuild(r) },
@@ -224,10 +232,10 @@ export function ReviewsPage() {
   )?.error
   const buildLink = selected
     ? clientLink({
-        to: '/$workspace/$team/builds/$number',
+        to: '/$workspace/$project/builds/$number',
         params: {
           workspace: selected.workspace.slug,
-          team: selected.team.slug,
+          project: selected.project.slug,
           number: String(selected.build.number),
         },
       })
@@ -371,7 +379,7 @@ export function ReviewsPage() {
       </QueryBoundary>
       <MemberPicker
         workspace={workspace}
-        team={selected?.team.slug}
+        project={selected?.project.slug}
         open={picking}
         onOpenChange={setPicking}
         onPick={(member) => {

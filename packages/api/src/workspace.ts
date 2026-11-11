@@ -1,4 +1,4 @@
-import type { Team } from './team.ts'
+import type { Project } from './project.ts'
 
 export namespace Workspace {
   /** What a person is in a workspace. */
@@ -8,7 +8,7 @@ export namespace Workspace {
     canCreateWorkspace: boolean
     /** Whether this person runs the instance (its admin pages and menu entries). */
     instanceAdmin: boolean
-    /** The instance admin's first-run setup has steps left (storage check, first team); false for everyone else. */
+    /** The instance admin's first-run setup has steps left (storage check, first project); false for everyone else. */
     setupPending: boolean
     /**
      * The slug of the workspace this person opened last, on any device; null when they never
@@ -42,7 +42,7 @@ export namespace Workspace {
 
   /**
    * `GET /api/workspaces/:workspace/github-import`: the repositories of the workspace's GitHub
-   * installations that no team is linked to yet (owners and admins).
+   * installations that no project is linked to yet (owners and admins).
    */
   export interface GithubRepositories {
     repositories: {
@@ -56,27 +56,30 @@ export namespace Workspace {
     }[]
   }
 
-  /** `POST /api/workspaces/:workspace/github-import`: the teams made, one per repository. */
+  /** `POST /api/workspaces/:workspace/github-import`: the projects made, one per repository. */
   export interface GithubImport {
-    teams: { slug: string; name: string; repository: string }[]
+    projects: { slug: string; name: string; repository: string }[]
   }
 
   /**
-   * `GET /api/workspaces/:workspace/member-teams`: the teams each person belongs to, as far as
+   * `GET /api/workspaces/:workspace/member-projects`: the projects each person belongs to, as far as
    * the signed-in person may see them (an owner or admin sees all; a member only their own).
-   * People in none of the visible teams have no entry.
+   * People in none of the visible projects have no entry.
    */
-  export interface MemberTeams {
-    teams: Record<string, { slug: string; name: string; color: Team.Color; icon: string | null }[]>
+  export interface MemberProjects {
+    projects: Record<
+      string,
+      { slug: string; name: string; color: Project.Color; icon: string | null }[]
+    >
   }
 
-  /** A workspace's defaults for its teams. */
+  /** A workspace's defaults for its projects. */
   export interface Settings {
     /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
     flakyBlocksMerge: boolean
     /** Whether new triage items are assigned to whoever is on triage. */
     assignTriageToOnCall: boolean
-    /** Days of retention a new team starts with (existing teams keep their own). */
+    /** Days of retention a new project starts with (existing projects keep their own). */
     retentionDays: number
   }
 
@@ -113,12 +116,12 @@ export namespace Workspace {
     purgeAt: string
   }
 
-  /** A team and its own flaky-gate setting (null: it follows the workspace's default). */
-  export interface TeamOverride {
+  /** A project and its own flaky-gate setting (null: it follows the workspace's default). */
+  export interface ProjectOverride {
     slug: string
     name: string
-    /** How the team's avatar looks. */
-    color: Team.Color
+    /** How the project's avatar looks. */
+    color: Project.Color
     icon: string | null
     flakyBlocksMerge: boolean | null
     /** Null: follows the workspace's default. */
@@ -128,8 +131,8 @@ export namespace Workspace {
   export interface SettingsResponse {
     canManage: boolean
     settings: Settings
-    /** Every team, to show which follow the defaults and which override them. */
-    teams: TeamOverride[]
+    /** Every project, to show which follow the defaults and which override them. */
+    projects: ProjectOverride[]
   }
 
   /** A workspace's own single sign-on provider. */

@@ -7,9 +7,9 @@ const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
 
 /**
- * When a request made at `from` is due under a team's target of `targetHours`, counting working
+ * When a request made at `from` is due under a project's target of `targetHours`, counting working
  * days: Saturday and Sunday (UTC) don't count, so 24 hours from Friday 16:00 is Monday 16:00.
- * Null when the team has no review target, so nothing it asks for can become overdue.
+ * Null when the project has no review target, so nothing it asks for can become overdue.
  */
 export function reviewDueAt(from: Date, targetHours: number | null): Date | null {
   if (targetHours === null) return null

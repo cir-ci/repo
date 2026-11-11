@@ -2,7 +2,7 @@ import type { IgnoreRegion } from '@circi/api'
 import { Banner, Button, ConfirmDialog, Dialog, Heading, NumberField, Text } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
-import { useDeleteIgnoreRegion, useEditIgnoreRegion } from '#features/teams/api/index.ts'
+import { useDeleteIgnoreRegion, useEditIgnoreRegion } from '#features/projects/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 
@@ -17,7 +17,7 @@ import styles from './IgnoreRegionsEditor.module.css'
  */
 export function IgnoreRegionsPanel({
   workspace,
-  team,
+  project,
   name,
   size,
   regions,
@@ -25,7 +25,7 @@ export function IgnoreRegionsPanel({
   error,
   footer = true,
 }: IgnoreRegionsPanel.Props) {
-  const remove = useDeleteIgnoreRegion(workspace, team)
+  const remove = useDeleteIgnoreRegion(workspace, project)
   const [dialog, setDialog] = useState<RegionDialog.Target | null>(null)
   const [removing, setRemoving] = useState<{ item: IgnoreRegion.Item; number: number } | null>(null)
   const regionsHeading = useId()
@@ -102,7 +102,7 @@ export function IgnoreRegionsPanel({
         key={dialog?.region.id ?? 'none'}
         target={dialog}
         workspace={workspace}
-        team={team}
+        project={project}
         onClose={() => setDialog(null)}
       />
       <ConfirmDialog
@@ -130,7 +130,7 @@ export function IgnoreRegionsPanel({
 export namespace IgnoreRegionsPanel {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     /** The screenshot's name. */
     name: string
     /** The screenshot's pixel size; null when unknown. */
@@ -146,8 +146,8 @@ export namespace IgnoreRegionsPanel {
 }
 
 /** Position and size of one region in pixels, edited from numbers. */
-function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) {
-  const edit = useEditIgnoreRegion(workspace, team)
+function RegionDialog({ target, workspace, project, onClose }: RegionDialog.Props) {
+  const edit = useEditIgnoreRegion(workspace, project)
   const [problem, setProblem] = useState<string | null>(null)
   const initial = target?.region
 
@@ -238,7 +238,7 @@ namespace RegionDialog {
   export interface Props {
     target: Target | null
     workspace: string
-    team: string
+    project: string
     onClose: () => void
   }
 }

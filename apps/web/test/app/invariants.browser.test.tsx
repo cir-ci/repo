@@ -36,7 +36,7 @@ import { fakeFetch, hangingFetch, restoreFetch } from '#test/features/fetch-rout
 /** What each `$param` of an address stands for in this test. */
 const SAMPLE: Record<string, string> = {
   workspace: 'acme',
-  team: 'web',
+  project: 'web',
   number: '1',
   kind: 'github',
   id: '8c1b0a52-6d3f-4a39-9f0e-5a3a1d7f2b11',
@@ -212,7 +212,7 @@ describe('every page upholds the global invariants', () => {
     // A guard that the enumeration works, so the loops below cannot pass by checking nothing.
     expect(PATHS.length).toBeGreaterThan(30)
     expect(PATHS).toContain('/inbox')
-    expect(PATHS).toContain('/$workspace/$team/builds/$number')
+    expect(PATHS).toContain('/$workspace/$project/builds/$number')
   })
 
   describe.each([

@@ -10,15 +10,15 @@ import {
   savedViews,
   user,
   workspace,
-  teams,
+  projects,
   type ReviewStatus,
   screenshots,
   type TriageKind,
   type NotificationKind,
 } from '#schema/index.ts'
 import { containsPattern, prefixPattern, segmentPattern } from '#shared/like.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { loadChanges } from './reviews.ts'
@@ -32,10 +32,10 @@ import {
 import { listTriage } from './triage.ts'
 
 /**
- * Search for the command menu: one query string against a workspace's builds, branches, teams,
+ * Search for the command menu: one query string against a workspace's builds, branches, projects,
  * screenshot names, baselines, triage items, the person's notifications and review requests and
  * their saved views, grouped and limited per group. Limited to workspaces the user belongs to and
- * to teams they can see. Within a group an exact match comes first, then a prefix, then a match at
+ * to projects they can see. Within a group an exact match comes first, then a prefix, then a match at
  * the start of a `/` segment, then any other containing the text; ties go to the newest.
  * Pull request titles are not stored, so a pull request matches by number only.
  */
@@ -49,7 +49,7 @@ export const SEARCH_MAX_LIMIT = 50
 export const SEARCH_KINDS = [
   'builds',
   'branches',
-  'teams',
+  'projects',
   'snapshots',
   'baselines',
   'triage',
@@ -59,15 +59,15 @@ export const SEARCH_KINDS = [
   'people',
 ] as const
 
-/** How many of a workspace's teams the triage group looks through (the queue is derived per team). */
-const TRIAGE_TEAMS = 30
+/** How many of a workspace's projects the triage group looks through (the queue is derived per project). */
+const TRIAGE_PROJECTS = 30
 
 export namespace searchWorkspace {
   export type Kind = (typeof SEARCH_KINDS)[number]
 
   export interface Build {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     number: number
     name: string
     branch: string | null
@@ -83,21 +83,21 @@ export namespace searchWorkspace {
   export interface Person extends searchExtras.Person {}
 
   export interface Branch {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     branch: string
     /** The newest build on it. */
     latestBuildNumber: number
   }
 
-  export interface Team {
+  export interface Project {
     slug: string
     name: string
   }
 
   export interface Snapshot {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     name: string
     /** The newest build that has a screenshot of this name. */
     latestBuildNumber: number
@@ -105,8 +105,8 @@ export namespace searchWorkspace {
   }
 
   export interface Baseline {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     name: string
     /** The newest default-branch build that is a baseline source for the name. */
     buildNumber: number
@@ -116,8 +116,8 @@ export namespace searchWorkspace {
   }
 
   export interface Triage {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     kind: TriageKind
     key: string
     snapshotName: string | null
@@ -134,15 +134,15 @@ export namespace searchWorkspace {
     createdAt: Date
     actor: { name: string } | null
     build: { number: number; name: string } | null
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
     payload: { snippet?: string; reason?: string; cc?: boolean }
   }
 
   export interface Review {
     id: string
     tab: 'for-you' | 'created' | 'snoozed'
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }
     requestedBy: { name: string } | null
@@ -153,14 +153,14 @@ export namespace searchWorkspace {
   export interface View {
     id: string
     name: string
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
   }
 
   export interface Results {
     query: string
     builds: searchWorkspace.Build[]
     branches: searchWorkspace.Branch[]
-    teams: searchWorkspace.Team[]
+    projects: searchWorkspace.Project[]
     snapshots: searchWorkspace.Snapshot[]
     baselines: searchWorkspace.Baseline[]
     triage: searchWorkspace.Triage[]
@@ -196,10 +196,12 @@ const totalOf = (rows: readonly { total: number }[]) => rows[0]?.total ?? 0
 
 /** The screenshots of the rows that have a build to look in. */
 const shotsOf = (
-  rows: readonly { teamId: string; name: string; buildNumber: number | null }[],
+  rows: readonly { projectId: string; name: string; buildNumber: number | null }[],
 ): searchExtras.Shot[] =>
   rows.flatMap((r) =>
-    r.buildNumber === null ? [] : [{ teamId: r.teamId, name: r.name, buildNumber: r.buildNumber }],
+    r.buildNumber === null
+      ? []
+      : [{ projectId: r.projectId, name: r.name, buildNumber: r.buildNumber }],
   )
 
 const asText = (value: unknown): string | undefined =>
@@ -212,8 +214,8 @@ export async function searchWorkspace(
     workspaceSlug: string
     query: string
     limit?: number
-    /** Only this team's results (a slug). A team the person can't see has none. */
-    team?: string
+    /** Only this project's results (a slug). A project the person can't see has none. */
+    project?: string
     /** Only these kinds; the others come back empty with a total of 0. All when left out. */
     kinds?: readonly searchWorkspace.Kind[]
     method?: SessionMethod
@@ -236,7 +238,7 @@ export async function searchWorkspace(
     query: q,
     builds: [],
     branches: [],
-    teams: [],
+    projects: [],
     snapshots: [],
     baselines: [],
     triage: [],
@@ -247,7 +249,7 @@ export async function searchWorkspace(
     totals: {
       builds: 0,
       branches: 0,
-      teams: 0,
+      projects: 0,
       snapshots: 0,
       baselines: 0,
       triage: 0,
@@ -268,9 +270,9 @@ export async function searchWorkspace(
   const n = numeric ? Number(numeric[1]) : undefined
   const sha = /^[0-9a-f]{4,40}$/i.test(q)
   const inWorkspace = and(
-    eq(teams.workspaceId, found.id),
-    teamVisibleTo(input.userId, teams),
-    input.team === undefined ? undefined : eq(teams.slug, input.team),
+    eq(projects.workspaceId, found.id),
+    projectVisibleTo(input.userId, projects),
+    input.project === undefined ? undefined : eq(projects.slug, input.project),
   )
   /** The number of matches before the limit: every query carries it on each row. */
   const total = sql<number>`count(*) over()`.mapWith(Number)
@@ -283,7 +285,7 @@ export async function searchWorkspace(
   const [
     buildRows,
     branchRows,
-    teamRows,
+    projectRows,
     snapshotRows,
     baselineRows,
     notificationRows,
@@ -297,8 +299,8 @@ export async function searchWorkspace(
         .select({
           total,
           id: builds.id,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
           number: builds.number,
           name: builds.name,
           branch: builds.branch,
@@ -307,7 +309,7 @@ export async function searchWorkspace(
           reviewStatus: builds.reviewStatus,
         })
         .from(builds)
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .where(
           and(
             inWorkspace,
@@ -332,42 +334,42 @@ export async function searchWorkspace(
       db
         .select({
           total,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
           branch: builds.branch,
           latestBuildNumber: max(builds.number),
           latest: max(builds.createdAt),
         })
         .from(builds)
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .where(and(inWorkspace, ilike(builds.branch, like)))
-        .groupBy(teams.slug, teams.name, builds.branch)
-        .orderBy(rank(builds.branch, q), desc(max(builds.createdAt)), teams.slug)
+        .groupBy(projects.slug, projects.name, builds.branch)
+        .orderBy(rank(builds.branch, q), desc(max(builds.createdAt)), projects.slug)
         .limit(limit),
     ),
-    only('teams', () =>
+    only('projects', () =>
       db
-        .select({ total, slug: teams.slug, name: teams.name })
-        .from(teams)
-        .where(and(inWorkspace, or(ilike(teams.name, like), ilike(teams.slug, like))))
-        .orderBy(sql`least(${rank(teams.name, q)}, ${rank(teams.slug, q)})`, teams.slug)
+        .select({ total, slug: projects.slug, name: projects.name })
+        .from(projects)
+        .where(and(inWorkspace, or(ilike(projects.name, like), ilike(projects.slug, like))))
+        .orderBy(sql`least(${rank(projects.name, q)}, ${rank(projects.slug, q)})`, projects.slug)
         .limit(limit),
     ),
     only('snapshots', () =>
       db
         .select({
           total,
-          teamId: teams.id,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectId: projects.id,
+          projectslug: projects.slug,
+          projectName: projects.name,
           name: screenshots.name,
           latestBuildNumber: max(builds.number),
         })
         .from(screenshots)
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .where(and(inWorkspace, ilike(screenshots.name, like)))
-        .groupBy(teams.id, teams.slug, teams.name, screenshots.name)
+        .groupBy(projects.id, projects.slug, projects.name, screenshots.name)
         .orderBy(rank(screenshots.name, q), desc(max(builds.createdAt)), screenshots.name)
         .limit(limit),
     ),
@@ -376,25 +378,25 @@ export async function searchWorkspace(
       db
         .select({
           total,
-          teamId: teams.id,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectId: projects.id,
+          projectslug: projects.slug,
+          projectName: projects.name,
           name: screenshots.name,
           buildNumber: max(builds.number),
         })
         .from(screenshots)
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .where(
           and(
             inWorkspace,
             ilike(screenshots.name, like),
-            eq(builds.branch, teams.defaultBranch),
+            eq(builds.branch, projects.defaultBranch),
             eq(builds.status, 'complete'),
             or(eq(builds.reviewStatus, 'approved'), eq(builds.conclusion, 'no_changes')),
           ),
         )
-        .groupBy(teams.id, teams.slug, teams.name, screenshots.name)
+        .groupBy(projects.id, projects.slug, projects.name, screenshots.name)
         .orderBy(rank(screenshots.name, q), desc(max(builds.createdAt)), screenshots.name)
         .limit(limit),
     ),
@@ -411,12 +413,12 @@ export async function searchWorkspace(
           actorName: actor.name,
           buildNumber: builds.number,
           buildName: builds.name,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
         })
         .from(notifications)
         .innerJoin(builds, eq(builds.id, notifications.buildId))
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .leftJoin(actor, eq(actor.id, notifications.actorId))
         .where(
           and(
@@ -426,7 +428,7 @@ export async function searchWorkspace(
             or(
               numberOf(builds.number),
               ilike(actor.name, like),
-              ilike(teams.name, like),
+              ilike(projects.name, like),
               ilike(builds.branch, like),
               and(ne(builds.name, 'default'), ilike(builds.name, like)),
               sql`${notifications.payload}->>'snippet' ilike ${like}`,
@@ -447,8 +449,8 @@ export async function searchWorkspace(
           snoozeKind: reviewRequests.snoozeKind,
           snoozedUntil: reviewRequests.snoozedUntil,
           createdAt: reviewRequests.createdAt,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
           buildNumber: builds.number,
           buildName: builds.name,
           branch: builds.branch,
@@ -457,7 +459,7 @@ export async function searchWorkspace(
         })
         .from(reviewRequests)
         .innerJoin(builds, eq(builds.id, reviewRequests.buildId))
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .where(
           and(
             eq(reviewRequests.state, 'open'),
@@ -470,7 +472,7 @@ export async function searchWorkspace(
               numberOf(builds.number, builds.prNumber),
               ilike(builds.branch, like),
               and(ne(builds.name, 'default'), ilike(builds.name, like)),
-              ilike(teams.name, like),
+              ilike(projects.name, like),
               sql`${reviewerName} ilike ${like}`,
               sql`${requesterName} ilike ${like}`,
             ),
@@ -485,21 +487,21 @@ export async function searchWorkspace(
           total,
           id: savedViews.id,
           name: savedViews.name,
-          teamSlug: teams.slug,
-          teamName: teams.name,
+          projectslug: projects.slug,
+          projectName: projects.name,
         })
         .from(savedViews)
-        .leftJoin(teams, eq(teams.id, savedViews.teamId))
+        .leftJoin(projects, eq(projects.id, savedViews.projectId))
         .where(
           and(
             eq(savedViews.userId, input.userId),
             eq(savedViews.workspaceId, found.id),
             ilike(savedViews.name, like),
             or(
-              isNull(savedViews.teamId),
+              isNull(savedViews.projectId),
               and(
-                teamVisibleTo(input.userId, teams),
-                input.team === undefined ? undefined : eq(teams.slug, input.team),
+                projectVisibleTo(input.userId, projects),
+                input.project === undefined ? undefined : eq(projects.slug, input.project),
               ),
             ),
           ),
@@ -514,7 +516,7 @@ export async function searchWorkspace(
       limit,
       now,
       kept: wanted.has('triage'),
-      ...(input.team === undefined ? {} : { team: input.team }),
+      ...(input.project === undefined ? {} : { project: input.project }),
     }),
     wanted.has('people')
       ? searchPeople(db, {
@@ -522,7 +524,7 @@ export async function searchWorkspace(
           workspaceId: found.id,
           q,
           limit,
-          team: input.team,
+          project: input.project,
         })
       : Promise.resolve({ people: [], total: 0 }),
   ])
@@ -560,8 +562,8 @@ export async function searchWorkspace(
           ? []
           : [{ ...rest, branch, latestBuildNumber }],
     ),
-    teams: teamRows.map(({ total: _total, ...r }) => r),
-    snapshots: snapshotRows.flatMap(({ total: _total, teamId, ...r }) =>
+    projects: projectRows.map(({ total: _total, ...r }) => r),
+    snapshots: snapshotRows.flatMap(({ total: _total, projectId, ...r }) =>
       r.latestBuildNumber === null
         ? []
         : [
@@ -569,14 +571,14 @@ export async function searchWorkspace(
               ...r,
               latestBuildNumber: r.latestBuildNumber,
               thumbnail:
-                thumbs.get(shotKey({ teamId, name: r.name, buildNumber: r.latestBuildNumber }))
+                thumbs.get(shotKey({ projectId, name: r.name, buildNumber: r.latestBuildNumber }))
                   ?.sha256 ?? null,
             },
           ],
     ),
-    baselines: baselineRows.flatMap(({ buildNumber, total: _total, teamId, ...r }) => {
+    baselines: baselineRows.flatMap(({ buildNumber, total: _total, projectId, ...r }) => {
       if (buildNumber === null) return []
-      const key = shotKey({ teamId, name: r.name, buildNumber })
+      const key = shotKey({ projectId, name: r.name, buildNumber })
       return [
         {
           ...r,
@@ -599,7 +601,7 @@ export async function searchWorkspace(
         createdAt: r.createdAt,
         actor: r.actorName === null ? null : { name: r.actorName },
         build: { number: r.buildNumber, name: r.buildName },
-        team: { slug: r.teamSlug, name: r.teamName },
+        project: { slug: r.projectslug, name: r.projectName },
         payload: {
           ...(snippet ? { snippet } : {}),
           ...(reason ? { reason } : {}),
@@ -610,8 +612,8 @@ export async function searchWorkspace(
     reviews: reviewRows.map((r) => ({
       id: r.id,
       tab: r.reviewerId === input.userId ? (snoozed(r) ? 'snoozed' : 'for-you') : 'created',
-      teamSlug: r.teamSlug,
-      teamName: r.teamName,
+      projectslug: r.projectslug,
+      projectName: r.projectName,
       build: { number: r.buildNumber, name: r.buildName, branch: r.branch },
       reviewer: { name: r.reviewerName ?? '' },
       requestedBy: r.requesterName === null ? null : { name: r.requesterName },
@@ -620,13 +622,15 @@ export async function searchWorkspace(
     views: viewRows.map((r) => ({
       id: r.id,
       name: r.name,
-      team:
-        r.teamSlug === null || r.teamName === null ? null : { slug: r.teamSlug, name: r.teamName },
+      project:
+        r.projectslug === null || r.projectName === null
+          ? null
+          : { slug: r.projectslug, name: r.projectName },
     })),
     totals: {
       builds: totalOf(buildRows),
       branches: totalOf(branchRows),
-      teams: totalOf(teamRows),
+      projects: totalOf(projectRows),
       snapshots: totalOf(snapshotRows),
       baselines: totalOf(baselineRows),
       triage: triage.total,
@@ -645,9 +649,9 @@ const KIND_WORDS: Record<TriageKind, string> = {
 }
 
 /**
- * Triage items are derived per team (nothing is stored until someone acts), so this looks
- * through the queues of up to `TRIAGE_TEAMS` visible teams and keeps the awake items whose
- * screenshot, kind, branch, team, commit or build number matches.
+ * Triage items are derived per project (nothing is stored until someone acts), so this looks
+ * through the queues of up to `TRIAGE_PROJECTS` visible projects and keeps the awake items whose
+ * screenshot, kind, branch, project, commit or build number matches.
  */
 async function searchTriage(
   db: Database,
@@ -659,51 +663,51 @@ async function searchTriage(
     now: Date
     /** False: the kind wasn't asked for, so no queue is read. */
     kept: boolean
-    team?: string
+    project?: string
   },
 ): Promise<{ items: searchWorkspace.Triage[]; total: number }> {
   const { q } = input
   if (!input.kept || q.length < 2) return { items: [], total: 0 }
   const list = await db
-    .select({ id: teams.id, slug: teams.slug, name: teams.name })
-    .from(teams)
+    .select({ id: projects.id, slug: projects.slug, name: projects.name })
+    .from(projects)
     .where(
       and(
-        eq(teams.workspaceId, input.workspaceId),
-        teamVisibleTo(input.userId, teams),
-        input.team === undefined ? undefined : eq(teams.slug, input.team),
+        eq(projects.workspaceId, input.workspaceId),
+        projectVisibleTo(input.userId, projects),
+        input.project === undefined ? undefined : eq(projects.slug, input.project),
       ),
     )
-    .orderBy(teams.slug)
-    .limit(TRIAGE_TEAMS)
+    .orderBy(projects.slug)
+    .limit(TRIAGE_PROJECTS)
   const numeric = /^#?(\d{1,9})$/.exec(q)
   const n = numeric ? Number(numeric[1]) : undefined
   const needle = q.toLowerCase()
   const queues = await Promise.all(
-    list.map(async (team) => ({
-      team,
-      queue: await listTriage(db, { teamId: team.id, now: input.now }),
+    list.map(async (project) => ({
+      project,
+      queue: await listTriage(db, { projectId: project.id, now: input.now }),
     })),
   )
-  const matches = queues.flatMap(({ team, queue }) =>
+  const matches = queues.flatMap(({ project, queue }) =>
     queue.items
       .filter((i) => !i.snoozed)
       .flatMap((i) => {
-        const texts = [i.snapshotName ?? '', KIND_WORDS[i.kind], i.build.branch ?? '', team.name]
+        const texts = [i.snapshotName ?? '', KIND_WORDS[i.kind], i.build.branch ?? '', project.name]
         const best = Math.min(
           ...texts.map((t) => textRank(t, q)),
           n !== undefined && i.build.number === n ? 0 : 4,
         )
         if (best > 3 && !i.build.commitSha.toLowerCase().startsWith(needle)) return []
-        return [{ best, item: i, team }]
+        return [{ best, item: i, project }]
       }),
   )
   const sorted = matches.toSorted(
     (a, b) => a.best - b.best || b.item.build.number - a.item.build.number,
   )
-  const items = sorted.slice(0, input.limit).map(({ item, team }) => ({
-    teamSlug: team.slug,
-    teamName: team.name,
+  const items = sorted.slice(0, input.limit).map(({ item, project }) => ({
+    projectslug: project.slug,
+    projectName: project.name,
     kind: item.kind,
     key: item.key,
     snapshotName: item.snapshotName,

@@ -16,7 +16,7 @@ import {
   flakyChoices,
   type FlakyChoice,
   isFlakyChoice,
-} from '#features/team-settings/flaky-setting.ts'
+} from '#features/project-settings/flaky-setting.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
 
 import {
@@ -39,7 +39,7 @@ export function RotationSection(props: RotationSection.Props) {
   const { ids, date, disabled } = props
   const problem = startDateProblem(date, props.dateUnreadable)
   const flaky = flakyProblem(props.flakyAfter)
-  // The saved rotation names its people itself: use it while the team's member list is loading,
+  // The saved rotation names its people itself: use it while the project's member list is loading,
   // so the row never says "no rotation" for a moment when there is one.
   const inRotation = ids.flatMap(
     (id) => props.people.find((p) => p.id === id) ?? props.known.find((p) => p.id === id) ?? [],
@@ -52,7 +52,7 @@ export function RotationSection(props: RotationSection.Props) {
   return (
     <SettingsSection
       title="Triage"
-      description={`One of ${props.teamName}'s members a week owns the triage queue: flaky screenshots, missing baselines, failed builds.`}
+      description={`One of ${props.projectName}'s members a week owns the triage queue: flaky screenshots, missing baselines, failed builds.`}
     >
       <SettingsRow label="Rotation">
         {inRotation.length > 0 ? (
@@ -151,7 +151,7 @@ export function RotationSection(props: RotationSection.Props) {
 
 export namespace RotationSection {
   export interface Props {
-    teamName: string
+    projectName: string
     defaultBranch: string
     people: Person[]
     /** The saved rotation's people, with their names and pictures (the rotation answer carries them). */
@@ -161,7 +161,7 @@ export namespace RotationSection {
     flakyAfter: string
     snoozeDays: string
     assignOnCall: FlakyChoice
-    /** What `inherit` means for this team: the workspace's default. */
+    /** What `inherit` means for this project: the workspace's default. */
     workspaceAssignOnCall: boolean
     /** Show the problems with the typed values (after a first try to save). */
     touched: boolean

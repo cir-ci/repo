@@ -14,7 +14,7 @@ import { docs, emptyWeek, fullReport, summary, web, week } from './fixtures.ts'
 const show = async (report: Insights.Report, url = '/workspaces/acme/insights?range=90') => {
   const calls = fakeFetch({
     'GET /api/workspaces/acme/insights': report,
-    'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    'GET /api/workspaces/acme/sidebar': sidebarModel({ projects: [] }),
   })
   await renderPage(<InsightsPage />, {
     route: '/workspaces/$workspace/insights',
@@ -94,11 +94,11 @@ describe('InsightsPage', () => {
         'Failed builds per week',
         'Processing time',
         'Breakdowns',
-        'Teams',
+        'Projects',
         'Why builds failed',
         'Rejection reasons',
         'Ignore regions',
-        'Storage by team',
+        'Storage by project',
         'Reviewer load',
         'Lists',
         'Most changed screenshots',
@@ -125,7 +125,7 @@ describe('InsightsPage', () => {
           failedBuilds: 0,
           changeRate: null,
         }),
-        storage: { totalBytes: 0, teams: [] },
+        storage: { totalBytes: 0, projects: [] },
         reviewers: [],
         weeks: [],
       }),
@@ -307,10 +307,10 @@ describe('InsightsPage', () => {
     })
   })
 
-  describe('Teams', () => {
-    it('compares the teams, in red past the target', async () => {
+  describe('Projects', () => {
+    it('compares the projects, in red past the target', async () => {
       await show(fullReport())
-      const c = card('Teams')
+      const c = card('Projects')
       await expect.element(c.getByText('last 90 days')).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '182 (26%)' })).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '5.0h' })).toHaveAttribute('data-over')
@@ -321,17 +321,17 @@ describe('InsightsPage', () => {
       await expect.element(c.getByRole('img', { name: 'Docs' })).toBeVisible()
     })
 
-    it('is left out with one team selected, or when the workspace has one team', async () => {
+    it('is left out with one project selected, or when the workspace has one project', async () => {
       await show(
-        fullReport({ team: 'web', teamsComparison: [] }),
-        '/workspaces/acme/insights?team=web',
+        fullReport({ project: 'web', projectsComparison: [] }),
+        '/workspaces/acme/insights?project=web',
       )
-      expect(card('Teams').elements()).toHaveLength(0)
+      expect(card('Projects').elements()).toHaveLength(0)
     })
 
-    it('is left out when the workspace has a single team', async () => {
-      await show(fullReport({ teamsComparison: fullReport().teamsComparison.slice(0, 1) }))
-      expect(card('Teams').elements()).toHaveLength(0)
+    it('is left out when the workspace has a single project', async () => {
+      await show(fullReport({ projectsComparison: fullReport().projectsComparison.slice(0, 1) }))
+      expect(card('Projects').elements()).toHaveLength(0)
     })
   })
 
@@ -353,7 +353,7 @@ describe('InsightsPage', () => {
   })
 
   describe('Rejection reasons', () => {
-    it('shows the latest reasons with who, the build link, the team and the age', async () => {
+    it('shows the latest reasons with who, the build link, the project and the age', async () => {
       await show(fullReport())
       const c = card('Rejection reasons')
       await expect.element(c.getByText('53 rejected builds, 38 with a reason')).toBeVisible()
@@ -409,7 +409,7 @@ describe('InsightsPage', () => {
     })
   })
 
-  describe('Reviewer load and Storage by team', () => {
+  describe('Reviewer load and Storage by project', () => {
     it('shows each reviewer with a bar, and the sub-title follows the range', async () => {
       await show(fullReport(), '/workspaces/acme/insights?range=7')
       const c = card('Reviewer load')
@@ -424,9 +424,9 @@ describe('InsightsPage', () => {
       await expect.element(card('Reviewer load').getByText('No reviewers yet.')).toBeVisible()
     })
 
-    it('shows storage per team in its colour, the total and retention', async () => {
+    it('shows storage per project in its colour, the total and retention', async () => {
       await show(fullReport())
-      const c = card('Storage by team')
+      const c = card('Storage by project')
       await expect
         .element(c.getByText('screenshots, diffs and baselines · 3.0 GB total'))
         .toBeVisible()
@@ -434,7 +434,7 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText('Retention keeps 90 days of branch builds.')).toBeVisible()
     })
 
-    it('shows a span when teams keep builds for different times', async () => {
+    it('shows a span when projects keep builds for different times', async () => {
       await show(fullReport({ retentionDays: { min: 30, max: 90 } }))
       await expect
         .element(page.getByText('Retention keeps 30 to 90 days of branch builds.'))
@@ -455,7 +455,7 @@ describe('InsightsPage', () => {
       await expect
         .element(c.getByRole('img', { name: 'Changed in 5 of the last 10 commits' }))
         .toBeVisible()
-      await expect.element(c.getByRole('columnheader', { name: 'Team' })).toBeVisible()
+      await expect.element(c.getByRole('columnheader', { name: 'Project' })).toBeVisible()
     })
 
     it('has an empty state for most changed', async () => {
@@ -501,16 +501,16 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText('Omer Katz')).toBeVisible()
     })
 
-    it('drops the Team column when one team is selected', async () => {
+    it('drops the Project column when one project is selected', async () => {
       await show(
-        fullReport({ team: 'web', teamsComparison: [] }),
-        '/workspaces/acme/insights?team=web',
+        fullReport({ project: 'web', projectsComparison: [] }),
+        '/workspaces/acme/insights?project=web',
       )
       expect(
-        card('Oldest waiting builds').getByRole('columnheader', { name: 'Team' }).elements(),
+        card('Oldest waiting builds').getByRole('columnheader', { name: 'Project' }).elements(),
       ).toHaveLength(0)
       expect(
-        card('Most changed screenshots').getByRole('columnheader', { name: 'Team' }).elements(),
+        card('Most changed screenshots').getByRole('columnheader', { name: 'Project' }).elements(),
       ).toHaveLength(0)
     })
 
@@ -539,7 +539,7 @@ describe('InsightsPage', () => {
     })
   })
 
-  it('keeps the two teams distinct by colour in storage and ignore regions', async () => {
+  it('keeps the two projects distinct by colour in storage and ignore regions', async () => {
     await show(fullReport({ ignoreRegions: fullReport().ignoreRegions }))
     expect(web.colour).not.toBe(docs.colour)
     await expect.element(card('Ignore regions').getByRole('img', { name: 'Web' })).toBeVisible()

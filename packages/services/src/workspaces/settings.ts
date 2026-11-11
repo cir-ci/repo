@@ -7,7 +7,7 @@ import {
 
 import { autoAssignWorkspace } from '#src/triage/auto-assign.ts'
 
-/** Changes a workspace's defaults for its teams (flaky gate, retention); returns the result. */
+/** Changes a workspace's defaults for its projects (flaky gate, retention); returns the result. */
 export async function updateWorkspaceSettings(
   db: Database,
   workspaceId: string,
@@ -15,7 +15,7 @@ export async function updateWorkspaceSettings(
 ): Promise<Awaited<ReturnType<typeof setWorkspaceSettings>>> {
   return db.transaction(async (tx) => {
     const saved = await setWorkspaceSettings(tx, workspaceId, patch)
-    // Turned on: every team that follows the default assigns what is waiting.
+    // Turned on: every project that follows the default assigns what is waiting.
     if (patch.assignTriageToOnCall) await autoAssignWorkspace(tx, workspaceId)
     return saved
   })

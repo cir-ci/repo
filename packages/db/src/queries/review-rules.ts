@@ -3,7 +3,7 @@ import { asc, eq, inArray } from 'drizzle-orm'
 import { type ReviewRuleKind, reviewRuleReviewers, reviewRules, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
-/** A team's review rules, as the settings page and the matcher read them. */
+/** A project's review rules, as the settings page and the matcher read them. */
 
 export interface ReviewRuleRow {
   id: string
@@ -13,12 +13,12 @@ export interface ReviewRuleRow {
   reviewers: { id: string; name: string }[]
 }
 
-/** A team's rules in the order they apply, each with its reviewers (by name). */
-export async function listReviewRules(db: Database, teamId: string): Promise<ReviewRuleRow[]> {
+/** A project's rules in the order they apply, each with its reviewers (by name). */
+export async function listReviewRules(db: Database, projectId: string): Promise<ReviewRuleRow[]> {
   const rules = await db
     .select()
     .from(reviewRules)
-    .where(eq(reviewRules.teamId, teamId))
+    .where(eq(reviewRules.projectId, projectId))
     .orderBy(asc(reviewRules.position), asc(reviewRules.createdAt), asc(reviewRules.id))
   if (rules.length === 0) return []
   const links = await db

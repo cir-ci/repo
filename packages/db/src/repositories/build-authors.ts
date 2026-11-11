@@ -1,73 +1,76 @@
 import { and, eq, sql } from 'drizzle-orm'
 
-import { account, builds, member, teams, user } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { account, builds, member, projects, user } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** Who authored a build: lookups of the members it could be, and the store for a PR's author. */
 
 /**
- * The users of the team's workspace whose linked sign-in account at `providerId` (GitHub's
+ * The users of the project's workspace whose linked sign-in account at `providerId` (GitHub's
  * `github`, …) has this provider-side id. Account ids are unique per provider, so more than one
  * row means something is off and the caller must not guess.
  */
 export async function findMembersByAccount(
   db: Database,
-  teamId: string,
+  projectId: string,
   providerId: string,
   accountId: string,
 ): Promise<string[]> {
   const rows = await db
     .selectDistinct({ userId: account.userId })
     .from(account)
-    .innerJoin(teams, eq(teams.id, teamId))
+    .innerJoin(projects, eq(projects.id, projectId))
     .innerJoin(
       member,
-      and(eq(member.userId, account.userId), eq(member.workspaceId, teams.workspaceId)),
+      and(eq(member.userId, account.userId), eq(member.workspaceId, projects.workspaceId)),
     )
     .where(and(eq(account.providerId, providerId), eq(account.accountId, accountId)))
   return rows.map((r) => r.userId)
 }
 
 /**
- * Like `findMembersByAccount`, but only people who may see the team (its members, and owners and
+ * Like `findMembersByAccount`, but only people who may see the project (its members, and owners and
  * admins of its workspace): the ones who may act on its builds from the code host (`/circi approve`).
  */
-export async function findTeamViewersByAccount(
+export async function findProjectViewersByAccount(
   db: Database,
-  teamId: string,
+  projectId: string,
   providerId: string,
   accountId: string,
 ): Promise<string[]> {
   const rows = await db
     .selectDistinct({ userId: account.userId })
     .from(account)
-    .innerJoin(teams, eq(teams.id, teamId))
+    .innerJoin(projects, eq(projects.id, projectId))
     .innerJoin(
       member,
-      and(eq(member.userId, account.userId), eq(member.workspaceId, teams.workspaceId)),
+      and(eq(member.userId, account.userId), eq(member.workspaceId, projects.workspaceId)),
     )
     .where(
       and(
         eq(account.providerId, providerId),
         eq(account.accountId, accountId),
-        teamVisibleTo(account.userId, teams),
+        projectVisibleTo(account.userId, projects),
       ),
     )
   return rows.map((r) => r.userId)
 }
 
-/** The team's workspace members with this verified email (compared case-insensitively). */
+/** The project's workspace members with this verified email (compared case-insensitively). */
 export async function findMembersByVerifiedEmail(
   db: Database,
-  teamId: string,
+  projectId: string,
   email: string,
 ): Promise<string[]> {
   const rows = await db
     .selectDistinct({ userId: user.id })
     .from(user)
-    .innerJoin(teams, eq(teams.id, teamId))
-    .innerJoin(member, and(eq(member.userId, user.id), eq(member.workspaceId, teams.workspaceId)))
+    .innerJoin(projects, eq(projects.id, projectId))
+    .innerJoin(
+      member,
+      and(eq(member.userId, user.id), eq(member.workspaceId, projects.workspaceId)),
+    )
     .where(and(eq(user.emailVerified, true), sql`lower(${user.email}) = ${email.toLowerCase()}`))
   return rows.map((r) => r.userId)
 }
@@ -87,13 +90,13 @@ export async function setPullRequestAuthor(
       authorLogin: input.login,
       authorUserId: input.userId,
     })
-    .where(and(eq(builds.teamId, input.teamId), eq(builds.prNumber, input.prNumber)))
+    .where(and(eq(builds.projectId, input.projectId), eq(builds.prNumber, input.prNumber)))
     .returning({ id: builds.id })
   return rows.length
 }
 export namespace setPullRequestAuthor {
   export interface Input {
-    teamId: string
+    projectId: string
     prNumber: number
     login: string
     userId: string | null

@@ -24,7 +24,7 @@ export interface BaselineItem {
 }
 
 /**
- * The team's current baselines: per build name and screenshot name, the screenshot of the
+ * The project's current baselines: per build name and screenshot name, the screenshot of the
  * newest eligible build on `defaultBranch`. Eligible is `isEligibleBaseline` in `@circi/core`
  * (finished, and approved or unchanged and not rejected), judged per snapshot: a snapshot
  * approved on its own counts even while its build is still pending, a rejected one never does.
@@ -33,7 +33,7 @@ export interface BaselineItem {
  */
 export async function listBaselines(
   db: Database,
-  input: { teamId: string; defaultBranch: string },
+  input: { projectId: string; defaultBranch: string },
 ): Promise<BaselineItem[]> {
   const rows = await db
     .selectDistinctOn([builds.name, screenshots.name], {
@@ -65,7 +65,7 @@ export async function listBaselines(
     .innerJoin(files, eq(files.sha256, screenshots.fileSha256))
     .where(
       and(
-        eq(builds.teamId, input.teamId),
+        eq(builds.projectId, input.projectId),
         eq(builds.branch, input.defaultBranch),
         eq(builds.status, 'complete'),
         or(

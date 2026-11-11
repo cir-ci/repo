@@ -35,7 +35,7 @@ export const Header = () => (
     <SectionHeader
       divided
       title="Danger zone"
-      description="Delete the team and everything in it."
+      description="Delete the project and everything in it."
     />
   </Both>
 )

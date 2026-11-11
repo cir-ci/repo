@@ -16,7 +16,7 @@ import type {
 import { matchScore, THEME_CHOICES, wordsOf } from './model.ts'
 
 /**
- * The nested lists a row with a chevron opens (Switch team…, Switch workspace…, Theme…) and the
+ * The nested lists a row with a chevron opens (Switch project…, Switch workspace…, Theme…) and the
  * actions of one highlighted row (⌘.). A nested list replaces the main one: the field shows a chip
  * with its name and a new placeholder, rows show the current choice with a check, and Backspace in
  * the empty field or Esc goes back.
@@ -37,7 +37,7 @@ export const PAGE_META: Record<
   PageId,
   { chip: string; placeholder: string; noun: [string, string] }
 > = {
-  team: { chip: 'Switch team', placeholder: 'Find a team', noun: ['team', 'teams'] },
+  project: { chip: 'Switch project', placeholder: 'Find a project', noun: ['project', 'projects'] },
   workspace: {
     chip: 'Switch workspace',
     placeholder: 'Find a workspace',
@@ -52,12 +52,12 @@ export const PAGE_META: Record<
 export interface PageInput {
   workspace: string | undefined
   pathname: string
-  teams: readonly Sidebar.Team[] | undefined
+  projects: readonly Sidebar.Project[] | undefined
   workspaces: readonly WorkspaceRef[]
-  /** The team of the address, which is the current choice of Switch team. */
-  routeTeam: string | undefined
+  /** The project of the address, which is the current choice of Switch project. */
+  routeProject: string | undefined
   theme: ColorMode
-  /** The team's people (page `reviewers`), who is signed in, and the build author's user ID, both left out of the list. */
+  /** The project's people (page `reviewers`), who is signed in, and the build author's user ID, both left out of the list. */
   members?: readonly Reviewer[] | undefined
   meId?: string | undefined
   authorId?: string | null | undefined
@@ -65,13 +65,13 @@ export interface PageInput {
 
 const enc = encodeURIComponent
 
-/** Where choosing `slug` goes: the same section of that team (Triage stays Triage), else its builds. */
-export function switchTeamPath(pathname: string, workspace: string, slug: string): string {
+/** Where choosing `slug` goes: the same section of that project (Triage stays Triage), else its builds. */
+export function switchProjectPath(pathname: string, workspace: string, slug: string): string {
   const parts = pathname.split('/').filter(Boolean)
   const base = `/${enc(workspace)}/${enc(slug)}`
-  const onTeam =
+  const onProject =
     parts.length >= 3 && !['workspaces', 'account', 'instance', 'inbox'].includes(parts[0] ?? '')
-  const section = onTeam ? parts[2] : undefined
+  const section = onProject ? parts[2] : undefined
   if (section === 'triage' || section === 'baselines' || section === 'sites') {
     return `${base}/${section}`
   }
@@ -82,9 +82,9 @@ export function switchTeamPath(pathname: string, workspace: string, slug: string
 export function switchWorkspaceTarget(
   pathname: string,
   slug: string,
-  teamOf: (workspace: string) => string | undefined,
+  projectOf: (workspace: string) => string | undefined,
 ): string | undefined {
-  return switchWorkspacePath(pathname, slug, teamOf)
+  return switchWorkspacePath(pathname, slug, projectOf)
 }
 
 const choice = (
@@ -111,21 +111,21 @@ const choice = (
 export function pageEntries(state: PageState, input: PageInput, query: string): Entry[] {
   const words = wordsOf(query)
   const keep = (e: Entry) => words.length === 0 || matchScore(e, words) > 0
-  if (state.page === 'team') {
+  if (state.page === 'project') {
     if (!input.workspace) return []
     const workspace = input.workspace
-    return (input.teams ?? [])
+    return (input.projects ?? [])
       .map((t) =>
         choice(
-          `choose:team:${t.slug}`,
+          `choose:project:${t.slug}`,
           t.name,
-          t.slug === input.routeTeam,
-          { type: 'team', slug: t.slug },
-          'team',
+          t.slug === input.routeProject,
+          { type: 'project', slug: t.slug },
+          'project',
           `Opens ${t.name}.`,
           {
-            team: { slug: t.slug, name: t.name, color: t.color, icon: t.icon },
-            path: switchTeamPath(input.pathname, workspace, t.slug),
+            project: { slug: t.slug, name: t.name, color: t.color, icon: t.icon },
+            path: switchProjectPath(input.pathname, workspace, t.slug),
           },
         ),
       )
@@ -203,7 +203,7 @@ function reasonEntries(rejection: RowAction | undefined, query: string): Entry[]
   ]
 }
 
-/** The people a review can be asked of: the team, without you and the build's author; ticked ones are checked. */
+/** The people a review can be asked of: the project, without you and the build's author; ticked ones are checked. */
 function reviewerEntries(state: PageState, input: PageInput): Entry[] {
   const subject = state.subject
   if (!subject) return []
@@ -400,13 +400,13 @@ export const hasRowActions = (entry: Entry | undefined): boolean =>
  */
 export function buildPageAction(
   key: string,
-  build: { workspace: string; team: string; number: number; shot?: string | undefined },
+  build: { workspace: string; project: string; number: number; shot?: string | undefined },
 ): RowAction | { page: 'reviewers'; subject: ReviewSubject } | undefined {
   const type = SHORTCUTS.find((s) => s.key === key)?.action.type
   const subject: ReviewSubject = {
     type: 'build',
     workspace: build.workspace,
-    team: build.team,
+    project: build.project,
     number: build.number,
     label: `build #${build.number}`,
   }

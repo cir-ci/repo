@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createUser } from '@circi/auth'
-import { getWorkspaceBySlug, getTeamLink, listIntegrations } from '@circi/db/queries'
+import { getWorkspaceBySlug, getProjectLink, listIntegrations } from '@circi/db/queries'
 import { createIntegration } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedGitConnection, seedGitLink } from '@circi/db/testing'
@@ -112,7 +112,7 @@ describe('GET /api/workspaces/:workspace/integrations', () => {
         ['github', 'git', 'Installation 501'],
         ['slack', 'chat', 'Acme Slack'],
       ])
-      expect(body.integrations[0]).toMatchObject({ needsAttention: false, teamCount: 0 })
+      expect(body.integrations[0]).toMatchObject({ needsAttention: false, projectCount: 0 })
       expect(JSON.stringify(body)).not.toContain('sealed-secret')
       const byKind = Object.fromEntries(body.catalog.map((e: { kind: string }) => [e.kind, e]))
       expect(byKind.github).toMatchObject({
@@ -131,7 +131,7 @@ describe('GET /api/workspaces/:workspace/integrations', () => {
         built: false,
         connectable: false,
       })
-      expect(byKind.teams.status).toBe('planned')
+      expect(byKind.projects.status).toBe('planned')
       expect(byKind.penpot.status).toBe('planned')
     }
   })
@@ -166,12 +166,12 @@ describe('removing an integration', () => {
     expect((await call('DELETE', `${base}/not-a-uuid`, ownerCookie)).statusCode).toBe(400)
   })
 
-  it('disconnects a git host the way unlinking does: its teams stop reporting', async () => {
-    await seedGitLink(t.db, acme.team.id, { externalId: '501', repoRef: 'acme/web' })
+  it('disconnects a git host the way unlinking does: its projects stop reporting', async () => {
+    await seedGitLink(t.db, acme.project.id, { externalId: '501', repoRef: 'acme/web' })
     const [github] = (await call('GET', base, ownerCookie)).json().integrations
-    expect(github).toMatchObject({ kind: 'github', teamCount: 1 })
+    expect(github).toMatchObject({ kind: 'github', projectCount: 1 })
     expect((await call('DELETE', `${base}/${github.id}`, ownerCookie)).statusCode).toBe(204)
-    expect(await getTeamLink(t.db, acme.team.id, ['github'])).toBeUndefined()
+    expect(await getProjectLink(t.db, acme.project.id, ['github'])).toBeUndefined()
     expect((await call('GET', base, ownerCookie)).json().integrations).toEqual([])
   })
 })
@@ -180,7 +180,7 @@ const connect = (cookie: string, installationId: string) =>
   call('POST', `${base}/github/connect`, cookie, { installationId })
 
 describe('the GitHub integration', () => {
-  it('connects an installation (admins only), then maps each team to a repository', async () => {
+  it('connects an installation (admins only), then maps each project to a repository', async () => {
     expect((await connect(louCookie, '7')).statusCode).toBe(403)
     expect((await connect(ownerCookie, 'x')).statusCode).toBe(400)
     const res = await connect(ownerCookie, '7')
@@ -190,21 +190,21 @@ describe('the GitHub integration', () => {
     expect((await connect(ownerCookie, '7')).json().id).toBe(id)
 
     const put = (slug: string, ref: string) =>
-      call('PUT', `${base}/${id}/teams/${slug}`, ownerCookie, { ref })
+      call('PUT', `${base}/${id}/projects/${slug}`, ownerCookie, { ref })
     expect((await put('web', 'not a repo')).statusCode).toBe(400)
     expect((await put('web', 'acme/web')).statusCode).toBe(204)
 
-    const page = (await call('GET', `${base}/${id}/teams`, louCookie)).json()
+    const page = (await call('GET', `${base}/${id}/projects`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
       integration: { id, kind: 'github', name: 'Installation 7', needsAttention: false },
       definition: { mapping: { targetKind: 'repository', targetLabel: 'Repository' } },
       // The App's webhook secret is configured on GitHub: there is none to show.
       webhook: { url: `${ORIGIN}/webhooks/github`, secret: null },
-      teams: [{ slug: 'web', mapping: { ref: 'acme/web', name: 'acme/web' } }],
+      projects: [{ slug: 'web', mapping: { ref: 'acme/web', name: 'acme/web' } }],
     })
-    expect((await call('GET', `${base}/${id}/teams`, rivalCookie)).statusCode).toBe(404)
-    expect(await getTeamLink(t.db, acme.team.id, ['github'])).toEqual({
+    expect((await call('GET', `${base}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
+    expect(await getProjectLink(t.db, acme.project.id, ['github'])).toEqual({
       installationId: '7',
       repoRef: 'acme/web',
     })
@@ -231,10 +231,10 @@ describe('the GitHub integration', () => {
     expect(res.json().error).toMatch(/another workspace/)
   })
 
-  it('moves a team to the repository of another installation instead of keeping both', async () => {
+  it('moves a project to the repository of another installation instead of keeping both', async () => {
     const mappedTo7 = (await connect(ownerCookie, '7')).json().id
     expect(
-      (await call('PUT', `${base}/${mappedTo7}/teams/web`, ownerCookie, { ref: 'acme/web' }))
+      (await call('PUT', `${base}/${mappedTo7}/projects/web`, ownerCookie, { ref: 'acme/web' }))
         .statusCode,
     ).toBe(204)
     const other = (await connect(ownerCookie, '501')).json().id
@@ -242,18 +242,18 @@ describe('the GitHub integration', () => {
       (i) => i.workspaceId === workspace.id && i.externalId === '7',
     )
     const second = (
-      await call('PUT', `${base}/${other}/teams/web`, ownerCookie, {
+      await call('PUT', `${base}/${other}/projects/web`, ownerCookie, {
         ref: 'acme/api',
       })
     ).statusCode
     expect(second).toBe(204)
-    expect(await getTeamLink(t.db, acme.team.id, ['github'])).toEqual({
+    expect(await getProjectLink(t.db, acme.project.id, ['github'])).toEqual({
       installationId: '501',
       repoRef: 'acme/api',
     })
     expect(first).toBeDefined()
-    const page = (await call('GET', `${base}/${first?.id}/teams`, ownerCookie)).json()
-    expect(page.teams[0].mapping).toBeNull()
+    const page = (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json()
+    expect(page.projects[0].mapping).toBeNull()
   })
 
   it('lists the repositories an installation can see, for admins', async () => {

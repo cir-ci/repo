@@ -42,10 +42,10 @@ export const Empty = () => (
     <EmptyState
       icon={<LayersIcon />}
       size="section"
-      title="No teams yet"
-      action={<Button variant="primary">New team</Button>}
+      title="No projects yet"
+      action={<Button variant="primary">New project</Button>}
     >
-      Create a team to start uploading screenshots.
+      Create a project to start uploading screenshots.
     </EmptyState>
   </Both>
 )
@@ -79,7 +79,7 @@ export const FirstRunCommand = () => (
 
 export const NoResultsSearch = () => (
   <Both width={480}>
-    <NoResults size="section" noun="team" query="checkout" onClear={() => {}} />
+    <NoResults size="section" noun="project" query="checkout" onClear={() => {}} />
   </Both>
 )
 
@@ -101,7 +101,7 @@ export const Error = () => (
       title="This build doesn’t exist"
       tone="failed"
       size="section"
-      action={<Button>Back to Teams</Button>}
+      action={<Button>Back to Projects</Button>}
     >
       It may have expired, or the link is wrong.
     </EmptyState>

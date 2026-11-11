@@ -9,7 +9,7 @@ import {
   seedChangedSnapshots,
   seedGitLink,
   seedNotification,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -44,13 +44,13 @@ const jobs = async (queue: string) =>
 
 /** A finished build with changes to `a`, `b` and `c`, written by `ann`; the owner and `lou` may review. */
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const ann = await seedUser(t.db)
   const lou = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: ann.id })
   await addTestMember(t.db, { workspaceId: workspace.id, userId: lou.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'feature',
     author: { login: 'ann', userId: ann.id },
@@ -59,10 +59,10 @@ async function setup() {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
-  await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'acme/web' })
+  await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'acme/web' })
   await seedChangedSnapshots(t.db, build.id, ['a', 'b', 'c'])
   await t.db.delete(schema.jobs)
-  return { team, owner, ann, lou, build }
+  return { project, owner, ann, lou, build }
 }
 
 const buildRow = async (id: string) =>
@@ -88,10 +88,10 @@ const all = async (buildId: string) =>
 
 describe('undo of a build decision', () => {
   it('restores the earlier decisions, reasons and status exactly, and keeps the history', async () => {
-    const { team, owner, ann, build } = await setup()
+    const { project, owner, ann, build } = await setup()
     // `a` was rejected with a reason; the owner then approves everything.
     await reviewSnapshotsUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       decision: 'rejected',
@@ -103,7 +103,7 @@ describe('undo of a build decision', () => {
     await t.db.delete(schema.jobs)
 
     const { undo } = await reviewBuildUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       state: 'approved',
@@ -121,7 +121,7 @@ describe('undo of a build decision', () => {
     expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(1)
     await t.db.delete(schema.jobs)
 
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
 
     expect((await buildRow(build.id))?.reviewStatus).toBe('rejected')
     expect(await current(build.id)).toEqual(['a:rejected:Off by two pixels'])
@@ -137,15 +137,15 @@ describe('undo of a build decision', () => {
   })
 
   it('goes back to needs review for a screenshot decision, and reopens the review requests it closed', async () => {
-    const { team, owner, lou, build } = await setup()
+    const { project, owner, lou, build } = await setup()
     await requestReviewsUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: [build.id],
       reviewerIds: [lou.id],
       requestedById: owner.id,
     })
     const { undo } = await reviewSnapshotsUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       decision: 'approved',
@@ -155,22 +155,22 @@ describe('undo of a build decision', () => {
       t.db.select().from(schema.reviewRequests).where(eq(schema.reviewRequests.buildId, build.id))
     expect((await requests())[0]?.state).toBe('done')
 
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await buildRow(build.id))?.reviewStatus).toBe('pending')
     expect(await current(build.id)).toEqual([])
     expect((await requests())[0]?.state).toBe('open')
   })
 
   it('has no token when the decision changed nothing', async () => {
-    const { team, owner, build } = await setup()
+    const { project, owner, build } = await setup()
     const first = await reviewBuildUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       state: 'approved',
     })
     const again = await reviewBuildUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       state: 'approved',
@@ -180,10 +180,10 @@ describe('undo of a build decision', () => {
   })
 
   it('refuses another person (403), a stale undo (409), a second undo and an expired one', async () => {
-    const { team, owner, lou, build } = await setup()
+    const { project, owner, lou, build } = await setup()
     const decide = (userId: string, decision: 'approved' | 'rejected', names: string[]) =>
       reviewSnapshotsUndoable(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         buildId: build.id,
         userId,
         decision,
@@ -191,7 +191,7 @@ describe('undo of a build decision', () => {
         ...(decision === 'rejected' ? { reason: 'no' } : {}),
       })
     const mine = await decide(owner.id, 'approved', ['a', 'b'])
-    const undo = { id: mine.undo?.id ?? '', teamId: team.id }
+    const undo = { id: mine.undo?.id ?? '', projectId: project.id }
 
     await expect(undoAction(t.db, { ...undo, userId: lou.id })).rejects.toMatchObject({
       name: 'ForbiddenError',
@@ -207,60 +207,65 @@ describe('undo of a build decision', () => {
     // Single use.
     const fresh = await decide(owner.id, 'approved', ['c'])
     const id = fresh.undo?.id ?? ''
-    await undoAction(t.db, { id, userId: owner.id, teamId: team.id })
-    await expect(undoAction(t.db, { id, userId: owner.id, teamId: team.id })).rejects.toMatchObject(
-      { name: 'ConflictError', message: 'Already undone' },
-    )
+    await undoAction(t.db, { id, userId: owner.id, projectId: project.id })
+    await expect(
+      undoAction(t.db, { id, userId: owner.id, projectId: project.id }),
+    ).rejects.toMatchObject({ name: 'ConflictError', message: 'Already undone' })
     // Expired.
     const late = await decide(owner.id, 'approved', ['c'])
     await expect(
       undoAction(t.db, {
         id: late.undo?.id ?? '',
         userId: owner.id,
-        teamId: team.id,
+        projectId: project.id,
         now: new Date(Date.now() + UNDO_WINDOW_MS + 1000),
       }),
     ).rejects.toMatchObject({ name: 'ConflictError', message: "It's too late to undo that" })
-    // Wrong scope: the inbox route does not know a team's token.
+    // Wrong scope: the inbox route does not know a project's token.
     await expect(
-      undoAction(t.db, { id: late.undo?.id ?? '', userId: owner.id, teamId: null }),
+      undoAction(t.db, { id: late.undo?.id ?? '', userId: owner.id, projectId: null }),
     ).rejects.toMatchObject({ name: 'NotFoundError' })
   })
 
   it('restores a build decided as a whole when it has no changes', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    await t.db.update(schema.teams).set({ autoApproveNoChanges: false })
-    const build = await seedBuild(t.db, team.id, { status: 'complete' })
+    const { project, owner } = await seedProject(t.db)
+    await t.db.update(schema.projects).set({ autoApproveNoChanges: false })
+    const build = await seedBuild(t.db, project.id, { status: 'complete' })
     await t.db
       .update(schema.builds)
       .set({ conclusion: 'no_changes' })
       .where(eq(schema.builds.id, build.id))
     const { undo } = await reviewBuildUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildId: build.id,
       userId: owner.id,
       state: 'approved',
     })
     expect((await buildRow(build.id))?.reviewStatus).toBe('approved')
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await buildRow(build.id))?.reviewStatus).toBe('pending')
   })
 })
 
 async function triage() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const mate = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
-  const failed = await seedBuild(t.db, team.id, { branch: 'main', status: 'error' })
-  const ref = { teamId: team.id, kind: 'failed', key: `build:${failed.number}` }
+  const failed = await seedBuild(t.db, project.id, { branch: 'main', status: 'error' })
+  const ref = { projectId: project.id, kind: 'failed', key: `build:${failed.number}` }
   const row = async () =>
-    (await t.db.select().from(schema.triageItems).where(eq(schema.triageItems.teamId, team.id)))[0]
-  return { team, owner, mate, ref, row }
+    (
+      await t.db
+        .select()
+        .from(schema.triageItems)
+        .where(eq(schema.triageItems.projectId, project.id))
+    )[0]
+  return { project, owner, mate, ref, row }
 }
 
 describe('undo of triage actions', () => {
   it('puts the previous assignee back, and refuses once someone assigned it since', async () => {
-    const { team, owner, mate, ref, row } = await triage()
+    const { project, owner, mate, ref, row } = await triage()
     await assignTriageUndoable(t.db, { ...ref, assigneeId: owner.id, userId: owner.id })
     const { undo } = await assignTriageUndoable(t.db, {
       ...ref,
@@ -268,7 +273,7 @@ describe('undo of triage actions', () => {
       userId: owner.id,
     })
     expect((await row())?.assigneeId).toBe(mate.id)
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await row())?.assigneeId).toBe(owner.id)
 
     const second = await assignTriageUndoable(t.db, {
@@ -278,13 +283,13 @@ describe('undo of triage actions', () => {
     })
     await assignTriageUndoable(t.db, { ...ref, assigneeId: null, userId: mate.id })
     await expect(
-      undoAction(t.db, { id: second.undo?.id ?? '', userId: owner.id, teamId: team.id }),
+      undoAction(t.db, { id: second.undo?.id ?? '', userId: owner.id, projectId: project.id }),
     ).rejects.toMatchObject({ name: 'ConflictError' })
     expect((await row())?.assigneeId).toBeNull()
   })
 
   it('unsnoozes, and restores an earlier snooze', async () => {
-    const { team, owner, ref, row } = await triage()
+    const { project, owner, ref, row } = await triage()
     const first = await snoozeTriageUndoable(t.db, { ...ref, choice: 'tomorrow', userId: owner.id })
     const second = await snoozeTriageUndoable(t.db, {
       ...ref,
@@ -293,28 +298,28 @@ describe('undo of triage actions', () => {
     })
     const nextWeek = (await row())?.snoozedUntil
     expect(nextWeek).not.toEqual((await row())?.createdAt)
-    await undoAction(t.db, { id: second.undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: second.undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await row())?.snoozeKind).toBe('tomorrow')
-    await undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await row())?.snoozeKind).toBeNull()
     expect((await row())?.snoozedUntil).toBeNull()
   })
 
   it('un-dismisses, and refuses another person', async () => {
-    const { team, owner, mate, ref, row } = await triage()
+    const { project, owner, mate, ref, row } = await triage()
     const { undo } = await dismissTriageUndoable(t.db, { ...ref, userId: owner.id })
     expect((await row())?.dismissedAt).not.toBeNull()
     await expect(
-      undoAction(t.db, { id: undo?.id ?? '', userId: mate.id, teamId: team.id }),
+      undoAction(t.db, { id: undo?.id ?? '', userId: mate.id, projectId: project.id }),
     ).rejects.toMatchObject({ name: 'ForbiddenError' })
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect((await row())?.dismissedAt).toBeNull()
   })
 })
 
 describe('undo of inbox actions', () => {
   it('restores read, snoozed and removed notices exactly', async () => {
-    const { owner } = await seedTeam(t.db)
+    const { owner } = await seedProject(t.db)
     const other = await seedUser(t.db)
     const n = await seedNotification(t.db, { userId: owner.id })
     const row = async () =>
@@ -326,7 +331,7 @@ describe('undo of inbox actions', () => {
       read: true,
     })
     expect((await row())?.readAt).not.toBeNull()
-    await undoAction(t.db, { id: read.undo?.id ?? '', userId: owner.id, teamId: null })
+    await undoAction(t.db, { id: read.undo?.id ?? '', userId: owner.id, projectId: null })
     expect((await row())?.readAt).toBeNull()
 
     const snoozed = await snoozeNotificationUndoable(t.db, {
@@ -335,20 +340,20 @@ describe('undo of inbox actions', () => {
       choice: 'tomorrow',
     })
     expect((await row())?.snoozedUntil).not.toBeNull()
-    await undoAction(t.db, { id: snoozed.undo?.id ?? '', userId: owner.id, teamId: null })
+    await undoAction(t.db, { id: snoozed.undo?.id ?? '', userId: owner.id, projectId: null })
     expect((await row())?.snoozedUntil).toBeNull()
 
     const removed = await removeNotificationUndoable(t.db, { userId: owner.id, id: n.id })
     expect((await row())?.deletedAt).not.toBeNull()
     await expect(
-      undoAction(t.db, { id: removed.undo?.id ?? '', userId: other.id, teamId: null }),
+      undoAction(t.db, { id: removed.undo?.id ?? '', userId: other.id, projectId: null }),
     ).rejects.toMatchObject({ name: 'ForbiddenError' })
-    await undoAction(t.db, { id: removed.undo?.id ?? '', userId: owner.id, teamId: null })
+    await undoAction(t.db, { id: removed.undo?.id ?? '', userId: owner.id, projectId: null })
     expect((await row())?.deletedAt).toBeNull()
   })
 
   it('has no token when reading what was already read, and refuses a stale undo', async () => {
-    const { owner } = await seedTeam(t.db)
+    const { owner } = await seedProject(t.db)
     const n = await seedNotification(t.db, { userId: owner.id })
     const first = await markNotificationReadUndoable(t.db, {
       userId: owner.id,
@@ -363,16 +368,16 @@ describe('undo of inbox actions', () => {
     expect(again.undo).toBeNull()
     await markNotificationReadUndoable(t.db, { userId: owner.id, id: n.id, read: false })
     await expect(
-      undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, teamId: null }),
+      undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, projectId: null }),
     ).rejects.toMatchObject({ name: 'ConflictError' })
   })
 })
 
 describe('undo of review requests', () => {
   it('cancels the requests it opened and takes back their notices', async () => {
-    const { team, owner, lou, build } = await setup()
+    const { project, owner, lou, build } = await setup()
     const { undo, requests } = await requestReviewsUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: [build.id],
       reviewerIds: [lou.id],
       requestedById: owner.id,
@@ -383,7 +388,7 @@ describe('undo of review requests', () => {
         .from(schema.notifications)
         .where(and(eq(schema.notifications.userId, lou.id), isNull(schema.notifications.deletedAt)))
     expect(await notices()).toHaveLength(1)
-    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, teamId: team.id })
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
     expect(await notices()).toHaveLength(0)
     const row = (
       await t.db
@@ -395,9 +400,9 @@ describe('undo of review requests', () => {
   })
 
   it('has no token when everyone was already asked, and is stale once the reviewer answered', async () => {
-    const { team, owner, lou, build } = await setup()
+    const { project, owner, lou, build } = await setup()
     const input = {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: [build.id],
       reviewerIds: [lou.id],
       requestedById: owner.id,
@@ -406,14 +411,14 @@ describe('undo of review requests', () => {
     expect((await requestReviewsUndoable(t.db, input)).undo).toBeNull()
     await reviewBuild(t.db, { buildId: build.id, userId: lou.id, state: 'approved' })
     await expect(
-      undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, teamId: team.id }),
+      undoAction(t.db, { id: first.undo?.id ?? '', userId: owner.id, projectId: project.id }),
     ).rejects.toMatchObject({ name: 'ConflictError' })
   })
 
   it('puts a snooze of a request back, only for as long as it is the same snooze', async () => {
-    const { team, owner, lou, build } = await setup()
+    const { project, owner, lou, build } = await setup()
     const { requests } = await requestReviewsUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: [build.id],
       reviewerIds: [lou.id],
       requestedById: owner.id,
@@ -427,29 +432,29 @@ describe('undo of review requests', () => {
           .where(eq(schema.reviewRequests.id, requestId))
       )[0]
     const first = await snoozeReviewRequestUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId,
       userId: lou.id,
       kind: 'tomorrow',
     })
     expect((await row())?.snoozeKind).toBe('tomorrow')
-    await undoAction(t.db, { id: first.undo.id, userId: lou.id, teamId: team.id })
+    await undoAction(t.db, { id: first.undo.id, userId: lou.id, projectId: project.id })
     expect((await row())?.snoozeKind).toBeNull()
 
     const second = await snoozeReviewRequestUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId,
       userId: lou.id,
       kind: 'tomorrow',
     })
     await snoozeReviewRequestUndoable(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId,
       userId: lou.id,
       kind: 'next_week',
     })
     await expect(
-      undoAction(t.db, { id: second.undo.id, userId: lou.id, teamId: team.id }),
+      undoAction(t.db, { id: second.undo.id, userId: lou.id, projectId: project.id }),
     ).rejects.toMatchObject({ name: 'ConflictError' })
   })
 })

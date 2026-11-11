@@ -8,12 +8,12 @@ import { menuItemNames } from '#test/support/menu.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const PATH = '/api/teams/acme/web/baselines'
-const FLAKY = '/api/teams/acme/web/flaky'
+const PATH = '/api/projects/acme/web/baselines'
+const FLAKY = '/api/projects/acme/web/flaky'
 const noFlaky = json({ builds: 10, flaky: [] })
 const open = () =>
   renderPage(<BaselinesPage />, {
-    route: '/$workspace/$team/baselines/',
+    route: '/$workspace/$project/baselines/',
     url: '/acme/web/baselines',
     announcer: true,
   })
@@ -33,7 +33,7 @@ const item = (name: string, buildName: string, buildNumber: number) => ({
 })
 
 const list = (baselines: unknown[]) => ({
-  team: { slug: 'web', name: 'Web', defaultBranch: 'main' },
+  project: { slug: 'web', name: 'Web', defaultBranch: 'main' },
   baselines,
 })
 
@@ -99,7 +99,7 @@ describe('BaselinesPage', () => {
       [`GET ${FLAKY}`]: noFlaky,
     })
     await renderPage(<BaselinesPage />, {
-      route: '/$workspace/$team/baselines/',
+      route: '/$workspace/$project/baselines/',
       url: '/acme/web/baselines?q=home',
       announcer: true,
     })

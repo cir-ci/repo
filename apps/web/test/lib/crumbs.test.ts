@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   crumbsFor,
-  teamCrumb,
-  teamsSettingsCrumb,
+  projectCrumb,
+  projectsSettingsCrumb,
   workspaceCrumb,
   workspaceSettingsCrumb,
 } from '#lib/crumbs.ts'
@@ -20,11 +20,11 @@ describe('breadcrumb rule', () => {
     })
   })
 
-  it('links the team to its Builds page, not its settings', () => {
-    expect(teamCrumb('acme', web)).toEqual({
+  it('links the project to its Builds page, not its settings', () => {
+    expect(projectCrumb('acme', web)).toEqual({
       label: 'Web app',
-      link: { to: '/$workspace/$team', params: { workspace: 'acme', team: 'web-app' } },
-      tooltip: 'Team: opens its Builds page',
+      link: { to: '/$workspace/$project', params: { workspace: 'acme', project: 'web-app' } },
+      tooltip: 'Project: opens its Builds page',
     })
   })
 
@@ -32,25 +32,25 @@ describe('breadcrumb rule', () => {
     expect(crumbsFor({ workspace: acme }).map((c) => c.label)).toEqual(['Acme'])
   })
 
-  it("starts a team's settings with the workspace, its Settings and Teams, then the team", () => {
+  it("starts a project's settings with the workspace, its Settings and Projects, then the project", () => {
     const crumbs = crumbsFor({ workspace: acme }, [
       workspaceSettingsCrumb('acme'),
-      teamsSettingsCrumb('acme'),
+      projectsSettingsCrumb('acme'),
     ])
-    expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Settings', 'Teams'])
+    expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Settings', 'Projects'])
     expect(crumbs.map((c) => c.link?.to)).toEqual([
       '/inbox',
       '/workspaces/$workspace/settings',
-      '/workspaces/$workspace/settings/teams',
+      '/workspaces/$workspace/settings/projects',
     ])
   })
 
-  it('starts a team-level page with the workspace and team crumbs', () => {
-    const crumbs = crumbsFor({ workspace: acme, team: web })
+  it('starts a project-level page with the workspace and project crumbs', () => {
+    const crumbs = crumbsFor({ workspace: acme, project: web })
     expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Web app'])
     expect(crumbs.map((c) => c.tooltip)).toEqual([
       'Workspace: opens the Inbox',
-      'Team: opens its Builds page',
+      'Project: opens its Builds page',
     ])
   })
 })

@@ -7,7 +7,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import type { ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const API = '/api/teams/acme/web'
+const API = '/api/projects/acme/web'
 const ada = { id: 'u1', name: 'Ada Lovelace' }
 const grace = { id: 'u2', name: 'Grace Hopper' }
 const people = [ada, grace]
@@ -42,8 +42,8 @@ function showRules(props: Partial<RulesSection.Props> = {}, api: Api = {}) {
   return renderPage(
     <WithHeaderButton
       workspace="acme"
-      team="web"
-      teamName="Web App"
+      project="web"
+      projectName="Web App"
       rules={[rule('r1', 'checkout/**')]}
       rotation={{ startsOn: null, members: [] }}
       people={people}

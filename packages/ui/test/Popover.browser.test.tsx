@@ -6,7 +6,7 @@ import { Button, Popover, TextField } from '#src/index.ts'
 
 function Harness() {
   return (
-    <Popover trigger={<Button>Team</Button>} label="Switch team">
+    <Popover trigger={<Button>Project</Button>} label="Switch project">
       <Button>First</Button>
       <Button>Second</Button>
     </Popover>
@@ -16,9 +16,9 @@ function Harness() {
 describe('Popover', () => {
   it('opens a named dialog from its trigger and Tab moves through its content', async () => {
     await render(<Harness />)
-    const trigger = page.getByRole('button', { name: 'Team' })
+    const trigger = page.getByRole('button', { name: 'Project' })
     await trigger.click()
-    await expect.element(page.getByRole('dialog', { name: 'Switch team' })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Switch project' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'First' })).toHaveFocus()
     await userEvent.tab()
     await expect.element(page.getByRole('button', { name: 'Second' })).toHaveFocus()
@@ -26,7 +26,7 @@ describe('Popover', () => {
 
   it('closes on Escape and returns focus to the trigger', async () => {
     await render(<Harness />)
-    const trigger = page.getByRole('button', { name: 'Team' })
+    const trigger = page.getByRole('button', { name: 'Project' })
     await trigger.click()
     await expect.element(page.getByRole('dialog')).toBeVisible()
     await userEvent.keyboard('{Escape}')

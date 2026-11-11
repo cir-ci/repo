@@ -25,7 +25,7 @@ import { menuItemNames } from '#test/support/menu.ts'
 
 const API: Record<string, unknown> = {
   '/api/workspaces/acme/sidebar': {
-    teams: [],
+    projects: [],
     views: [],
     inboxUnread: 0,
     reviews: 0,
@@ -45,7 +45,7 @@ const API: Record<string, unknown> = {
 function Content() {
   return (
     <>
-      <PageHeading title="Teams page" />
+      <PageHeading title="Projects page" />
       <p>Plain text</p>
       <input aria-label="Name" />
       <ContextMenu items={[{ label: 'Row action' }]}>
@@ -73,7 +73,7 @@ async function renderApp() {
       </QueryClientProvider>
     </CirciTheme>,
   )
-  await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+  await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
 }
 
 /** A right click as the browser sends it, to see whether the app took it over. */

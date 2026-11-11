@@ -1,7 +1,7 @@
 import { Checkbox, SettingsRow, SettingsSection } from '@circi/ui'
 
 /**
- * What CirCI does on its own, per team. Controlled: `ReviewsForm` holds the draft and saves it
+ * What CirCI does on its own, per project. Controlled: `ReviewsForm` holds the draft and saves it
  * with the rest, so these are checkboxes (they wait for Save).
  */
 export function AutomationSection(props: AutomationSection.Props) {

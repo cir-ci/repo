@@ -164,8 +164,8 @@ describe('claiming an email domain', () => {
     // Ann has an account but the domain isn't verified, so signing in doesn't add her.
     const { status, cookie } = await codeSignIn('ann@corp.test')
     expect(status).toBe(200)
-    const teams = await call('GET', '/api/teams', cookie)
-    expect(teams.json().teams).toEqual([])
+    const projects = await call('GET', '/api/projects', cookie)
+    expect(projects.json().projects).toEqual([])
   })
 
   it('verifies with the right record (even split into chunks), then new sign-ins join', async () => {
@@ -179,11 +179,11 @@ describe('claiming an email domain', () => {
 
     const { status, cookie } = await codeSignIn('ann@corp.test')
     expect(status).toBe(200)
-    // Joining a workspace puts nobody in a team; the workspace is theirs all the same.
+    // Joining a workspace puts nobody in a project; the workspace is theirs all the same.
     expect(
       (await call('GET', `/api/workspaces/${acme.workspaceSlug}/sidebar`, cookie)).statusCode,
     ).toBe(200)
-    expect((await call('GET', '/api/teams', cookie)).json().teams).toEqual([])
+    expect((await call('GET', '/api/projects', cookie)).json().projects).toEqual([])
   })
 
   it('lets a person with no account on a verified domain create one with a code', async () => {
@@ -193,7 +193,7 @@ describe('claiming an email domain', () => {
     expect(
       (await call('GET', `/api/workspaces/${acme.workspaceSlug}/sidebar`, cookie)).statusCode,
     ).toBe(200)
-    expect((await call('GET', '/api/teams', cookie)).json().teams).toEqual([])
+    expect((await call('GET', '/api/projects', cookie)).json().projects).toEqual([])
   })
 
   it('gives nothing to strangers or to other domains', async () => {
@@ -225,7 +225,7 @@ describe('claiming an email domain', () => {
   it('removes a domain', async () => {
     const { id } = await addDomain()
     expect((await call('DELETE', `${base()}/${id}`, ownerCookie)).statusCode).toBe(204)
-    expect(await listWorkspaceDomains(t.db, acme.team.workspaceId)).toHaveLength(0)
+    expect(await listWorkspaceDomains(t.db, acme.project.workspaceId)).toHaveLength(0)
     expect((await call('DELETE', `${base()}/${id}`, ownerCookie)).statusCode).toBe(404)
   })
 })

@@ -72,21 +72,21 @@ function isWebAddress(value: string): boolean {
 }
 
 /**
- * Which teams follow a workspace default and which set their own: `field` is the team's own value
- * (null: it follows the default). Each overriding team carries its value as "on" or "off".
+ * Which projects follow a workspace default and which set their own: `field` is the project's own value
+ * (null: it follows the default). Each overriding project carries its value as "on" or "off".
  */
 export function inheritance<
   T extends { flakyBlocksMerge?: boolean | null; assignTriageToOnCall?: boolean | null },
 >(
-  teams: readonly T[],
+  projects: readonly T[],
   field: 'flakyBlocksMerge' | 'assignTriageToOnCall' = 'flakyBlocksMerge',
 ): { inheriting: T[]; overriding: (T & { value: 'on' | 'off' })[] } {
   const inheriting: T[] = []
   const overriding: (T & { value: 'on' | 'off' })[] = []
-  for (const team of teams) {
-    const own = team[field] ?? null
-    if (own === null) inheriting.push(team)
-    else overriding.push({ ...team, value: own ? 'on' : 'off' })
+  for (const project of projects) {
+    const own = project[field] ?? null
+    if (own === null) inheriting.push(project)
+    else overriding.push({ ...project, value: own ? 'on' : 'off' })
   }
   return { inheriting, overriding }
 }

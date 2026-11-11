@@ -91,9 +91,9 @@ const del = (s: Setup, cookie: string, confirm: string = s.tenant.workspaceSlug)
   call('DELETE', `/api/workspaces/${s.tenant.workspaceSlug}`, cookie, { confirm })
 
 const memberRoutes = (s: Setup) => [
-  `/api/teams/${s.tenant.workspaceSlug}/web`,
-  `/api/teams/${s.tenant.workspaceSlug}/web/settings`,
-  `/api/teams/${s.tenant.workspaceSlug}/web/snapshots/home/history`,
+  `/api/projects/${s.tenant.workspaceSlug}/web`,
+  `/api/projects/${s.tenant.workspaceSlug}/web/settings`,
+  `/api/projects/${s.tenant.workspaceSlug}/web/snapshots/home/history`,
   `/api/workspaces/${s.tenant.workspaceSlug}`,
   `/api/workspaces/${s.tenant.workspaceSlug}/auth`,
   `/api/workspaces/${s.tenant.workspaceSlug}/settings`,
@@ -135,8 +135,9 @@ describe('deleting a workspace', () => {
       // eslint-disable-next-line no-await-in-loop -- a few requests
       expect(await statuses(cookie, memberRoutes(s))).toEqual(memberRoutes(s).map(() => 404))
       // eslint-disable-next-line no-await-in-loop
-      const teams = (await call('GET', '/api/teams', cookie)).json<{ teams: unknown[] }>().teams
-      expect(JSON.stringify(teams)).not.toContain(s.tenant.workspaceSlug)
+      const projects = (await call('GET', '/api/projects', cookie)).json<{ projects: unknown[] }>()
+        .projects
+      expect(JSON.stringify(projects)).not.toContain(s.tenant.workspaceSlug)
       // eslint-disable-next-line no-await-in-loop
       const caps = (await call('GET', '/api/capabilities', cookie)).json<Workspace.Capabilities>()
       expect(JSON.stringify(caps.manageableWorkspaces)).not.toContain(s.tenant.workspaceSlug)
@@ -225,7 +226,10 @@ describe('deleting a workspace', () => {
     })
     expect(result.purgedWorkspaces).toBeGreaterThanOrEqual(1)
     expect(
-      await t.db.select().from(schema.teams).where(eq(schema.teams.workspaceId, workspace.id)),
+      await t.db
+        .select()
+        .from(schema.projects)
+        .where(eq(schema.projects.workspaceId, workspace.id)),
     ).toEqual([])
   })
 })

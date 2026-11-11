@@ -102,23 +102,25 @@ describe('withUndo', () => {
     })
   })
 
-  it("posts to the team's undo route, then refreshes", async () => {
-    const calls = fakeFetch({ 'POST /api/teams/acme/web/undo/u1': { undone: true } })
+  it("posts to the project's undo route, then refreshes", async () => {
+    const calls = fakeFetch({ 'POST /api/projects/acme/web/undo/u1': { undone: true } })
     let refreshed = false
     const input = withUndo(
       'Approved',
       { id: 'u1', expiresAt: '2026-11-10T00:00:00Z' },
-      { workspace: 'acme', team: 'web' },
+      { workspace: 'acme', project: 'web' },
       async () => {
         refreshed = true
       },
     )
     await input.undo?.()
-    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual(['POST /api/teams/acme/web/undo/u1'])
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+      'POST /api/projects/acme/web/undo/u1',
+    ])
     expect(refreshed).toBe(true)
   })
 
-  it("posts to the inbox's undo route when there is no team", async () => {
+  it("posts to the inbox's undo route when there is no project", async () => {
     const calls = fakeFetch({ 'POST /api/inbox/undo/u2': { undone: true } })
     const input = withUndo('Marked as read', { id: 'u2', expiresAt: '' }, null, async () => {})
     await input.undo?.()

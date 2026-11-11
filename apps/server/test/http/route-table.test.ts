@@ -73,7 +73,7 @@ describe('the route table', () => {
       '/v1/',
       '/v2/',
       '/webhooks/',
-      '/api/teams/',
+      '/api/projects/',
       '/api/workspaces/',
     ]) {
       expect(routes.some((r) => r.split(' ')[1]?.startsWith(prefix))).toBe(true)

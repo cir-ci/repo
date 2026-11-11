@@ -1,2 +1,2 @@
 export { handleGitEvents } from './events.ts'
-export { linkTeamToGithub, unlinkTeamFromGit } from './links.ts'
+export { linkProjectToGithub, unlinkProjectFromGit } from './links.ts'

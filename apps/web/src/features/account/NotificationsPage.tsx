@@ -3,7 +3,7 @@ import { Banner, SettingsRow, SettingsSection, Switch, Text, visuallyHidden } fr
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -29,7 +29,7 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
   },
   {
     title: 'Overdue review',
-    help: "A review request to you has waited longer than the team's review target. Sent once.",
+    help: "A review request to you has waited longer than the project's review target. Sent once.",
   },
   {
     title: 'Connection needs attention',
@@ -113,9 +113,9 @@ export function NotificationsPage() {
             ))}
           </SettingsSection>
 
-          <SettingsSection title="Team channels" bare>
+          <SettingsSection title="Project channels" bare>
             <Banner>
-              Slack channels for a team are set by an admin in workspace integrations, not here.
+              Slack channels for a project are set by an admin in workspace integrations, not here.
             </Banner>
           </SettingsSection>
         </>

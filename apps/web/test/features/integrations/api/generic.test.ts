@@ -42,7 +42,7 @@ describe('connectNote', () => {
   it('says how an install ended, naming the integration', () => {
     expect(connectNote('connected', 'Slack')).toEqual({
       tone: 'success',
-      text: 'Slack is connected. Choose what each team uses.',
+      text: 'Slack is connected. Choose what each project uses.',
     })
     expect(connectNote('denied', 'Slack')?.text).toContain('cancelled')
     expect(connectNote('failed', 'Slack')?.tone).toBe('danger')
@@ -197,7 +197,7 @@ describe('isDirty', () => {
   })
 })
 
-const team = (slug: string, ref?: string): Integration.MappingTeam => ({
+const project = (slug: string, ref?: string): Integration.MappingProject => ({
   slug,
   name: slug,
   mapping: ref ? { ref, name: ref, extra: {} } : null,
@@ -209,37 +209,39 @@ describe('repositoryRows', () => {
     { id: 'acme/web', name: 'acme/web' },
   ]
 
-  it("lists the host's repositories with their teams, mapped ones first", () => {
-    expect(repositoryRows([team('web', 'acme/web'), team('www')], targets)).toEqual([
-      { ref: 'acme/web', label: 'acme/web', team: 'web', broken: false },
-      { ref: 'acme/www', label: 'acme/www', team: null, broken: false },
+  it("lists the host's repositories with their projects, mapped ones first", () => {
+    expect(repositoryRows([project('web', 'acme/web'), project('www')], targets)).toEqual([
+      { ref: 'acme/web', label: 'acme/web', project: 'web', broken: false },
+      { ref: 'acme/www', label: 'acme/www', project: null, broken: false },
     ])
   })
 
   it('flags a mapped repository the host no longer lists, only when the list loaded', () => {
-    const teams = [team('old', 'acme/gone')]
-    expect(repositoryRows(teams, targets)[0]).toEqual({
+    const projects = [project('old', 'acme/gone')]
+    expect(repositoryRows(projects, targets)[0]).toEqual({
       ref: 'acme/gone',
       label: 'acme/gone',
-      team: 'old',
+      project: 'old',
       broken: true,
     })
-    expect(repositoryRows(teams, null)).toEqual([
-      { ref: 'acme/gone', label: 'acme/gone', team: 'old', broken: false },
+    expect(repositoryRows(projects, null)).toEqual([
+      { ref: 'acme/gone', label: 'acme/gone', project: 'old', broken: false },
     ])
   })
 })
 
-const t = (ref: string | null): Integration.MappingTeam => ({
+const t = (ref: string | null): Integration.MappingProject => ({
   slug: 'x',
   name: 'x',
   mapping: ref ? { ref, name: null, extra: {} } : null,
 })
 
 describe('connectionLine', () => {
-  it('says what it is connected to and how many teams use it', () => {
-    expect(connectionLine('Slack', 'Acme', [t(null)])).toBe('Slack · Acme · no teams use it yet')
-    expect(connectionLine('Slack', 'Acme', [t('a')])).toBe('Slack · Acme · 1 team uses it')
-    expect(connectionLine('Slack', 'Acme', [t('a'), t('b')])).toBe('Slack · Acme · 2 teams use it')
+  it('says what it is connected to and how many projects use it', () => {
+    expect(connectionLine('Slack', 'Acme', [t(null)])).toBe('Slack · Acme · no projects use it yet')
+    expect(connectionLine('Slack', 'Acme', [t('a')])).toBe('Slack · Acme · 1 project uses it')
+    expect(connectionLine('Slack', 'Acme', [t('a'), t('b')])).toBe(
+      'Slack · Acme · 2 projects use it',
+    )
   })
 })

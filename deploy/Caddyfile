@@ -5,9 +5,9 @@
 #
 # Caddy keeps the Host header when proxying, which is how CirCI tells a site from the dashboard.
 #
-# Custom domains (a team site's own domain, e.g. storybook.acme.com, set in Sites in the dashboard)
+# Custom domains (a project site's own domain, e.g. storybook.acme.com, set in Sites in the dashboard)
 # get their certificates on demand, the first time someone opens them: Caddy asks CirCI
-# (`/internal/tls-ask`) and only a domain a team has verified gets a certificate.
+# (`/internal/tls-ask`) and only a domain a project has verified gets a certificate.
 
 {
 	on_demand_tls {

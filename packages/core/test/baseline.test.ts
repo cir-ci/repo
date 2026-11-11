@@ -96,7 +96,7 @@ describe('resolveBaseline', () => {
     expect(resolveBaseline({ ...main, ancestorShas: [] }, [pending])).toEqual({ via: 'none' })
   })
 
-  it('returns none for an orphan build (first build of a team)', () => {
+  it('returns none for an orphan build (first build of a project)', () => {
     expect(resolveBaseline({ ...main, ancestorShas: ['a', 'b'] }, [])).toEqual({ via: 'none' })
   })
 

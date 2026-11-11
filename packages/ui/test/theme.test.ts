@@ -112,13 +112,13 @@ describe('palettes', () => {
       expect(contrast(p.state.failedFill, p.surface.raised)).toBeGreaterThanOrEqual(2.2)
     })
 
-    it(`${scheme}: tile text reads at 4.5:1 on every team colour`, () => {
-      for (const [name, fill] of Object.entries(p.team)) {
+    it(`${scheme}: tile text reads at 4.5:1 on every project colour`, () => {
+      for (const [name, fill] of Object.entries(p.project)) {
         expect(contrast(p.other.tileText, fill), `tile text on ${name}`).toBeGreaterThanOrEqual(4.5)
       }
     })
 
-    it(`${scheme}: team colours are ΔE 15 from state colours, accent, annotation and each other`, () => {
+    it(`${scheme}: project colours are ΔE 15 from state colours, accent, annotation and each other`, () => {
       const others: [string, string][] = [
         ...Object.entries(p.state)
           // The failed fill is crimson thinned for bars, not an identity of its own.
@@ -127,18 +127,19 @@ describe('palettes', () => {
         ['accent.main', p.accent.main],
         ['annotation', p.other.annotation],
       ]
-      const team = Object.entries(p.team)
+      const project = Object.entries(p.project)
       const failures: string[] = []
-      for (const [name, hex] of team) {
+      for (const [name, hex] of project) {
         for (const [otherName, otherHex] of others) {
           const d = deltaE(toLinear(hex), toLinear(otherHex))
-          if (d < 15) failures.push(`${scheme} team.${name} vs ${otherName}: ${d.toFixed(1)}`)
+          if (d < 15) failures.push(`${scheme} project.${name} vs ${otherName}: ${d.toFixed(1)}`)
         }
       }
-      for (const [i, [name, hex]] of team.entries()) {
-        for (const [otherName, otherHex] of team.slice(i + 1)) {
+      for (const [i, [name, hex]] of project.entries()) {
+        for (const [otherName, otherHex] of project.slice(i + 1)) {
           const d = deltaE(toLinear(hex), toLinear(otherHex))
-          if (d < 15) failures.push(`${scheme} team.${name} vs team.${otherName}: ${d.toFixed(1)}`)
+          if (d < 15)
+            failures.push(`${scheme} project.${name} vs project.${otherName}: ${d.toFixed(1)}`)
         }
       }
       expect(failures).toEqual([])

@@ -15,7 +15,7 @@ export async function createUndoAction(
   db: Database,
   input: {
     userId: string
-    teamId: string | null
+    projectId: string | null
     kind: UndoKind
     data: Record<string, unknown>
     expiresAt: Date

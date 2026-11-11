@@ -3,7 +3,7 @@ import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
@@ -28,11 +28,11 @@ const due = new Date('2026-03-10T12:00:00.000Z')
 const after = new Date('2026-03-10T15:00:00.000Z')
 
 async function setup(dueAt: Date | null = due) {
-  const { team, workspace } = await seedTeam(t.db)
+  const { project, workspace } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -41,7 +41,7 @@ async function setup(dueAt: Date | null = due) {
     reviewerId: reviewer.id,
     dueAt,
   })
-  return { team, reviewer, build, request }
+  return { project, reviewer, build, request }
 }
 
 const overdueFor = (userId: string) =>
@@ -78,9 +78,9 @@ describe('reviewSweep', () => {
   })
 
   it('stays quiet while snoozed, and tells them after the snooze ends', async () => {
-    const { team, reviewer, request } = await setup()
+    const { project, reviewer, request } = await setup()
     await snoozeReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'tomorrow',

@@ -1,22 +1,22 @@
 import { ValidationError } from '@circi/core'
 import { type Build, type Database } from '@circi/db'
-import { getFile, getTeamBuild } from '@circi/db/queries'
+import { getFile, getProjectBuild } from '@circi/db/queries'
 import { markFileVerified, setParallelTotal } from '@circi/db/repositories'
 import type { StorageDriver } from '@circi/storage'
 
 import { finalizeBuild } from '#src/builds/lifecycle.ts'
 
 /**
- * A shard (or a chunk of one) of a team's build reports its screenshots. The one entry for
- * every upload route: it looks the build up in the team, optionally corrects the parallel total
+ * A shard (or a chunk of one) of a project's build reports its screenshots. The one entry for
+ * every upload route: it looks the build up in the project, optionally corrects the parallel total
  * and confirms directly-uploaded files, then hands the shard to `finalizeBuild`, which owns the
  * build's state change.
  */
-export async function finalizeTeamBuild(
+export async function finalizeProjectBuild(
   db: Database,
-  input: finalizeTeamBuild.Input,
-): Promise<finalizeTeamBuild.Result> {
-  const build = await getTeamBuild(db, input.teamId, input.buildId)
+  input: finalizeProjectBuild.Input,
+): Promise<finalizeProjectBuild.Result> {
+  const build = await getProjectBuild(db, input.projectId, input.buildId)
   if (!build) return { status: 'not-found' }
 
   // Direct-to-storage uploads: confirm the stored object's checksum before trusting it.
@@ -38,16 +38,16 @@ export async function finalizeTeamBuild(
   if (result.status === 'missing') return { status: 'missing', missing: result.missing }
   return {
     status: 'ok',
-    build: (await getTeamBuild(db, input.teamId, input.buildId)) ?? build,
+    build: (await getProjectBuild(db, input.projectId, input.buildId)) ?? build,
     complete: result.complete,
     shardsReceived: result.shardsReceived,
     shardsTotal: result.shardsTotal,
   }
 }
 
-export namespace finalizeTeamBuild {
+export namespace finalizeProjectBuild {
   export interface Input {
-    teamId: string
+    projectId: string
     buildId: string
     /** The shard, as `finalizeBuild` takes it. */
     shard: Omit<Parameters<typeof finalizeBuild>[1], 'buildId'>

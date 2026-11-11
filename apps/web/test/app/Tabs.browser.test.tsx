@@ -28,7 +28,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 
 const API: Record<string, unknown> = {
   '/api/workspaces/acme/sidebar': {
-    teams: [
+    projects: [
       {
         slug: 'web-app',
         name: 'web-app',
@@ -96,7 +96,7 @@ async function renderApp(path = '/') {
     })
   const router = createRouter({
     routeTree: root.addChildren([
-      pageRoute('/', 'Teams page', {
+      pageRoute('/', 'Projects page', {
         'Go to profile': '/account/profile',
         'Go to members': '/inbox',
       }),
@@ -146,12 +146,12 @@ describe('tabs in a normal browser tab', () => {
   it('show nothing and leave the keys alone', async () => {
     installedAs('browser')
     await renderApp()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
     expect(tabs().elements()).toHaveLength(0)
     await press('{Alt>}t{/Alt}')
     expect(store().tabs).toHaveLength(0)
     // The page keeps its title with the app's name, and the menu item still opens a browser tab.
-    expect(document.title).toBe('Teams page · CirCI')
+    expect(document.title).toBe('Projects page · CirCI')
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     await page.getByText('Row with a menu').click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Open in new tab' }).click()
@@ -164,7 +164,7 @@ describe('tabs in the installed app', () => {
   it('shows a strip with the page as the one tab', async () => {
     installedAs('standalone')
     await renderApp()
-    await expect.element(tabNamed('Teams page')).toBeVisible()
+    await expect.element(tabNamed('Projects page')).toBeVisible()
     expect(tabs().elements()).toHaveLength(1)
     await expect.element(page.getByRole('button', { name: 'New tab' })).toBeVisible()
   })
@@ -172,14 +172,14 @@ describe('tabs in the installed app', () => {
   it('puts the strip in the frame (below it everything sticks) unless the title bar has it', async () => {
     installedAs('standalone')
     await renderApp()
-    await expect.element(tabNamed('Teams page')).toBeVisible()
+    await expect.element(tabNamed('Projects page')).toBeVisible()
     expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('36px')
   })
 
   it('leaves the frame without a row in overlay mode, where the title bar carries the tabs', async () => {
     installedAs('overlay')
     await renderApp()
-    await expect.element(tabNamed('Teams page')).toBeVisible()
+    await expect.element(tabNamed('Projects page')).toBeVisible()
     expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
   })
 
@@ -211,7 +211,7 @@ describe('tabs in the installed app', () => {
     ).toEqual(['/', '/inbox'])
     link.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }))
     expect(store().tabs).toHaveLength(3)
-    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
   })
 
   it('keeps back inside the tab', async () => {
@@ -227,7 +227,7 @@ describe('tabs in the installed app', () => {
     expect(tabs().elements()).toHaveLength(1)
     // Back in the first tab walks its own pages.
     router.history.back()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
   })
 
   it('answers the shortcuts', async () => {
@@ -268,7 +268,7 @@ describe('tabs in the installed app', () => {
     expect(tabs().elements()).toHaveLength(12)
     await expect.element(page.getByText('to stay within 12 tabs')).toBeVisible()
     await page.getByRole('button', { name: 'Undo' }).click()
-    await expect.element(tabNamed('Teams page')).toBeVisible()
+    await expect.element(tabNamed('Projects page')).toBeVisible()
     expect(tabs().elements()).toHaveLength(12)
   })
 
@@ -301,12 +301,12 @@ describe('tabs on a phone, installed', () => {
     await page.getByRole('button', { name: 'Tabs, 2 open' }).click()
     const sheet = page.getByRole('dialog', { name: '2 tabs' })
     await expect.element(sheet).toBeVisible()
-    await expect.element(sheet.getByRole('button', { name: /Close Teams page/ })).toBeVisible()
+    await expect.element(sheet.getByRole('button', { name: /Close Projects page/ })).toBeVisible()
     await sheet
-      .getByRole('button', { name: /Teams page/ })
+      .getByRole('button', { name: /Projects page/ })
       .first()
       .click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
     expect(page.getByRole('dialog', { name: '2 tabs' }).elements()).toHaveLength(0)
   })
 
@@ -315,7 +315,7 @@ describe('tabs on a phone, installed', () => {
     store().openNew()
     store().openNew()
     await page.getByRole('button', { name: 'Tabs, 3 open' }).click()
-    await page.getByRole('button', { name: /^Close Teams page/ }).click()
+    await page.getByRole('button', { name: /^Close Projects page/ }).click()
     expect(store().tabs).toHaveLength(2)
     const card = page.getByRole('button', { name: /^Close (New tab|Inbox page)/ }).first()
     const li = card.element().closest('li')
@@ -331,7 +331,7 @@ describe('tabs on a phone, installed', () => {
     store().openNew()
     await page.getByRole('button', { name: 'Tabs, 2 open' }).click()
     const li = page
-      .getByRole('button', { name: /^Close Teams page/ })
+      .getByRole('button', { name: /^Close Projects page/ })
       .element()
       .closest('li')
     if (!li) throw new Error('no card')

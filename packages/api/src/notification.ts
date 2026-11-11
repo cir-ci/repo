@@ -33,7 +33,7 @@ export namespace Inbox {
     /** Null for notices that are not about one build. */
     build: {
       number: number
-      /** The build's name; "default" for a team's only build per commit. */
+      /** The build's name; "default" for a project's only build per commit. */
       name: string
       branch: string | null
       prNumber: number | null
@@ -45,7 +45,7 @@ export namespace Inbox {
     changes: { changed: number; added: number; removed: number; unchanged: number } | null
     /** Your open review request for the build: its target (null without one) and how far past it. */
     request: { dueAt: string | null; overdueByMs: number } | null
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
     workspace: { slug: string; name: string } | null
     /** The same build also waits for your review on the Reviews page. */
     alsoInReviews: boolean

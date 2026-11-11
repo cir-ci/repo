@@ -3,7 +3,7 @@ import {
   createTestDb,
   seedBuild,
   seedDiff,
-  seedTeam,
+  seedProject,
   seedReview,
   seedReviewRequest,
   seedUser,
@@ -27,11 +27,11 @@ const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3_600_000)
 
 /** A workspace with an owner (the reviewer), a teammate who asks, and one build to review. */
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const teammate = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
-  const build = await seedBuild(t.db, team.id, { branch: 'feature/x', prNumber: 7 })
-  return { team, workspace, owner, teammate, build }
+  const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
+  return { project, workspace, owner, teammate, build }
 }
 
 describe('listReviewRequests', () => {
@@ -63,8 +63,8 @@ describe('listReviewRequests', () => {
     ])
   })
 
-  it('shows what is asked of you with the build and team, and how overdue it is', async () => {
-    const { team, workspace, owner, teammate, build } = await setup()
+  it('shows what is asked of you with the build and project, and how overdue it is', async () => {
+    const { project, workspace, owner, teammate, build } = await setup()
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -84,14 +84,14 @@ describe('listReviewRequests', () => {
       reviewer: { id: owner.id },
       requestedBy: { id: teammate.id, name: teammate.name },
       build: { number: 1, branch: 'feature/x', prNumber: 7 },
-      team: { slug: team.slug },
+      project: { slug: project.slug },
       workspace: { slug: workspace.slug },
     })
   })
 
   it('is not overdue on time or without a review target', async () => {
     const { owner, build, teammate } = await setup()
-    const b2 = await seedBuild(t.db, build.teamId)
+    const b2 = await seedBuild(t.db, build.projectId)
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -108,9 +108,9 @@ describe('listReviewRequests', () => {
 
   it('splits for you, created by you and snoozed, and leaves closed requests out', async () => {
     const { owner, teammate, build } = await setup()
-    const b2 = await seedBuild(t.db, build.teamId)
-    const b3 = await seedBuild(t.db, build.teamId)
-    const b4 = await seedBuild(t.db, build.teamId)
+    const b2 = await seedBuild(t.db, build.projectId)
+    const b3 = await seedBuild(t.db, build.projectId)
+    const b4 = await seedBuild(t.db, build.projectId)
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -187,8 +187,8 @@ describe('listReviewRequests', () => {
   })
 
   it("lists everyone's open requests under all-open, and your closed ones under reviewed", async () => {
-    const { owner, teammate, team, build } = await setup()
-    const b2 = await seedBuild(t.db, team.id, { branch: 'feature/y' })
+    const { owner, teammate, project, build } = await setup()
+    const b2 = await seedBuild(t.db, project.id, { branch: 'feature/y' })
     await seedReviewRequest(t.db, { buildId: build.id, reviewerId: teammate.id })
     const closed = await seedReviewRequest(t.db, {
       buildId: b2.id,
@@ -221,10 +221,10 @@ describe('listReviewRequests', () => {
   })
 
   it('says why a request is back: a rejected earlier build of the branch, or asked again', async () => {
-    const { owner, teammate, team } = await setup()
-    const first = await seedBuild(t.db, team.id, { branch: 'fix/header' })
-    const second = await seedBuild(t.db, team.id, { branch: 'fix/header' })
-    const other = await seedBuild(t.db, team.id, { branch: 'fix/other' })
+    const { owner, teammate, project } = await setup()
+    const first = await seedBuild(t.db, project.id, { branch: 'fix/header' })
+    const second = await seedBuild(t.db, project.id, { branch: 'fix/header' })
+    const other = await seedBuild(t.db, project.id, { branch: 'fix/other' })
     await seedReview(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
     await seedReviewRequest(t.db, { buildId: second.id, reviewerId: owner.id })
     // A fresh branch with no history, and a build asked about twice.
@@ -247,8 +247,8 @@ describe('listReviewRequests', () => {
   })
 
   it('names the build it was compared with', async () => {
-    const { owner, build, team } = await setup()
-    const base = await seedBuild(t.db, team.id, { branch: 'main' })
+    const { owner, build, project } = await setup()
+    const base = await seedBuild(t.db, project.id, { branch: 'main' })
     await t.db
       .update(schema.builds)
       .set({ baseBuildId: base.id })

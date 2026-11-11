@@ -4,7 +4,7 @@ import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedUser,
   seedChangedSnapshots,
 } from '@circi/db/testing'
@@ -22,11 +22,11 @@ afterAll(async () => {
 })
 
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -42,7 +42,7 @@ async function setup() {
     requestedById: owner.id,
     now,
   })
-  return { team, owner, reviewer, request, now }
+  return { project, owner, reviewer, request, now }
 }
 
 const tab = async (userId: string, name: 'for-you' | 'snoozed', now: Date) =>
@@ -50,9 +50,9 @@ const tab = async (userId: string, name: 'for-you' | 'snoozed', now: Date) =>
 
 describe('snoozeReviewRequest', () => {
   it('hides the request from For you until the snooze ends, then it is back', async () => {
-    const { team, reviewer, request, now } = await setup()
+    const { project, reviewer, request, now } = await setup()
     const row = await snoozeReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'tomorrow',
@@ -68,10 +68,10 @@ describe('snoozeReviewRequest', () => {
   })
 
   it('snoozes until a date, and next_push has no end time', async () => {
-    const { team, reviewer, request, now } = await setup()
+    const { project, reviewer, request, now } = await setup()
     const date = new Date('2026-03-20T08:00:00.000Z')
     const dated = await snoozeReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'date',
@@ -80,7 +80,7 @@ describe('snoozeReviewRequest', () => {
     })
     expect(dated.snoozedUntil).toEqual(date)
     const push = await snoozeReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'next_push',
@@ -91,27 +91,27 @@ describe('snoozeReviewRequest', () => {
   })
 
   it('unsnoozes at once', async () => {
-    const { team, reviewer, request, now } = await setup()
-    const input = { teamId: team.id, requestId: request.id, userId: reviewer.id }
+    const { project, reviewer, request, now } = await setup()
+    const input = { projectId: project.id, requestId: request.id, userId: reviewer.id }
     await snoozeReviewRequest(t.db, { ...input, kind: 'next_week', now })
     const row = await unsnoozeReviewRequest(t.db, input)
     expect(row).toMatchObject({ snoozeKind: null, snoozedUntil: null })
     expect(await tab(reviewer.id, 'for-you', now)).toEqual([request.id])
   })
 
-  it("is the reviewer's alone, and needs an open request in the team", async () => {
-    const { team, owner, reviewer, request, now } = await setup()
-    const base = { teamId: team.id, requestId: request.id, kind: 'tomorrow' as const, now }
+  it("is the reviewer's alone, and needs an open request in the project", async () => {
+    const { project, owner, reviewer, request, now } = await setup()
+    const base = { projectId: project.id, requestId: request.id, kind: 'tomorrow' as const, now }
     await expect(snoozeReviewRequest(t.db, { ...base, userId: owner.id })).rejects.toThrow(
       /not found/,
     )
-    const other = await seedTeam(t.db)
+    const other = await seedProject(t.db)
     await expect(
-      snoozeReviewRequest(t.db, { ...base, teamId: other.team.id, userId: reviewer.id }),
+      snoozeReviewRequest(t.db, { ...base, projectId: other.project.id, userId: reviewer.id }),
     ).rejects.toThrow(/not found/)
     await expect(
       unsnoozeReviewRequest(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         requestId: request.id,
         userId: owner.id,
       }),
@@ -119,10 +119,10 @@ describe('snoozeReviewRequest', () => {
   })
 
   it('rejects a date in the past', async () => {
-    const { team, reviewer, request, now } = await setup()
+    const { project, reviewer, request, now } = await setup()
     await expect(
       snoozeReviewRequest(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         requestId: request.id,
         userId: reviewer.id,
         kind: 'date',
@@ -133,9 +133,9 @@ describe('snoozeReviewRequest', () => {
   })
 
   it('ends a next_push snooze when a newer build on the branch supersedes the request', async () => {
-    const { team, reviewer, request, now } = await setup()
+    const { project, reviewer, request, now } = await setup()
     await snoozeReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'next_push',

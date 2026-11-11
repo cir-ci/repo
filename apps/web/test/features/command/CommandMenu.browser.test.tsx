@@ -13,7 +13,7 @@ import { RECENT_CAP, RECENT_KEY, useRecentStore } from '#lib/stores/recent-store
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
-import { sidebarModel, sidebarTeam } from '#test/support/fixtures.ts'
+import { sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed, toasts } from '#test/support/toast.ts'
 
@@ -24,7 +24,7 @@ afterEach(() => {
 const totals = {
   builds: 0,
   branches: 0,
-  teams: 0,
+  projects: 0,
   snapshots: 0,
   baselines: 0,
   triage: 0,
@@ -44,14 +44,14 @@ const none = {
   totals,
 }
 
-const empty = { query: '', builds: [], branches: [], teams: [], snapshots: [], ...none }
+const empty = { query: '', builds: [], branches: [], projects: [], snapshots: [], ...none }
 
-const web = sidebarTeam({ slug: 'web', name: 'Web', pinned: true })
-const docs = sidebarTeam({ slug: 'docs', name: 'Docs' })
+const web = sidebarProject({ slug: 'web', name: 'Web', pinned: true })
+const docs = sidebarProject({ slug: 'docs', name: 'Docs' })
 
-const overviewOf = (workspace: string, team: string, name: string) => ({
+const overviewOf = (workspace: string, project: string, name: string) => ({
   workspace: { slug: workspace, name: workspace === 'acme' ? 'Acme' : 'Other', role: 'owner' },
-  team: { slug: team, name, defaultBranch: 'main' },
+  project: { slug: project, name, defaultBranch: 'main' },
   latestBuild: null,
 })
 
@@ -61,9 +61,9 @@ const api = (
   sidebar: Parameters<typeof sidebarModel>[0] = {},
 ) => {
   const fake = fakeApi({
-    'GET /api/teams': {
+    'GET /api/projects': {
       body: {
-        teams: [
+        projects: [
           overviewOf('acme', 'web', 'Web'),
           overviewOf('acme', 'docs', 'Docs'),
           overviewOf('other', 'site', 'Site'),
@@ -72,12 +72,12 @@ const api = (
     },
     'GET /api/capabilities': { body: { manageableWorkspaces: [] } },
     'GET /api/workspaces/acme/sidebar': {
-      body: sidebarModel({ teams: [web, docs], ...sidebar }),
+      body: sidebarModel({ projects: [web, docs], ...sidebar }),
     },
     'GET /api/workspaces/acme/search': { body: search },
     ...extra,
   })
-  // The fake keys by path; the search's own address says which team and kinds were asked for.
+  // The fake keys by path; the search's own address says which project and kinds were asked for.
   const urls: string[] = []
   const send = globalThis.fetch
   vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
@@ -88,8 +88,8 @@ const api = (
 }
 
 const build = (over: Record<string, unknown> = {}) => ({
-  teamSlug: 'web',
-  teamName: 'Web',
+  projectslug: 'web',
+  projectName: 'Web',
   number: 148,
   name: 'Checkout',
   branch: 'main',
@@ -108,8 +108,8 @@ const more = {
   query: 'summary',
   baselines: [
     {
-      teamSlug: 'web',
-      teamName: 'Web',
+      projectslug: 'web',
+      projectName: 'Web',
       name: 'checkout/summary',
       buildNumber: 140,
       thumbnail: null,
@@ -118,8 +118,8 @@ const more = {
   ],
   triage: [
     {
-      teamSlug: 'web',
-      teamName: 'Web',
+      projectslug: 'web',
+      projectName: 'Web',
       kind: 'flaky',
       key: 'checkout/summary',
       snapshotName: 'checkout/summary',
@@ -137,7 +137,7 @@ const more = {
       createdAt: '2026-03-10T12:00:00.000Z',
       actor: { name: 'Ada' },
       build: { number: 148, name: 'default' },
-      team: { slug: 'web', name: 'Web' },
+      project: { slug: 'web', name: 'Web' },
       payload: { snippet: 'the summary is cut off' },
     },
   ],
@@ -145,8 +145,8 @@ const more = {
     {
       id: 'r1',
       tab: 'for-you',
-      teamSlug: 'web',
-      teamName: 'Web',
+      projectslug: 'web',
+      projectName: 'Web',
       build: { number: 148, name: 'default', branch: 'main' },
       reviewer: { name: 'Me' },
       requestedBy: { name: 'Dana Levi' },
@@ -173,7 +173,7 @@ const show = (url?: string, route?: string) =>
     { announcer: true, viewport: [1200, 800], ...(url ? { url, route: route ?? url } : {}) },
   )
 
-const onBuild = () => show('/acme/web/builds/148', '/$workspace/$team/builds/$number')
+const onBuild = () => show('/acme/web/builds/148', '/$workspace/$project/builds/$number')
 
 const toast = toasts
 const openMenu = () => userEvent.keyboard('{Meta>}k{/Meta}')
@@ -185,12 +185,12 @@ describe('the command menu, empty', () => {
     await show()
     await openMenu()
     const goTo = page.getByRole('group', { name: 'Go to' })
-    for (const name of ['Inbox', 'Reviews', 'Triage', 'Teams', 'Insights', 'Settings']) {
+    for (const name of ['Inbox', 'Reviews', 'Triage', 'Projects', 'Insights', 'Settings']) {
       // eslint-disable-next-line no-await-in-loop -- one after another
       await expect.element(goTo.getByRole('option', { name, exact: true })).toBeVisible()
     }
     await expect.element(page.getByText(/^Open /)).not.toBeInTheDocument()
-    await expect.element(goTo.getByRole('option', { name: 'Team Web' })).toBeVisible()
+    await expect.element(goTo.getByRole('option', { name: 'Project Web' })).toBeVisible()
     await expect.element(field()).toHaveAttribute('placeholder', 'Search or type a command')
   })
 
@@ -219,7 +219,7 @@ describe('the command menu, empty', () => {
     await expect.element(needs.getByRole('option', { name: /1 unread notice/ })).toBeVisible()
     const change = page.getByRole('group', { name: 'Switch and change' })
     for (const name of [
-      'Switch team…',
+      'Switch project…',
       'Switch workspace…',
       'Theme…',
       'Keyboard shortcuts',
@@ -418,7 +418,7 @@ describe('typing', () => {
   })
 
   it('walks the results with the arrows, wrapping, and the peek follows the highlight', async () => {
-    api(found({ builds: [build()], teams: [{ slug: 'web', name: 'Web' }] }))
+    api(found({ builds: [build()], projects: [{ slug: 'web', name: 'Web' }] }))
     await show()
     await openMenu()
     await userEvent.type(field(), '148')
@@ -448,20 +448,20 @@ describe('typing', () => {
 })
 
 describe('scope', () => {
-  it('limits a team page to its team, and "Search all teams" widens it (⌘↵)', async () => {
+  it('limits a project page to its project, and "Search all projects" widens it (⌘↵)', async () => {
     const calls = api(found({ builds: [build()] }))
     await onBuild()
     await openMenu()
     await expect.element(page.getByText('Web · #148')).toBeVisible()
     await userEvent.type(field(), 'checkout')
     await expect.element(page.getByRole('option', { name: /Build #148 Checkout/ })).toBeVisible()
-    expect(calls.searches().at(-1)).toContain('team=web')
-    const widen = page.getByRole('option', { name: 'Search all teams for "checkout"' })
+    expect(calls.searches().at(-1)).toContain('project=web')
+    const widen = page.getByRole('option', { name: 'Search all projects for "checkout"' })
     await expect.element(widen).toBeVisible()
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     await expect.element(page.getByText('Web · #148')).not.toBeInTheDocument()
-    await vi.waitFor(() => expect(calls.searches().at(-1)).not.toContain('team='))
+    await vi.waitFor(() => expect(calls.searches().at(-1)).not.toContain('project='))
     await expect.element(widen).not.toBeInTheDocument()
   })
 
@@ -475,7 +475,7 @@ describe('scope', () => {
     await expect.element(page.getByRole('group', { name: 'Build #148' })).not.toBeInTheDocument()
   })
 
-  it('turns in:name into a team chip, completes it with Tab, and Backspace removes it', async () => {
+  it('turns in:name into a project chip, completes it with Tab, and Backspace removes it', async () => {
     const calls = api(found({ builds: [build()] }))
     await show()
     await openMenu()
@@ -483,7 +483,7 @@ describe('scope', () => {
     await userEvent.keyboard('{Tab}')
     await expect.element(page.getByRole('button', { name: 'Remove Docs scope' })).toBeVisible()
     await expect.element(field()).toHaveValue('checkout')
-    await vi.waitFor(() => expect(calls.searches().at(-1)).toContain('team=docs'))
+    await vi.waitFor(() => expect(calls.searches().at(-1)).toContain('project=docs'))
     await userEvent.clear(field())
     await userEvent.keyboard('{Backspace}')
     await expect
@@ -514,7 +514,7 @@ describe('people', () => {
     name: 'Dana Levi',
     email: 'dana@acme.test',
     image: null,
-    teams: [
+    projects: [
       { slug: 'web', name: 'Web' },
       { slug: 'docs', name: 'Docs' },
     ],
@@ -522,7 +522,7 @@ describe('people', () => {
   }
   const people = { ...empty, query: 'dana', people: [dana], totals: { ...totals, people: 1 } }
 
-  it('finds people after @, shows their teams and open reviews, and opens their review requests', async () => {
+  it('finds people after @, shows their projects and open reviews, and opens their review requests', async () => {
     const calls = api(people)
     const { router } = await show()
     await openMenu()
@@ -599,7 +599,7 @@ describe('peeks', () => {
 })
 
 describe('Create entries', () => {
-  it('offers New team, New workspace and Invite people, and opens the dialogs', async () => {
+  it('offers New project, New workspace and Invite people, and opens the dialogs', async () => {
     api(empty, {
       'GET /api/capabilities': { body: { manageableWorkspaces: [], canCreateWorkspace: true } },
     })
@@ -607,8 +607,8 @@ describe('Create entries', () => {
     await openMenu()
     const change = page.getByRole('group', { name: 'Switch and change' })
     await expect.element(change.getByRole('option', { name: 'New workspace' })).toBeVisible()
-    await change.getByRole('option', { name: 'New team' }).click()
-    await vi.waitFor(() => expect(useOverlayStore.getState().newTeamOpen).toBe(true))
+    await change.getByRole('option', { name: 'New project' }).click()
+    await vi.waitFor(() => expect(useOverlayStore.getState().newProjectOpen).toBe(true))
     await openMenu()
     await page.getByRole('option', { name: 'New workspace' }).click()
     await vi.waitFor(() => expect(useOverlayStore.getState().newWorkspaceOpen).toBe(true))
@@ -625,7 +625,7 @@ describe('Create entries', () => {
     await show()
     await openMenu()
     await expect.element(page.getByRole('option', { name: 'Theme…' })).toBeVisible()
-    for (const name of ['New team', 'New workspace', 'Invite people']) {
+    for (const name of ['New project', 'New workspace', 'Invite people']) {
       // eslint-disable-next-line no-await-in-loop -- one after another
       await expect.element(page.getByRole('option', { name })).not.toBeInTheDocument()
     }
@@ -635,8 +635,8 @@ describe('Create entries', () => {
     api()
     await inSettings()
     await openMenu()
-    await userEvent.type(field(), 'new team')
-    await expect.element(page.getByRole('option', { name: 'New team' })).not.toBeInTheDocument()
+    await userEvent.type(field(), 'new project')
+    await expect.element(page.getByRole('option', { name: 'New project' })).not.toBeInTheDocument()
   })
 })
 
@@ -745,13 +745,13 @@ describe('on a phone', () => {
 })
 
 describe('nested lists', () => {
-  it('opens Switch team… as a list with the current team checked, and Backspace goes back', async () => {
+  it('opens Switch project… as a list with the current project checked, and Backspace goes back', async () => {
     api()
     await onBuild()
     await openMenu()
-    await page.getByRole('option', { name: 'Switch team…' }).click()
-    await expect.element(page.getByText('Switch team', { exact: true })).toBeVisible()
-    await expect.element(field()).toHaveAttribute('placeholder', 'Find a team')
+    await page.getByRole('option', { name: 'Switch project…' }).click()
+    await expect.element(page.getByText('Switch project', { exact: true })).toBeVisible()
+    await expect.element(field()).toHaveAttribute('placeholder', 'Find a project')
     await expect.element(page.getByRole('option', { name: /^Web, Current/ })).toBeVisible()
     await expect.element(page.getByRole('option', { name: /^Docs/ })).toBeVisible()
     await expect.element(page.getByRole('group', { name: 'Go to' })).not.toBeInTheDocument()
@@ -773,11 +773,11 @@ describe('nested lists', () => {
     await expect.element(field()).not.toBeInTheDocument()
   })
 
-  it('switches team, keeping the section', async () => {
+  it('switches project, keeping the section', async () => {
     api()
-    const { router } = await show('/acme/web/triage', '/$workspace/$team/triage')
+    const { router } = await show('/acme/web/triage', '/$workspace/$project/triage')
     await openMenu()
-    await page.getByRole('option', { name: 'Switch team…' }).click()
+    await page.getByRole('option', { name: 'Switch project…' }).click()
     await userEvent.type(field(), 'doc')
     await userEvent.keyboard('{Enter}')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/docs/triage'))
@@ -785,7 +785,7 @@ describe('nested lists', () => {
 
   it('switches workspace, and picks a theme', async () => {
     api(empty, {
-      'GET /api/workspaces/other/sidebar': { body: sidebarModel({ teams: [] }) },
+      'GET /api/workspaces/other/sidebar': { body: sidebarModel({ projects: [] }) },
       'GET /api/workspaces/other/search': { body: empty },
     })
     const { router } = await show()
@@ -850,13 +850,13 @@ const decided = (undo: ReturnType<typeof token> | null) => ({
   undo,
 })
 
-const buildAndTeam = (extra: Record<string, ReplyHandler> = {}) =>
+const buildAndProject = (extra: Record<string, ReplyHandler> = {}) =>
   api(found({ builds: [build()] }), {
-    'POST /api/teams/acme/web/builds/148/review': { body: decided(token('u1')) },
-    'POST /api/teams/acme/web/builds/148/snapshots/review': { body: decided(token('u2')) },
-    'POST /api/teams/acme/web/undo/u1': { body: { undone: true } },
-    'POST /api/teams/acme/web/undo/u2': { body: { undone: true } },
-    'GET /api/teams/acme/web/settings': { body: { settings: { requireRejectReason: false } } },
+    'POST /api/projects/acme/web/builds/148/review': { body: decided(token('u1')) },
+    'POST /api/projects/acme/web/builds/148/snapshots/review': { body: decided(token('u2')) },
+    'POST /api/projects/acme/web/undo/u1': { body: { undone: true } },
+    'POST /api/projects/acme/web/undo/u2': { body: { undone: true } },
+    'GET /api/projects/acme/web/settings': { body: { settings: { requireRejectReason: false } } },
     ...extra,
   })
 
@@ -874,7 +874,7 @@ const posts = (calls: { of: (m: string) => { path: string; body: unknown }[] }) 
 
 describe('row actions', () => {
   it('opens the highlighted row in a new tab with ⌘↵, and copies its link with ⌘⇧C', async () => {
-    buildAndTeam()
+    buildAndProject()
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const write = vi.spyOn(clipboard, 'write').mockResolvedValue()
     await show()
@@ -898,7 +898,7 @@ describe('row actions', () => {
   })
 
   it('sends Approve all at once, and Undo reverts it on the server', async () => {
-    const calls = buildAndTeam()
+    const calls = buildAndProject()
     await show()
     await openBuildActions()
     for (const name of [
@@ -915,18 +915,20 @@ describe('row actions', () => {
     await expect.element(toast().getByText('Approved build #148')).toBeVisible()
     await expect.element(field()).not.toBeInTheDocument()
     // Sent already: no waiting for the toast to run out.
-    expect(posts(calls)).toEqual([['/api/teams/acme/web/builds/148/review', { state: 'approved' }]])
+    expect(posts(calls)).toEqual([
+      ['/api/projects/acme/web/builds/148/review', { state: 'approved' }],
+    ])
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect.element(toast().getByText('Undone')).toBeVisible()
     expect(posts(calls)).toEqual([
-      ['/api/teams/acme/web/builds/148/review', { state: 'approved' }],
-      ['/api/teams/acme/web/undo/u1', {}],
+      ['/api/projects/acme/web/builds/148/review', { state: 'approved' }],
+      ['/api/projects/acme/web/undo/u1', {}],
     ])
   })
 
   it('says why when the server refuses the undo (409)', async () => {
-    buildAndTeam({
-      'POST /api/teams/acme/web/undo/u1': {
+    buildAndProject({
+      'POST /api/projects/acme/web/undo/u1': {
         status: 409,
         body: { error: "Someone changed this review since, so it can't be undone" },
       },
@@ -942,25 +944,25 @@ describe('row actions', () => {
   })
 
   it('rejects the screenshots with no decision at once when no reason is required, with Undo', async () => {
-    const calls = buildAndTeam()
+    const calls = buildAndProject()
     await show()
     await openBuildActions()
     await page.getByRole('option', { name: 'Reject', exact: true }).click()
     await expect.element(toast().getByText('Rejected build #148')).toBeVisible()
     expect(posts(calls)).toEqual([
       [
-        '/api/teams/acme/web/builds/148/snapshots/review',
+        '/api/projects/acme/web/builds/148/snapshots/review',
         { snapshotNames: 'undecided', decision: 'rejected' },
       ],
     ])
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect.element(toast().getByText('Undone')).toBeVisible()
-    expect(calls.of('POST').at(-1)?.path).toBe('/api/teams/acme/web/undo/u2')
+    expect(calls.of('POST').at(-1)?.path).toBe('/api/projects/acme/web/undo/u2')
   })
 
-  it('asks for the reason first when the team requires one, then rejects with it', async () => {
-    const calls = buildAndTeam({
-      'GET /api/teams/acme/web/settings': { body: { settings: { requireRejectReason: true } } },
+  it('asks for the reason first when the project requires one, then rejects with it', async () => {
+    const calls = buildAndProject({
+      'GET /api/projects/acme/web/settings': { body: { settings: { requireRejectReason: true } } },
     })
     await show()
     await openBuildActions()
@@ -977,21 +979,24 @@ describe('row actions', () => {
     await expect.element(toast().getByText('Rejected build #148')).toBeVisible()
     expect(posts(calls)).toEqual([
       [
-        '/api/teams/acme/web/builds/148/snapshots/review',
+        '/api/projects/acme/web/builds/148/snapshots/review',
         { snapshotNames: 'undecided', decision: 'rejected', reason: '#nav is clipped' },
       ],
     ])
   })
 
   it('runs the build page actions from the menu: Reject takes the screenshot in the address', async () => {
-    const calls = buildAndTeam()
-    await show('/acme/web/builds/148?shot=checkout%2Fsummary', '/$workspace/$team/builds/$number')
+    const calls = buildAndProject()
+    await show(
+      '/acme/web/builds/148?shot=checkout%2Fsummary',
+      '/$workspace/$project/builds/$number',
+    )
     await openMenu()
     await page.getByRole('option', { name: 'Reject screenshot' }).click()
     await expect.element(toast().getByText('Rejected checkout/summary')).toBeVisible()
     expect(posts(calls)).toEqual([
       [
-        '/api/teams/acme/web/builds/148/snapshots/review',
+        '/api/projects/acme/web/builds/148/snapshots/review',
         { snapshotNames: ['checkout/summary'], decision: 'rejected' },
       ],
     ])
@@ -1008,21 +1013,21 @@ describe('row actions', () => {
       canManage: true,
     }
     const setup = () =>
-      buildAndTeam({
-        'GET /api/teams/acme/web/members': { body: people },
-        'GET /api/teams/acme/web/builds/148': {
+      buildAndProject({
+        'GET /api/projects/acme/web/members': { body: people },
+        'GET /api/projects/acme/web/builds/148': {
           body: {
             build: { id: 'b-148', author: { login: 'ann', name: 'Ann Author' } },
             authorUserId: 'u4',
           },
         },
-        'POST /api/teams/acme/web/builds/request-review': {
+        'POST /api/projects/acme/web/builds/request-review': {
           body: { requests: [], undo: token('u3') },
         },
-        'POST /api/teams/acme/web/undo/u3': { body: { undone: true } },
+        'POST /api/projects/acme/web/undo/u3': { body: { undone: true } },
       })
 
-    it('lists the team without you and the author, and asks one person at once, with Undo', async () => {
+    it('lists the project without you and the author, and asks one person at once, with Undo', async () => {
       const calls = setup()
       await show()
       await openBuildActions()
@@ -1035,11 +1040,14 @@ describe('row actions', () => {
       await page.getByRole('option', { name: /Dana Levi/ }).click()
       await expect.element(toast().getByText('Asked Dana Levi to review build #148')).toBeVisible()
       expect(posts(calls)).toEqual([
-        ['/api/teams/acme/web/builds/request-review', { buildIds: ['b-148'], reviewerIds: ['u2'] }],
+        [
+          '/api/projects/acme/web/builds/request-review',
+          { buildIds: ['b-148'], reviewerIds: ['u2'] },
+        ],
       ])
       await page.getByRole('button', { name: 'Undo' }).click()
       await expect.element(toast().getByText('Undone')).toBeVisible()
-      expect(calls.of('POST').at(-1)?.path).toBe('/api/teams/acme/web/undo/u3')
+      expect(calls.of('POST').at(-1)?.path).toBe('/api/projects/acme/web/undo/u3')
     })
 
     it('picks several people with ⇧↵ and asks them together', async () => {
@@ -1060,7 +1068,7 @@ describe('row actions', () => {
       await expect.element(toast().getByText('Asked 2 people to review build #148')).toBeVisible()
       expect(posts(calls)).toEqual([
         [
-          '/api/teams/acme/web/builds/request-review',
+          '/api/projects/acme/web/builds/request-review',
           { buildIds: ['b-148'], reviewerIds: ['u2', 'u3'] },
         ],
       ])
@@ -1069,9 +1077,9 @@ describe('row actions', () => {
 
   it('assigns a triage item to you, snoozes it and marks a notice as read, each with Undo', async () => {
     const calls = api(more, {
-      'POST /api/teams/acme/web/triage/assign': { body: { undo: token('t1') } },
-      'POST /api/teams/acme/web/triage/snooze': { body: { undo: token('t2') } },
-      'POST /api/teams/acme/web/undo/t1': { body: { undone: true } },
+      'POST /api/projects/acme/web/triage/assign': { body: { undo: token('t1') } },
+      'POST /api/projects/acme/web/triage/snooze': { body: { undo: token('t2') } },
+      'POST /api/projects/acme/web/undo/t1': { body: { undone: true } },
       'POST /api/inbox/n1/read': { body: { undo: token('n-u1') } },
       'POST /api/inbox/undo/n-u1': { body: { undone: true } },
     })
@@ -1101,12 +1109,12 @@ describe('row actions', () => {
     await expect.element(toast().getByText('Undone')).toBeVisible()
     expect(posts(calls)).toEqual([
       [
-        '/api/teams/acme/web/triage/assign',
+        '/api/projects/acme/web/triage/assign',
         { kind: 'flaky', key: 'checkout/summary', assigneeId: 'u1' },
       ],
-      ['/api/teams/acme/web/undo/t1', {}],
+      ['/api/projects/acme/web/undo/t1', {}],
       [
-        '/api/teams/acme/web/triage/snooze',
+        '/api/projects/acme/web/triage/snooze',
         { kind: 'flaky', key: 'checkout/summary', choice: 'tomorrow' },
       ],
       ['/api/inbox/n1/read', { read: true }],
@@ -1116,10 +1124,10 @@ describe('row actions', () => {
 
   it('snoozes a review request, with Undo', async () => {
     const calls = api(more, {
-      'POST /api/teams/acme/web/review-requests/r1/snooze': {
+      'POST /api/projects/acme/web/review-requests/r1/snooze': {
         body: { id: 'r1', snoozeKind: 'tomorrow', snoozedUntil: null, undo: token('s1') },
       },
-      'POST /api/teams/acme/web/undo/s1': { body: { undone: true } },
+      'POST /api/projects/acme/web/undo/s1': { body: { undone: true } },
     })
     await show()
     await openMenu()
@@ -1131,8 +1139,8 @@ describe('row actions', () => {
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect.element(toast().getByText('Undone')).toBeVisible()
     expect(posts(calls)).toEqual([
-      ['/api/teams/acme/web/review-requests/r1/snooze', { kind: 'tomorrow' }],
-      ['/api/teams/acme/web/undo/s1', {}],
+      ['/api/projects/acme/web/review-requests/r1/snooze', { kind: 'tomorrow' }],
+      ['/api/projects/acme/web/undo/s1', {}],
     ])
   })
 })
@@ -1190,7 +1198,7 @@ describe('settings is closed', () => {
 
   it('remembers the app page while you are on it, and leaves settings back to it', async () => {
     api()
-    const { router } = await show('/acme/web/builds/148', '/$workspace/$team/builds/$number')
+    const { router } = await show('/acme/web/builds/148', '/$workspace/$project/builds/$number')
     await vi.waitFor(() =>
       expect(useSettingsReturnStore.getState().app).toBe('/acme/web/builds/148'),
     )

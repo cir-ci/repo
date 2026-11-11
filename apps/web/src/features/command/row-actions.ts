@@ -2,8 +2,8 @@ import type { Review, Triage, Undo } from '@circi/api'
 import type { QueryClient } from '@tanstack/react-query'
 
 import { buildQuery } from '#features/builds/api/index.ts'
-import { settingsQuery } from '#features/teams/api/index.ts'
-import { inboxPath, teamPath } from '#lib/api-paths.ts'
+import { settingsQuery } from '#features/projects/api/index.ts'
+import { inboxPath, projectPath } from '#lib/api-paths.ts'
 import { HttpError, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { ToastInput } from '#lib/stores/toast-store.ts'
@@ -33,14 +33,14 @@ const UNTIL: Record<SnoozeUntil, string> = {
   next_week: 'Snoozed until next week',
 }
 
-/** Whether the team asks for a reason when someone rejects; yes when that can't be found out. */
+/** Whether the project asks for a reason when someone rejects; yes when that can't be found out. */
 export async function rejectNeedsReason(
   queryClient: QueryClient,
-  subject: { workspace: string; team: string },
+  subject: { workspace: string; project: string },
 ): Promise<boolean> {
   try {
     const { settings } = await queryClient.fetchQuery({
-      ...settingsQuery(subject.workspace, subject.team),
+      ...settingsQuery(subject.workspace, subject.project),
       staleTime: 60_000,
     })
     return settings.requireRejectReason
@@ -52,7 +52,7 @@ export async function rejectNeedsReason(
 /** The ID of the build a subject names (the bulk request for review takes IDs, not numbers). */
 async function buildIdOf(queryClient: QueryClient, subject: ReviewSubject): Promise<string> {
   const detail = await queryClient.fetchQuery(
-    buildQuery(subject.workspace, subject.team, subject.number),
+    buildQuery(subject.workspace, subject.project, subject.number),
   )
   return detail.build.id
 }
@@ -62,10 +62,10 @@ const reviewKeys = (s: ReviewSubject) =>
     keys.inbox(),
     keys.reviews(),
     keys.sidebar(),
-    keys.teams(),
-    keys.build(s.workspace, s.team, s.number),
-    keys.team(s.workspace, s.team),
-    keys.triage(s.workspace, s.team),
+    keys.projects(),
+    keys.build(s.workspace, s.project, s.number),
+    keys.project(s.workspace, s.project),
+    keys.triage(s.workspace, s.project),
   ] as const
 
 /** The toast (and the change behind it) for an action; an empty message shows none. */
@@ -116,7 +116,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
       return { message: '' }
     case 'review': {
       const { subject, decision, names, reason } = action
-      const base = teamPath(subject.workspace, subject.team, 'builds', subject.number)
+      const base = projectPath(subject.workspace, subject.project, 'builds', subject.number)
       const verb = decision === 'approved' ? 'Approved' : 'Rejected'
       const body = reason ? { reason } : {}
       const answer =
@@ -145,7 +145,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
       const { subject, reviewers } = action
       const buildId = await buildIdOf(queryClient, subject)
       const answer = await post<Review.BulkRequested>(
-        teamPath(subject.workspace, subject.team, 'builds', 'request-review'),
+        projectPath(subject.workspace, subject.project, 'builds', 'request-review'),
         { buildIds: [buildId], reviewerIds: reviewers.map((r) => r.id) },
       )
       const refresh = () =>
@@ -154,7 +154,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
           keys.inbox(),
           keys.reviews(),
           keys.sidebar(),
-          keys.build(subject.workspace, subject.team, subject.number),
+          keys.build(subject.workspace, subject.project, subject.number),
         )
       await refresh()
       const names = reviewers.map((r) => r.name)
@@ -170,7 +170,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
     case 'snoozeRequest': {
       const { subject, choice } = action
       const answer = await post<Review.Snoozed>(
-        teamPath(subject.workspace, subject.team, 'review-requests', subject.id, 'snooze'),
+        projectPath(subject.workspace, subject.project, 'review-requests', subject.id, 'snooze'),
         { kind: choice },
       )
       const refresh = () => invalidateAll(queryClient, keys.reviews(), keys.sidebar())
@@ -182,33 +182,33 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
       const me = ctx.me
       if (!me) return { message: "Couldn't assign it to you", tone: 'error' }
       const answer = await post<Triage.ItemState>(
-        teamPath(subject.workspace, subject.team, 'triage', 'assign'),
+        projectPath(subject.workspace, subject.project, 'triage', 'assign'),
         { kind: subject.kind, key: subject.key, assigneeId: me.id },
       )
       const refresh = () =>
-        invalidateAll(queryClient, keys.triage(subject.workspace, subject.team), keys.sidebar())
+        invalidateAll(queryClient, keys.triage(subject.workspace, subject.project), keys.sidebar())
       await refresh()
       return withUndo('Assigned to you', answer.undo, subject, refresh)
     }
     case 'snoozeTriage': {
       const { subject, choice } = action
       const answer = await post<Triage.ItemState>(
-        teamPath(subject.workspace, subject.team, 'triage', 'snooze'),
+        projectPath(subject.workspace, subject.project, 'triage', 'snooze'),
         { kind: subject.kind, key: subject.key, choice },
       )
       const refresh = () =>
-        invalidateAll(queryClient, keys.triage(subject.workspace, subject.team), keys.sidebar())
+        invalidateAll(queryClient, keys.triage(subject.workspace, subject.project), keys.sidebar())
       await refresh()
       return withUndo(UNTIL[choice], answer.undo, subject, refresh)
     }
     case 'dismissTriage': {
       const { subject } = action
       const answer = await post<Triage.ItemState>(
-        teamPath(subject.workspace, subject.team, 'triage', 'dismiss'),
+        projectPath(subject.workspace, subject.project, 'triage', 'dismiss'),
         { kind: subject.kind, key: subject.key },
       )
       const refresh = () =>
-        invalidateAll(queryClient, keys.triage(subject.workspace, subject.team), keys.sidebar())
+        invalidateAll(queryClient, keys.triage(subject.workspace, subject.project), keys.sidebar())
       await refresh()
       return withUndo('Dismissed', answer.undo, subject, refresh)
     }

@@ -127,7 +127,7 @@ CREATE TABLE "build_shards" (
 --> statement-breakpoint
 CREATE TABLE "builds" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"number" integer NOT NULL,
 	"name" text DEFAULT 'default' NOT NULL,
 	"commit_sha" text NOT NULL,
@@ -145,6 +145,7 @@ CREATE TABLE "builds" (
 	"parallel_total" integer,
 	"conclusion" text,
 	"review_status" text DEFAULT 'pending' NOT NULL,
+	"flaky_decision" jsonb,
 	"error_message" text,
 	"author_login" text,
 	"author_email" text,
@@ -161,12 +162,12 @@ CREATE TABLE "builds" (
 );
 --> statement-breakpoint
 CREATE TABLE "commit_ancestry" (
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"commit_sha" text NOT NULL,
 	"merge_base_sha" text,
 	"ancestor_shas" text[] NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "commit_ancestry_team_id_commit_sha_pk" PRIMARY KEY("team_id","commit_sha")
+	CONSTRAINT "commit_ancestry_project_id_commit_sha_pk" PRIMARY KEY("project_id","commit_sha")
 );
 --> statement-breakpoint
 CREATE TABLE "comments" (
@@ -177,6 +178,7 @@ CREATE TABLE "comments" (
 	"region_y" double precision,
 	"region_width" double precision,
 	"region_height" double precision,
+	"region_side" text DEFAULT 'current' NOT NULL,
 	"body" text NOT NULL,
 	"author_id" text,
 	"parent_id" uuid,
@@ -223,10 +225,10 @@ CREATE TABLE "build_checks" (
 );
 --> statement-breakpoint
 CREATE TABLE "pr_comments" (
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"pr_number" integer NOT NULL,
 	"comment_id" text NOT NULL,
-	CONSTRAINT "pr_comments_team_id_pr_number_pk" PRIMARY KEY("team_id","pr_number")
+	CONSTRAINT "pr_comments_project_id_pr_number_pk" PRIMARY KEY("project_id","pr_number")
 );
 --> statement-breakpoint
 CREATE TABLE "provider_deliveries" (
@@ -243,7 +245,7 @@ CREATE TABLE "instance_settings" (
 CREATE TABLE "integration_links" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"integration_id" uuid NOT NULL,
-	"team_id" uuid,
+	"project_id" uuid,
 	"build_id" uuid,
 	"subject" text,
 	"kind" text NOT NULL,
@@ -255,14 +257,14 @@ CREATE TABLE "integration_links" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "integration_teams" (
+CREATE TABLE "integration_projects" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"integration_id" uuid NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"external_ref" text NOT NULL,
 	"extra" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "integration_teams_key" UNIQUE("integration_id","team_id")
+	CONSTRAINT "integration_projects_key" UNIQUE("integration_id","project_id")
 );
 --> statement-breakpoint
 CREATE TABLE "integrations" (
@@ -300,6 +302,9 @@ CREATE TABLE "notification_preferences" (
 	"user_id" text PRIMARY KEY NOT NULL,
 	"email_review_requested" boolean DEFAULT true NOT NULL,
 	"email_review_overdue" boolean DEFAULT true NOT NULL,
+	"push_review_requested" boolean DEFAULT true NOT NULL,
+	"push_mentioned" boolean DEFAULT true NOT NULL,
+	"push_review_outcome" boolean DEFAULT true NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -314,7 +319,20 @@ CREATE TABLE "notifications" (
 	"snoozed_until" timestamp with time zone,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "notifications_kind_check" CHECK (kind in ('review_requested', 'review_re_requested', 'mentioned', 'build_approved', 'build_rejected', 'review_overdue', 'connection_needs_attention', 'flaky_detected'))
+	CONSTRAINT "notifications_kind_check" CHECK (kind in ('review_requested', 'review_re_requested', 'mentioned', 'build_approved', 'build_rejected', 'review_overdue', 'connection_needs_attention', 'flaky_detected', 'triage_assigned'))
+);
+--> statement-breakpoint
+CREATE TABLE "push_subscriptions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"endpoint" text NOT NULL,
+	"p256dh" text NOT NULL,
+	"auth" text NOT NULL,
+	"user_agent" text,
+	"label" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"last_used_at" timestamp with time zone,
+	CONSTRAINT "push_subscriptions_endpoint_unique" UNIQUE("endpoint")
 );
 --> statement-breakpoint
 CREATE TABLE "session_methods" (
@@ -354,12 +372,21 @@ CREATE TABLE "workspace_domains" (
 CREATE TABLE "workspace_settings" (
 	"workspace_id" text PRIMARY KEY NOT NULL,
 	"flaky_blocks_merge" boolean DEFAULT true NOT NULL,
+	"assign_triage_to_on_call" boolean DEFAULT false NOT NULL,
 	"retention_days" integer DEFAULT 30 NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "workspace_settings_retention_days_check" CHECK ("workspace_settings"."retention_days" >= 1)
 );
 --> statement-breakpoint
-CREATE TABLE "teams" (
+CREATE TABLE "project_members" (
+	"project_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"added_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"added_by" text,
+	CONSTRAINT "project_members_project_id_user_id_pk" PRIMARY KEY("project_id","user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "projects" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"workspace_id" text NOT NULL,
 	"slug" text NOT NULL,
@@ -373,17 +400,27 @@ CREATE TABLE "teams" (
 	"auto_approve_default_branch" boolean DEFAULT true NOT NULL,
 	"block_merge_on_changes" boolean DEFAULT true NOT NULL,
 	"flaky_blocks_merge" boolean,
+	"assign_triage_to_on_call" boolean,
 	"retention_days" integer DEFAULT 30 NOT NULL,
 	"review_target_hours" integer DEFAULT 24,
+	"review_overdue_notify_user_id" text,
+	"close_reviews_on_newer_build" boolean DEFAULT true NOT NULL,
+	"re_request_on_newer_build" boolean DEFAULT true NOT NULL,
+	"auto_approve_no_changes" boolean DEFAULT true NOT NULL,
+	"require_reject_reason" boolean DEFAULT false NOT NULL,
+	"flaky_after_changes" integer DEFAULT 3 NOT NULL,
+	"snooze_default_days" integer DEFAULT 7 NOT NULL,
 	"triage_rotation_starts_on" timestamp with time zone,
 	"static_hosting_enabled" boolean DEFAULT false NOT NULL,
 	"build_counter" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "teams_ci_key_id_unique" UNIQUE("ci_key_id"),
-	CONSTRAINT "teams_diff_threshold_check" CHECK ("teams"."diff_threshold" >= 0 and "teams"."diff_threshold" <= 1),
-	CONSTRAINT "teams_color_check" CHECK (color in ('slate', 'olive', 'plum', 'moss', 'mauve', 'graphite')),
-	CONSTRAINT "teams_retention_days_check" CHECK ("teams"."retention_days" >= 1),
-	CONSTRAINT "teams_review_target_hours_check" CHECK ("teams"."review_target_hours" is null or "teams"."review_target_hours" >= 1)
+	CONSTRAINT "projects_ci_key_id_unique" UNIQUE("ci_key_id"),
+	CONSTRAINT "projects_diff_threshold_check" CHECK ("projects"."diff_threshold" >= 0 and "projects"."diff_threshold" <= 1),
+	CONSTRAINT "projects_color_check" CHECK (color in ('slate', 'olive', 'plum', 'moss', 'mauve', 'graphite')),
+	CONSTRAINT "projects_retention_days_check" CHECK ("projects"."retention_days" >= 1),
+	CONSTRAINT "projects_flaky_after_changes_check" CHECK ("projects"."flaky_after_changes" between 2 and 8),
+	CONSTRAINT "projects_snooze_default_days_check" CHECK ("projects"."snooze_default_days" between 1 and 30),
+	CONSTRAINT "projects_review_target_hours_check" CHECK ("projects"."review_target_hours" is null or "projects"."review_target_hours" >= 1)
 );
 --> statement-breakpoint
 CREATE TABLE "review_requests" (
@@ -410,7 +447,7 @@ CREATE TABLE "review_rule_reviewers" (
 --> statement-breakpoint
 CREATE TABLE "review_rules" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"kind" text NOT NULL,
 	"pattern" text NOT NULL,
 	"position" integer DEFAULT 0 NOT NULL,
@@ -447,7 +484,7 @@ CREATE TABLE "snapshot_reviews" (
 --> statement-breakpoint
 CREATE TABLE "ignore_regions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"x" integer NOT NULL,
 	"y" integer NOT NULL,
@@ -469,6 +506,8 @@ CREATE TABLE "screenshot_diffs" (
 	"changed_pixels" integer,
 	"size_changed" boolean DEFAULT false NOT NULL,
 	"error_message" text,
+	"ignored_changed_pixels" integer DEFAULT 0 NOT NULL,
+	"ignored_regions" text[] DEFAULT '{}'::text[] NOT NULL,
 	"diff_file_sha256" text,
 	"job_status" text DEFAULT 'pending' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -500,9 +539,22 @@ CREATE TABLE "known_devices" (
 	CONSTRAINT "known_devices_user_id_fingerprint_pk" PRIMARY KEY("user_id","fingerprint")
 );
 --> statement-breakpoint
+CREATE TABLE "project_sites" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"project_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"kind" text NOT NULL,
+	"slug" text NOT NULL,
+	"spa" boolean DEFAULT false NOT NULL,
+	"custom_domain" text,
+	"custom_domain_verified_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "project_sites_kind_check" CHECK (kind in ('storybook', 'vitest-report', 'playwright-report', 'coverage', 'docs', 'generic'))
+);
+--> statement-breakpoint
 CREATE TABLE "site_hostnames" (
 	"label" text PRIMARY KEY NOT NULL,
-	"team_site_id" uuid NOT NULL,
+	"project_site_id" uuid NOT NULL,
 	"link_kind" text NOT NULL,
 	"branch" text,
 	"static_site_id" uuid NOT NULL,
@@ -538,7 +590,7 @@ CREATE TABLE "static_site_files" (
 --> statement-breakpoint
 CREATE TABLE "static_sites" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_site_id" uuid NOT NULL,
+	"project_site_id" uuid NOT NULL,
 	"commit_sha" text NOT NULL,
 	"branch" text,
 	"entry_path" text DEFAULT 'index.html' NOT NULL,
@@ -547,47 +599,54 @@ CREATE TABLE "static_sites" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "team_sites" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
-	"name" text NOT NULL,
-	"kind" text NOT NULL,
-	"slug" text NOT NULL,
-	"spa" boolean DEFAULT false NOT NULL,
-	"custom_domain" text,
-	"custom_domain_verified_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "team_sites_kind_check" CHECK (kind in ('storybook', 'vitest-report', 'playwright-report', 'coverage', 'docs', 'generic'))
-);
---> statement-breakpoint
 CREATE TABLE "triage_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"kind" text NOT NULL,
 	"key" text NOT NULL,
 	"assignee_id" text,
+	"assignment_source" text,
 	"snoozed_until" timestamp with time zone,
 	"snooze_kind" text,
 	"snoozed_after_build" integer,
 	"dismissed_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "triage_items_kind_check" CHECK (kind in ('flaky', 'no_baseline', 'failed')),
+	CONSTRAINT "triage_items_assignment_source_check" CHECK (assignment_source is null or assignment_source in ('auto', 'manual')),
 	CONSTRAINT "triage_items_snooze_kind_check" CHECK (snooze_kind is null or snooze_kind in ('next_push', 'tomorrow', 'next_week', 'date'))
 );
 --> statement-breakpoint
 CREATE TABLE "triage_rotation_members" (
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"user_id" text NOT NULL,
 	"position" integer NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "triage_rotation_members_team_id_user_id_pk" PRIMARY KEY("team_id","user_id")
+	CONSTRAINT "triage_rotation_members_project_id_user_id_pk" PRIMARY KEY("project_id","user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "undo_actions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"project_id" uuid,
+	"kind" text NOT NULL,
+	"data" jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"used_at" timestamp with time zone,
+	CONSTRAINT "undo_actions_kind_check" CHECK (kind in ('build_review', 'triage_assign', 'triage_snooze', 'triage_dismiss', 'notice_read', 'notice_snooze', 'notice_remove', 'request_snooze', 'request_review'))
+);
+--> statement-breakpoint
+CREATE TABLE "user_preferences" (
+	"user_id" text PRIMARY KEY NOT NULL,
+	"last_workspace_id" text,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "saved_views" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
 	"workspace_id" text NOT NULL,
-	"team_id" uuid,
+	"project_id" uuid,
 	"name" text NOT NULL,
 	"filters" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"pinned" boolean DEFAULT false NOT NULL,
@@ -597,12 +656,12 @@ CREATE TABLE "saved_views" (
 	CONSTRAINT "saved_views_name_check" CHECK (length(btrim("saved_views"."name")) > 0)
 );
 --> statement-breakpoint
-CREATE TABLE "user_pinned_teams" (
+CREATE TABLE "user_pinned_projects" (
 	"user_id" text NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"position" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "user_pinned_teams_user_id_team_id_pk" PRIMARY KEY("user_id","team_id")
+	CONSTRAINT "user_pinned_projects_user_id_project_id_pk" PRIMARY KEY("user_id","project_id")
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_deliveries" (
@@ -619,7 +678,7 @@ CREATE TABLE "webhook_deliveries" (
 --> statement-breakpoint
 CREATE TABLE "webhooks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"team_id" uuid NOT NULL,
+	"project_id" uuid NOT NULL,
 	"url" text NOT NULL,
 	"secret" text NOT NULL,
 	"events" text[] DEFAULT '{}'::text[] NOT NULL,
@@ -636,48 +695,53 @@ ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("us
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sso_provider" ADD CONSTRAINT "sso_provider_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "build_shards" ADD CONSTRAINT "build_shards_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "builds" ADD CONSTRAINT "builds_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "builds" ADD CONSTRAINT "builds_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "builds" ADD CONSTRAINT "builds_base_build_id_builds_id_fk" FOREIGN KEY ("base_build_id") REFERENCES "public"."builds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "builds" ADD CONSTRAINT "builds_author_user_id_user_id_fk" FOREIGN KEY ("author_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "commit_ancestry" ADD CONSTRAINT "commit_ancestry_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "commit_ancestry" ADD CONSTRAINT "commit_ancestry_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comments" ADD CONSTRAINT "comments_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comments" ADD CONSTRAINT "comments_author_id_user_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comments" ADD CONSTRAINT "comments_parent_id_comments_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."comments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_file_sha256_files_sha256_fk" FOREIGN KEY ("file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "build_checks" ADD CONSTRAINT "build_checks_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pr_comments" ADD CONSTRAINT "pr_comments_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pr_comments" ADD CONSTRAINT "pr_comments_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_integration_id_integrations_id_fk" FOREIGN KEY ("integration_id") REFERENCES "public"."integrations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "integration_teams" ADD CONSTRAINT "integration_teams_integration_id_integrations_id_fk" FOREIGN KEY ("integration_id") REFERENCES "public"."integrations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "integration_teams" ADD CONSTRAINT "integration_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_projects" ADD CONSTRAINT "integration_projects_integration_id_integrations_id_fk" FOREIGN KEY ("integration_id") REFERENCES "public"."integrations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_projects" ADD CONSTRAINT "integration_projects_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "integrations" ADD CONSTRAINT "integrations_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "integrations" ADD CONSTRAINT "integrations_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_user_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "push_subscriptions" ADD CONSTRAINT "push_subscriptions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session_methods" ADD CONSTRAINT "session_methods_session_id_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_auth_settings" ADD CONSTRAINT "workspace_auth_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_deletions" ADD CONSTRAINT "workspace_deletions_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_domains" ADD CONSTRAINT "workspace_domains_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_settings" ADD CONSTRAINT "workspace_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "teams" ADD CONSTRAINT "teams_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "teams" ADD CONSTRAINT "teams_ci_key_id_apikey_id_fk" FOREIGN KEY ("ci_key_id") REFERENCES "public"."apikey"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "teams" ADD CONSTRAINT "teams_ci_key_created_by_user_id_fk" FOREIGN KEY ("ci_key_created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_added_by_user_id_fk" FOREIGN KEY ("added_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_ci_key_id_apikey_id_fk" FOREIGN KEY ("ci_key_id") REFERENCES "public"."apikey"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_ci_key_created_by_user_id_fk" FOREIGN KEY ("ci_key_created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "projects_review_overdue_notify_user_id_user_id_fk" FOREIGN KEY ("review_overdue_notify_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_reviewer_id_user_id_fk" FOREIGN KEY ("reviewer_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_requested_by_id_user_id_fk" FOREIGN KEY ("requested_by_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_rule_reviewers" ADD CONSTRAINT "review_rule_reviewers_rule_id_review_rules_id_fk" FOREIGN KEY ("rule_id") REFERENCES "public"."review_rules"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_rule_reviewers" ADD CONSTRAINT "review_rule_reviewers_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "review_rules" ADD CONSTRAINT "review_rules_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_rules" ADD CONSTRAINT "review_rules_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "snapshot_reviews" ADD CONSTRAINT "snapshot_reviews_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "snapshot_reviews" ADD CONSTRAINT "snapshot_reviews_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_base_screenshot_id_screenshots_id_fk" FOREIGN KEY ("base_screenshot_id") REFERENCES "public"."screenshots"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -687,7 +751,8 @@ ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_build_id_builds_id_fk" FOR
 ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_file_sha256_files_sha256_fk" FOREIGN KEY ("file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_thumbnail_sha256_files_sha256_fk" FOREIGN KEY ("thumbnail_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "known_devices" ADD CONSTRAINT "known_devices_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "site_hostnames" ADD CONSTRAINT "site_hostnames_team_site_id_team_sites_id_fk" FOREIGN KEY ("team_site_id") REFERENCES "public"."team_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_sites" ADD CONSTRAINT "project_sites_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_hostnames" ADD CONSTRAINT "site_hostnames_project_site_id_project_sites_id_fk" FOREIGN KEY ("project_site_id") REFERENCES "public"."project_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "site_hostnames" ADD CONSTRAINT "site_hostnames_static_site_id_static_sites_id_fk" FOREIGN KEY ("static_site_id") REFERENCES "public"."static_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "site_sessions" ADD CONSTRAINT "site_sessions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "site_sessions" ADD CONSTRAINT "site_sessions_auth_session_id_session_id_fk" FOREIGN KEY ("auth_session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -695,19 +760,22 @@ ALTER TABLE "site_tokens" ADD CONSTRAINT "site_tokens_user_id_user_id_fk" FOREIG
 ALTER TABLE "site_tokens" ADD CONSTRAINT "site_tokens_auth_session_id_session_id_fk" FOREIGN KEY ("auth_session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "static_site_files" ADD CONSTRAINT "static_site_files_static_site_id_static_sites_id_fk" FOREIGN KEY ("static_site_id") REFERENCES "public"."static_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "static_site_files" ADD CONSTRAINT "static_site_files_sha256_files_sha256_fk" FOREIGN KEY ("sha256") REFERENCES "public"."files"("sha256") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "static_sites" ADD CONSTRAINT "static_sites_team_site_id_team_sites_id_fk" FOREIGN KEY ("team_site_id") REFERENCES "public"."team_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "team_sites" ADD CONSTRAINT "team_sites_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "triage_items" ADD CONSTRAINT "triage_items_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "static_sites" ADD CONSTRAINT "static_sites_project_site_id_project_sites_id_fk" FOREIGN KEY ("project_site_id") REFERENCES "public"."project_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_items" ADD CONSTRAINT "triage_items_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "triage_items" ADD CONSTRAINT "triage_items_assignee_id_user_id_fk" FOREIGN KEY ("assignee_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "triage_rotation_members" ADD CONSTRAINT "triage_rotation_members_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_rotation_members" ADD CONSTRAINT "triage_rotation_members_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "triage_rotation_members" ADD CONSTRAINT "triage_rotation_members_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "undo_actions" ADD CONSTRAINT "undo_actions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "undo_actions" ADD CONSTRAINT "undo_actions_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_last_workspace_id_workspace_id_fk" FOREIGN KEY ("last_workspace_id") REFERENCES "public"."workspace"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_pinned_projects" ADD CONSTRAINT "user_pinned_projects_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_pinned_projects" ADD CONSTRAINT "user_pinned_projects_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_webhook_id_webhooks_id_fk" FOREIGN KEY ("webhook_id") REFERENCES "public"."webhooks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "webhooks" ADD CONSTRAINT "webhooks_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "webhooks" ADD CONSTRAINT "webhooks_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "apikey_configId_idx" ON "apikey" USING btree ("config_id");--> statement-breakpoint
 CREATE INDEX "apikey_referenceId_idx" ON "apikey" USING btree ("reference_id");--> statement-breakpoint
@@ -718,48 +786,51 @@ CREATE INDEX "member_workspaceId_idx" ON "member" USING btree ("workspace_id");-
 CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
-CREATE UNIQUE INDEX "builds_team_number_key" ON "builds" USING btree ("team_id","number");--> statement-breakpoint
-CREATE UNIQUE INDEX "builds_parallel_key" ON "builds" USING btree ("team_id","name","commit_sha","parallel_nonce") WHERE "builds"."parallel_nonce" is not null;--> statement-breakpoint
-CREATE INDEX "builds_team_branch_idx" ON "builds" USING btree ("team_id","branch","created_at");--> statement-breakpoint
-CREATE INDEX "builds_team_name_commit_idx" ON "builds" USING btree ("team_id","name","commit_sha");--> statement-breakpoint
+CREATE UNIQUE INDEX "builds_project_number_key" ON "builds" USING btree ("project_id","number");--> statement-breakpoint
+CREATE UNIQUE INDEX "builds_parallel_key" ON "builds" USING btree ("project_id","name","commit_sha","parallel_nonce") WHERE "builds"."parallel_nonce" is not null;--> statement-breakpoint
+CREATE INDEX "builds_project_branch_idx" ON "builds" USING btree ("project_id","branch","created_at");--> statement-breakpoint
+CREATE INDEX "builds_project_name_commit_idx" ON "builds" USING btree ("project_id","name","commit_sha");--> statement-breakpoint
 CREATE INDEX "comments_build_idx" ON "comments" USING btree ("build_id","created_at");--> statement-breakpoint
 CREATE INDEX "comments_parent_idx" ON "comments" USING btree ("parent_id");--> statement-breakpoint
 CREATE INDEX "files_gc_marked_idx" ON "files" USING btree ("gc_marked_at") WHERE "files"."gc_marked_at" is not null;--> statement-breakpoint
 CREATE INDEX "upload_claims_file_idx" ON "upload_claims" USING btree ("file_sha256");--> statement-breakpoint
 CREATE INDEX "integration_links_build_idx" ON "integration_links" USING btree ("build_id","created_at");--> statement-breakpoint
 CREATE INDEX "integration_links_integration_idx" ON "integration_links" USING btree ("integration_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "integration_links_team_subject_key" ON "integration_links" USING btree ("team_id","kind","subject") WHERE "integration_links"."build_id" is null and "integration_links"."team_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "integration_links_project_subject_key" ON "integration_links" USING btree ("project_id","kind","subject") WHERE "integration_links"."build_id" is null and "integration_links"."project_id" is not null;--> statement-breakpoint
 CREATE INDEX "jobs_claim_idx" ON "jobs" USING btree ("queue","run_at") WHERE "jobs"."status" in ('pending', 'running');--> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_dedupe_key" ON "jobs" USING btree ("queue","dedupe_key") WHERE "jobs"."dedupe_key" is not null and "jobs"."status" in ('pending', 'running');--> statement-breakpoint
 CREATE INDEX "notifications_user_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "notifications_build_idx" ON "notifications" USING btree ("build_id","user_id");--> statement-breakpoint
+CREATE INDEX "push_subscriptions_user_idx" ON "push_subscriptions" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "workspace_domains_workspace_domain_key" ON "workspace_domains" USING btree ("workspace_id","domain");--> statement-breakpoint
 CREATE UNIQUE INDEX "workspace_domains_verified_domain_key" ON "workspace_domains" USING btree ("domain") WHERE "workspace_domains"."verified_at" is not null;--> statement-breakpoint
-CREATE UNIQUE INDEX "teams_workspace_slug_key" ON "teams" USING btree ("workspace_id","slug");--> statement-breakpoint
+CREATE INDEX "project_members_user_idx" ON "project_members" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "projects_workspace_slug_key" ON "projects" USING btree ("workspace_id","slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "review_requests_open_key" ON "review_requests" USING btree ("build_id","reviewer_id") WHERE "review_requests"."state" = 'open';--> statement-breakpoint
 CREATE INDEX "review_requests_reviewer_idx" ON "review_requests" USING btree ("reviewer_id","state");--> statement-breakpoint
 CREATE INDEX "review_requests_requester_idx" ON "review_requests" USING btree ("requested_by_id","state");--> statement-breakpoint
 CREATE INDEX "review_rule_reviewers_user_idx" ON "review_rule_reviewers" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "review_rules_team_idx" ON "review_rules" USING btree ("team_id","position");--> statement-breakpoint
+CREATE INDEX "review_rules_project_idx" ON "review_rules" USING btree ("project_id","position");--> statement-breakpoint
 CREATE INDEX "reviews_build_idx" ON "reviews" USING btree ("build_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "snapshot_reviews_current_key" ON "snapshot_reviews" USING btree ("build_id","snapshot_name") WHERE "snapshot_reviews"."superseded_at" is null;--> statement-breakpoint
 CREATE INDEX "snapshot_reviews_build_idx" ON "snapshot_reviews" USING btree ("build_id","created_at");--> statement-breakpoint
-CREATE INDEX "ignore_regions_team_idx" ON "ignore_regions" USING btree ("team_id","name");--> statement-breakpoint
+CREATE INDEX "ignore_regions_project_idx" ON "ignore_regions" USING btree ("project_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "screenshot_diffs_build_name_key" ON "screenshot_diffs" USING btree ("build_id","name");--> statement-breakpoint
 CREATE INDEX "screenshot_diffs_diff_file_idx" ON "screenshot_diffs" USING btree ("diff_file_sha256");--> statement-breakpoint
 CREATE UNIQUE INDEX "screenshots_build_name_key" ON "screenshots" USING btree ("build_id","name");--> statement-breakpoint
 CREATE INDEX "screenshots_file_idx" ON "screenshots" USING btree ("file_sha256");--> statement-breakpoint
 CREATE INDEX "screenshots_thumbnail_idx" ON "screenshots" USING btree ("thumbnail_sha256");--> statement-breakpoint
 CREATE INDEX "email_code_requests_email_idx" ON "email_code_requests" USING btree ("email","created_at");--> statement-breakpoint
-CREATE INDEX "site_hostnames_site_idx" ON "site_hostnames" USING btree ("team_site_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "project_sites_project_name_key" ON "project_sites" USING btree ("project_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "project_sites_slug_key" ON "project_sites" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "project_sites_custom_domain_key" ON "project_sites" USING btree ("custom_domain");--> statement-breakpoint
+CREATE INDEX "site_hostnames_site_idx" ON "site_hostnames" USING btree ("project_site_id");--> statement-breakpoint
 CREATE INDEX "site_sessions_expires_idx" ON "site_sessions" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "static_site_files_sha_idx" ON "static_site_files" USING btree ("sha256");--> statement-breakpoint
-CREATE UNIQUE INDEX "static_sites_commit_key" ON "static_sites" USING btree ("team_site_id","commit_sha");--> statement-breakpoint
-CREATE UNIQUE INDEX "team_sites_team_name_key" ON "team_sites" USING btree ("team_id","name");--> statement-breakpoint
-CREATE UNIQUE INDEX "team_sites_slug_key" ON "team_sites" USING btree ("slug");--> statement-breakpoint
-CREATE UNIQUE INDEX "team_sites_custom_domain_key" ON "team_sites" USING btree ("custom_domain");--> statement-breakpoint
-CREATE UNIQUE INDEX "triage_items_key" ON "triage_items" USING btree ("team_id","kind","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "static_sites_commit_key" ON "static_sites" USING btree ("project_site_id","commit_sha");--> statement-breakpoint
+CREATE UNIQUE INDEX "triage_items_key" ON "triage_items" USING btree ("project_id","kind","key");--> statement-breakpoint
 CREATE INDEX "triage_items_assignee_idx" ON "triage_items" USING btree ("assignee_id");--> statement-breakpoint
+CREATE INDEX "undo_actions_user_idx" ON "undo_actions" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "saved_views_user_workspace_idx" ON "saved_views" USING btree ("user_id","workspace_id","position");--> statement-breakpoint
 CREATE INDEX "webhook_deliveries_hook_idx" ON "webhook_deliveries" USING btree ("webhook_id","created_at");--> statement-breakpoint
-CREATE INDEX "webhooks_team_idx" ON "webhooks" USING btree ("team_id");
+CREATE INDEX "webhooks_project_idx" ON "webhooks" USING btree ("project_id");

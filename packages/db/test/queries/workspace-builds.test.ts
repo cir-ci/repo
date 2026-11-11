@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@circi/db/testing'
+import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -22,11 +22,11 @@ afterAll(async () => {
 
 const at = (n: number) => new Date(Date.UTC(2026, 0, 1, 0, 0, n))
 
-/** A workspace with two teams ("web", "docs") and an owner; every test makes its own. */
-async function workspaceWithTeams() {
-  const first = await seedTeam(t.db, { slug: 'web' })
-  const docs = await seedTeam(t.db, { slug: 'docs', workspace: first })
-  return { workspace: first.workspace, owner: first.owner, web: first.team, docs: docs.team }
+/** A workspace with two projects ("web", "docs") and an owner; every test makes its own. */
+async function workspaceWithProjects() {
+  const first = await seedProject(t.db, { slug: 'web' })
+  const docs = await seedProject(t.db, { slug: 'docs', workspace: first })
+  return { workspace: first.workspace, owner: first.owner, web: first.project, docs: docs.project }
 }
 
 const list = (
@@ -36,14 +36,14 @@ const list = (
 ) => listBuildsForWorkspace(t.db, { userId, workspaceSlug: w.workspace.slug, limit: 50, ...over })
 
 describe('listBuildsForWorkspace', () => {
-  it('lists the builds of every team, newest first, each with its team', async () => {
-    const w = await workspaceWithTeams()
+  it('lists the builds of every project, newest first, each with its project', async () => {
+    const w = await workspaceWithProjects()
     const a = await seedBuild(t.db, w.web.id, { createdAt: at(1) })
     const b = await seedBuild(t.db, w.docs.id, { createdAt: at(2) })
     const c = await seedBuild(t.db, w.web.id, { createdAt: at(3) })
     const result = await list(w, w.owner.id)
     expect(result?.workspace).toEqual({ slug: w.workspace.slug, name: w.workspace.name })
-    expect(result?.builds.map((x) => [x.id, x.team.slug])).toEqual([
+    expect(result?.builds.map((x) => [x.id, x.project.slug])).toEqual([
       [c.id, 'web'],
       [b.id, 'docs'],
       [a.id, 'web'],
@@ -51,8 +51,8 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it("never shows another workspace's builds", async () => {
-    const mine = await workspaceWithTeams()
-    const theirs = await workspaceWithTeams()
+    const mine = await workspaceWithProjects()
+    const theirs = await workspaceWithProjects()
     await seedBuild(t.db, theirs.web.id)
     const own = await seedBuild(t.db, mine.web.id)
     const result = await list(mine, mine.owner.id)
@@ -60,7 +60,7 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it('is invisible to someone who is not a member', async () => {
-    const w = await workspaceWithTeams()
+    const w = await workspaceWithProjects()
     await seedBuild(t.db, w.web.id)
     const stranger = await seedUser(t.db)
     expect(await list(w, stranger.id)).toBeUndefined()
@@ -74,7 +74,7 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it('shows a plain member the same list as the owner', async () => {
-    const w = await workspaceWithTeams()
+    const w = await workspaceWithProjects()
     const build = await seedBuild(t.db, w.docs.id)
     const member = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: w.workspace.id, userId: member.id })
@@ -82,14 +82,14 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it('is invisible once the workspace is deleted', async () => {
-    const w = await workspaceWithTeams()
+    const w = await workspaceWithProjects()
     await seedBuild(t.db, w.web.id)
     await t.db.insert(schema.workspaceDeletions).values({ workspaceId: w.workspace.id })
     expect(await list(w, w.owner.id)).toBeUndefined()
   })
 
   it("applies the workspace's login-method rules to the session", async () => {
-    const w = await workspaceWithTeams()
+    const w = await workspaceWithProjects()
     await seedBuild(t.db, w.web.id)
     await t.db
       .insert(schema.workspaceAuthSettings)
@@ -102,7 +102,7 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it('pages with a build id: the next page starts after that build, without repeats', async () => {
-    const w = await workspaceWithTeams()
+    const w = await workspaceWithProjects()
     const made = []
     for (let i = 0; i < 5; i += 1) {
       // eslint-disable-next-line no-await-in-loop -- numbering is sequential
@@ -118,8 +118,8 @@ describe('listBuildsForWorkspace', () => {
   })
 
   it('refuses a cursor that is not a build of this workspace', async () => {
-    const mine = await workspaceWithTeams()
-    const theirs = await workspaceWithTeams()
+    const mine = await workspaceWithProjects()
+    const theirs = await workspaceWithProjects()
     const foreign = await seedBuild(t.db, theirs.web.id)
     await expect(list(mine, mine.owner.id, { before: foreign.id })).rejects.toBeInstanceOf(
       NotFoundError,
@@ -129,8 +129,8 @@ describe('listBuildsForWorkspace', () => {
     )
   })
 
-  it("filters like a team's list: by branch, review state and author", async () => {
-    const w = await workspaceWithTeams()
+  it("filters like a project's list: by branch, review state and author", async () => {
+    const w = await workspaceWithProjects()
     const grace = await seedUser(t.db)
     const main = await seedBuild(t.db, w.web.id, { branch: 'main', createdAt: at(1) })
     const feature = await seedBuild(t.db, w.docs.id, {
@@ -169,7 +169,7 @@ const suggest = (
   })
 
 async function withMembers() {
-  const w = await workspaceWithTeams()
+  const w = await workspaceWithProjects()
   const grace = await seedUser(t.db)
   const alan = await seedUser(t.db)
   await t.db.update(schema.user).set({ name: 'Grace Hopper' }).where(eq(schema.user.id, grace.id))
@@ -225,8 +225,8 @@ describe('listBuildFilterSuggestions', () => {
   })
 
   it("does not offer another workspace's people or logins, nor anything to a stranger", async () => {
-    const mine = await workspaceWithTeams()
-    const theirs = await workspaceWithTeams()
+    const mine = await workspaceWithProjects()
+    const theirs = await workspaceWithProjects()
     await seedBuild(t.db, theirs.web.id, { author: { login: 'elsewhere' } })
     const own = await suggest(mine, mine.owner.id, 'author')
     expect(own?.map((i) => i.value)).toEqual([mine.owner.id])

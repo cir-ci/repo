@@ -9,7 +9,7 @@ import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
 
-// The upload target is called without the team token (as a presigned URL would be): the
+// The upload target is called without the project token (as a presigned URL would be): the
 // file's hash is the credential, because the bytes are stored only if they match it.
 export const uploadRoutes: FastifyPluginAsync<Deps.V2> = async (uploads, deps) => {
   await uploads.register(multipart, { limits: { fileSize: MAX_SCREENSHOT_BYTES, files: 1 } })

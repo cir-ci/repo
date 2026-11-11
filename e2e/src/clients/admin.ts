@@ -191,7 +191,7 @@ export async function completeSetup(
 }
 
 /**
- * Approves a build through the dashboard API, as a member would. A team's first build has no
+ * Approves a build through the dashboard API, as a member would. A project's first build has no
  * baseline and is never approved automatically, so tests approve it before relying on it.
  */
 export function approveBuild(
@@ -200,29 +200,29 @@ export function approveBuild(
   slug: string,
   buildNumber: number,
 ): Promise<unknown> {
-  return session.post(`/api/teams/${workspace}/${slug}/builds/${buildNumber}/review`, {
+  return session.post(`/api/projects/${workspace}/${slug}/builds/${buildNumber}/review`, {
     state: 'approved',
   })
 }
 
-export interface CreatedTeam {
+export interface CreatedProject {
   slug: string
   name: string
   /** The CI token (`CIRCI_TOKEN`), shown once. */
   token: string
 }
 
-/** `POST /api/workspaces/:workspace/teams`, as the dashboard's "New team" dialog does. */
-export async function createTeam(
+/** `POST /api/workspaces/:workspace/projects`, as the dashboard's "New project" dialog does. */
+export async function createProject(
   session: Session,
   workspaceSlug: string,
   name: string,
-): Promise<CreatedTeam> {
-  const res = await session.post<{ team: { slug: string; name: string }; token: string }>(
-    `/api/workspaces/${encodeURIComponent(workspaceSlug)}/teams`,
+): Promise<CreatedProject> {
+  const res = await session.post<{ project: { slug: string; name: string }; token: string }>(
+    `/api/workspaces/${encodeURIComponent(workspaceSlug)}/projects`,
     { name },
   )
-  return { slug: res.team.slug, name: res.team.name, token: res.token }
+  return { slug: res.project.slug, name: res.project.name, token: res.token }
 }
 
 /** `POST /api/workspaces` (instance admins, or anyone with `WORKSPACE_CREATION=anyone`). */
@@ -261,15 +261,15 @@ export async function addMemberViaCli(
   await stack.cli('member', 'add', '--org', workspace, '--email', email, '--role', role)
 }
 
-/** `POST /api/teams/:workspace/:team/members`: puts workspace members in a team (as an owner or admin). */
-export async function addTeamMembers(
+/** `POST /api/projects/:workspace/:project/members`: puts workspace members in a project (as an owner or admin). */
+export async function addProjectMembers(
   session: Session,
   workspaceSlug: string,
-  teamSlug: string,
+  projectslug: string,
   userIds: string[],
 ): Promise<void> {
   await session.post(
-    `/api/teams/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(teamSlug)}/members`,
+    `/api/projects/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectslug)}/members`,
     { userIds },
   )
 }
@@ -297,18 +297,18 @@ export namespace createTenant {
     name?: string
     /** The owner is an instance admin like the first-run account (default true). */
     instanceAdmin?: boolean
-    /** Also create a team with this name. */
-    team?: string
+    /** Also create a project with this name. */
+    project?: string
   }
 }
 
 /** A tenant of a (possibly shared) stack: its own workspace, owner account and signed-in session. */
 export interface Tenant extends completeSetup.Result {
-  team: CreatedTeam | undefined
+  project: CreatedProject | undefined
 }
 
 /**
- * A fresh workspace with its own owner and, optionally, a team, all through the real API
+ * A fresh workspace with its own owner and, optionally, a project, all through the real API
  * and CLI: tests that do this cannot see each other's data, so many can share one stack.
  * `admin` is an instance admin session of the stack (the first-run account); it creates the
  * workspace when the owner is not an instance admin itself.
@@ -328,6 +328,6 @@ export async function createTenant(
   const { slug } = await createWorkspace(creator, workspaceName)
   if (!instanceAdmin) await addMemberViaCli(stack, slug, account.email, 'owner')
   const session = instanceAdmin ? creator : await signIn(stack, account.email, account.password)
-  const team = options.team ? await createTeam(session, slug, options.team) : undefined
-  return { account, workspace: { name: workspaceName, slug }, session, team }
+  const project = options.project ? await createProject(session, slug, options.project) : undefined
+  return { account, workspace: { name: workspaceName, slug }, session, project }
 }

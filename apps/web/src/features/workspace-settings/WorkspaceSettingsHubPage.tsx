@@ -18,7 +18,7 @@ import type { ReactNode } from 'react'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { workspaceAuthQuery } from '#features/members/api.ts'
-import { SettingsBackLink } from '#features/team-settings/SettingsBackLink.tsx'
+import { SettingsBackLink } from '#features/project-settings/SettingsBackLink.tsx'
 import { instanceCrumb, workspacesCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
@@ -33,7 +33,7 @@ import styles from './WorkspaceSettingsHub.module.css'
 const PATHS = {
   general: '/workspaces/$workspace/settings/general',
   members: '/workspaces/$workspace/settings/members',
-  teams: '/workspaces/$workspace/settings/teams',
+  projects: '/workspaces/$workspace/settings/projects',
   'sign-in': '/workspaces/$workspace/settings/sign-in',
   integrations: '/workspaces/$workspace/settings/integrations',
   storage: '/workspaces/$workspace/settings/storage',
@@ -42,7 +42,7 @@ const PATHS = {
 const ICONS: Record<WorkspaceHubKey, ReactNode> = {
   general: <SlidersIcon />,
   members: <UsersIcon />,
-  teams: <LayersIcon />,
+  projects: <LayersIcon />,
   'sign-in': <ShieldCheckIcon />,
   integrations: <BlocksIcon />,
   storage: <DatabaseIcon />,
@@ -61,7 +61,7 @@ function methodCount(auth: Workspace.Auth): number {
 
 /**
  * A workspace's settings hub, for instance admins (the
- * team hub's sibling): the workspace's name and size, then one row for each settings page, in
+ * project hub's sibling): the workspace's name and size, then one row for each settings page, in
  * groups (Workspace, Access, Connections, Data), each with a one-line summary. The counts and
  * the storage come from the instance's workspaces list (the same list the
  * sidebar lists), the sign-in methods and integrations from the queries those pages read; those two are
@@ -88,7 +88,7 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
         canManage: member ? general.data?.canManage : undefined,
         slug: found.slug,
         memberCount: found.memberCount,
-        teamCount: found.teamCount,
+        projectCount: found.projectCount,
         storage: formatBytes(found.storageBytes),
         signInMethods: auth.data ? methodCount(auth.data) : undefined,
         integrationCount: integrations.data?.integrations.length,
@@ -126,7 +126,7 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
               <div className={styles.names}>
                 <span className={styles.name}>{found.name}</span>
                 <Text tone="tertiary" variant="small">
-                  {hubSubtitle(found.memberCount, found.teamCount)}
+                  {hubSubtitle(found.memberCount, found.projectCount)}
                 </Text>
               </div>
             </div>

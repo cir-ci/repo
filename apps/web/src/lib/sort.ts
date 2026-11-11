@@ -81,7 +81,7 @@ export function parseSort(text: string, keys: readonly string[]): Sort | null {
   return keys.includes(key) ? { key, direction } : null
 }
 
-/** Several tables' sorts in one string: `teams:-builds,reviewers:reviews`. */
+/** Several tables' sorts in one string: `projects:-builds,reviewers:reviews`. */
 export function formatSortMap(map: Readonly<Record<string, Sort | null>>): string | undefined {
   const parts = Object.entries(map)
     .filter(([, sort]) => sort !== null)

@@ -1,41 +1,41 @@
-import type { TeamColor } from '@circi/core'
+import type { ProjectColor } from '@circi/core'
 import { and, asc, count, eq, inArray } from 'drizzle-orm'
 
-import { teams, teamSites } from '#schema/index.ts'
+import { projects, projectsites } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { countUnreadNotifications } from './inbox.ts'
+import { getProjectMemberSummaries } from './project-members.ts'
 import { listReviewRequests } from './reviews.ts'
-import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from './saved-views.ts'
-import { getTeamMemberSummaries } from './team-members.ts'
+import { listPinnedProjectIds, listSavedViews, type SavedViewRow } from './saved-views.ts'
 import { countAssignedTriage, countOpenTriage } from './triage.ts'
 
 /** What the sidebar shows for one workspace, in the order it shows it. */
 
 export namespace getSidebar {
-  export interface Team {
+  export interface Project {
     slug: string
     name: string
-    color: TeamColor
+    color: ProjectColor
     icon: string | null
     pinned: boolean
     /** Triage items waiting (not snoozed, not dismissed). */
     triage: number
-    /** People in the team. */
+    /** People in the project. */
     memberCount: number
     /** The first few members, by name (up to five). */
     memberPreview: { id: string; name: string; image: string | null }[]
-    /** Sites the team hosts. */
+    /** Sites the project hosts. */
     siteCount: number
-    /** Whether the person belongs to the team (an owner or admin may see one they don't). */
+    /** Whether the person belongs to the project (an owner or admin may see one they don't). */
     youAreMember: boolean
   }
 
   export interface Result {
-    /** The teams the person may see: pinned first (in pin order), then the rest A to Z. */
-    teams: getSidebar.Team[]
+    /** The projects the person may see: pinned first (in pin order), then the rest A to Z. */
+    projects: getSidebar.Project[]
     /** The person's saved views in this workspace, in their order. */
     views: SavedViewRow[]
     /** Unread, visible, awake notifications (across all of the person's workspaces). */
@@ -58,16 +58,18 @@ export async function getSidebar(
 ): Promise<getSidebar.Result> {
   const rows = await db
     .select({
-      id: teams.id,
-      slug: teams.slug,
-      name: teams.name,
-      color: teams.color,
-      icon: teams.icon,
+      id: projects.id,
+      slug: projects.slug,
+      name: projects.name,
+      color: projects.color,
+      icon: projects.icon,
     })
-    .from(teams)
-    .where(and(eq(teams.workspaceId, input.workspace.id), teamVisibleTo(input.userId, teams)))
-    .orderBy(asc(teams.name), asc(teams.slug))
-  const pinOrder = await listPinnedTeamIds(db, input.userId)
+    .from(projects)
+    .where(
+      and(eq(projects.workspaceId, input.workspace.id), projectVisibleTo(input.userId, projects)),
+    )
+    .orderBy(asc(projects.name), asc(projects.slug))
+  const pinOrder = await listPinnedProjectIds(db, input.userId)
   const rank = new Map(pinOrder.map((id, i) => [id, i]))
   const ordered = [
     ...rows
@@ -75,7 +77,7 @@ export async function getSidebar(
       .toSorted((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)),
     ...rows.filter((r) => !rank.has(r.id)),
   ]
-  const summaries = await getTeamMemberSummaries(
+  const summaries = await getProjectMemberSummaries(
     db,
     rows.map((r) => r.id),
     input.userId,
@@ -84,16 +86,16 @@ export async function getSidebar(
     rows.length === 0
       ? []
       : await db
-          .select({ teamId: teamSites.teamId, n: count() })
-          .from(teamSites)
+          .select({ projectId: projectsites.projectId, n: count() })
+          .from(projectsites)
           .where(
             inArray(
-              teamSites.teamId,
+              projectsites.projectId,
               rows.map((r) => r.id),
             ),
           )
-          .groupBy(teamSites.teamId)
-  const siteCounts = new Map(siteRows.map((r) => [r.teamId, r.n]))
+          .groupBy(projectsites.projectId)
+  const siteCounts = new Map(siteRows.map((r) => [r.projectId, r.n]))
   const [views, inboxUnread, requests, triage, triageAssigned] = await Promise.all([
     listSavedViews(db, { userId: input.userId, workspaceId: input.workspace.id }),
     countUnreadNotifications(db, {
@@ -110,12 +112,12 @@ export async function getSidebar(
     countOpenTriage(db, { workspaceId: input.workspace.id, now: input.now }),
     countAssignedTriage(db, {
       userId: input.userId,
-      teamIds: rows.map((r) => r.id),
+      projectIds: rows.map((r) => r.id),
       now: input.now,
     }),
   ])
   return {
-    teams: ordered.map((p) => ({
+    projects: ordered.map((p) => ({
       slug: p.slug,
       name: p.name,
       color: p.color,

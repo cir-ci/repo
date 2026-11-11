@@ -8,15 +8,15 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 
-import { teamPath } from '#lib/api-paths.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
-export const triageQuery = (workspace: string, team: string) =>
+export const triageQuery = (workspace: string, project: string) =>
   queryOptions({
-    queryKey: keys.triage(workspace, team),
-    queryFn: () => getJson<Triage.Queue>(teamPath(workspace, team, 'triage')),
+    queryKey: keys.triage(workspace, project),
+    queryFn: () => getJson<Triage.Queue>(projectPath(workspace, project, 'triage')),
   })
 
 export const KIND_LABEL: Record<TriageKind, string> = {
@@ -149,24 +149,24 @@ export function snoozeBody(
  */
 export const snapshotHistoryQuery = (
   workspace: string,
-  team: string,
+  project: string,
   name: string,
   build?: number,
   limit: number = 5,
 ) =>
   queryOptions({
-    queryKey: keys.snapshotHistory(workspace, team, name, build ?? `last-${limit}`),
+    queryKey: keys.snapshotHistory(workspace, project, name, build ?? `last-${limit}`),
     queryFn: () =>
       getJson<Snapshot.History>(
-        `${teamPath(workspace, team, 'snapshots', name, 'history')}?limit=${limit}${build ? `&build=${build}` : ''}`,
+        `${projectPath(workspace, project, 'snapshots', name, 'history')}?limit=${limit}${build ? `&build=${build}` : ''}`,
       ),
   })
 
 /** The item's screenshot in its own build, for the preview. */
-export function useItemImage(workspace: string, team: string, item: Triage.Item | undefined) {
+export function useItemImage(workspace: string, project: string, item: Triage.Item | undefined) {
   const name = item?.snapshotName ?? undefined
   const history = useQuery({
-    ...snapshotHistoryQuery(workspace, team, name ?? '', item?.build.number ?? 0),
+    ...snapshotHistoryQuery(workspace, project, name ?? '', item?.build.number ?? 0),
     enabled: name !== undefined,
   })
   const image =
@@ -176,8 +176,8 @@ export function useItemImage(workspace: string, team: string, item: Triage.Item 
 
 // -- Mutations -----------------------------------------------------------------------------------
 
-async function refresh(queryClient: QueryClient, workspace: string, team: string) {
-  await invalidateAll(queryClient, keys.triage(workspace, team), keys.sidebar())
+async function refresh(queryClient: QueryClient, workspace: string, project: string) {
+  await invalidateAll(queryClient, keys.triage(workspace, project), keys.sidebar())
 }
 
 /**
@@ -186,12 +186,12 @@ async function refresh(queryClient: QueryClient, workspace: string, team: string
  */
 function useOptimistic<V extends { ref: Ref }, R>(
   workspace: string,
-  team: string,
+  project: string,
   apply: (queue: Triage.Queue, vars: V) => Triage.Queue,
   mutationFn: (vars: V) => Promise<R>,
 ) {
   const queryClient = useQueryClient()
-  const key = keys.triage(workspace, team)
+  const key = keys.triage(workspace, project)
   return useMutation({
     meta: { what: 'update the item' },
     mutationFn,
@@ -204,52 +204,54 @@ function useOptimistic<V extends { ref: Ref }, R>(
     onError: (_error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(key, context.previous)
     },
-    onSettled: () => refresh(queryClient, workspace, team),
+    onSettled: () => refresh(queryClient, workspace, project),
   })
 }
 
-export function useAssignTriage(workspace: string, team: string) {
+export function useAssignTriage(workspace: string, project: string) {
   return useOptimistic(
     workspace,
-    team,
+    project,
     (queue, v: { ref: Ref; assignee: Triage.Item['assignee'] }) =>
       withAssignee(queue, v.ref, v.assignee),
     (v) =>
-      post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'assign'), {
+      post<Triage.ItemState>(projectPath(workspace, project, 'triage', 'assign'), {
         ...refOf(v.ref),
         assigneeId: v.assignee?.id ?? null,
       }),
   )
 }
 
-export function useSnoozeTriage(workspace: string, team: string) {
+export function useSnoozeTriage(workspace: string, project: string) {
   return useOptimistic(
     workspace,
-    team,
+    project,
     (queue, v: { ref: Ref; choice: SnoozeChoice }) => withoutItem(queue, v.ref),
     (v) =>
       post<Triage.ItemState>(
-        teamPath(workspace, team, 'triage', 'snooze'),
+        projectPath(workspace, project, 'triage', 'snooze'),
         snoozeBody(refOf(v.ref), v.choice),
       ),
   )
 }
 
-export function useDismissTriage(workspace: string, team: string) {
+export function useDismissTriage(workspace: string, project: string) {
   return useOptimistic(
     workspace,
-    team,
+    project,
     (queue, v: { ref: Ref }) => withoutItem(queue, v.ref),
-    (v) => post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'dismiss'), refOf(v.ref)),
+    (v) =>
+      post<Triage.ItemState>(projectPath(workspace, project, 'triage', 'dismiss'), refOf(v.ref)),
   )
 }
 
 /** Compares a failed build again: it leaves the queue at once, and comes back if the server says no. */
-export function useRerunTriage(workspace: string, team: string) {
+export function useRerunTriage(workspace: string, project: string) {
   return useOptimistic(
     workspace,
-    team,
+    project,
     (queue, v: { ref: Ref; number: number }) => withoutItem(queue, v.ref),
-    (v) => post<Triage.Rerun>(teamPath(workspace, team, 'triage', 'rerun'), { number: v.number }),
+    (v) =>
+      post<Triage.Rerun>(projectPath(workspace, project, 'triage', 'rerun'), { number: v.number }),
   )
 }

@@ -4,7 +4,7 @@ import {
   type Account,
   addMemberViaCli,
   approveBuild,
-  createTeam,
+  createProject,
   createUserViaCli,
 } from '#clients/admin.ts'
 import type { Session } from '#clients/admin.ts'
@@ -25,13 +25,13 @@ export function uniqueInstallationId(): string {
   return `${process.pid}${Date.now() % 10_000_000}${installationCounter}`
 }
 
-/** A team linked to `repoRef` through the GitHub App, with a baseline uploaded on `main`. */
-export interface LinkedTeam {
+/** A project linked to `repoRef` through the GitHub App, with a baseline uploaded on `main`. */
+export interface LinkedProject {
   workspace: string
   slug: string
   token: string
   repoRef: string
-  /** The installation the team's repository is linked through. */
+  /** The installation the project's repository is linked through. */
   installationId: string
   repo: Repo
   /** The commit of the baseline on main. */
@@ -48,38 +48,38 @@ export interface PrBuild {
 }
 
 /**
- * A new team in the first workspace, linked to a fake repository, with a two-screenshot
+ * A new project in the first workspace, linked to a fake repository, with a two-screenshot
  * baseline (`home`, `login`) uploaded from `main`.
  */
-export async function createLinkedTeam(
+export async function createLinkedProject(
   stack: Stack,
   session: Session,
   workspace: string,
   name: string,
   options: { repoRef: string; blockMergeOnChanges?: boolean; installationId?: string },
-): Promise<LinkedTeam> {
-  const team = await createTeam(session, workspace, name)
+): Promise<LinkedProject> {
+  const project = await createProject(session, workspace, name)
   const installationId = options.installationId ?? uniqueInstallationId()
-  await session.put(`/api/teams/${workspace}/${team.slug}/github`, {
+  await session.put(`/api/projects/${workspace}/${project.slug}/github`, {
     installationId,
     repoRef: options.repoRef,
   })
   if (options.blockMergeOnChanges !== undefined) {
-    await session.patch(`/api/teams/${workspace}/${team.slug}/settings`, {
+    await session.patch(`/api/projects/${workspace}/${project.slug}/settings`, {
       blockMergeOnChanges: options.blockMergeOnChanges,
     })
   }
   const repo = await Repo.create()
   await repo.writeShots({ home: {}, login: { dot: { x: 40, y: 40 } } })
   const baselineSha = await repo.commit('baseline')
-  const up = await uploadBuild({ stack, token: team.token, repo, wait: true })
+  const up = await uploadBuild({ stack, token: project.token, repo, wait: true })
   if (up.exitCode !== 0) throw new Error(`baseline upload failed: ${up.stderr}\n${up.stdout}`)
   // The first build has no baseline, so it waits for review: approve it to make it the baseline.
-  await approveBuild(session, workspace, team.slug, up.result?.build.number ?? 0)
+  await approveBuild(session, workspace, project.slug, up.result?.build.number ?? 0)
   return {
     workspace,
-    slug: team.slug,
-    token: team.token,
+    slug: project.slug,
+    token: project.token,
     repoRef: options.repoRef,
     installationId,
     repo,
@@ -93,7 +93,7 @@ export async function createLinkedTeam(
  */
 export async function uploadPr(
   stack: Stack,
-  p: LinkedTeam,
+  p: LinkedProject,
   prNumber: number,
   shots: Record<string, ScreenshotSpec | Buffer>,
   options: Partial<Pick<uploadBuild.Options, 'gate' | 'wait' | 'args'>> & { branch?: string } = {},
@@ -123,7 +123,7 @@ export async function uploadPr(
 }
 
 export const buildDetail = (session: Session, p: { workspace: string; slug: string }, n: number) =>
-  session.get<Build.Detail>(`/api/teams/${p.workspace}/${p.slug}/builds/${n}`)
+  session.get<Build.Detail>(`/api/projects/${p.workspace}/${p.slug}/builds/${n}`)
 
 /** Links a CirCI user to a GitHub login the way "link GitHub" on the Account page does (an `account` row). */
 export async function linkGithubIdentity(
@@ -146,17 +146,17 @@ export async function createGithubUser(
     githubUserId: string
     workspace?: string
     role?: 'owner' | 'admin' | 'member'
-    /** Teams of `workspace` (slugs) to put them in: a plain member only acts on teams they are in. */
-    teams?: string[]
+    /** Projects of `workspace` (slugs) to put them in: a plain member only acts on projects they are in. */
+    projects?: string[]
   },
 ): Promise<Account> {
   const account = await createUserViaCli(stack)
   if (options.workspace)
     await addMemberViaCli(stack, options.workspace, account.email, options.role ?? 'member')
-  if (options.workspace && options.teams?.length) {
-    const slugs = options.teams.map((t) => `'${t}'`).join(', ')
+  if (options.workspace && options.projects?.length) {
+    const slugs = options.projects.map((t) => `'${t}'`).join(', ')
     await stack.sql(
-      `insert into team_members (team_id, user_id) select t.id, u.id from teams t join workspace w on w.id = t.workspace_id, "user" u where w.slug = '${options.workspace}' and t.slug in (${slugs}) and u.email = '${account.email}'`,
+      `insert into project_members (project_id, user_id) select t.id, u.id from projects t join workspace w on w.id = t.workspace_id, "user" u where w.slug = '${options.workspace}' and t.slug in (${slugs}) and u.email = '${account.email}'`,
     )
   }
   await linkGithubIdentity(stack, account.email, options.githubUserId)

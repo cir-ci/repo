@@ -8,7 +8,7 @@ import { createTrackerFactory, serializeCredentials } from '#src/tracker/tracker
 import { LinearTracker } from './client.ts'
 
 /**
- * Linear: connected with an API key; a CirCI team's issues go to one Linear team. The adapter
+ * Linear: connected with an API key; a CirCI project's issues go to one Linear team. The adapter
  * (`LinearTracker`) is in `client.ts` beside it; this file wires it to the SDK. The stored
  * credentials are the JSON `{ kind: 'linear', apiKey }`.
  */
@@ -22,7 +22,7 @@ export const linear = defineIntegration({
   name: 'Linear',
   description: 'Create an issue from a rejected screenshot, with the diff attached.',
   logo: 'linear',
-  exclusive: { team: 'kind' },
+  exclusive: { project: 'kind' },
   credentials: z.object({
     apiKey: z.string().trim().min(1).max(500).meta({
       label: 'API key',
@@ -53,7 +53,7 @@ export const linear = defineIntegration({
 
   mapping: {
     description:
-      'Choose the Linear team each CirCI team files issues in. A team without one has no “Create issue”.',
+      'Choose the Linear team each CirCI project files issues in. A project without one has no “Create issue”.',
     target: { label: 'Team', kind: 'select' },
     listTargets: (credentials, ctx) => trackerTargets(trackerOf(credentials, ctx)),
   },

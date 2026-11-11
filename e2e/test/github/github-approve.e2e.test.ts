@@ -7,9 +7,9 @@ import {
   checkRunPayload,
   commentPayload,
   createGithubUser,
-  createLinkedTeam,
+  createLinkedProject,
   linkGithubIdentity,
-  type LinkedTeam,
+  type LinkedProject,
   type PrBuild,
   uploadPr,
 } from '#github/github-helpers.ts'
@@ -31,7 +31,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
   beforeAll(() => {
     gh = ctx.github
   })
-  let p: LinkedTeam
+  let p: LinkedProject
   let workspace = ''
   let n = 50
   const REPO = 'acme/approve'
@@ -67,20 +67,20 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     }
   }
 
-  it('sets up a blocking team and three GitHub identities', async () => {
+  it('sets up a blocking project and three GitHub identities', async () => {
     const { stack, setup } = ctx
     workspace = setup.workspace.slug
-    p = await createLinkedTeam(stack, setup.session, workspace, 'Approve', {
+    p = await createLinkedProject(stack, setup.session, workspace, 'Approve', {
       repoRef: REPO,
       blockMergeOnChanges: true,
     })
     const member = await createGithubUser(stack, {
       githubUserId: String(LINKED.id),
       workspace,
-      teams: [p.slug],
+      projects: [p.slug],
     })
     expect(member.email).toContain('@')
-    // Linked to a CirCI account that belongs to no workspace with this team.
+    // Linked to a CirCI account that belongs to no workspace with this project.
     const lonely = await createUserViaCli(stack)
     await linkGithubIdentity(stack, lonely.email, String(OUTSIDER.id))
   })
@@ -224,7 +224,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     expect(gh.checkRuns.filter((c) => c.headSha === pr.sha)).toHaveLength(1)
   })
 
-  it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the team', async () => {
+  it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the project', async () => {
     const { stack, setup } = ctx
     n += 1
     gh.revokeInstallation(p.installationId)
@@ -234,7 +234,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     const attention = async () =>
       (
         await setup.session.get<{ gitAttention: { reason: string } | null }>(
-          `/api/teams/${workspace}/${p.slug}`,
+          `/api/projects/${workspace}/${p.slug}`,
         )
       ).gitAttention?.reason
     await poll(attention, { timeout: 30_000 }).toBe('installation_revoked')

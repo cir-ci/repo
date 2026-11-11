@@ -15,15 +15,15 @@ import {
 describe('EmptyState', () => {
   it('shows a heading, a line of text and an action', async () => {
     await render(
-      <EmptyState title="No teams yet" action={<Button variant="primary">New team</Button>}>
+      <EmptyState title="No projects yet" action={<Button variant="primary">New project</Button>}>
         Create one to start comparing builds.
       </EmptyState>,
     )
     await expect
-      .element(page.getByRole('heading', { name: 'No teams yet', level: 2 }))
+      .element(page.getByRole('heading', { name: 'No projects yet', level: 2 }))
       .toBeVisible()
     await expect.element(page.getByText('Create one to start comparing builds.')).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'New team' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'New project' })).toBeVisible()
   })
 
   it('takes the heading level of the page and hides its icon', async () => {
@@ -104,10 +104,10 @@ describe('NoResults', () => {
 
   it('cuts a long query at 24 characters', async () => {
     await render(
-      <NoResults noun="team" query="a very long search that goes on" onClear={() => {}} />,
+      <NoResults noun="project" query="a very long search that goes on" onClear={() => {}} />,
     )
     await expect
-      .element(page.getByRole('heading', { name: 'No team matches “a very long search that…”' }))
+      .element(page.getByRole('heading', { name: 'No project matches “a very long search that…”' }))
       .toBeVisible()
   })
 })

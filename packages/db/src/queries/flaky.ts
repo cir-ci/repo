@@ -8,11 +8,11 @@ import {
 } from '@circi/core'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
-import { screenshotDiffs, screenshots, teams } from '#schema/index.ts'
+import { screenshotDiffs, screenshots, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
- * The team's flaky screenshots. The rule is `flakyScreenshots` in `@circi/core`; this file is
+ * The project's flaky screenshots. The rule is `flakyScreenshots` in `@circi/core`; this file is
  * the one place that loads its input. Every consumer (the flaky list, Triage and its counts, the
  * sidebar, Insights, the merge gate) goes through `loadFlakyHistory`, so they cannot disagree.
  */
@@ -23,11 +23,11 @@ export interface FlakyHistoryBuild extends FlakyBuild {
 }
 
 /**
- * The most builds read per team: the window is the last 10 distinct commits, and a commit has at
- * most a handful of reruns. A bound, so no team's history is ever scanned in full.
+ * The most builds read per project: the window is the last 10 distinct commits, and a commit has at
+ * most a handful of reruns. A bound, so no project's history is ever scanned in full.
  */
 export const FLAKY_HISTORY_MAX_BUILDS = 60
-/** The most builds read per team for a date range (Insights), on top of the lead-in before it. */
+/** The most builds read per project for a date range (Insights), on top of the lead-in before it. */
 export const FLAKY_HISTORY_MAX_RANGE_BUILDS = 1000
 
 export namespace loadFlakyHistory {
@@ -45,33 +45,33 @@ export namespace loadFlakyHistory {
 }
 
 /**
- * The completed default-branch builds that matter to each team's flaky rule, oldest first. Per
- * team: at most the last `FLAKY_HISTORY_MAX_BUILDS` builds by number (an index range scan that
+ * The completed default-branch builds that matter to each project's flaky rule, oldest first. Per
+ * project: at most the last `FLAKY_HISTORY_MAX_BUILDS` builds by number (an index range scan that
  * stops at the limit), and for those builds only the screenshots that showed as changed in at
  * least one of them (a name that never changed cannot have flip-flopped or disagreed), with the
  * head image, the score and whether the size changed.
  */
 export async function loadFlakyHistory(
   db: Database,
-  teamList: readonly { id: string; defaultBranch: string }[],
+  projectList: readonly { id: string; defaultBranch: string }[],
   options: loadFlakyHistory.Options = {},
 ): Promise<Map<string, FlakyHistoryBuild[]>> {
-  const result = new Map<string, FlakyHistoryBuild[]>(teamList.map((t) => [t.id, []]))
-  if (teamList.length === 0) return result
+  const result = new Map<string, FlakyHistoryBuild[]>(projectList.map((t) => [t.id, []]))
+  if (projectList.length === 0) return result
   const refs =
     options.since === undefined
-      ? await recentBuilds(db, teamList, options, FLAKY_HISTORY_MAX_BUILDS)
+      ? await recentBuilds(db, projectList, options, FLAKY_HISTORY_MAX_BUILDS)
       : [
           ...(await recentBuilds(
             db,
-            teamList,
+            projectList,
             { ...options, since: undefined },
             FLAKY_HISTORY_MAX_RANGE_BUILDS,
             options.since,
           )),
           ...(await recentBuilds(
             db,
-            teamList,
+            projectList,
             { ...options, until: options.since, since: undefined },
             FLAKY_HISTORY_MAX_BUILDS,
           )),
@@ -111,7 +111,7 @@ export async function loadFlakyHistory(
     })
   }
   for (const r of refs.toSorted((a, b) => a.number - b.number)) {
-    result.get(r.teamId)?.push({
+    result.get(r.projectId)?.push({
       number: r.number,
       commitSha: r.commitSha,
       createdAt: r.createdAt,
@@ -123,27 +123,27 @@ export async function loadFlakyHistory(
 
 interface BuildRef {
   id: string
-  teamId: string
+  projectId: string
   number: number
   commitSha: string
   createdAt: Date
 }
 
-/** Per team, the newest `cap` completed default-branch builds that fit the options. */
+/** Per project, the newest `cap` completed default-branch builds that fit the options. */
 async function recentBuilds(
   db: Database,
-  teamList: readonly { id: string }[],
+  projectList: readonly { id: string }[],
   options: loadFlakyHistory.Options,
   cap: number,
   since?: Date,
 ): Promise<BuildRef[]> {
   const result: unknown = await db.execute(sql`
-    select b.id, b.team_id, b.number, b.commit_sha, b.created_at
-    from teams t
+    select b.id, b.project_id, b.number, b.commit_sha, b.created_at
+    from projects t
     cross join lateral (
-      select id, team_id, number, commit_sha, created_at
+      select id, project_id, number, commit_sha, created_at
       from builds
-      where team_id = t.id and branch = t.default_branch and status = 'complete'
+      where project_id = t.id and branch = t.default_branch and status = 'complete'
         ${options.beforeNumber === undefined ? sql`` : sql`and number < ${options.beforeNumber}`}
         ${options.until === undefined ? sql`` : sql`and created_at < ${options.until.toISOString()}::timestamptz`}
         ${since === undefined ? sql`` : sql`and created_at >= ${since.toISOString()}::timestamptz`}
@@ -151,7 +151,7 @@ async function recentBuilds(
       limit ${cap}
     ) b
     where t.id in (${sql.join(
-      teamList.map((t) => sql`${t.id}`),
+      projectList.map((t) => sql`${t.id}`),
       sql`, `,
     )})
   `)
@@ -162,7 +162,7 @@ async function recentBuilds(
     const get = (key: string): unknown => Reflect.get(Object(row), key)
     return {
       id: String(get('id')),
-      teamId: String(get('team_id')),
+      projectId: String(get('project_id')),
       number: Number(get('number')),
       commitSha: String(get('commit_sha')),
       createdAt: new Date(String(get('created_at'))),
@@ -179,18 +179,18 @@ export interface FlakyScreenshot {
 }
 
 /**
- * The flaky screenshots of several teams in one pass, from one bounded history each. `window`
+ * The flaky screenshots of several projects in one pass, from one bounded history each. `window`
  * is for tests; everything else uses the default (the last 10 commits).
  */
 export async function flakyVerdictsFor(
   db: Database,
-  teamList: readonly { id: string; defaultBranch: string; flakyAfterChanges: number }[],
+  projectList: readonly { id: string; defaultBranch: string; flakyAfterChanges: number }[],
   options: loadFlakyHistory.Options & { window?: number } = {},
 ): Promise<Map<string, { builds: FlakyHistoryBuild[]; flaky: FlakyVerdict[] }>> {
   const { window, ...load } = options
-  const history = await loadFlakyHistory(db, teamList, load)
+  const history = await loadFlakyHistory(db, projectList, load)
   return new Map(
-    teamList.map((t) => {
+    projectList.map((t) => {
       const builds = history.get(t.id) ?? []
       return [
         t.id,
@@ -208,29 +208,29 @@ export async function flakyVerdictsFor(
 
 export async function listFlakyScreenshots(
   db: Database,
-  teamId: string,
+  projectId: string,
   options: {
     /** Recent default-branch commits to look at. Default 10. */ window?: number
-    /** Flip-flops needed. Default: the team's `flakyAfterChanges`. */ minChanges?: number
+    /** Flip-flops needed. Default: the project's `flakyAfterChanges`. */ minChanges?: number
   } = {},
 ): Promise<{ builds: number; flaky: FlakyScreenshot[] }> {
-  const [team] = await db.select().from(teams).where(eq(teams.id, teamId))
-  if (!team) return { builds: 0, flaky: [] }
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId))
+  if (!project) return { builds: 0, flaky: [] }
   const found = await flakyVerdictsFor(
     db,
     [
       {
-        id: team.id,
-        defaultBranch: team.defaultBranch,
-        flakyAfterChanges: options.minChanges ?? team.flakyAfterChanges,
+        id: project.id,
+        defaultBranch: project.defaultBranch,
+        flakyAfterChanges: options.minChanges ?? project.flakyAfterChanges,
       },
     ],
     options.window === undefined ? {} : { window: options.window },
   )
-  const { builds, flaky } = found.get(team.id) ?? { builds: [], flaky: [] }
+  const { builds, flaky } = found.get(project.id) ?? { builds: [], flaky: [] }
   const window = options.window ?? FLAKY_WINDOW
   return {
-    // How many commits were looked at: the window, or fewer when the team has fewer.
+    // How many commits were looked at: the window, or fewer when the project has fewer.
     builds: Math.min(window, new Set(builds.map((b) => b.commitSha)).size),
     flaky: flaky.map((f) => ({ name: f.name, changedIn: f.changedIn, reason: f.why })),
   }

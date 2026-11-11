@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createTeam } from '#clients/admin.ts'
+import { approveBuild, createProject } from '#clients/admin.ts'
 import { uploadBuild, uploadOrThrow } from '#clients/upload.ts'
 import type { FakeGithub } from '#fakes/fake-github.ts'
 import { Repo } from '#github/git-repo.ts'
@@ -11,8 +11,8 @@ import {
   buildDetail,
   commentPayload,
   createGithubUser,
-  createLinkedTeam,
-  type LinkedTeam,
+  createLinkedProject,
+  type LinkedProject,
   uniqueInstallationId,
   uploadPr,
 } from '#github/github-helpers.ts'
@@ -29,20 +29,20 @@ describe('merge gate (against a fake GitHub)', () => {
   beforeAll(() => {
     gh = ctx.github
   })
-  let blocking: LinkedTeam
-  let lenient: LinkedTeam
+  let blocking: LinkedProject
+  let lenient: LinkedProject
   let workspace = ''
 
   // Registered after useStack's own hook, so the stack and the signed-in admin exist. Setting the
-  // two teams up here (not in a test) lets every test run alone, in any order.
+  // two projects up here (not in a test) lets every test run alone, in any order.
   beforeAll(async () => {
     const { stack, setup } = ctx
     workspace = setup.workspace.slug
-    blocking = await createLinkedTeam(stack, setup.session, workspace, 'Blocking', {
+    blocking = await createLinkedProject(stack, setup.session, workspace, 'Blocking', {
       repoRef: 'acme/blocking',
       blockMergeOnChanges: true,
     })
-    lenient = await createLinkedTeam(stack, setup.session, workspace, 'Lenient', {
+    lenient = await createLinkedProject(stack, setup.session, workspace, 'Lenient', {
       repoRef: 'acme/lenient',
       blockMergeOnChanges: false,
     })
@@ -54,7 +54,7 @@ describe('merge gate (against a fake GitHub)', () => {
   }
 
   it('the baseline on main is reported too: it waited for review, and is success once approved', async () => {
-    // createLinkedTeam approved it: a first build is never approved automatically.
+    // createLinkedProject approved it: a first build is never approved automatically.
     await expect
       .poll(() => checkFor(blocking.baselineSha)?.conclusion, { timeout: 30_000 })
       .toBe('success')
@@ -92,16 +92,16 @@ describe('merge gate (against a fake GitHub)', () => {
 
   it('switching the setting changes what the next notification says', async () => {
     const { stack, setup } = ctx
-    // Its own team: the setting is switched here, so no other test can see it (and a failure
+    // Its own project: the setting is switched here, so no other test can see it (and a failure
     // half-way leaves nothing behind that another test would trip over).
-    const own = await createLinkedTeam(stack, setup.session, workspace, 'Switching', {
+    const own = await createLinkedProject(stack, setup.session, workspace, 'Switching', {
       repoRef: 'acme/switching',
       blockMergeOnChanges: false,
     })
     const pr = await uploadPr(stack, own, 32, { login: { dot: { x: 220, y: 100 } } })
     await settle(pr.sha)
     expect(checkFor(pr.sha)?.conclusion).toBe('success')
-    await setup.session.patch(`/api/teams/${workspace}/${own.slug}/settings`, {
+    await setup.session.patch(`/api/projects/${workspace}/${own.slug}/settings`, {
       blockMergeOnChanges: true,
     })
     // A re-run (`/circi rerun` from a linked member) re-notifies with the new rule. The build is
@@ -109,7 +109,7 @@ describe('merge gate (against a fake GitHub)', () => {
     const member = await createGithubUser(stack, {
       githubUserId: '5001',
       workspace,
-      teams: [own.slug],
+      projects: [own.slug],
     })
     expect(member.email).toBeTruthy()
     const comment = gh.seedComment('acme/switching', 32, '/circi rerun')
@@ -141,12 +141,12 @@ describe('merge gate (against a fake GitHub)', () => {
     // change nothing else, and only to an image it already had there (the gate also needs the
     // change to look like known variation). The workspace's switch is global to this file's
     // workspace, so it is put back at the end.
-    let flaky: LinkedTeam
+    let flaky: LinkedProject
     let prs = 50
 
     beforeAll(async () => {
       const { stack, setup } = ctx
-      flaky = await createLinkedTeam(stack, setup.session, workspace, 'Flaky', {
+      flaky = await createLinkedProject(stack, setup.session, workspace, 'Flaky', {
         repoRef: 'acme/flaky',
       })
       for (const x of [100, 200, 100, 200, 100]) {
@@ -160,7 +160,7 @@ describe('merge gate (against a fake GitHub)', () => {
         await uploadOrThrow({ stack, token: flaky.token, repo: flaky.repo, wait: true })
       }
       const report = await setup.session.get<{ flaky: { name: string }[] }>(
-        `/api/teams/${workspace}/${flaky.slug}/flaky`,
+        `/api/projects/${workspace}/${flaky.slug}/flaky`,
       )
       if (report.flaky.map((f) => f.name).join() !== 'login') {
         throw new Error(`expected only login to be flaky, got ${JSON.stringify(report.flaky)}`)
@@ -173,8 +173,8 @@ describe('merge gate (against a fake GitHub)', () => {
       })
     })
 
-    const teamFlaky = (flakyBlocksMerge: boolean | null) =>
-      ctx.setup.session.patch(`/api/teams/${workspace}/${flaky.slug}/settings`, {
+    const projectFlaky = (flakyBlocksMerge: boolean | null) =>
+      ctx.setup.session.patch(`/api/projects/${workspace}/${flaky.slug}/settings`, {
         flakyBlocksMerge,
       })
 
@@ -226,19 +226,19 @@ describe('merge gate (against a fake GitHub)', () => {
       })
     })
 
-    it('a team can override the workspace in either direction', async () => {
+    it('a project can override the workspace in either direction', async () => {
       await workspaceFlaky(false)
-      await teamFlaky(true)
+      await projectFlaky(true)
       expect((await flakyPr()).check?.conclusion).toBe('action_required')
 
       await workspaceFlaky(true)
-      await teamFlaky(false)
+      await projectFlaky(false)
       const passing = await flakyPr()
       expect(passing.check?.conclusion).toBe('success')
       expect(passing.outcome).toMatchObject({ state: 'pass' })
 
       // Back to inheriting: the workspace's value (blocking) applies again.
-      await teamFlaky(null)
+      await projectFlaky(null)
       expect((await flakyPr()).check?.conclusion).toBe('action_required')
     })
   })
@@ -250,7 +250,7 @@ describe('merge gate (against a fake GitHub)', () => {
     const id = checkFor(pr.sha)?.id
     expect(checkFor(pr.sha)?.conclusion).toBe('action_required')
     await setup.session.post(
-      `/api/teams/${workspace}/${blocking.slug}/builds/${pr.buildNumber}/review`,
+      `/api/projects/${workspace}/${blocking.slug}/builds/${pr.buildNumber}/review`,
       {
         state: 'approved',
       },
@@ -281,7 +281,7 @@ describe('merge gate (against a fake GitHub)', () => {
     const pr = await uploadPr(stack, lenient, 34, { login: { dot: { x: 260, y: 100 } } })
     await settle(pr.sha)
     await setup.session.post(
-      `/api/teams/${workspace}/${lenient.slug}/builds/${pr.buildNumber}/review`,
+      `/api/projects/${workspace}/${lenient.slug}/builds/${pr.buildNumber}/review`,
       {
         state: 'rejected',
       },
@@ -312,9 +312,9 @@ describe('merge gate (against a fake GitHub)', () => {
       { gate: 'exit-code' },
     )
     expect(exit.exitCode).toBe(1)
-    // Default for a linked team is the check (exit 0); a team without a repository
+    // Default for a linked project is the check (exit 0); a project without a repository
     // has the CI job as the gate (exit 1), and `--gate status` flips it.
-    const plain = await createTeam(ctx.setup.session, workspace, 'Unlinked')
+    const plain = await createProject(ctx.setup.session, workspace, 'Unlinked')
     const repo = await Repo.create()
     try {
       await repo.writeShots({ home: {} })
@@ -342,13 +342,13 @@ describe('merge gate (against a fake GitHub)', () => {
     } finally {
       await repo.destroy()
     }
-    // Nothing was reported to GitHub for the unlinked team.
+    // Nothing was reported to GitHub for the unlinked project.
     expect(gh.checkRuns.some((c) => c.repo.includes('unlinked'))).toBe(false)
   })
 
   it('an undecodable screenshot is a "failed" screenshot: held for review like a change', async () => {
     const { stack } = ctx
-    const broken = async (p: LinkedTeam, n: number) => {
+    const broken = async (p: LinkedProject, n: number) => {
       await p.repo.checkout('main')
       await p.repo.checkout(`broken-${n}`, { create: true })
       await writeFile(join(p.repo.shots, 'login.png'), Buffer.from('definitely not a png'))
@@ -379,7 +379,7 @@ describe('merge gate (against a fake GitHub)', () => {
     // The worker only marks a build `error` after exhausting retries or a stalled upload, both
     // minutes long; so put the build in the state `failBuild` leaves it in and queue the notice
     // the same way the service does.
-    const errored = async (p: LinkedTeam, n: number) => {
+    const errored = async (p: LinkedProject, n: number) => {
       const pr = await uploadPr(stack, p, n, { login: { dot: { x: 90 + n, y: 90 } } })
       await stack.sql(
         `update builds set status = 'error', error_message = 'Timed out waiting for 1 of 2 shard(s): shard 2.' where id = '${pr.buildId}'`,
@@ -400,10 +400,10 @@ describe('merge gate (against a fake GitHub)', () => {
     ).toContain('Failed')
   })
 
-  it('a team with no baseline yet: every screenshot is new and waits for review', async () => {
+  it('a project with no baseline yet: every screenshot is new and waits for review', async () => {
     const { stack, setup } = ctx
-    const team = await createTeam(setup.session, workspace, 'Fresh')
-    await setup.session.put(`/api/teams/${workspace}/${team.slug}/github`, {
+    const project = await createProject(setup.session, workspace, 'Fresh')
+    await setup.session.put(`/api/projects/${workspace}/${project.slug}/github`, {
       installationId: uniqueInstallationId(),
       repoRef: 'acme/fresh',
     })
@@ -413,7 +413,7 @@ describe('merge gate (against a fake GitHub)', () => {
       const sha = await repo.commit('first ever')
       const up = await uploadBuild({
         stack,
-        token: team.token,
+        token: project.token,
         repo,
         wait: true,
         pr: { number: 1 },

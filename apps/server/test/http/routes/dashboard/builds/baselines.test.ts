@@ -6,15 +6,15 @@ const fx = await startDashboard()
 const { acme, rivalCookie, get } = fx
 afterAll(() => fx.close())
 
-// The fixture: Acme's `web` team has build 1 (approved by its owner) and build 2 (on main,
+// The fixture: Acme's `web` project has build 1 (approved by its owner) and build 2 (on main,
 // approved automatically), each with screenshots `home` and `about`. Rival has nothing.
 
-describe('GET /api/teams/:workspace/:team/baselines', () => {
+describe('GET /api/projects/:workspace/:project/baselines', () => {
   it('lists the default branch baselines with their source build', async () => {
-    const res = await get(`/api/teams/${acme.workspaceSlug}/web/baselines`)
+    const res = await get(`/api/projects/${acme.workspaceSlug}/web/baselines`)
     expect(res.statusCode).toBe(200)
     const body = res.json()
-    expect(body.team).toMatchObject({ slug: 'web', defaultBranch: 'main' })
+    expect(body.project).toMatchObject({ slug: 'web', defaultBranch: 'main' })
     expect(body.baselines).toMatchObject([
       { name: 'about', buildName: 'default', buildNumber: 2, width: 60, height: 40 },
       { name: 'home', buildName: 'default', buildNumber: 2, width: 60, height: 40 },
@@ -25,22 +25,24 @@ describe('GET /api/teams/:workspace/:team/baselines', () => {
     expect(body.baselines[0].approvedBy).toBeNull()
   })
 
-  it('is not found for a non-member, an unknown team, or without a session', async () => {
+  it('is not found for a non-member, an unknown project, or without a session', async () => {
     expect(
-      (await get(`/api/teams/${acme.workspaceSlug}/web/baselines`, rivalCookie)).statusCode,
+      (await get(`/api/projects/${acme.workspaceSlug}/web/baselines`, rivalCookie)).statusCode,
     ).toBe(404)
-    expect((await get(`/api/teams/${acme.workspaceSlug}/nope/baselines`)).statusCode).toBe(404)
-    expect((await get(`/api/teams/${acme.workspaceSlug}/web/baselines`, '')).statusCode).toBe(401)
+    expect((await get(`/api/projects/${acme.workspaceSlug}/nope/baselines`)).statusCode).toBe(404)
+    expect((await get(`/api/projects/${acme.workspaceSlug}/web/baselines`, '')).statusCode).toBe(
+      401,
+    )
   })
 })
 
 const history = (name: string, query = '', cookie?: string) =>
   get(
-    `/api/teams/${acme.workspaceSlug}/web/snapshots/${encodeURIComponent(name)}/history${query}`,
+    `/api/projects/${acme.workspaceSlug}/web/snapshots/${encodeURIComponent(name)}/history${query}`,
     cookie,
   )
 
-describe('GET /api/teams/:workspace/:team/snapshots/:name/history', () => {
+describe('GET /api/projects/:workspace/:project/snapshots/:name/history', () => {
   it('lists the default branch builds with the snapshot image and status', async () => {
     const res = await history('home')
     expect(res.statusCode).toBe(200)

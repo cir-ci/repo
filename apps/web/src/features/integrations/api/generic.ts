@@ -23,7 +23,7 @@ export function connectNote(
 ): { tone: 'success' | 'danger'; text: string } | null {
   switch (result) {
     case 'connected':
-      return { tone: 'success', text: `${name} is connected. Choose what each team uses.` }
+      return { tone: 'success', text: `${name} is connected. Choose what each project uses.` }
     case 'denied':
       return { tone: 'danger', text: `${name} wasn't connected: the install was cancelled.` }
     case 'failed':
@@ -166,12 +166,12 @@ export function isDirty(
   return JSON.stringify(before) !== JSON.stringify(extraToSend(spec.fields, values))
 }
 
-/** One repository of a git host's page, and the team that reports to it. */
+/** One repository of a git host's page, and the project that reports to it. */
 export interface RepositoryRow {
   ref: string
   label: string
-  /** The team mapped to it; null when none is. */
-  team: string | null
+  /** The project mapped to it; null when none is. */
+  project: string | null
   /** Mapped, but the host no longer lists it: the app was uninstalled from it. */
   broken: boolean
 }
@@ -182,38 +182,41 @@ export interface RepositoryRow {
  * mapped ones first, each group A to Z.
  */
 export function repositoryRows(
-  teams: readonly Integration.MappingTeam[],
+  projects: readonly Integration.MappingProject[],
   targets: readonly Integration.Target[] | null,
 ): RepositoryRow[] {
   const rows = new Map<string, RepositoryRow>()
   for (const t of targets ?? []) {
-    rows.set(t.id, { ref: t.id, label: t.label ?? t.name, team: null, broken: false })
+    rows.set(t.id, { ref: t.id, label: t.label ?? t.name, project: null, broken: false })
   }
-  for (const team of teams) {
-    const m = team.mapping
+  for (const project of projects) {
+    const m = project.mapping
     if (!m) continue
     const known = rows.get(m.ref)
     rows.set(m.ref, {
       ref: m.ref,
       label: known?.label ?? m.name ?? m.ref,
-      team: team.slug,
+      project: project.slug,
       broken: targets !== null && !known,
     })
   }
   return [...rows.values()].toSorted(
-    (a, b) => Number(b.team !== null) - Number(a.team !== null) || a.label.localeCompare(b.label),
+    (a, b) =>
+      Number(b.project !== null) - Number(a.project !== null) || a.label.localeCompare(b.label),
   )
 }
 
-/** "Michael's workspace · 3 teams use it": what the page says under the integration's name. */
+/** "Michael's workspace · 3 projects use it": what the page says under the integration's name. */
 export function connectionLine(
   kindName: string,
   account: string,
-  teams: readonly Integration.MappingTeam[],
+  projects: readonly Integration.MappingProject[],
 ): string {
-  const used = teams.filter((t) => t.mapping !== null).length
+  const used = projects.filter((t) => t.mapping !== null).length
   const count =
-    used === 0 ? 'no teams use it yet' : `${used} ${used === 1 ? 'team uses' : 'teams use'} it`
+    used === 0
+      ? 'no projects use it yet'
+      : `${used} ${used === 1 ? 'project uses' : 'projects use'} it`
   return `${kindName} · ${account} · ${count}`
 }
 
@@ -225,7 +228,7 @@ const base = (workspace: string, ...rest: string[]) =>
 export const mappingPageQuery = (workspace: string, id: string) =>
   queryOptions({
     queryKey: keys.integrations(workspace, 'mapping', id),
-    queryFn: () => getJson<Integration.MappingPage>(base(workspace, id, 'teams')),
+    queryFn: () => getJson<Integration.MappingPage>(base(workspace, id, 'projects')),
   })
 
 export const targetsQuery = (workspace: string, id: string) =>
@@ -261,12 +264,12 @@ export function useConnect(workspace: string, kind: string) {
 export function useMapping(workspace: string, id: string) {
   const queryClient = useQueryClient()
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) })
-  const url = (team: string) => base(workspace, id, 'teams', team)
+  const url = (project: string) => base(workspace, id, 'projects', project)
   return {
     save: useMutation({
       meta: { what: 'save the mapping' },
-      mutationFn: (input: { team: string } & Integration.MappingInput) =>
-        send<undefined>('PUT', url(input.team), {
+      mutationFn: (input: { project: string } & Integration.MappingInput) =>
+        send<undefined>('PUT', url(input.project), {
           ref: input.ref,
           ...(input.name ? { name: input.name } : {}),
           extra: input.extra ?? {},
@@ -275,22 +278,22 @@ export function useMapping(workspace: string, id: string) {
     }),
     clear: useMutation({
       meta: { what: 'clear the mapping' },
-      mutationFn: (team: string) => send<undefined>('DELETE', url(team)),
+      mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
       onSuccess: refresh,
     }),
   }
 }
 
-const linksUrl = (workspace: string, id: string, team: string) =>
-  base(workspace, id, 'teams', team, 'links')
+const linksUrl = (workspace: string, id: string, project: string) =>
+  base(workspace, id, 'projects', project, 'links')
 
-export const linksQuery = (workspace: string, id: string, team: string) =>
+export const linksQuery = (workspace: string, id: string, project: string) =>
   queryOptions({
-    queryKey: keys.integrations(workspace, 'links', id, team),
-    queryFn: () => getJson<Integration.LinkList>(linksUrl(workspace, id, team)),
+    queryKey: keys.integrations(workspace, 'links', id, project),
+    queryFn: () => getJson<Integration.LinkList>(linksUrl(workspace, id, project)),
   })
 
-/** A team's links: add one by hand, remove one, or link by name (when the definition offers it). */
+/** A project's links: add one by hand, remove one, or link by name (when the definition offers it). */
 export function useLinks(workspace: string, id: string) {
   const queryClient = useQueryClient()
   const refresh = () =>
@@ -298,8 +301,8 @@ export function useLinks(workspace: string, id: string) {
   return {
     create: useMutation({
       meta: { what: 'add the link' },
-      mutationFn: (input: { team: string; values: Record<string, string> }) =>
-        post<Integration.Link>(linksUrl(workspace, id, input.team), {
+      mutationFn: (input: { project: string; values: Record<string, string> }) =>
+        post<Integration.Link>(linksUrl(workspace, id, input.project), {
           values: Object.fromEntries(
             Object.entries(input.values).map(([key, value]) => [key, value.trim()]),
           ),
@@ -308,14 +311,14 @@ export function useLinks(workspace: string, id: string) {
     }),
     remove: useMutation({
       meta: { what: 'remove the link' },
-      mutationFn: (input: { team: string; linkId: string }) =>
-        send<undefined>('DELETE', `${linksUrl(workspace, id, input.team)}/${seg(input.linkId)}`),
+      mutationFn: (input: { project: string; linkId: string }) =>
+        send<undefined>('DELETE', `${linksUrl(workspace, id, input.project)}/${seg(input.linkId)}`),
       onSuccess: refresh,
     }),
     auto: useMutation({
       meta: { what: 'link automatically' },
-      mutationFn: (team: string) =>
-        post<Integration.AutoLinkResult>(`${linksUrl(workspace, id, team)}/auto`, {}),
+      mutationFn: (project: string) =>
+        post<Integration.AutoLinkResult>(`${linksUrl(workspace, id, project)}/auto`, {}),
       onSuccess: refresh,
     }),
   }

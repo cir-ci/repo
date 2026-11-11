@@ -5,7 +5,7 @@ import type { Order } from './display-options.ts'
 /** The filters of a builds list: the same keys as the API's query and a saved view's JSON. */
 export type BuildFilters = View.Filters
 
-/** What the team route keeps in its URL: the filters and the page cursor. */
+/** What the project route keeps in its URL: the filters and the page cursor. */
 export type BuildsSearch = BuildFilters & { before?: number }
 
 const STATUSES = ['pending', 'uploading', 'processing', 'complete', 'error', 'expired'] as const
@@ -55,7 +55,7 @@ export function parseBuildsSearch(search: Record<string, unknown>): BuildsSearch
   }
 }
 
-/** The search object for the URL: only what is set, so a bare team address stays bare. */
+/** The search object for the URL: only what is set, so a bare project address stays bare. */
 export function toSearch(filters: BuildFilters, before?: number): BuildsSearch {
   return { ...parseFilters({ ...filters }), ...(before ? { before } : {}) }
 }

@@ -2,8 +2,8 @@ import { ChartNoAxesColumnIcon, EmptyState, SegmentedControl, Select } from '@ci
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
@@ -36,7 +36,7 @@ import {
   RejectionReasonsCard,
   ReviewerLoadCard,
   StorageCard,
-  TeamsCard,
+  ProjectsCard,
 } from './Lists.tsx'
 import { ROUTE } from './routes.ts'
 import { InsightsSort } from './sort.tsx'
@@ -56,13 +56,13 @@ export function InsightsPage() {
 
   const go = (next: InsightsSearch) =>
     void navigate({ to: ROUTE, params: { workspace }, search: next })
-  const teams = sidebar?.teams ?? []
-  const teamItems = [
-    { value: ALL, label: 'All teams' },
-    ...teams.map((p) => ({ value: p.slug, label: p.name })),
+  const projects = sidebar?.projects ?? []
+  const projectItems = [
+    { value: ALL, label: 'All projects' },
+    ...projects.map((p) => ({ value: p.slug, label: p.name })),
   ]
-  if (search.team && !teams.some((p) => p.slug === search.team)) {
-    teamItems.push({ value: search.team, label: search.team })
+  if (search.project && !projects.some((p) => p.slug === search.project)) {
+    projectItems.push({ value: search.project, label: search.project })
   }
 
   return (
@@ -73,14 +73,14 @@ export function InsightsPage() {
         actions={
           <div className={styles.filters}>
             <Select
-              label="Team"
+              label="Project"
               hideLabel
-              items={teamItems}
-              value={search.team ?? ALL}
+              items={projectItems}
+              value={search.project ?? ALL}
               onValueChange={(v) =>
                 go({
                   range: search.range,
-                  ...(v === ALL ? {} : { team: v }),
+                  ...(v === ALL ? {} : { project: v }),
                   ...(search.sort ? { sort: search.sort } : {}),
                 })
               }
@@ -144,7 +144,7 @@ export function InsightsPage() {
                 </div>
                 <h2 className={styles.section}>Breakdowns</h2>
                 <div className={styles.grid1}>
-                  <TeamsCard data={data} days={search.range} />
+                  <ProjectsCard data={data} days={search.range} />
                 </div>
                 <div className={styles.grid}>
                   <FailureReasonsCard data={data} />

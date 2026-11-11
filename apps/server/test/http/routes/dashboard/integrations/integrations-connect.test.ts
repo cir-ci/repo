@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { createUser } from '@circi/auth'
 import { openSecret } from '@circi/core/node'
 import { getIntegration, getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
-import { listIntegrationTeams } from '@circi/db/repositories'
+import { listIntegrationProjects } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import {
   defineIntegration,
@@ -223,22 +223,22 @@ describe('the catalog and the list, from the registry', () => {
 })
 
 describe('mapping a text target', () => {
-  it('maps a team by the typed id, has no targets to list, and clears it', async () => {
+  it('maps a project by the typed id, has no targets to list, and clears it', async () => {
     const id = await connectTokenchat()
     expect((await call('GET', `${base}/${id}/targets`, ownerCookie)).statusCode).toBe(404)
-    const url = `${base}/${id}/teams/web`
+    const url = `${base}/${id}/projects/web`
     expect((await call('PUT', url, ownerCookie, {})).statusCode).toBe(400)
     expect((await call('PUT', url, ownerCookie, { ref: 'room-1' })).statusCode).toBe(204)
-    expect(await listIntegrationTeams(t.db, id)).toMatchObject([
+    expect(await listIntegrationProjects(t.db, id)).toMatchObject([
       { slug: 'web', externalRef: 'room-1', extra: {} },
     ])
-    const page = (await call('GET', `${base}/${id}/teams`, louCookie)).json()
+    const page = (await call('GET', `${base}/${id}/projects`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
       configured: false,
-      teams: [{ slug: 'web', mapping: { ref: 'room-1', name: null } }],
+      projects: [{ slug: 'web', mapping: { ref: 'room-1', name: null } }],
     })
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect(await listIntegrationTeams(t.db, id)).toEqual([])
+    expect(await listIntegrationProjects(t.db, id)).toEqual([])
   })
 })

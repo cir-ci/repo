@@ -9,19 +9,19 @@ import { useCustomDomain } from './api.ts'
 import styles from './CustomDomainSection.module.css'
 
 /**
- * One site's custom domain: a domain that always opens the team's default branch version. Shows
+ * One site's custom domain: a domain that always opens the project's default branch version. Shows
  * whether DNS points at the server yet, and the record to add until it does. Owners and admins
  * can change it; everyone else sees it.
  */
 export function CustomDomainSection({
   workspace,
-  team,
+  project,
   site,
   dnsTarget,
   canManage,
 }: CustomDomainSection.Props) {
   const domain = site.customDomain
-  const mutations = useCustomDomain(workspace, team, site.slug)
+  const mutations = useCustomDomain(workspace, project, site.slug)
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [lastCheck, setLastCheck] = useState<Site.DomainCheck | null>(null)
@@ -180,7 +180,7 @@ export function CustomDomainSection({
 export namespace CustomDomainSection {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     site: Pick<Site.Listing, 'slug' | 'name' | 'customDomain'>
     /** What the CNAME points at (`Site.List.dnsTarget`). */
     dnsTarget: string | null

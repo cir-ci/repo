@@ -2,7 +2,7 @@ import type { Comment, Inbox, NotificationKind, Review } from '@circi/api'
 import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { inboxPath, teamPath } from '#lib/api-paths.ts'
+import { inboxPath, projectPath } from '#lib/api-paths.ts'
 import { findParam } from '#lib/find.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
@@ -34,14 +34,14 @@ export function validateInboxSearch(search: Record<string, unknown>): InboxSearc
   }
 }
 
-/** What a find text is looked for in: the words of the row, the build, its branch, the team and who did it. */
+/** What a find text is looked for in: the words of the row, the build, its branch, the project and who did it. */
 export const inboxFields = (item: Inbox.Item) => {
   const { title, detail } = notificationText(item)
   return [
     title,
     detail,
     item.actor?.name,
-    item.team?.name,
+    item.project?.name,
     item.build ? `Build #${item.build.number} #${item.build.number}` : undefined,
     item.build?.name === 'default' ? undefined : item.build?.name,
     item.build?.branch,
@@ -78,7 +78,7 @@ export interface NotificationWords {
   kind: NotificationKind
   actor: { name: string } | null
   build: { number: number } | null
-  team: { name: string } | null
+  project: { name: string } | null
   payload: Record<string, unknown>
 }
 
@@ -99,10 +99,10 @@ export function notificationText(item: NotificationWords): { title: string; deta
           : `Your review of${build} is overdue`,
     },
     connection_needs_attention: {
-      title: `${item.team?.name ?? 'A team'}'s git connection needs attention`,
+      title: `${item.project?.name ?? 'A project'}'s git connection needs attention`,
     },
     flaky_detected: {
-      title: `Flaky screenshots found${item.team ? ` in ${item.team.name}` : ''}`,
+      title: `Flaky screenshots found${item.project ? ` in ${item.project.name}` : ''}`,
     },
     triage_assigned: {
       title: 'Assigned to you as the person on triage',
@@ -116,7 +116,7 @@ export function notificationText(item: NotificationWords): { title: string; deta
 /** A row's screen-reader name: unread state, the text and where. */
 export function notificationName(item: Inbox.Item): string {
   const { title } = notificationText(item)
-  return [item.readAt ? undefined : 'Unread', title, item.team?.name].filter(Boolean).join(', ')
+  return [item.readAt ? undefined : 'Unread', title, item.project?.name].filter(Boolean).join(', ')
 }
 
 /** "3 unread of 12", "12 notifications", "No notifications": what the list announces. */
@@ -127,22 +127,22 @@ export function inboxCount(items: readonly Inbox.Item[]): string {
 }
 
 /**
- * Where a notification leads: its build, else its team, else nowhere. A mention goes to the
+ * Where a notification leads: its build, else its project, else nowhere. A mention goes to the
  * build's Comments tab at the comment (the page picks its snapshot, if it is pinned to one).
  */
 export function notificationTarget(item: Inbox.Item):
   | {
-      to: '/$workspace/$team/builds/$number'
-      params: { workspace: string; team: string; number: string }
+      to: '/$workspace/$project/builds/$number'
+      params: { workspace: string; project: string; number: string }
       search?: { sidebar: 'comments'; comment: string }
     }
-  | { to: '/$workspace/$team'; params: { workspace: string; team: string } }
+  | { to: '/$workspace/$project'; params: { workspace: string; project: string } }
   | undefined {
-  if (!item.workspace || !item.team) return undefined
-  const base = { workspace: item.workspace.slug, team: item.team.slug }
-  if (!item.build) return { to: '/$workspace/$team', params: base }
+  if (!item.workspace || !item.project) return undefined
+  const base = { workspace: item.workspace.slug, project: item.project.slug }
+  if (!item.build) return { to: '/$workspace/$project', params: base }
   const target = {
-    to: '/$workspace/$team/builds/$number' as const,
+    to: '/$workspace/$project/builds/$number' as const,
     params: { ...base, number: String(item.build.number) },
   }
   const comment = item.kind === 'mentioned' ? text(item.payload['commentId']) : undefined
@@ -224,13 +224,13 @@ export function notificationGlyph(kind: NotificationKind): Status | undefined {
   return glyphs[kind]
 }
 
-/** What the Open button says: the review, the thread, the build, or (without a build) the team. */
+/** What the Open button says: the review, the thread, the build, or (without a build) the project. */
 export function openLabel(item: Inbox.Item): string {
   if (item.kind === 'mentioned') return 'Open thread'
-  if (item.kind === 'connection_needs_attention') return 'Open team'
+  if (item.kind === 'connection_needs_attention') return 'Open project'
   if (item.kind === 'review_requested' || item.kind === 'review_re_requested') return 'Open review'
   if (item.kind === 'review_overdue') return 'Open review'
-  return item.build ? 'Open build' : 'Open team'
+  return item.build ? 'Open build' : 'Open project'
 }
 
 /** The sentence after the title in the pane for notices that say something beyond who did what. */
@@ -270,14 +270,14 @@ export function useApproveBuild() {
   return useMutation({
     meta: { what: 'approve the build' },
     mutationFn: (item: Inbox.Item) => {
-      if (!item.workspace || !item.team || !item.build) throw new Error('Build not found')
+      if (!item.workspace || !item.project || !item.build) throw new Error('Build not found')
       return post<Review.Decided>(
-        teamPath(item.workspace.slug, item.team.slug, 'builds', item.build.number, 'review'),
+        projectPath(item.workspace.slug, item.project.slug, 'builds', item.build.number, 'review'),
         { state: 'approved' },
       )
     },
     onSuccess: () =>
-      invalidateAll(queryClient, keys.inbox(), keys.reviews(), keys.sidebar(), keys.teams()),
+      invalidateAll(queryClient, keys.inbox(), keys.reviews(), keys.sidebar(), keys.projects()),
   })
 }
 
@@ -287,12 +287,18 @@ export function useReplyToMention() {
     meta: { what: 'send the reply' },
     mutationFn: ({ item, body }: { item: Inbox.Item; body: string }) => {
       const parentId = replyTarget(item)
-      if (!item.workspace || !item.team || !item.build || !parentId) {
+      if (!item.workspace || !item.project || !item.build || !parentId) {
         throw new Error('Comment not found')
       }
       const input: Comment.Create = { body, parentId }
       return post<{ id: string }>(
-        teamPath(item.workspace.slug, item.team.slug, 'builds', item.build.number, 'comments'),
+        projectPath(
+          item.workspace.slug,
+          item.project.slug,
+          'builds',
+          item.build.number,
+          'comments',
+        ),
         input,
       )
     },

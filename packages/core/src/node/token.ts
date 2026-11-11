@@ -13,7 +13,7 @@ export interface IssuedToken {
   hint: string
 }
 
-export function issueTeamToken(): IssuedToken {
+export function issueProjectToken(): IssuedToken {
   const token = TOKEN_PREFIX + randomBytes(32).toString('base64url')
   return { token, hash: hashToken(token), hint: tokenHint(token) }
 }
@@ -26,6 +26,6 @@ export function tokenHint(token: string): string {
   return `${token.slice(0, TOKEN_PREFIX.length + 6)}…`
 }
 
-export function looksLikeTeamToken(value: string): boolean {
+export function looksLikeProjectToken(value: string): boolean {
   return TOKEN_RE.test(value)
 }

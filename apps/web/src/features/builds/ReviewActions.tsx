@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useReviewSnapshots } from '#features/builds/api/index.ts'
-import { useRejectReasonRequired } from '#features/teams/api/index.ts'
+import { useRejectReasonRequired } from '#features/projects/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, withUndo } from '#lib/undo.ts'
@@ -23,7 +23,7 @@ export interface ReviewControls {
   pending: boolean
   error: Error | null
   rejecting: boolean
-  /** The team asks for a reason when someone rejects. */
+  /** The project asks for a reason when someone rejects. */
   reasonRequired: boolean
   /** Approves the current snapshot. */
   approve: () => void
@@ -47,7 +47,7 @@ export interface ReviewControls {
  * The decisions on the snapshots of a finished build with changes: the current one (A, R) or
  * every undecided one (⇧A). The build's status follows from them. Each decision acts at once and
  * shows a toast with Undo (the server takes it back unless something newer changed the same
- * thing); rejecting asks for a reason first when the team requires one.
+ * thing); rejecting asks for a reason first when the project requires one.
  */
 export function useReviewControls(
   data: Build.Detail,
@@ -55,9 +55,9 @@ export function useReviewControls(
   /** Called once the current snapshot's approval is saved (not for Approve all or a rejection). */
   onApproved?: (approved: Build.DiffItem) => void,
 ): ReviewControls {
-  const { build, team } = data
-  const review = useReviewSnapshots(team.workspaceSlug, team.slug, build.number)
-  const reasonRequired = useRejectReasonRequired(team.workspaceSlug, team.slug)
+  const { build, project } = data
+  const review = useReviewSnapshots(project.workspaceSlug, project.slug, build.number)
+  const reasonRequired = useRejectReasonRequired(project.workspaceSlug, project.slug)
   const queryClient = useQueryClient()
   const [rejecting, setRejecting] = useState(false)
   const [rejectName, setRejectName] = useState<string | undefined>(undefined)
@@ -91,7 +91,7 @@ export function useReviewControls(
           withUndo(
             answer.undo ? message : 'Nothing to change',
             answer.undo,
-            { workspace: team.workspaceSlug, team: team.slug },
+            { workspace: project.workspaceSlug, project: project.slug },
             refreshAll(queryClient),
             `Couldn't undo: ${message.toLowerCase()}`,
           ),

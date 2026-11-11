@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
 
-import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
@@ -19,18 +19,18 @@ const TITLES = { reviews: 'Reviews', insights: 'Insights' } as const
  * if they fail it uses the browser's value.
  */
 export function WorkspaceRedirect({ page }: WorkspaceRedirect.Props) {
-  const teams = useQuery(teamsQuery())
+  const projects = useQuery(projectsQuery())
   const caps = useQuery(capabilitiesQuery())
   return (
     <>
-      {teams.data ? null : <PageHeading title={TITLES[page]} />}
-      <QueryBoundary<NonNullable<typeof teams.data>>
-        query={caps.isPending ? { ...teams, data: undefined } : teams}
+      {projects.data ? null : <PageHeading title={TITLES[page]} />}
+      <QueryBoundary<NonNullable<typeof projects.data>>
+        query={caps.isPending ? { ...projects, data: undefined } : projects}
         announce="Opening the page"
       >
         {(data) => {
           const workspace = pickLandingWorkspace(
-            listWorkspaces(data.teams, caps.data?.manageableWorkspaces),
+            listWorkspaces(data.projects, caps.data?.manageableWorkspaces),
             caps.data?.lastWorkspace,
             readRememberedWorkspace(),
           )

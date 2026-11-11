@@ -72,7 +72,7 @@ function currentDocument(): circiScreenshot.PageDocument {
 }
 
 /**
- * Vitest saves `screenshot({ path })` relative to the *test file*, not to the team, so the
+ * Vitest saves `screenshot({ path })` relative to the *test file*, not to the project, so the
  * reporter would never find a relative path. The path is made absolute, under the project root.
  */
 async function absolutePath(dir: string, file: string, root?: string): Promise<string> {

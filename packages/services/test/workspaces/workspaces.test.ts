@@ -1,12 +1,12 @@
 import {
-  findTeamForMember,
-  getTeamContext,
+  findProjectForMember,
+  getProjectContext,
   listUserWorkspaceIds,
   workspaceAcceptsSession,
 } from '@circi/db/queries'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
+import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -33,17 +33,17 @@ const deletedObjects: string[] = []
 const deleteObject = async (key: string) => void deletedObjects.push(key)
 
 let counter = 0
-/** A workspace with a team, an owner, an admin and a member, and a build with one file. */
+/** A workspace with a project, an owner, an admin and a member, and a build with one file. */
 async function setup() {
   counter += 1
-  const seeded = await seedTeam(t.db)
+  const seeded = await seedProject(t.db)
   const admin = await seedUser(t.db)
   const member = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: seeded.workspace.id, userId: admin.id, role: 'admin' })
   await addTestMember(t.db, { workspaceId: seeded.workspace.id, userId: member.id })
   const hash = fakeSha(counter.toString(16).padStart(2, '0'))
   const build = await createBuild(t.db, {
-    teamId: seeded.team.id,
+    projectId: seeded.project.id,
     commitSha: `abc${counter.toString().padStart(4, '0')}0`,
     branch: 'feature',
   })
@@ -59,9 +59,9 @@ async function setup() {
 }
 
 const visibleTo = (s: Awaited<ReturnType<typeof setup>>, userId: string) =>
-  findTeamForMember(t.db, {
+  findProjectForMember(t.db, {
     workspaceSlug: s.workspace.slug,
-    teamSlug: s.team.slug,
+    projectslug: s.project.slug,
     userId,
     method: 'password',
   })
@@ -87,7 +87,7 @@ describe('deleteWorkspace', () => {
     expect(await visibleTo(s, s.member.id)).toBeUndefined()
     expect(await workspaceAcceptsSession(t.db, s.workspace.id, 'password')).toBe(false)
     expect(await workspaceAcceptsSession(t.db, s.workspace.id, undefined)).toBe(false)
-    expect(await getTeamContext(t.db, s.team.id)).toBeUndefined()
+    expect(await getProjectContext(t.db, s.project.id)).toBeUndefined()
     expect(await listUserWorkspaceIds(t.db, s.owner.id)).not.toContain(s.workspace.id)
     // The slug stays reserved: the row is still there.
     const [row] = await t.db
@@ -98,7 +98,7 @@ describe('deleteWorkspace', () => {
 
     await restoreWorkspace(t.db, s.workspace.id)
     expect(await visibleTo(s, s.member.id)).toBeDefined()
-    expect(await getTeamContext(t.db, s.team.id)).toBeDefined()
+    expect(await getProjectContext(t.db, s.project.id)).toBeDefined()
     expect(await workspaceAcceptsSession(t.db, s.workspace.id, 'password')).toBe(true)
     await expect(restoreWorkspace(t.db, s.workspace.id)).rejects.toThrow(/isn't deleted/)
   })
@@ -132,7 +132,7 @@ describe('purging', () => {
     })
     expect(before.purgedWorkspaces).toBe(0)
     expect(
-      await t.db.select().from(schema.teams).where(eq(schema.teams.id, s.team.id)),
+      await t.db.select().from(schema.projects).where(eq(schema.projects.id, s.project.id)),
     ).toHaveLength(1)
 
     const at = new Date(deletedAt.getTime() + 30 * DAY)
@@ -140,7 +140,7 @@ describe('purging', () => {
     expect(result.purgedWorkspaces).toBe(1)
     // Everything under it went with the cascade; the files were marked in the same pass.
     const remaining = await Promise.all(
-      [schema.workspace, schema.teams, schema.builds, schema.member].map((table) =>
+      [schema.workspace, schema.projects, schema.builds, schema.member].map((table) =>
         t.db.select().from(table),
       ),
     )
@@ -170,7 +170,7 @@ describe('purging', () => {
     )
     await deleteWorkspace(t.db, { workspaceId: s.workspace.id, userId: s.owner.id, now })
     await purgeWorkspace(t.db, { workspaceId: s.workspace.id, onlyIfDue: true, now })
-    expect(await getTeamContext(t.db, s.team.id)).toBeUndefined()
+    expect(await getProjectContext(t.db, s.project.id)).toBeUndefined()
     expect(
       await t.db.select().from(schema.workspace).where(eq(schema.workspace.id, s.workspace.id)),
     ).toHaveLength(1) // not due yet

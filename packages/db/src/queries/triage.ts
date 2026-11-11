@@ -23,7 +23,7 @@ import {
 import {
   builds,
   workspace,
-  teams,
+  projects,
   screenshotDiffs,
   snapshotReviews,
   type SnoozeKind,
@@ -38,7 +38,7 @@ import { flakyVerdictsFor, type FlakyHistoryBuild } from './flaky.ts'
 import { getTriageRotation, latestDefaultBranchBuildNumber } from './triage-rotation.ts'
 
 /**
- * A team's triage queue: the problems on its default branch that nobody has dealt with.
+ * A project's triage queue: the problems on its default branch that nobody has dealt with.
  * They are derived from builds each time (nothing is stored until someone acts on one):
  *
  *   flaky        a screenshot that keeps coming back to an earlier image on the default branch, or
@@ -49,7 +49,7 @@ import { getTriageRotation, latestDefaultBranchBuildNumber } from './triage-rota
  *                completed
  *
  * Integration problems (a git connection that needs attention) are not queue items: they belong
- * to the workspace, which has its own banner and the Inbox, not to one team's triage.
+ * to the workspace, which has its own banner and the Inbox, not to one project's triage.
  */
 
 export namespace listTriage {
@@ -59,7 +59,7 @@ export namespace listTriage {
     key: string
     /** The screenshot it is about; null for a failed build. */
     snapshotName: string | null
-    team: { slug: string; name: string }
+    project: { slug: string; name: string }
     build: {
       number: number
       branch: string | null
@@ -132,7 +132,7 @@ function latestChange(window: readonly FlakyHistoryBuild[], name: string) {
 /** For each name, how many pull requests show it as changed in their latest build, still pending. */
 async function flakyBlocking(
   db: Database,
-  teamId: string,
+  projectId: string,
   names: string[],
 ): Promise<Map<string, number>> {
   const result = new Map<string, number>()
@@ -144,7 +144,7 @@ async function flakyBlocking(
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
     .where(
       and(
-        eq(builds.teamId, teamId),
+        eq(builds.projectId, projectId),
         isNotNull(builds.prNumber),
         eq(builds.status, 'complete'),
         eq(builds.reviewStatus, 'pending'),
@@ -156,7 +156,7 @@ async function flakyBlocking(
             .from(newer)
             .where(
               and(
-                eq(newer.teamId, teamId),
+                eq(newer.projectId, projectId),
                 eq(newer.prNumber, builds.prNumber),
                 gt(newer.number, builds.number),
               ),
@@ -171,17 +171,17 @@ async function flakyBlocking(
 /** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
 export async function listTriage(
   db: Database,
-  input: { teamId: string; now: Date },
+  input: { projectId: string; now: Date },
 ): Promise<listTriage.Queue> {
   const [row] = await db
-    .select({ team: teams, workspaceSlug: workspace.slug })
-    .from(teams)
-    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
-    .where(eq(teams.id, input.teamId))
+    .select({ project: projects, workspaceSlug: workspace.slug })
+    .from(projects)
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .where(eq(projects.id, input.projectId))
   if (!row) return { items: [], rotation: { members: [], onTriage: null, until: null } }
-  const { team } = row
-  const teamRef = { slug: team.slug, name: team.name }
-  const branch = team.defaultBranch
+  const { project } = row
+  const projectRef = { slug: project.slug, name: project.name }
+  const branch = project.defaultBranch
 
   const found: {
     kind: TriageKind
@@ -200,14 +200,14 @@ export async function listTriage(
   }
 
   // Flaky: one bounded history, the one rule; the latest build in which each flaky name changed.
-  const { builds: window, flaky } = (await flakyVerdictsFor(db, [team])).get(team.id) ?? {
+  const { builds: window, flaky } = (await flakyVerdictsFor(db, [project])).get(project.id) ?? {
     builds: [],
     flaky: [],
   }
   const flakyNames = flaky.map((f) => f.name)
   const reasons = new Map(flaky.map((f) => [f.name, f.why]))
   const history = flakyHistory(window, flakyNames)
-  const blocking = await flakyBlocking(db, team.id, flakyNames)
+  const blocking = await flakyBlocking(db, project.id, flakyNames)
   for (const f of flaky) {
     const latest = latestChange(window, f.name) ?? window.at(-1)
     if (!latest) continue
@@ -243,7 +243,7 @@ export async function listTriage(
     )
     .where(
       and(
-        eq(builds.teamId, team.id),
+        eq(builds.projectId, project.id),
         eq(builds.branch, branch),
         eq(builds.status, 'complete'),
         eq(builds.baselineSource, 'none'),
@@ -269,7 +269,7 @@ export async function listTriage(
             .innerJoin(later, eq(later.id, laterDiff.buildId))
             .where(
               and(
-                eq(later.teamId, team.id),
+                eq(later.projectId, project.id),
                 eq(later.branch, branch),
                 eq(later.status, 'complete'),
                 gt(later.number, builds.number),
@@ -290,7 +290,7 @@ export async function listTriage(
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, team.id),
+        eq(builds.projectId, project.id),
         eq(builds.branch, branch),
         eq(builds.status, 'error'),
         notExists(
@@ -299,7 +299,7 @@ export async function listTriage(
             .from(later)
             .where(
               and(
-                eq(later.teamId, team.id),
+                eq(later.projectId, project.id),
                 eq(later.branch, branch),
                 eq(later.status, 'complete'),
                 gt(later.number, builds.number),
@@ -318,9 +318,9 @@ export async function listTriage(
     .select({ item: triageItems, assignee: { id: user.id, name: user.name, image: user.image } })
     .from(triageItems)
     .leftJoin(user, eq(user.id, triageItems.assigneeId))
-    .where(eq(triageItems.teamId, team.id))
+    .where(eq(triageItems.projectId, project.id))
   const stateOf = new Map(states.map((s) => [`${s.item.kind}\u0000${s.item.key}`, s]))
-  const latestPush = found.length > 0 ? await latestDefaultBranchBuildNumber(db, team.id) : 0
+  const latestPush = found.length > 0 ? await latestDefaultBranchBuildNumber(db, project.id) : 0
 
   const items: listTriage.Item[] = []
   for (const f of found) {
@@ -337,7 +337,7 @@ export async function listTriage(
       kind: f.kind,
       key: f.key,
       snapshotName: f.snapshotName,
-      team: teamRef,
+      project: projectRef,
       build: f.build,
       assignee: s?.assignee?.id
         ? {
@@ -363,7 +363,7 @@ export async function listTriage(
       a.key.localeCompare(b.key),
   )
 
-  const rotation = await getTriageRotation(db, team.id)
+  const rotation = await getTriageRotation(db, project.id)
   const onTriage = rotation.startsOn
     ? rotationFor(input.now, rotation.members, rotation.startsOn)
     : null
@@ -378,26 +378,26 @@ export async function listTriage(
 }
 
 /**
- * How many awake items of the given teams' queues are assigned to the person. Assignments are the
- * only stored part of an item, so only the teams where this person has one are read.
+ * How many awake items of the given projects' queues are assigned to the person. Assignments are the
+ * only stored part of an item, so only the projects where this person has one are read.
  */
 export async function countAssignedTriage(
   db: Database,
-  input: { userId: string; teamIds: readonly string[]; now: Date },
+  input: { userId: string; projectIds: readonly string[]; now: Date },
 ): Promise<number> {
-  if (input.teamIds.length === 0) return 0
+  if (input.projectIds.length === 0) return 0
   const rows = await db
-    .selectDistinct({ teamId: triageItems.teamId })
+    .selectDistinct({ projectId: triageItems.projectId })
     .from(triageItems)
     .where(
       and(
         eq(triageItems.assigneeId, input.userId),
         isNull(triageItems.dismissedAt),
-        inArray(triageItems.teamId, [...input.teamIds]),
+        inArray(triageItems.projectId, [...input.projectIds]),
       ),
     )
   const queues = await Promise.all(
-    rows.map((r) => listTriage(db, { teamId: r.teamId, now: input.now })),
+    rows.map((r) => listTriage(db, { projectId: r.projectId, now: input.now })),
   )
   return queues.reduce(
     (sum, q) => sum + q.items.filter((i) => !i.snoozed && i.assignee?.id === input.userId).length,
@@ -406,9 +406,9 @@ export async function countAssignedTriage(
 }
 
 /**
- * How many items wait in each team's queue of a workspace (not snoozed, not dismissed), in one
- * query: the sidebar needs every team's number and must not run a triage list per team. The
- * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each team; teams with
+ * How many items wait in each project's queue of a workspace (not snoozed, not dismissed), in one
+ * query: the sidebar needs every project's number and must not run a triage list per project. The
+ * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each project; projects with
  * nothing waiting are in the map with 0. The three kinds mirror `listTriage`: the flaky names
  * come from the same rule over the same bounded history (`flakyVerdictsFor`, not SQL, so the two
  * cannot disagree) and go into the query as data; the orphan and failed rules are the same, then
@@ -419,39 +419,39 @@ export async function countOpenTriage(
   db: Database,
   input: { workspaceId: string; now: Date },
 ): Promise<Map<string, number>> {
-  const workspaceTeams = await db
+  const workspaceProjects = await db
     .select({
-      id: teams.id,
-      defaultBranch: teams.defaultBranch,
-      flakyAfterChanges: teams.flakyAfterChanges,
+      id: projects.id,
+      defaultBranch: projects.defaultBranch,
+      flakyAfterChanges: projects.flakyAfterChanges,
     })
-    .from(teams)
-    .where(eq(teams.workspaceId, input.workspaceId))
-  const verdicts = await flakyVerdictsFor(db, workspaceTeams)
+    .from(projects)
+    .where(eq(projects.workspaceId, input.workspaceId))
+  const verdicts = await flakyVerdictsFor(db, workspaceProjects)
   const flakyKeys = JSON.stringify(
-    workspaceTeams.flatMap((t) =>
-      (verdicts.get(t.id)?.flaky ?? []).map((f) => ({ team_id: t.id, key: f.name })),
+    workspaceProjects.flatMap((t) =>
+      (verdicts.get(t.id)?.flaky ?? []).map((f) => ({ project_id: t.id, key: f.name })),
     ),
   )
   const result: unknown = await db.execute(sql`
-    with ws_teams as (
-      select id, default_branch, flaky_after_changes from teams where workspace_id = ${input.workspaceId}
+    with ws_projects as (
+      select id, default_branch, flaky_after_changes from projects where workspace_id = ${input.workspaceId}
     ),
     main_builds as (
-      select b.id, b.team_id, b.number, b.status, b.baseline_source, b.review_status, b.conclusion
-      from builds b join ws_teams t on t.id = b.team_id and b.branch = t.default_branch
+      select b.id, b.project_id, b.number, b.status, b.baseline_source, b.review_status, b.conclusion
+      from builds b join ws_projects t on t.id = b.project_id and b.branch = t.default_branch
     ),
     latest_push as (
-      select team_id, max(number) as n from main_builds group by team_id
+      select project_id, max(number) as n from main_builds group by project_id
     ),
     last_complete as (
-      select team_id, max(number) as n from main_builds where status = 'complete' group by team_id
+      select project_id, max(number) as n from main_builds where status = 'complete' group by project_id
     ),
     found as (
-      select (x->>'team_id')::uuid as team_id, 'flaky'::text as kind, x->>'key' as key
+      select (x->>'project_id')::uuid as project_id, 'flaky'::text as kind, x->>'key' as key
       from jsonb_array_elements(${flakyKeys}::jsonb) x
       union
-      select mb.team_id, 'no_baseline', d.name
+      select mb.project_id, 'no_baseline', d.name
       from screenshot_diffs d join main_builds mb on mb.id = d.build_id
       where mb.status = 'complete' and mb.baseline_source = 'none' and d.status = 'added'
         and not exists (
@@ -466,24 +466,24 @@ export async function countOpenTriage(
           where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null))
         and not exists (
           select 1 from screenshot_diffs ld join main_builds lb on lb.id = ld.build_id
-          where lb.team_id = mb.team_id and lb.status = 'complete'
+          where lb.project_id = mb.project_id and lb.status = 'complete'
             and lb.number > mb.number and ld.name = d.name)
       union
-      select mb.team_id, 'failed', 'build:' || mb.number
+      select mb.project_id, 'failed', 'build:' || mb.number
       from main_builds mb
       where mb.status = 'error'
-        and coalesce((select n from last_complete lc where lc.team_id = mb.team_id), 0) <= mb.number
+        and coalesce((select n from last_complete lc where lc.project_id = mb.project_id), 0) <= mb.number
     )
-    select t.id as team_id,
+    select t.id as project_id,
       (count(f.key) filter (where i.dismissed_at is null
         and not (i.snooze_kind is not null
           and case when i.snoozed_until is not null
                 then i.snoozed_until > ${input.now.toISOString()}::timestamptz
                 else coalesce(lp.n, 0) <= coalesce(i.snoozed_after_build, 0) end)))::int as open
-    from ws_teams t
-    left join found f on f.team_id = t.id
-    left join triage_items i on i.team_id = f.team_id and i.kind = f.kind and i.key = f.key
-    left join latest_push lp on lp.team_id = t.id
+    from ws_projects t
+    left join found f on f.project_id = t.id
+    left join triage_items i on i.project_id = f.project_id and i.kind = f.kind and i.key = f.key
+    left join latest_push lp on lp.project_id = t.id
     group by t.id
   `)
   const rows: unknown =
@@ -491,7 +491,7 @@ export async function countOpenTriage(
   if (!Array.isArray(rows)) return new Map()
   return new Map(
     rows.map((row: unknown) => [
-      String(Reflect.get(Object(row), 'team_id')),
+      String(Reflect.get(Object(row), 'project_id')),
       Number(Reflect.get(Object(row), 'open')),
     ]),
   )

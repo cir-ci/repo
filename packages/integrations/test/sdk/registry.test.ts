@@ -93,7 +93,7 @@ describe('the registry', () => {
       fields: [{ key: 'name', label: 'Name' }],
       resolve: async () => ({ ref: 'x' }),
     }
-    // `links` hang on a mapped team, and their subject is one of their fields.
+    // `links` hang on a mapped project, and their subject is one of their fields.
     expect(() => token({ links, mapping: undefined })).toThrow(/needs a `mapping`/)
     expect(() => token({ links: { ...links, subject: 'other' } })).toThrow(/not one of its fields/)
     // Automatic linking needs frames to match against.

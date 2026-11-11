@@ -1,9 +1,9 @@
 import { BUILD_ORDERS, type BuildOrder } from '@circi/core'
-import { createTestDb, seedBuild, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedBuild, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildsForTeam, listBuildsForWorkspace } from '#src/queries/index.ts'
-import { createTeam } from '#src/repositories/index.ts'
+import { listBuildsForProject, listBuildsForWorkspace } from '#src/queries/index.ts'
+import { createProject } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -41,11 +41,11 @@ interface Made extends Spec {
   created: Date
 }
 
-async function seed(teamId: string): Promise<Made[]> {
+async function seed(projectId: string): Promise<Made[]> {
   const made: Made[] = []
   for (const spec of SPECS) {
     // eslint-disable-next-line no-await-in-loop -- numbering is sequential
-    const build = await seedBuild(t.db, teamId, {
+    const build = await seedBuild(t.db, projectId, {
       createdAt: at(spec.at),
       status: spec.status ?? 'complete',
       ...(spec.status ? {} : { conclusion: spec.changes ? 'changes_detected' : 'no_changes' }),
@@ -83,14 +83,14 @@ function expected(order: BuildOrder, rows: Made[], tie: (m: Made) => (number | s
 const LIMIT = 3
 
 describe.each(BUILD_ORDERS)('builds ordered by %s', (order) => {
-  it("pages through a team's builds without repeats or gaps, across same-time ties", async () => {
-    const { team } = await seedTeam(t.db)
-    const made = await seed(team.id)
+  it("pages through a project's builds without repeats or gaps, across same-time ties", async () => {
+    const { project } = await seedProject(t.db)
+    const made = await seed(project.id)
     const ids: string[] = []
     let before: number | undefined
     for (let page = 0; page < 10; page += 1) {
       // eslint-disable-next-line no-await-in-loop -- each page needs the one before
-      const items = await listBuildsForTeam(t.db, team.id, {
+      const items = await listBuildsForProject(t.db, project.id, {
         limit: LIMIT,
         order,
         ...(before === undefined ? {} : { beforeNumber: before }),
@@ -102,10 +102,13 @@ describe.each(BUILD_ORDERS)('builds ordered by %s', (order) => {
     expect(ids).toEqual(expected(order, made, (m) => [m.number]))
   })
 
-  it("pages through a workspace's builds, across teams and same-time ties", async () => {
-    const seeded = await seedTeam(t.db)
-    const second = await createTeam(t.db, { workspaceSlug: seeded.workspace.slug, name: 'mobile' })
-    const made = [...(await seed(seeded.team.id)), ...(await seed(second.id))]
+  it("pages through a workspace's builds, across projects and same-time ties", async () => {
+    const seeded = await seedProject(t.db)
+    const second = await createProject(t.db, {
+      workspaceSlug: seeded.workspace.slug,
+      name: 'mobile',
+    })
+    const made = [...(await seed(seeded.project.id)), ...(await seed(second.id))]
     const ids: string[] = []
     let before: string | undefined
     for (let page = 0; page < 10; page += 1) {
@@ -128,10 +131,11 @@ describe.each(BUILD_ORDERS)('builds ordered by %s', (order) => {
 
 describe('builds order', () => {
   it('starts with the newest by default, and the first page differs per order', async () => {
-    const { team } = await seedTeam(t.db)
-    const made = await seed(team.id)
+    const { project } = await seedProject(t.db)
+    const made = await seed(project.id)
     const first = async (order?: BuildOrder) =>
-      (await listBuildsForTeam(t.db, team.id, { limit: 1, ...(order ? { order } : {}) }))[0]?.id
+      (await listBuildsForProject(t.db, project.id, { limit: 1, ...(order ? { order } : {}) }))[0]
+        ?.id
     const byNumber = (n: number) => made.find((m) => m.number === n)?.id
     expect(await first()).toBe(byNumber(8))
     expect(await first('oldest')).toBe(byNumber(1))
@@ -140,9 +144,9 @@ describe('builds order', () => {
   })
 
   it('keeps a number cursor that names no build working for newest and oldest', async () => {
-    const { team } = await seedTeam(t.db)
-    await seed(team.id)
-    const items = await listBuildsForTeam(t.db, team.id, { limit: 50, beforeNumber: 100 })
+    const { project } = await seedProject(t.db)
+    await seed(project.id)
+    const items = await listBuildsForProject(t.db, project.id, { limit: 50, beforeNumber: 100 })
     expect(items).toHaveLength(8)
   })
 })

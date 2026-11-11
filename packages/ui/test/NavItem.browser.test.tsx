@@ -62,17 +62,17 @@ describe('NavItem', () => {
     await render(
       <>
         <NavItem href="/a" icon={<svg />}>
-          Teams
+          Projects
         </NavItem>
         <NavItem href="/" more>
-          All teams (12)
+          All projects (12)
         </NavItem>
       </>,
     )
-    const more = page.getByRole('link', { name: 'All teams (12)' }).element()
+    const more = page.getByRole('link', { name: 'All projects (12)' }).element()
     const style = getComputedStyle(more)
     expect([style.height, style.fontSize, style.paddingLeft]).toEqual(['28px', '13px', '38px'])
-    expect(labelLeft('All teams')).toBe(labelLeft('Teams'))
+    expect(labelLeft('All projects')).toBe(labelLeft('Projects'))
   })
 
   it('is 28px tall, 13px text, a 16px icon and indented as a sub item', async () => {

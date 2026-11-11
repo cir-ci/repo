@@ -5,9 +5,9 @@ import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 describe('keys', () => {
   it('keeps the tuples the queries were always cached under', () => {
-    expect(keys.team('w', 't')).toEqual(['team', 'w', 't'])
-    expect(keys.team('w', 't', null, 'q', 'oldest')).toEqual([
-      'team',
+    expect(keys.project('w', 't')).toEqual(['project', 'w', 't'])
+    expect(keys.project('w', 't', null, 'q', 'oldest')).toEqual([
+      'project',
       'w',
       't',
       null,
@@ -16,9 +16,9 @@ describe('keys', () => {
     ])
     expect(keys.workspaceBuilds('w', 'b1')).toEqual(['workspace-builds', 'w', 'b1'])
     expect(keys.build('w', 't', 7)).toEqual(['build', 'w', 't', 7])
-    expect(keys.teamSettings('w', 't')).toEqual(['settings', 'w', 't'])
+    expect(keys.projectsettings('w', 't')).toEqual(['settings', 'w', 't'])
     expect(keys.rules('w', 't')).toEqual(['rules', 'w', 't'])
-    expect(keys.sites('w', 't')).toEqual(['team-sites', 'w', 't'])
+    expect(keys.sites('w', 't')).toEqual(['project-sites', 'w', 't'])
     expect(keys.integrations('w', 'links', 'i', 't')).toEqual([
       'integrations',
       'w',
@@ -44,9 +44,11 @@ describe('keys', () => {
 
   it('makes a prefix match the full key in the query client', () => {
     const queryClient = new QueryClient()
-    queryClient.setQueryData(keys.team('w', 't', null), 1)
-    queryClient.setQueryData(keys.team('w', 'other'), 2)
-    expect(queryClient.getQueryCache().findAll({ queryKey: keys.team('w', 't') })).toHaveLength(1)
+    queryClient.setQueryData(keys.project('w', 't', null), 1)
+    queryClient.setQueryData(keys.project('w', 'other'), 2)
+    expect(queryClient.getQueryCache().findAll({ queryKey: keys.project('w', 't') })).toHaveLength(
+      1,
+    )
   })
 })
 
@@ -54,9 +56,9 @@ describe('invalidateAll', () => {
   it('invalidates every key and resolves once all have', async () => {
     const queryClient = new QueryClient()
     const spy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue()
-    await invalidateAll(queryClient, keys.teams(), keys.sidebar('w'))
+    await invalidateAll(queryClient, keys.projects(), keys.sidebar('w'))
     expect(spy.mock.calls.map(([filters]) => filters)).toEqual([
-      { queryKey: ['teams'] },
+      { queryKey: ['projects'] },
       { queryKey: ['sidebar', 'w'] },
     ])
   })

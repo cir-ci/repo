@@ -35,7 +35,7 @@ import {
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { authClient } from '#lib/auth-client.ts'
-import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading, projectBuildsCrumb } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { copyLinkItem, copyText, menuEntries, openInNewTabItem, separator } from '#lib/row-menu.ts'
@@ -86,7 +86,7 @@ import styles from './BuildReview.module.css'
 export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {
   const railWidth = usePaneWidth('build-rail')
   const sideWidth = usePaneWidth('build-discussion')
-  const { build, baseline, team } = data
+  const { build, baseline, project } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate({ from: ROUTE })
@@ -111,7 +111,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
   // Flaky screenshots are set aside, but the page works without knowing them.
   const { data: flakyReport } = useQuery({
-    ...flakyQuery(team.workspaceSlug, team.slug),
+    ...flakyQuery(project.workspaceSlug, project.slug),
     enabled: !active,
   })
   const flaky = useMemo(() => new Set(flakyReport?.flaky.map((f) => f.name) ?? []), [flakyReport])
@@ -120,10 +120,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const fromUrl = search.shot ? ordered.find((d) => d.name === search.shot) : undefined
   const selected = fromUrl ?? defaultShot(groups)
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
-  const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
-  const setRegion = useSetCommentRegion(team.workspaceSlug, team.slug, build.number)
-  const ignore = useIgnoreMode(team.workspaceSlug, team.slug, selected)
-  const members = useMentionMembers(team.workspaceSlug, team.slug)
+  const addComment = useAddComment(project.workspaceSlug, project.slug, build.number)
+  const setRegion = useSetCommentRegion(project.workspaceSlug, project.slug, build.number)
+  const ignore = useIgnoreMode(project.workspaceSlug, project.slug, selected)
+  const members = useMentionMembers(project.workspaceSlug, project.slug)
   const { data: session } = authClient.useSession()
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
   if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
@@ -165,7 +165,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
     })),
   })
 
-  const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
+  const comments = useQuery(commentsQuery(project.workspaceSlug, project.slug, build.number))
   const threads = useMemo(() => threadCounts(comments.data?.comments ?? []), [comments.data])
   const threadCount = (name: string) => threads.get(name) ?? 0
   const pinned = selected ? regionThreads(comments.data?.comments ?? [], selected.name) : []
@@ -262,7 +262,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       d.base !== null && separator,
       d.base !== null && {
         label: 'View baseline',
-        onSelect: () => void router.navigate(baselineLink(team.workspaceSlug, team.slug, d.name)),
+        onSelect: () =>
+          void router.navigate(baselineLink(project.workspaceSlug, project.slug, d.name)),
       },
     ])
   }
@@ -353,10 +354,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       <PageHeading
         crumbs={crumbsFor(
           {
-            workspace: { slug: team.workspaceSlug, name: team.workspaceName },
-            team: { slug: team.slug, name: team.name },
+            workspace: { slug: project.workspaceSlug, name: project.workspaceName },
+            project: { slug: project.slug, name: project.name },
           },
-          [teamBuildsCrumb(team.workspaceSlug, team.slug)],
+          [projectBuildsCrumb(project.workspaceSlug, project.slug)],
         )}
         title={buildTitle(build.number, build.name)}
         actions={
@@ -374,17 +375,17 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               <ReviewTarget target={data.reviewTarget} />
               <IssueAction data={data} snapshotName={selected?.name ?? null} />
               <RequestedReviewers
-                workspace={team.workspaceSlug}
-                team={team.slug}
+                workspace={project.workspaceSlug}
+                project={project.slug}
                 number={build.number}
               />
               <RequestReviewPicker
                 open={requesting}
                 onOpenChange={setRequesting}
                 trigger={<Button variant="ghost">Request review</Button>}
-                workspace={team.workspaceSlug}
-                team={team.slug}
-                teamName={team.name}
+                workspace={project.workspaceSlug}
+                project={project.slug}
+                projectName={project.name}
                 number={build.number}
               />
               {isReviewable(build) ? (
@@ -417,7 +418,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
       {build.status === 'expired' ? (
         <EmptyState icon={<HourglassIcon />} title="This build has expired">
-          Its screenshots were deleted under the team's retention policy.
+          Its screenshots were deleted under the project's retention policy.
         </EmptyState>
       ) : ordered.length === 0 ? (
         active ? null : (
@@ -454,8 +455,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               {...(ignore ? { ignore } : {})}
               issues={
                 <SnapshotIssues
-                  workspace={team.workspaceSlug}
-                  team={team.slug}
+                  workspace={project.workspaceSlug}
+                  project={project.slug}
                   number={build.number}
                   snapshotName={selected.name}
                 />
@@ -589,9 +590,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             open={requesting}
             onOpenChange={setRequesting}
             trigger={<MoreAction icon={<UserPlusIcon />}>Request review</MoreAction>}
-            workspace={team.workspaceSlug}
-            team={team.slug}
-            teamName={team.name}
+            workspace={project.workspaceSlug}
+            project={project.slug}
+            projectName={project.name}
             number={build.number}
           />
           <MoreAction

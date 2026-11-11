@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
-import { integrationTeams, integrations, teams } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { integrationProjects, integrations, projects } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** A workspace's integrations, as read models and the repository both need them. */
@@ -9,7 +9,7 @@ import type { Database } from '#src/client.ts'
 export namespace WorkspaceIntegration {
   export type Record = typeof integrations.$inferSelect
 
-  export type Team = typeof integrationTeams.$inferSelect
+  export type Project = typeof integrationProjects.$inferSelect
 
   export interface Row {
     id: string
@@ -18,11 +18,11 @@ export namespace WorkspaceIntegration {
     needsAttention: boolean
     needsAttentionReason: string | null
     createdAt: Date
-    teamCount: number
+    projectCount: number
   }
 }
 
-/** The workspace's integrations, oldest first, with how many teams use each. */
+/** The workspace's integrations, oldest first, with how many projects use each. */
 export async function listIntegrations(
   db: Database,
   workspaceId: string,
@@ -35,10 +35,10 @@ export async function listIntegrations(
       needsAttention: integrations.needsAttention,
       needsAttentionReason: integrations.needsAttentionReason,
       createdAt: integrations.createdAt,
-      teamCount: sql<number>`count(${integrationTeams.id})::int`,
+      projectCount: sql<number>`count(${integrationProjects.id})::int`,
     })
     .from(integrations)
-    .leftJoin(integrationTeams, eq(integrationTeams.integrationId, integrations.id))
+    .leftJoin(integrationProjects, eq(integrationProjects.integrationId, integrations.id))
     .where(eq(integrations.workspaceId, workspaceId))
     .groupBy(integrations.id)
     .orderBy(asc(integrations.createdAt), asc(integrations.id))
@@ -57,42 +57,45 @@ export async function getIntegration(
   return row
 }
 
-export namespace listWorkspaceTeamMappings {
+export namespace listWorkspaceProjectMappings {
   export interface Row {
     slug: string
     name: string
-    /** The team's mapping on the integration; null when it has none. */
+    /** The project's mapping on the integration; null when it has none. */
     mapping: { externalRef: string; extra: Record<string, unknown> } | null
   }
 }
 
-/** Every team of the workspace with its mapping (if any) on one integration, by team name. */
-export async function listWorkspaceTeamMappings(
+/** Every project of the workspace with its mapping (if any) on one integration, by project name. */
+export async function listWorkspaceProjectMappings(
   db: Database,
   workspaceId: string,
   integrationId: string,
-  /** Lists only the teams this person may see. */
+  /** Lists only the projects this person may see. */
   viewerId?: string,
-): Promise<listWorkspaceTeamMappings.Row[]> {
+): Promise<listWorkspaceProjectMappings.Row[]> {
   const rows = await db
     .select({
-      slug: teams.slug,
-      name: teams.name,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
+      slug: projects.slug,
+      name: projects.name,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
     })
-    .from(teams)
+    .from(projects)
     .leftJoin(
-      integrationTeams,
-      and(eq(integrationTeams.teamId, teams.id), eq(integrationTeams.integrationId, integrationId)),
+      integrationProjects,
+      and(
+        eq(integrationProjects.projectId, projects.id),
+        eq(integrationProjects.integrationId, integrationId),
+      ),
     )
     .where(
       and(
-        eq(teams.workspaceId, workspaceId),
-        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+        eq(projects.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : projectVisibleTo(viewerId, projects),
       ),
     )
-    .orderBy(asc(teams.name), asc(teams.slug))
+    .orderBy(asc(projects.name), asc(projects.slug))
   return rows.map((r) => ({
     slug: r.slug,
     name: r.name,
@@ -100,8 +103,8 @@ export async function listWorkspaceTeamMappings(
   }))
 }
 
-export namespace listTeamIntegrations {
-  /** An integration a team is mapped to, with the mapping. */
+export namespace listProjectIntegrations {
+  /** An integration a project is mapped to, with the mapping. */
   export interface Row {
     integrationId: string
     kind: string
@@ -113,24 +116,26 @@ export namespace listTeamIntegrations {
   }
 }
 
-/** The integrations of the given kinds a team is mapped to, oldest first. */
-export async function listTeamIntegrations(
+/** The integrations of the given kinds a project is mapped to, oldest first. */
+export async function listProjectIntegrations(
   db: Database,
-  teamId: string,
+  projectId: string,
   kinds: readonly string[],
-): Promise<listTeamIntegrations.Row[]> {
+): Promise<listProjectIntegrations.Row[]> {
   if (kinds.length === 0) return []
   return db
     .select({
       integrationId: integrations.id,
       kind: integrations.kind,
       displayName: integrations.displayName,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
       needsAttention: integrations.needsAttention,
     })
-    .from(integrationTeams)
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
-    .where(and(eq(integrationTeams.teamId, teamId), inArray(integrations.kind, [...kinds])))
+    .from(integrationProjects)
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
+    .where(
+      and(eq(integrationProjects.projectId, projectId), inArray(integrations.kind, [...kinds])),
+    )
     .orderBy(asc(integrations.createdAt), asc(integrations.id))
 }

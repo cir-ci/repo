@@ -2,7 +2,7 @@ import type { Insights } from '@circi/api'
 import { Avatar, SortableHeader, StatusIcon, type Status, Toggle } from '@circi/ui'
 import { type ReactNode, useId, useState } from 'react'
 
-import { isTeamColor } from '#features/teams/appearance.ts'
+import { isProjectColor } from '#features/projects/appearance.ts'
 import { type Accessors, cellValue } from '#lib/sort.ts'
 
 import { useSortedTable } from './sort.tsx'
@@ -182,15 +182,15 @@ export function Pill(props: { tone: 'good' | 'bad' | 'neutral'; text: string; la
   )
 }
 
-/** The team's avatar, as everywhere else in the app. */
-export function TeamChip({ team }: { team: Insights.TeamRef }) {
-  return isTeamColor(team.colour) ? (
+/** The project's avatar, as everywhere else in the app. */
+export function ProjectChip({ project }: { project: Insights.ProjectRef }) {
+  return isProjectColor(project.colour) ? (
     <Avatar
-      type="team"
-      slug={team.slug}
-      name={team.name}
-      color={team.colour}
-      icon={team.icon}
+      type="project"
+      slug={project.slug}
+      name={project.name}
+      color={project.colour}
+      icon={project.icon}
       size={20}
     />
   ) : null

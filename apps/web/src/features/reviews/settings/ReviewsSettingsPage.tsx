@@ -1,11 +1,11 @@
-import type { ReviewRule, Team } from '@circi/api'
+import type { ReviewRule, Project } from '@circi/api'
 import { Button, PlusIcon } from '@circi/ui'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
-import { teamMembersQuery } from '#features/teams/api/members.ts'
+import { ProjectsettingsFrame } from '#features/project-settings/ProjectsettingsFrame.tsx'
+import { projectMembersQuery } from '#features/projects/api/members.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
@@ -13,17 +13,17 @@ import { rulesQuery } from './api.ts'
 import { ReviewsForm } from './ReviewsForm.tsx'
 import { RulesSection } from './RulesSection.tsx'
 
-/** Team › Settings › Reviews and triage: who reviews what, how fast, and the triage rotation. */
+/** Project › Settings › Reviews and triage: who reviews what, how fast, and the triage rotation. */
 export function ReviewsSettingsPage() {
-  const { workspace, team } = useParams({ from: '/$workspace/$team/settings/reviews' })
-  const rules = useQuery(rulesQuery(workspace, team))
+  const { workspace, project } = useParams({ from: '/$workspace/$project/settings/reviews' })
+  const rules = useQuery(rulesQuery(workspace, project))
   // The header's "Add rule" asks the rules list to open its dialog. The page has its own Save bar, so
   // this button is not a second primary.
   const [addRequests, setAddRequests] = useState(0)
   return (
-    <TeamSettingsFrame
+    <ProjectsettingsFrame
       workspace={workspace}
-      team={team}
+      project={project}
       page="Reviews and triage"
       actions={
         rules.data?.canManage ? (
@@ -36,20 +36,20 @@ export function ReviewsSettingsPage() {
       {(settings) => (
         <Reviews
           workspace={workspace}
-          team={team}
+          project={project}
           settings={settings}
           rules={rules}
           addRequests={addRequests}
         />
       )}
-    </TeamSettingsFrame>
+    </ProjectsettingsFrame>
   )
 }
 
-function Reviews({ workspace, team, settings, rules, addRequests }: Reviews.Props) {
-  // Rules, targets and the triage rotation draw their people from the team's members.
-  const teamMembers = useQuery(teamMembersQuery(workspace, team))
-  const people = (teamMembers.data?.members ?? []).map((m) => ({
+function Reviews({ workspace, project, settings, rules, addRequests }: Reviews.Props) {
+  // Rules, targets and the triage rotation draw their people from the project's members.
+  const projectMembers = useQuery(projectMembersQuery(workspace, project))
+  const people = (projectMembers.data?.members ?? []).map((m) => ({
     id: m.id,
     name: m.name,
     image: m.image,
@@ -63,8 +63,8 @@ function Reviews({ workspace, team, settings, rules, addRequests }: Reviews.Prop
     <>
       <RulesSection
         workspace={workspace}
-        team={team}
-        teamName={settings.settings.name}
+        project={project}
+        projectName={settings.settings.name}
         rules={data.rules}
         rotation={data.rotation}
         people={people}
@@ -73,7 +73,7 @@ function Reviews({ workspace, team, settings, rules, addRequests }: Reviews.Prop
       />
       <ReviewsForm
         workspace={workspace}
-        team={team}
+        project={project}
         settings={settings.settings}
         workspaceAssignOnCall={settings.workspace.assignTriageToOnCall}
         rotation={data.rotation}
@@ -87,8 +87,8 @@ function Reviews({ workspace, team, settings, rules, addRequests }: Reviews.Prop
 namespace Reviews {
   export interface Props {
     workspace: string
-    team: string
-    settings: Team.SettingsResponse
+    project: string
+    settings: Project.SettingsResponse
     rules: UseQueryResult<ReviewRule.Settings>
     addRequests: number
   }

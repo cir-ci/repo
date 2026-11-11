@@ -1,31 +1,36 @@
 import { useParams } from '@tanstack/react-router'
 
 import { BaselineBody } from '#features/baselines/BaselinePage.tsx'
-import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
+import { ProjectsettingsFrame } from '#features/project-settings/ProjectsettingsFrame.tsx'
 
 import { BASELINE_ROUTE } from './routes.ts'
 
 /**
- * Team settings, Ignore regions, one screenshot: the baseline page's body in the settings frame,
+ * Project settings, Ignore regions, one screenshot: the baseline page's body in the settings frame,
  * so the overview never leads out of settings.
  */
 export function IgnoreRegionBaselinePage() {
-  const { workspace, team, _splat } = useParams({
+  const { workspace, project, _splat } = useParams({
     from: BASELINE_ROUTE,
   })
   return (
-    <TeamSettingsFrame
+    <ProjectsettingsFrame
       workspace={workspace}
-      team={team}
+      project={project}
       page="Ignore regions"
       width="wide"
       managersOnly={false}
       back={{
         label: 'Ignore regions',
-        link: { to: '/$workspace/$team/settings/ignore-regions', params: { workspace, team } },
+        link: {
+          to: '/$workspace/$project/settings/ignore-regions',
+          params: { workspace, project },
+        },
       }}
     >
-      {() => <BaselineBody workspace={workspace} team={team} name={_splat ?? ''} inSettings />}
-    </TeamSettingsFrame>
+      {() => (
+        <BaselineBody workspace={workspace} project={project} name={_splat ?? ''} inSettings />
+      )}
+    </ProjectsettingsFrame>
   )
 }

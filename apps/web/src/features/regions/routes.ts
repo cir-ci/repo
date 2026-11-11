@@ -12,15 +12,15 @@ import { ignoreRegionLink } from './links.ts'
  */
 const ignoreRegionsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$workspace/$team/settings/ignore-regions',
+  path: '$workspace/$project/settings/ignore-regions',
   component: Outlet,
 })
 
-export const OVERVIEW_ROUTE = '/$workspace/$team/settings/ignore-regions/'
-export const BASELINE_ROUTE = '/$workspace/$team/settings/ignore-regions/$'
+export const OVERVIEW_ROUTE = '/$workspace/$project/settings/ignore-regions/'
+export const BASELINE_ROUTE = '/$workspace/$project/settings/ignore-regions/$'
 
 /**
- * The team settings overview of ignore regions. Old links carry `?name=<screenshot>` (they used
+ * The project settings overview of ignore regions. Old links carry `?name=<screenshot>` (they used
  * to open the editor): they go on to that screenshot's page inside settings, where the regions are.
  */
 const overviewRoute = createRoute({
@@ -30,7 +30,7 @@ const overviewRoute = createRoute({
   beforeLoad: ({ params, search }) => {
     if (search.name) {
       throw redirect({
-        ...ignoreRegionLink(params.workspace, params.team, search.name),
+        ...ignoreRegionLink(params.workspace, params.project, search.name),
         replace: true,
       })
     }

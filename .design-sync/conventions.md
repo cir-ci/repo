@@ -12,7 +12,7 @@ const { CirciTheme, AppFrame, NavItem, PanelHeader, ListRow, StatusIcon, StatusC
 <CirciTheme>
   <AppFrame
     sidebar={<>
-      <NavItem href="#" selected>Teams</NavItem>
+      <NavItem href="#" selected>Projects</NavItem>
       <NavItem href="#">Members</NavItem>
     </>}
   >
@@ -31,7 +31,7 @@ There are no CSS classes to use: components are styled in JS. Build your own lay
 - Accent: `tokens.accent.main` (the logo-derived clay), `tokens.accent.text` for accent-coloured text, `tokens.accent.onAccent` for text on an accent fill, `tokens.accent.subtle` behind a selected row.
 - State: `tokens.state.approved` (teal), `review` (amber), `processing` (periwinkle), `failed` (crimson: a build or screenshot that broke, and errors) and `rejected` (rose: a person's decision). Pending added, removed and flaky have their own glyphs (ring with plus, minus, tilde; amber). `reviewText` is the amber for words (darker in light). Use them only for state, never decoration.
 - Lines: `tokens.line.subtle` for dividers, `strong` for control edges. Use hairlines, not shadows.
-- Identity marks: one `Avatar`, a `type` of `user`, `team` or `workspace`, and exactly the props that type needs (none optional; null where the data can be absent). `type="user"` (`id`, `name`, `image`) is a round generated face, or the person's picture. `type="workspace"` (`slug`, `name`, `picture`; 16, 20 or 24px) is a rounded square holding a generated pattern in the brand's tones, or the workspace's picture. `type="team"` (`slug`, `name`, `color`, `icon`; 16, 20, 24 or 40px) is a rounded square holding a generated marble in five shades of one of the team colours (`slate`, `olive`, `plum`, `moss`, `mauve`, `graphite`: `tokens.team.*`), with the team's Lucide icon on top in `var(--circi-tile-text)` when it has one. Drawings come from the ID or slug, never the name, so renaming changes nothing. A team mark tells teams apart and never means a state: do not use `state.*` colours for a team, and pick the colour by the team, not by its health. Every `Avatar` is an image named by `name`.
+- Identity marks: one `Avatar`, a `type` of `user`, `project` or `workspace`, and exactly the props that type needs (none optional; null where the data can be absent). `type="user"` (`id`, `name`, `image`) is a round generated face, or the person's picture. `type="workspace"` (`slug`, `name`, `picture`; 16, 20 or 24px) is a rounded square holding a generated pattern in the brand's tones, or the workspace's picture. `type="project"` (`slug`, `name`, `color`, `icon`; 16, 20, 24 or 40px) is a rounded square holding a generated marble in five shades of one of the project colours (`slate`, `olive`, `plum`, `moss`, `mauve`, `graphite`: `tokens.project.*`), with the project's Lucide icon on top in `var(--circi-tile-text)` when it has one. Drawings come from the ID or slug, never the name, so renaming changes nothing. A project mark tells projects apart and never means a state: do not use `state.*` colours for a project, and pick the colour by the project, not by its health. Every `Avatar` is an image named by `name`.
 - Badge text colours: a `Badge` is neutral (`text.primary`), accent (`accent.text`) or state (`tone="state"` with `state` naming one). A state badge has a 14% tint of the state colour behind it and its words use the state's *text* colour (`approved-text`, `review-text`, `failed-text`, `rejected-text`; processing uses its glyph colour), which is darker than the glyph in light so it reads as words. Always `count` (pill, numbers) or `tag` (radius 4, words); never colour a badge by hand.
 - Brand: `tokens.brand.maroon`, `blush`, `rosewood`, `salmon`, `terracotta` (the logo's tones).
 - Fonts: Inter at 13px for UI; `window.CirciUI.monoFont` for branch names, commit SHAs and anything copyable.
@@ -40,7 +40,7 @@ State is always shown with `StatusIcon` or `StatusChip` (shape plus colour), wit
 
 ## Layout
 
-`AppFrame` puts a dim sidebar beside one lifted content panel; the panel starts with `PanelHeader` (44px: breadcrumb left, actions right). The current breadcrumb is the page's `<h1>` (`Breadcrumbs currentIsHeading`); a page with no breadcrumb has a visually hidden `<h1>`. Words: Team and Workspace, never project or organisation. Lists are `ListRow`s (44px, hairline between). Switch views of one thing with `SegmentedControl`; show shortcut hints with `Kbd`. Dense, left-aligned, no cards-in-cards.
+`AppFrame` puts a dim sidebar beside one lifted content panel; the panel starts with `PanelHeader` (44px: breadcrumb left, actions right). The current breadcrumb is the page's `<h1>` (`Breadcrumbs currentIsHeading`); a page with no breadcrumb has a visually hidden `<h1>`. Words: Project and Workspace, never project or organisation. Lists are `ListRow`s (44px, hairline between). Switch views of one thing with `SegmentedControl`; show shortcut hints with `Kbd`. Dense, left-aligned, no cards-in-cards.
 
 ## Where to look
 

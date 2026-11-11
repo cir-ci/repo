@@ -3,7 +3,7 @@ import {
   createTestDb,
   seedBuild,
   seedNotification,
-  seedTeam,
+  seedProject,
   seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
@@ -24,18 +24,18 @@ const later = new Date('2026-03-11T09:00:00.000Z')
 const before = new Date('2026-03-09T09:00:00.000Z')
 
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const teammate = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
-  const build = await seedBuild(t.db, team.id, { branch: 'feature/x', prNumber: 7 })
-  return { team, workspace, owner, teammate, build }
+  const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
+  return { project, workspace, owner, teammate, build }
 }
 const tab = (userId: string, name: 'for-you' | 'everything' | 'snoozed') =>
   listInbox(t.db, { userId, tab: name, now })
 
 describe('listInbox', () => {
-  it('shows a notification with its build, team and actor, newest first', async () => {
-    const { team, workspace, owner, teammate, build } = await setup()
+  it('shows a notification with its build, project and actor, newest first', async () => {
+    const { project, workspace, owner, teammate, build } = await setup()
     await seedNotification(t.db, { userId: owner.id, createdAt: before })
     const newer = await seedNotification(t.db, {
       userId: owner.id,
@@ -53,7 +53,7 @@ describe('listInbox', () => {
       payload: { reason: 'clipped' },
       actor: { id: teammate.id, name: teammate.name },
       build: { number: build.number, branch: 'feature/x', prNumber: 7 },
-      team: { slug: team.slug },
+      project: { slug: project.slug },
       workspace: { slug: workspace.slug },
       alsoInReviews: false,
     })
@@ -71,7 +71,7 @@ describe('listInbox', () => {
     expect((await tab(owner.id, 'for-you')).items[0]?.alsoInReviews).toBe(true)
   })
 
-  it('keeps team-wide notices to Everything', async () => {
+  it('keeps project-wide notices to Everything', async () => {
     const { owner } = await setup()
     await seedNotification(t.db, { userId: owner.id, kind: 'flaky_detected' })
     expect((await tab(owner.id, 'for-you')).items).toEqual([])
@@ -105,7 +105,7 @@ describe('listInbox', () => {
   })
 
   it('shows a person only their own, and nothing from a workspace they left', async () => {
-    const { team, owner, teammate, build } = await setup()
+    const { project, owner, teammate, build } = await setup()
     await seedNotification(t.db, { userId: teammate.id })
     expect((await tab(owner.id, 'everything')).items).toEqual([])
 
@@ -115,6 +115,6 @@ describe('listInbox', () => {
     // Not a member of the build's workspace: the build-bound one is hidden.
     const seen = (await tab(outsider.id, 'everything')).items
     expect(seen.map((i) => i.kind)).toEqual(['flaky_detected'])
-    expect(team.id).toBeDefined()
+    expect(project.id).toBeDefined()
   })
 })

@@ -40,12 +40,12 @@ import { emptyWeek, fullReport, summary, week } from './fixtures.ts'
 describe('insights search', () => {
   it('defaults to 30 days and drops junk', () => {
     expect(validateInsightsSearch({})).toEqual({ range: 30 })
-    expect(validateInsightsSearch({ range: '7', team: 'web' })).toEqual({
+    expect(validateInsightsSearch({ range: '7', project: 'web' })).toEqual({
       range: 7,
-      team: 'web',
+      project: 'web',
     })
     expect(validateInsightsSearch({ range: 90 })).toEqual({ range: 90 })
-    expect(validateInsightsSearch({ range: '12', team: 3 })).toEqual({ range: 30 })
+    expect(validateInsightsSearch({ range: '12', project: 3 })).toEqual({ range: 30 })
   })
 
   it('bounds the range at the end of the current hour, so what just happened is counted', () => {
@@ -236,7 +236,7 @@ describe('chart data', () => {
     )
   })
 
-  it('sorts storage by size, with team colours', () => {
+  it('sorts storage by size, with project colours', () => {
     const bars = storageBars(fullReport().storage)
     expect(bars.map((b) => [b.slug, b.colour, b.share])).toEqual([
       ['web', 'slate', 1],
@@ -288,7 +288,7 @@ describe('summary tiles', () => {
     expect(none).toMatchObject({ value: '–', note: 'No reviews in the last 7 days' })
   })
 
-  it('shows the hit rate only when some team has a target', () => {
+  it('shows the hit rate only when some project has a target', () => {
     const noTarget = fullReport({
       reviewTargetHours: null,
       summary: summary({ reviewedWithTarget: 0, reviewedOverTarget: 0 }),

@@ -39,7 +39,7 @@ export async function deliverWebhook(
     test?: boolean
     data?: {
       workspace: { slug: string }
-      team: { slug: string }
+      project: { slug: string }
       build?: { number: number }
     }
   }
@@ -83,7 +83,7 @@ export async function deliverWebhook(
   const link =
     deps.publicOrigin && data.build
       ? {
-          url: `${deps.publicOrigin}/${data.workspace.slug}/${data.team.slug}/builds/${data.build.number}`,
+          url: `${deps.publicOrigin}/${data.workspace.slug}/${data.project.slug}/builds/${data.build.number}`,
         }
       : {}
   const body = JSON.stringify({

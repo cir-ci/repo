@@ -72,7 +72,8 @@ export function useDeleteWorkspace(workspace: string) {
     mutationFn: (confirm: string) =>
       send<Workspace.Deleted>('DELETE', workspacePath(workspace), { confirm }),
     // The workspace leaves the sidebar, the switcher and the capabilities at once.
-    onSuccess: () => invalidateAll(queryClient, keys.teams(), keys.sidebar(), keys.capabilities()),
+    onSuccess: () =>
+      invalidateAll(queryClient, keys.projects(), keys.sidebar(), keys.capabilities()),
   })
 }
 
@@ -130,9 +131,11 @@ export function kindRows(storage: Pick<Storage.Usage, 'kinds' | 'totalBytes'>) {
   })
 }
 
-/** The teams by size, biggest first, each with its share of the biggest (so the largest bar is full). */
-export function teamRows(storage: Pick<Storage.Usage, 'teams'>) {
-  const sorted = storage.teams.toSorted((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name))
+/** The projects by size, biggest first, each with its share of the biggest (so the largest bar is full). */
+export function projectRows(storage: Pick<Storage.Usage, 'projects'>) {
+  const sorted = storage.projects.toSorted(
+    (a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name),
+  )
   const biggest = sorted[0]?.bytes ?? 0
   return sorted.map((t) => Object.assign({}, t, { share: biggest > 0 ? t.bytes / biggest : 0 }))
 }

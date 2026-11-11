@@ -2,7 +2,7 @@ import { createRoute, lazyRouteComponent, redirect } from '@tanstack/react-route
 
 import { rootRoute } from '#app/root-route.ts'
 
-// Four segments under `workspaces`, so it can't collide with `$workspace/$team/…` pages.
+// Four segments under `workspaces`, so it can't collide with `$workspace/$project/…` pages.
 const membersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'workspaces/$workspace/settings/members',

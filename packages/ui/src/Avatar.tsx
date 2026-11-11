@@ -5,35 +5,35 @@ import { lazy, Suspense, type CSSProperties, type ReactNode } from 'react'
 import {
   instancePalette,
   peoplePalette,
-  teamPalette,
+  projectPalette,
   useAvatarScheme,
   workspacePalette,
 } from './avatar-palettes.ts'
 import { cx } from './cx.ts'
-import type { TeamColor } from './team-icons.ts'
+import type { ProjectColor } from './project-icons.ts'
 
 import styles from './Avatar.module.css'
 
-/** Icon size per team avatar size. */
-const TEAM_ICON_SIZE = { 16: 12, 18: 13, 20: 14, 24: 16, 40: 24 } as const
+/** Icon size per project avatar size. */
+const PROJECT_ICON_SIZE = { 16: 12, 18: 13, 20: 14, 24: 16, 40: 24 } as const
 
-// Loaded on demand, so the app's first script carries none of Lucide's icon map (see TeamGlyph).
-const TeamGlyph = lazy(() => import('./TeamGlyph.tsx'))
+// Loaded on demand, so the app's first script carries none of Lucide's icon map (see ProjectGlyph).
+const ProjectGlyph = lazy(() => import('./ProjectGlyph.tsx'))
 
 /**
- * The identity mark of a user, a team or a workspace, on Base UI's `Avatar`. `type` says which, and
+ * The identity mark of a user, a project or a workspace, on Base UI's `Avatar`. `type` says which, and
  * each type takes exactly what it is drawn from. Every drawing comes from the ID or slug, so
  * renaming never changes it; an uploaded picture (a user's `image`, a workspace's `picture`) wins
  * while it loads. The element is an image named by `name`.
  *
  * - `user`: a round "beam" face.
- * - `team`: a rounded square holding a "marble" in shades of the team's `color`, with its icon on top.
+ * - `project`: a rounded square holding a "marble" in shades of the project's `color`, with its icon on top.
  * - `workspace`: a rounded square holding a "bauhaus" pattern in the brand's tones.
  * - `instance`: a round "ring" in cool slate and graphite, drawn from the instance's address.
  */
 export function Avatar(props: Avatar.Props) {
   if (props.type === 'user') return <UserAvatar {...props} />
-  if (props.type === 'team') return <TeamAvatar {...props} />
+  if (props.type === 'project') return <ProjectAvatar {...props} />
   if (props.type === 'instance') return <InstanceAvatar {...props} />
   return <WorkspaceAvatar {...props} />
 }
@@ -56,14 +56,14 @@ function UserAvatar({ type, id, name, image, size = 24, ...rest }: Avatar.UserPr
   )
 }
 
-function TeamAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avatar.TeamProps) {
+function ProjectAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avatar.ProjectProps) {
   const { scheme, ref } = useAvatarScheme()
   return (
     <Frame type={type} name={name} size={size} picture={null} fallbackRef={ref} {...rest}>
       <BoringAvatar
         variant="marble"
         name={slug}
-        colors={teamPalette(color, scheme)}
+        colors={projectPalette(color, scheme)}
         square
         size="100%"
         aria-hidden="true"
@@ -75,10 +75,10 @@ function TeamAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avata
         // The box is reserved while the icon loads, so nothing shifts when it arrives.
         <span
           className={styles.icon}
-          style={{ width: TEAM_ICON_SIZE[size], height: TEAM_ICON_SIZE[size] }}
+          style={{ width: PROJECT_ICON_SIZE[size], height: PROJECT_ICON_SIZE[size] }}
         >
           <Suspense fallback={null}>
-            <TeamGlyph name={icon} size={TEAM_ICON_SIZE[size]} />
+            <ProjectGlyph name={icon} size={PROJECT_ICON_SIZE[size]} />
           </Suspense>
         </span>
       ) : null}
@@ -163,7 +163,7 @@ export namespace Avatar {
     BaseAvatar.Root.Props,
     'children' | 'className' | 'style' | 'render' | 'id'
   > {
-    /** The accessible name: the user's, team's or workspace's name. */
+    /** The accessible name: the user's, project's or workspace's name. */
     name: string
     className?: string
     style?: CSSProperties
@@ -179,14 +179,14 @@ export namespace Avatar {
     size?: number
   }
 
-  export interface TeamProps extends Base {
-    type: 'team'
-    /** The team's slug: what the marble is drawn from. */
+  export interface ProjectProps extends Base {
+    type: 'project'
+    /** The project's slug: what the marble is drawn from. */
     slug: string
-    color: TeamColor
-    /** The team's icon name (any Lucide icon name), drawn on the marble, loaded on demand; null: none. */
+    color: ProjectColor
+    /** The project's icon name (any Lucide icon name), drawn on the marble, loaded on demand; null: none. */
     icon: string | null
-    /** 18 in the sidebar, 16 in compact lists, 20 in menus, 24 in the settings header, 40 on the team page. */
+    /** 18 in the sidebar, 16 in compact lists, 20 in menus, 24 in the settings header, 40 on the project page. */
     size?: 16 | 18 | 20 | 24 | 40
   }
 
@@ -206,5 +206,5 @@ export namespace Avatar {
     size?: 16 | 18 | 20 | 24 | 28 | 40 | 48
   }
 
-  export type Props = UserProps | TeamProps | WorkspaceProps | InstanceProps
+  export type Props = UserProps | ProjectProps | WorkspaceProps | InstanceProps
 }

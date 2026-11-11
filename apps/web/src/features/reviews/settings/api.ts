@@ -1,10 +1,10 @@
-import type { ReviewRule, ReviewRuleKind, Team, Triage } from '@circi/api'
+import type { ReviewRule, ReviewRuleKind, Project, Triage } from '@circi/api'
 import { MAX_FLAKY_FLIP_FLOPS, MIN_FLAKY_FLIP_FLOPS, reviewDueAt } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { choiceOf, type FlakyChoice, valueOf } from '#features/team-settings/flaky-setting.ts'
-import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
-import { teamPath } from '#lib/api-paths.ts'
+import { choiceOf, type FlakyChoice, valueOf } from '#features/project-settings/flaky-setting.ts'
+import { REVIEW_TARGET_HOURS_MAX } from '#features/project-settings/settings-patch.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
@@ -24,7 +24,7 @@ export const isRuleKind = (value: string): value is ReviewRuleKind =>
 export const kindLabel = (kind: ReviewRuleKind) =>
   RULE_KINDS.find((k) => k.value === kind)?.label ?? kind
 
-/** A team member, as the pickers and avatars need them. */
+/** A project member, as the pickers and avatars need them. */
 export interface Person {
   id: string
   name: string
@@ -114,17 +114,17 @@ export function reviewerNames(rule: Pick<ReviewRule.Item, 'reviewers'>): string 
   return `${names.slice(0, 2).join(', ')} and ${others} other${others === 1 ? '' : 's'}`
 }
 
-export const rulesQuery = (workspace: string, team: string) =>
+export const rulesQuery = (workspace: string, project: string) =>
   queryOptions({
-    queryKey: keys.rules(workspace, team),
-    queryFn: () => getJson<ReviewRule.Settings>(teamPath(workspace, team, 'rules')),
+    queryKey: keys.rules(workspace, project),
+    queryFn: () => getJson<ReviewRule.Settings>(projectPath(workspace, project, 'rules')),
   })
 
-export function useRuleActions(workspace: string, team: string) {
+export function useRuleActions(workspace: string, project: string) {
   const queryClient = useQueryClient()
-  const base = (...rest: string[]) => teamPath(workspace, team, ...rest)
+  const base = (...rest: string[]) => projectPath(workspace, project, ...rest)
   const refresh = () =>
-    invalidateAll(queryClient, keys.rules(workspace, team), keys.triage(workspace, team))
+    invalidateAll(queryClient, keys.rules(workspace, project), keys.triage(workspace, project))
   return {
     create: useMutation({
       meta: { what: 'add the rule' },
@@ -218,7 +218,7 @@ export interface FormValues {
 }
 
 export type SavedSettings = Pick<
-  Team.Settings,
+  Project.Settings,
   | 'reviewTargetHours'
   | 'reviewOverdueNotifyUserId'
   | 'closeReviewsOnNewerBuild'
@@ -245,8 +245,8 @@ export const formValuesOf = (settings: SavedSettings, rotation: Triage.Rotation)
 })
 
 /** The settings that differ from what is saved, as the PATCH body (empty: nothing to send). */
-export function settingsPatch(saved: SavedSettings, v: FormValues): Partial<Team.Settings> {
-  const patch: Partial<Team.Settings> = {}
+export function settingsPatch(saved: SavedSettings, v: FormValues): Partial<Project.Settings> {
+  const patch: Partial<Project.Settings> = {}
   const hours = v.hours.trim() === '' ? null : Number(v.hours.trim())
   if (hours !== saved.reviewTargetHours) patch.reviewTargetHours = hours
   const notify = v.notifyUserId === '' ? null : v.notifyUserId

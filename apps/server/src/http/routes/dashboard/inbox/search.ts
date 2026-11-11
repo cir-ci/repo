@@ -15,27 +15,27 @@ const kindList = z
   .pipe(z.array(z.enum(SEARCH_KINDS)).max(SEARCH_KINDS.length))
 const query = z.object({
   q: z.string().max(100).default(''),
-  /** A team's slug: only its results. */
-  team: z.string().max(100).optional(),
+  /** A project's slug: only its results. */
+  project: z.string().max(100).optional(),
   kinds: kindList.optional(),
   limit: z.coerce.number().int().min(1).max(SEARCH_MAX_LIMIT).optional(),
 })
 
 /**
- * `GET /api/workspaces/:workspace/search?q=&team=&kinds=&limit=`: the command menu's search over the
- * workspace's builds, branches, teams, screenshots, baselines, triage, notifications, reviews, people and
- * views, optionally of one team and some kinds. Everyone outside the workspace gets "not found".
+ * `GET /api/workspaces/:workspace/search?q=&project=&kinds=&limit=`: the command menu's search over the
+ * workspace's builds, branches, projects, screenshots, baselines, triage, notifications, reviews, people and
+ * views, optionally of one project and some kinds. Everyone outside the workspace gets "not found".
  */
 export const dashboardSearchRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/workspaces/:workspace/search', async (req, reply): Promise<Search.Results | void> => {
     const p = parse(params, req.params)
-    const { q, team, kinds, limit } = parse(query, req.query)
+    const { q, project, kinds, limit } = parse(query, req.query)
     const user = currentUser(req)
     const results = await searchWorkspace(deps.db, {
       userId: user.id,
       workspaceSlug: p.workspace,
       query: q,
-      ...(team === undefined ? {} : { team }),
+      ...(project === undefined ? {} : { project }),
       ...(kinds === undefined ? {} : { kinds }),
       ...(limit === undefined ? {} : { limit }),
       method: user.method,

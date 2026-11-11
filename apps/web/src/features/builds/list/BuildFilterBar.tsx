@@ -13,7 +13,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type FormEvent, useDeferredValue, useState } from 'react'
 
 import { workspaceQuery } from '#features/members/api.ts'
-import { branchesQuery, suggestionsQuery } from '#features/teams/api/index.ts'
+import { branchesQuery, suggestionsQuery } from '#features/projects/api/index.ts'
 
 import {
   type BuildFilters,
@@ -47,7 +47,7 @@ import styles from './BuildFilterBar.module.css'
 /** A chip for each filter (a dashed button that fills in once set), the display options and Save view. */
 export function BuildFilterBar({
   workspace,
-  team,
+  project,
   filters,
   onFiltersChange,
   display,
@@ -90,7 +90,7 @@ export function BuildFilterBar({
             >
               <FieldEditor
                 workspace={workspace}
-                team={team}
+                project={project}
                 field={field}
                 filters={filters}
                 labels={labels}
@@ -147,8 +147,8 @@ export function BuildFilterBar({
 export namespace BuildFilterBar {
   export interface Props {
     workspace: string
-    /** The team whose branches the Branch picker offers; without one, the workspace's. */
-    team?: string | undefined
+    /** The project whose branches the Branch picker offers; without one, the workspace's. */
+    project?: string | undefined
     filters: BuildFilters
     onFiltersChange: (filters: BuildFilters) => void
     display: DisplayOptions
@@ -165,14 +165,14 @@ export namespace BuildFilterBar {
 
 function FieldEditor({
   workspace,
-  team,
+  project,
   field,
   filters,
   labels,
   onChange,
 }: {
   workspace: string
-  team: string | undefined
+  project: string | undefined
   field: FilterField
   filters: BuildFilters
   labels: ReadonlyMap<string, string> | undefined
@@ -192,7 +192,9 @@ function FieldEditor({
   }
   if (field === 'date') return <DateEditor filters={filters} onChange={onChange} />
   if (field === 'branch') {
-    return <BranchEditor workspace={workspace} team={team} filters={filters} onChange={onChange} />
+    return (
+      <BranchEditor workspace={workspace} project={project} filters={filters} onChange={onChange} />
+    )
   }
   return (
     <TextEditor
@@ -256,19 +258,19 @@ function TextEditor({
  */
 function BranchEditor({
   workspace,
-  team,
+  project,
   filters,
   onChange,
 }: {
   workspace: string
-  team: string | undefined
+  project: string | undefined
   filters: BuildFilters
   onChange: (filters: BuildFilters) => void
 }) {
   const [text, setText] = useState(filters.branch ?? filters.branchContains ?? '')
   const typed = useDeferredValue(text.trim())
   const { data } = useQuery({
-    ...branchesQuery(workspace, team, typed),
+    ...branchesQuery(workspace, project, typed),
     placeholderData: keepPreviousData,
   })
   const names = (data?.branches ?? []).map((b) => b.name)

@@ -1,7 +1,7 @@
 import type { Build, Flaky } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { approveBuild, createProject, type CreatedProject } from '#clients/admin.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
 import { Repo } from '#github/git-repo.ts'
 import { useBrowser, useStack } from '#stack/vitest.ts'
@@ -17,8 +17,8 @@ const flakyWobble = (changedIn: number) => ({
 
 /**
  * Flaky screenshot detection on the real stack: a screenshot whose image keeps coming back to one
- * it already had on the default branch (3 returns in the last 10 commits, the team default) is
- * flagged (API, team page banner, "Flaky" group of a build review); pull request builds never
+ * it already had on the default branch (3 returns in the last 10 commits, the project default) is
+ * flagged (API, project page banner, "Flaky" group of a build review); pull request builds never
  * count; the flag goes away when the returns roll out of the window. `wobble` flips between two
  * spots (A, B, A, B, A), `steady` never moves.
  */
@@ -26,7 +26,7 @@ describe('flaky screenshots', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
   let mainBuilds = 0
 
   beforeAll(async () => {
@@ -38,7 +38,7 @@ describe('flaky screenshots', () => {
 
   const workspace = () => ctx.setup.workspace.slug
   const report = () =>
-    ctx.setup.session.get<Flaky.Report>(`/api/teams/${workspace()}/${team.slug}/flaky`)
+    ctx.setup.session.get<Flaky.Report>(`/api/projects/${workspace()}/${project.slug}/flaky`)
 
   /** A build on main; `wobble` is at spot A or B (`B` unless `still`, which holds it at A). */
   async function mainBuild(options: { still?: boolean; spot?: 'A' | 'B' } = {}) {
@@ -49,15 +49,15 @@ describe('flaky screenshots', () => {
       wobble: { dot: { x: options.still || options.spot === 'A' ? 10 : 370, y: 100 } },
     })
     await repo.commit(`main ${mainBuilds}`)
-    const up = await uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
     // The first build has no baseline and is never approved automatically; later main builds are.
     if (mainBuilds === 1)
-      await approveBuild(ctx.setup.session, workspace(), team.slug, up.build.number)
+      await approveBuild(ctx.setup.session, workspace(), project.slug, up.build.number)
     return up
   }
 
   it('two returns to an earlier image are not flaky yet; the third flags it, the steady one never', async () => {
-    team = await createTeam(ctx.setup.session, workspace(), 'Flicker')
+    project = await createProject(ctx.setup.session, workspace(), 'Flicker')
     await mainBuild({ spot: 'A' })
     // A redesign (B, then C) never counts: only coming back does.
     const second = await mainBuild({ spot: 'B' })
@@ -71,10 +71,10 @@ describe('flaky screenshots', () => {
     expect(await report()).toEqual({ builds: 5, flaky: [flakyWobble(4)] })
   })
 
-  it('the team page warns, naming the screenshot and the count but not the steady one', async () => {
+  it('the project page warns, naming the screenshot and the count but not the steady one', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
+    await page.goto(`${stack.url}/${workspace()}/${project.slug}`)
     const banner = page.getByText('These screenshots are flaky on main:').locator('..')
     await banner.waitFor()
     const text = (await banner.innerText()).replace(/\s+/g, ' ')
@@ -94,7 +94,7 @@ describe('flaky screenshots', () => {
     await repo.commit('feature change')
     const up = await uploadOrThrow({
       stack,
-      token: team.token,
+      token: project.token,
       repo,
       wait: true,
       pr: { number: 7 },
@@ -102,7 +102,7 @@ describe('flaky screenshots', () => {
     expect(up.status?.counts).toMatchObject({ changed: 2 })
     // The API reports both as changed: "flaky" is the dashboard's grouping, not a status.
     const detail = await setup.session.get<Build.Detail>(
-      `/api/teams/${workspace()}/${team.slug}/builds/${up.build.number}`,
+      `/api/projects/${workspace()}/${project.slug}/builds/${up.build.number}`,
     )
     expect(
       detail.diffs
@@ -114,7 +114,7 @@ describe('flaky screenshots', () => {
     ])
 
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${workspace()}/${team.slug}/builds/${up.build.number}`)
+    await page.goto(`${stack.url}/${workspace()}/${project.slug}/builds/${up.build.number}`)
     const list = page.getByRole('navigation', { name: 'Screenshots' })
     await list.waitFor()
     await list.getByRole('button', { name: /^Changed/ }).waitFor()
@@ -144,7 +144,7 @@ describe('flaky screenshots', () => {
       // oxlint-disable-next-line no-await-in-loop
       await repo.commit(`feature ${i}`)
       // oxlint-disable-next-line no-await-in-loop
-      await uploadOrThrow({ stack, token: team.token, repo, wait: true, pr: { number: 7 } })
+      await uploadOrThrow({ stack, token: project.token, repo, wait: true, pr: { number: 7 } })
     }
     expect(await report()).toEqual({ builds: 5, flaky: [flakyWobble(4)] })
   })
@@ -157,7 +157,7 @@ describe('flaky screenshots', () => {
     await repo.commit('only the flaky one changes')
     const up = await uploadOrThrow({
       stack,
-      token: team.token,
+      token: project.token,
       repo,
       wait: true,
       pr: { number: 8 },
@@ -178,12 +178,12 @@ describe('flaky screenshots', () => {
     expect((await report()).flaky).toEqual([])
   })
 
-  it('the team page banner is gone once nothing is flaky', async () => {
+  it('the project page banner is gone once nothing is flaky', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
-    // The team page has loaded once its build list is there.
-    await page.getByRole('heading', { name: team.name }).first().waitFor()
+    await page.goto(`${stack.url}/${workspace()}/${project.slug}`)
+    // The project page has loaded once its build list is there.
+    await page.getByRole('heading', { name: project.name }).first().waitFor()
     expect(await page.getByText('are flaky on').count()).toBe(0)
   })
 })

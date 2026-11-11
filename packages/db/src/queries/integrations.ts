@@ -24,7 +24,7 @@ export namespace listWorkspaceIntegrations {
     name: string
     needsAttention: boolean
     attentionReason: string | null
-    teamCount: number
+    projectCount: number
     createdAt: Date
   }
 }
@@ -52,7 +52,7 @@ export async function listWorkspaceIntegrations(
       name: i.displayName,
       needsAttention: i.needsAttention,
       attentionReason: i.needsAttentionReason,
-      teamCount: i.teamCount,
+      projectCount: i.projectCount,
       createdAt: i.createdAt,
     })
   }

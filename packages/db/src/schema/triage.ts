@@ -20,10 +20,10 @@ import {
   TRIAGE_KINDS,
   type TriageKind,
 } from './enums.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /**
- * Triage: a team's queue of problems nobody has dealt with (flaky snapshots, missing
+ * Triage: a project's queue of problems nobody has dealt with (flaky snapshots, missing
  * baselines, failed builds). The problems themselves are derived from builds when read
  * (`listTriage`); `triage_items` only holds what people did about them, keyed by what kind of
  * problem it is and which one (`key`: the snapshot name, or `build:<number>`).
@@ -33,14 +33,14 @@ export const triageItems = pgTable(
   'triage_items',
   {
     id: id(),
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     kind: text('kind').$type<TriageKind>().notNull(),
     key: text('key').notNull(),
     assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
     /**
-     * Who chose the assignee: `auto` (the person on triage, by the team's setting) moves at the
+     * Who chose the assignee: `auto` (the person on triage, by the project's setting) moves at the
      * rotation's handover; `manual` (a person assigned or unassigned it) stays as it is. Null:
      * nobody has decided, so the setting may assign it.
      */
@@ -48,13 +48,13 @@ export const triageItems = pgTable(
     /** End of a timed snooze; null for "until next push", or when not snoozed. */
     snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
     snoozeKind: text('snooze_kind').$type<SnoozeKind>(),
-    /** For "until next push": the team's newest build number when it was snoozed. */
+    /** For "until next push": the project's newest build number when it was snoozed. */
     snoozedAfterBuild: integer('snoozed_after_build'),
     dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex('triage_items_key').on(t.teamId, t.kind, t.key),
+    uniqueIndex('triage_items_key').on(t.projectId, t.kind, t.key),
     index('triage_items_assignee_idx').on(t.assigneeId),
     check('triage_items_kind_check', inList('kind', TRIAGE_KINDS)),
     check(
@@ -69,14 +69,14 @@ export const triageItems = pgTable(
 export const triageRotationMembers = pgTable(
   'triage_rotation_members',
   {
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     position: integer('position').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.teamId, t.userId] })],
+  (t) => [primaryKey({ columns: [t.projectId, t.userId] })],
 )

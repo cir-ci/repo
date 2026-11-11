@@ -17,13 +17,13 @@ export const Sidebar = () => (
     <NavItem href="#search" trailing={<Kbd>⌘K</Kbd>}>
       Search
     </NavItem>
-    <NavItem href="#teams" selected>
-      Teams
+    <NavItem href="#projects" selected>
+      Projects
     </NavItem>
     <NavItem href="#members">Members</NavItem>
     <NavItem href="#settings">Settings</NavItem>
     <div style={{ padding: '14px 10px 4px', fontSize: 13, fontWeight: 500, opacity: 0.7 }}>
-      Teams
+      Projects
     </div>
     <NavItem href="#web-app" trailing={<StatusIcon status="needs-review" size={10} />}>
       web-app

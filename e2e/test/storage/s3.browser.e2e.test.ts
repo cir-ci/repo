@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam } from '#clients/admin.ts'
+import { createProject } from '#clients/admin.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
 import { Repo } from '#github/git-repo.ts'
 import { screenshot } from '#stack/images.ts'
@@ -26,7 +26,7 @@ describe('S3 storage on LocalStack', () => {
     const { stack, setup } = ctx
     const s3 = stack.s3
     if (!s3) throw new Error('no bucket')
-    const team = await createTeam(setup.session, setup.workspace.slug, 'Shop')
+    const project = await createProject(setup.session, setup.workspace.slug, 'Shop')
 
     // A colour of its own: the bucket and the file index are shared with other files.
     const home = await screenshot({
@@ -35,9 +35,9 @@ describe('S3 storage on LocalStack', () => {
     })
     await repo.writeShots({ home })
     await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
     expect(up.uploaded).toBe(1)
-    // The team's first build waits for review, so `--wait` exits 1 (no linked repository).
+    // The project's first build waits for review, so `--wait` exits 1 (no linked repository).
     expect(up.exitCode).toBe(1)
 
     // The original is in the bucket byte for byte (the CLI used a presigned PUT to LocalStack)...
@@ -53,7 +53,7 @@ describe('S3 storage on LocalStack', () => {
 
     // ...and the dashboard serves it back, to the API and to a real browser.
     const detail = await setup.session.get<Build.Detail>(
-      `/api/teams/${setup.workspace.slug}/${team.slug}/builds/${up.build.number}`,
+      `/api/projects/${setup.workspace.slug}/${project.slug}/builds/${up.build.number}`,
     )
     const head = detail.diffs[0]?.head
     expect(head?.sha256).toBe(hash)
@@ -64,7 +64,9 @@ describe('S3 storage on LocalStack', () => {
     expect(Buffer.from(await served.arrayBuffer()).equals(home)).toBe(true)
 
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${up.build.number}`)
+    await page.goto(
+      `${stack.url}/${setup.workspace.slug}/${project.slug}/builds/${up.build.number}`,
+    )
     const image = page.getByRole('img', { name: 'New in this build' }).first()
     await image.waitFor()
     await expect

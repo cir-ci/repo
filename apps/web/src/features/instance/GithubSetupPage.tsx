@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 
 import { useConnect } from '#features/integrations/api/generic.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { toast } from '#lib/toast.ts'

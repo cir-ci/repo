@@ -12,17 +12,17 @@ export const SEARCH_DEBOUNCE_MS = 200
 /** How many rows a kind returns when a chip narrows the search to it. */
 export const NARROWED_LIMIT = 30
 
-/** What narrows a search: a team (its slug), some kinds, and how many rows each. */
+/** What narrows a search: a project (its slug), some kinds, and how many rows each. */
 export interface SearchScope {
-  team?: string | undefined
+  project?: string | undefined
   kinds?: readonly Search.Kind[] | undefined
   limit?: number | undefined
 }
 
-/** The address of a search: `?q=` and, when set, `team=`, `kinds=` and `limit=`. */
+/** The address of a search: `?q=` and, when set, `project=`, `kinds=` and `limit=`. */
 export function searchUrl(workspace: string, q: string, scope: SearchScope = {}): string {
   const params = new URLSearchParams({ q })
-  if (scope.team) params.set('team', scope.team)
+  if (scope.project) params.set('project', scope.project)
   if (scope.kinds && scope.kinds.length > 0) params.set('kinds', scope.kinds.join(','))
   if (scope.limit !== undefined) params.set('limit', String(scope.limit))
   return `${workspacePath(workspace, 'search')}?${params.toString()}`
@@ -32,7 +32,7 @@ export function searchUrl(workspace: string, q: string, scope: SearchScope = {})
 export const searchQuery = (workspace: string, q: string, scope: SearchScope = {}) =>
   queryOptions({
     queryKey: keys.search(workspace, q, {
-      team: scope.team ?? null,
+      project: scope.project ?? null,
       kinds: scope.kinds?.join(',') ?? null,
       limit: scope.limit ?? null,
     }),

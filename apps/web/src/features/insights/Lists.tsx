@@ -17,41 +17,41 @@ import {
   rejectionsLabel,
   retentionSpan,
 } from './api.ts'
-import { Card, TableWrap, TeamChip } from './Card.tsx'
+import { Card, TableWrap, ProjectChip } from './Card.tsx'
 import { shares, storageBars, stripCells, stripLabel } from './chart.ts'
 import { useSortedTable } from './sort.tsx'
 
 import styles from './Insights.module.css'
 
-/** The team colour a bar or fill takes (`data-colour` carries the token name). */
+/** The project colour a bar or fill takes (`data-colour` carries the token name). */
 const Fill = ({ colour, share }: { colour: string; share: number }) => (
   <span className={styles.track} aria-hidden="true">
     <i className={styles.fill} data-colour={colour} style={{ width: `${share * 100}%` }} />
   </span>
 )
 
-function ShotLink(props: { workspace: string; team: string; name: string }) {
+function ShotLink(props: { workspace: string; project: string; name: string }) {
   const clientLink = useClientLink()
   return (
     <a
       className={styles.link}
-      {...clientLink(baselineLink(props.workspace, props.team, props.name))}
+      {...clientLink(baselineLink(props.workspace, props.project, props.name))}
     >
       {props.name}
     </a>
   )
 }
 
-function BuildLink(props: { workspace: string; team: string; number: number }) {
+function BuildLink(props: { workspace: string; project: string; number: number }) {
   const clientLink = useClientLink()
   return (
     <a
       className={styles.link}
       {...clientLink({
-        to: '/$workspace/$team/builds/$number',
+        to: '/$workspace/$project/builds/$number',
         params: {
           workspace: props.workspace,
-          team: props.team,
+          project: props.project,
           number: String(props.number),
         },
       })}
@@ -82,7 +82,7 @@ function Strip({ last10, kind }: { last10: boolean[]; kind: 'changed' | 'flaky' 
   )
 }
 
-type TeamRow = Insights.Report['teamsComparison'][number]
+type ProjectRow = Insights.Report['projectsComparison'][number]
 type ReviewerRow = Insights.Report['reviewers'][number]
 type ChangedRow = Insights.Report['mostChanged'][number]
 type FlakyRow = Insights.Report['flakiest'][number]
@@ -91,8 +91,8 @@ type RejectedRow = Insights.Report['mostRejected'][number]
 
 const lit = (flags: boolean[]) => flags.filter(Boolean).length
 
-const TEAM_COLUMNS: Accessors<TeamRow> = {
-  team: (r) => r.team.name,
+const PROJECT_COLUMNS: Accessors<ProjectRow> = {
+  project: (r) => r.project.name,
   builds: (r) => r.builds,
   changes: (r) => r.buildsWithChanges,
   review: (r) => r.medianReviewHours,
@@ -108,19 +108,19 @@ const REVIEWER_COLUMNS: Accessors<ReviewerRow> = {
 }
 const CHANGED_COLUMNS: Accessors<ChangedRow> = {
   screenshot: (r) => r.name,
-  team: (r) => r.team.name,
+  project: (r) => r.project.name,
   changed: (r) => r.changedBuilds,
   last10: (r) => lit(r.last10),
 }
 const FLAKY_COLUMNS: Accessors<FlakyRow> = {
   screenshot: (r) => r.name,
-  team: (r) => r.team.name,
+  project: (r) => r.project.name,
   flips: (r) => r.flipFlops,
   last10: (r) => lit(r.last10),
 }
 const WAITING_COLUMNS: Accessors<WaitingRow> = {
   build: (r) => r.number,
-  team: (r) => r.team.name,
+  project: (r) => r.project.name,
   branch: (r) => r.branch,
   author: (r) => r.author,
   // The wait is the time since the build was ready: the oldest ready build has waited longest.
@@ -128,24 +128,24 @@ const WAITING_COLUMNS: Accessors<WaitingRow> = {
 }
 const REJECTED_COLUMNS: Accessors<RejectedRow> = {
   screenshot: (r) => r.name,
-  team: (r) => r.team.name,
+  project: (r) => r.project.name,
   rejected: (r) => r.rejections,
 }
 
-export function TeamsCard({ data, days }: { data: Insights.Report; days: number }) {
-  const all = data.teamsComparison
-  const table = useSortedTable('teams', all, TEAM_COLUMNS)
+export function ProjectsCard({ data, days }: { data: Insights.Report; days: number }) {
+  const all = data.projectsComparison
+  const table = useSortedTable('projects', all, PROJECT_COLUMNS)
   const rows = table.rows
   if (all.length < 2 || all.every((r) => r.builds === 0)) return null
   const bars = new Map(all.map((r, i) => [r, shares(all, (x) => x.builds)[i] ?? 0]))
   return (
-    <Card title="Teams" subtitle={rangeLabel(days)} wide>
+    <Card title="Projects" subtitle={rangeLabel(days)} wide>
       <TableWrap>
         <table className={`${styles.table} ${styles.spread}`}>
           <thead>
             <tr>
-              <SortableHeader scope="col" {...table.header('team')}>
-                Team
+              <SortableHeader scope="col" {...table.header('project')}>
+                Project
               </SortableHeader>
               <SortableHeader scope="col" className={styles.bars150} {...table.header('builds')}>
                 Builds
@@ -171,17 +171,17 @@ export function TeamsCard({ data, days }: { data: Insights.Report; days: number 
                 r.reviewTargetHours !== null &&
                 r.medianReviewHours > r.reviewTargetHours
               return (
-                <tr key={r.team.slug}>
+                <tr key={r.project.slug}>
                   <th scope="row">
                     <span className={styles.person}>
-                      <TeamChip team={r.team} />
-                      {r.team.name}
+                      <ProjectChip project={r.project} />
+                      {r.project.name}
                     </span>
                   </th>
                   <td className={styles.bars150}>
                     <span className={styles.barNum}>
                       <span className={styles.mini}>
-                        <Fill colour={r.team.colour} share={bars.get(r) ?? 0} />
+                        <Fill colour={r.project.colour} share={bars.get(r) ?? 0} />
                       </span>
                       <span className={styles.num}>{formatCount(r.builds)}</span>
                     </span>
@@ -278,8 +278,12 @@ export function RejectionReasonsCard({ data }: { data: Insights.Report }) {
                     ·{' '}
                   </>
                 )}
-                <BuildLink workspace={data.workspace.slug} team={r.team.slug} number={r.number} /> ·{' '}
-                {r.team.name} · <Age iso={r.at} /> ago
+                <BuildLink
+                  workspace={data.workspace.slug}
+                  project={r.project.slug}
+                  number={r.number}
+                />{' '}
+                · {r.project.name} · <Age iso={r.at} /> ago
               </p>
             </div>
           </li>
@@ -305,12 +309,12 @@ export function IgnoreRegionsCard({ data, days }: { data: Insights.Report; days:
       </p>
       <ul className={styles.hbars}>
         {effect.top.map((r, i) => (
-          <li key={`${r.team.slug}/${r.region}`} className={styles.hbar}>
+          <li key={`${r.project.slug}/${r.region}`} className={styles.hbar}>
             <span className={styles.label} title={r.region}>
-              <TeamChip team={r.team} />
+              <ProjectChip project={r.project} />
               <span className={styles.ell}>{r.region}</span>
             </span>
-            <Fill colour={r.team.colour} share={bars[i] ?? 0} />
+            <Fill colour={r.project.colour} share={bars[i] ?? 0} />
             <span className={styles.num}>{formatCount(r.diffs)}</span>
           </li>
         ))}
@@ -400,7 +404,7 @@ export function ReviewerLoadCard({ data, days }: { data: Insights.Report; days: 
 export function StorageCard({ data }: { data: Insights.Report }) {
   return (
     <Card
-      title="Storage by team"
+      title="Storage by project"
       subtitle={`screenshots, diffs and baselines · ${formatBytes(data.storage.totalBytes)} total`}
     >
       <ul className={styles.hbars}>
@@ -426,7 +430,7 @@ export function StorageCard({ data }: { data: Insights.Report }) {
 export function MostChangedCard({ data, days }: { data: Insights.Report; days: number }) {
   const table = useSortedTable('changed', data.mostChanged, CHANGED_COLUMNS)
   const rows = table.rows
-  const showTeam = data.team === null
+  const showProject = data.project === null
   return (
     <Card
       title="Most changed screenshots"
@@ -440,9 +444,9 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
               <SortableHeader scope="col" {...table.header('screenshot')}>
                 Screenshot
               </SortableHeader>
-              {showTeam ? (
-                <SortableHeader scope="col" {...table.header('team')}>
-                  Team
+              {showProject ? (
+                <SortableHeader scope="col" {...table.header('project')}>
+                  Project
                 </SortableHeader>
               ) : null}
               <SortableHeader scope="col" className={styles.n} numeric {...table.header('changed')}>
@@ -455,13 +459,17 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.team.slug}/${r.name}`}>
+              <tr key={`${r.project.slug}/${r.name}`}>
                 <th scope="row">
-                  <ShotLink workspace={data.workspace.slug} team={r.team.slug} name={r.name} />
+                  <ShotLink
+                    workspace={data.workspace.slug}
+                    project={r.project.slug}
+                    name={r.name}
+                  />
                 </th>
-                {showTeam ? (
+                {showProject ? (
                   <td>
-                    <TeamChip team={r.team} />
+                    <ProjectChip project={r.project} />
                   </td>
                 ) : null}
                 <td className={styles.n}>
@@ -485,7 +493,7 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
 export function FlakiestCard({ data }: { data: Insights.Report }) {
   const table = useSortedTable('flakiest', data.flakiest, FLAKY_COLUMNS)
   const rows = table.rows
-  const showTeam = data.team === null
+  const showProject = data.project === null
   return (
     <Card
       title="Flakiest screenshots"
@@ -499,9 +507,9 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
               <SortableHeader scope="col" {...table.header('screenshot')}>
                 Screenshot
               </SortableHeader>
-              {showTeam ? (
-                <SortableHeader scope="col" {...table.header('team')}>
-                  Team
+              {showProject ? (
+                <SortableHeader scope="col" {...table.header('project')}>
+                  Project
                 </SortableHeader>
               ) : null}
               <SortableHeader scope="col" className={styles.n} numeric {...table.header('flips')}>
@@ -514,14 +522,18 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.team.slug}/${r.name}`}>
+              <tr key={`${r.project.slug}/${r.name}`}>
                 <th scope="row">
-                  <ShotLink workspace={data.workspace.slug} team={r.team.slug} name={r.name} />
+                  <ShotLink
+                    workspace={data.workspace.slug}
+                    project={r.project.slug}
+                    name={r.name}
+                  />
                   <p className={styles.reasonMeta}>{flakyReasonText(r.reason)}</p>
                 </th>
-                {showTeam ? (
+                {showProject ? (
                   <td>
-                    <TeamChip team={r.team} />
+                    <ProjectChip project={r.project} />
                   </td>
                 ) : null}
                 <td className={styles.n}>{r.flipFlops}</td>
@@ -540,7 +552,7 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
 export function OldestWaitingCard({ data }: { data: Insights.Report }) {
   const table = useSortedTable('waiting', data.oldestWaiting, WAITING_COLUMNS)
   const rows = table.rows
-  const showTeam = data.team === null
+  const showProject = data.project === null
   const now = Date.parse(data.range.to)
   return (
     <Card
@@ -555,9 +567,9 @@ export function OldestWaitingCard({ data }: { data: Insights.Report }) {
               <SortableHeader scope="col" {...table.header('build')}>
                 Build
               </SortableHeader>
-              {showTeam ? (
-                <SortableHeader scope="col" {...table.header('team')}>
-                  Team
+              {showProject ? (
+                <SortableHeader scope="col" {...table.header('project')}>
+                  Project
                 </SortableHeader>
               ) : null}
               <SortableHeader scope="col" {...table.header('branch')}>
@@ -579,14 +591,14 @@ export function OldestWaitingCard({ data }: { data: Insights.Report }) {
                     <StatusIcon status="needs-review" size={14} />
                     <BuildLink
                       workspace={data.workspace.slug}
-                      team={r.team.slug}
+                      project={r.project.slug}
                       number={r.number}
                     />
                   </span>
                 </th>
-                {showTeam ? (
+                {showProject ? (
                   <td>
-                    <TeamChip team={r.team} />
+                    <ProjectChip project={r.project} />
                   </td>
                 ) : null}
                 <td>
@@ -620,7 +632,7 @@ export function OldestWaitingCard({ data }: { data: Insights.Report }) {
 export function MostRejectedCard({ data, days }: { data: Insights.Report; days: number }) {
   const table = useSortedTable('rejected', data.mostRejected, REJECTED_COLUMNS)
   const rows = table.rows
-  const showTeam = data.team === null
+  const showProject = data.project === null
   return (
     <Card
       title="Rejected most often"
@@ -634,9 +646,9 @@ export function MostRejectedCard({ data, days }: { data: Insights.Report; days: 
               <SortableHeader scope="col" {...table.header('screenshot')}>
                 Screenshot
               </SortableHeader>
-              {showTeam ? (
-                <SortableHeader scope="col" {...table.header('team')}>
-                  Team
+              {showProject ? (
+                <SortableHeader scope="col" {...table.header('project')}>
+                  Project
                 </SortableHeader>
               ) : null}
               <SortableHeader
@@ -651,13 +663,17 @@ export function MostRejectedCard({ data, days }: { data: Insights.Report; days: 
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.team.slug}/${r.name}`}>
+              <tr key={`${r.project.slug}/${r.name}`}>
                 <th scope="row">
-                  <ShotLink workspace={data.workspace.slug} team={r.team.slug} name={r.name} />
+                  <ShotLink
+                    workspace={data.workspace.slug}
+                    project={r.project.slug}
+                    name={r.name}
+                  />
                 </th>
-                {showTeam ? (
+                {showProject ? (
                   <td>
-                    <TeamChip team={r.team} />
+                    <ProjectChip project={r.project} />
                   </td>
                 ) : null}
                 <td className={styles.n}>

@@ -13,7 +13,7 @@ const reviewsRoute = createRoute({
 
 const reviewsSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$workspace/$team/settings/reviews',
+  path: '$workspace/$project/settings/reviews',
   component: lazyRouteComponent(
     () => import('./settings/ReviewsSettingsPage.tsx'),
     'ReviewsSettingsPage',

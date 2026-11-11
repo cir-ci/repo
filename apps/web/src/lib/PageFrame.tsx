@@ -12,7 +12,7 @@ import { useScrollToHash } from '#lib/scroll-to-hash.ts'
  * states: `forbidden`, the error, the delayed skeleton, or `children`.
  * An address with a hash (`#retention`) scrolls to the setting with that ID once it renders, and
  * flashes it (`useScrollToHash`).
- * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `TeamSettingsFrame`) only compute
+ * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `ProjectsettingsFrame`) only compute
  * the crumbs.
  */
 export function PageFrame({
@@ -76,7 +76,7 @@ export namespace PageFrame {
     find?: ReactNode
     /** Beside the title in the header bar (a status line). */
     after?: ReactNode
-    /** Between the page's header bar and its column: a team's header with its tabs. */
+    /** Between the page's header bar and its column: a project's header with its tabs. */
     header?: ReactNode
     /** `wide` is 1040px, for editors that need the room. */
     width?: 'default' | 'wide' | undefined

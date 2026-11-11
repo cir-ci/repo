@@ -12,22 +12,22 @@ export const RANGE_OPTIONS = RANGES.map((d) => ({ value: String(d), label: `${d}
 
 export interface InsightsSearch {
   range: RangeDays
-  team?: string
-  /** Each sorted table's sort: `teams:-builds,reviewers:name` (see `lib/sort.ts`). */
+  project?: string
+  /** Each sorted table's sort: `projects:-builds,reviewers:name` (see `lib/sort.ts`). */
   sort?: string
 }
 
 export const parseRange = (value: unknown): RangeDays =>
   RANGES.find((d) => String(d) === String(value)) ?? 30
 
-/** `?range=7|30|90` (default 30), `?team=slug` and `?sort=`; anything else is dropped. */
+/** `?range=7|30|90` (default 30), `?project=slug` and `?sort=`; anything else is dropped. */
 export function validateInsightsSearch(search: Record<string, unknown>): InsightsSearch {
   const range = parseRange(search['range'])
-  const team = search['team']
+  const project = search['project']
   const sort = search['sort']
   return {
     range,
-    ...(typeof team === 'string' && team ? { team } : {}),
+    ...(typeof project === 'string' && project ? { project } : {}),
     ...(typeof sort === 'string' && sort ? { sort } : {}),
   }
 }
@@ -46,9 +46,9 @@ export function rangeBounds(days: RangeDays, now: number): { from: string; to: s
 export const insightsQuery = (workspace: string, search: InsightsSearch, now = Date.now()) => {
   const { from, to } = rangeBounds(search.range, now)
   const params = new URLSearchParams({ from, to })
-  if (search.team) params.set('team', search.team)
+  if (search.project) params.set('project', search.project)
   return queryOptions({
-    queryKey: keys.insights(workspace, search.team ?? null, from, to),
+    queryKey: keys.insights(workspace, search.project ?? null, from, to),
     queryFn: () => getJson<Insights.Report>(`${workspacePath(workspace, 'insights')}?${params}`),
   })
 }
@@ -157,7 +157,7 @@ export interface Tile {
   note: string
 }
 
-/** The share of reviews that came within their team's target; null when none had a target. */
+/** The share of reviews that came within their project's target; null when none had a target. */
 export function targetHitRate(s: Insights.Summary): number | null {
   return s.reviewedWithTarget === 0 ? null : 1 - s.reviewedOverTarget / s.reviewedWithTarget
 }
@@ -241,7 +241,7 @@ export const isEmpty = (report: Insights.Report) =>
   report.storage.totalBytes === 0 &&
   report.reviewers.length === 0
 
-/** "90 days", or "30 to 90 days" when the teams in view keep builds for different times. */
+/** "90 days", or "30 to 90 days" when the projects in view keep builds for different times. */
 export const retentionSpan = (days: { min: number; max: number }) =>
   days.min === days.max ? `${days.min} days` : `${days.min} to ${days.max} days`
 

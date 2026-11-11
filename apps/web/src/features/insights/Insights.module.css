@@ -22,29 +22,29 @@
   align-items: center;
 }
 
-/* Team identity colours (never state colours) for the bars and fills that carry them. */
+/* Project identity colours (never state colours) for the bars and fills that carry them. */
 [data-colour='slate'] {
-  --team: var(--circi-team-slate);
+  --project: var(--circi-project-slate);
 }
 
 [data-colour='olive'] {
-  --team: var(--circi-team-olive);
+  --project: var(--circi-project-olive);
 }
 
 [data-colour='plum'] {
-  --team: var(--circi-team-plum);
+  --project: var(--circi-project-plum);
 }
 
 [data-colour='moss'] {
-  --team: var(--circi-team-moss);
+  --project: var(--circi-project-moss);
 }
 
 [data-colour='mauve'] {
-  --team: var(--circi-team-mauve);
+  --project: var(--circi-project-mauve);
 }
 
 [data-colour='graphite'] {
-  --team: var(--circi-team-graphite);
+  --project: var(--circi-project-graphite);
 }
 
 /* Summary tiles: three rows of fixed height, so chips and text line up across tiles. */
@@ -585,7 +585,7 @@
   width: 150px;
 }
 
-/* A wide comparison table (Teams, Reviewer load): the name takes about a quarter and every other
+/* A wide comparison table (Projects, Reviewer load): the name takes about a quarter and every other
    column an even share of the rest, instead of the figures packing against the right edge. Below
    its minimum the wrapper scrolls sideways. */
 .table.spread {
@@ -646,7 +646,7 @@
   display: block;
   height: 100%;
   border-radius: 0 4px 4px 0;
-  background: var(--team, var(--circi-accent-main));
+  background: var(--project, var(--circi-accent-main));
 }
 
 .link {

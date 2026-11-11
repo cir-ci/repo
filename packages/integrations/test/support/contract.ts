@@ -166,7 +166,12 @@ export function runIntegrationDefinitionContract(
             def.capabilities.chat?.send(
               {
                 event: { type, buildId: 'b1' },
-                build: { teamName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' },
+                build: {
+                  projectName: 'Web',
+                  number: 7,
+                  branch: 'main',
+                  url: 'https://ci.acme.io/b',
+                },
                 reviewer: 'Rae',
                 actor: 'Sam',
                 target: {

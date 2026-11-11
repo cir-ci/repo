@@ -1,4 +1,4 @@
-import { createTeamWithToken, createUser } from '@circi/auth'
+import { createProjectWithToken, createUser } from '@circi/auth'
 import { seedBuild } from '@circi/db/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -9,11 +9,11 @@ const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
 afterAll(() => fx.close())
 
-// Acme's `web` team has builds 1 and 2 (the fixture). Add a second team with its own builds,
+// Acme's `web` project has builds 1 and 2 (the fixture). Add a second project with its own builds,
 // a member who authored some, and an unmatched git login.
 const docs = (
-  await createTeamWithToken(auth, db, { workspaceSlug: acme.workspaceSlug, name: 'docs' })
-).team
+  await createProjectWithToken(auth, db, { workspaceSlug: acme.workspaceSlug, name: 'docs' })
+).project
 const ada = await createUser(auth, {
   email: 'ada@acme.test',
   name: 'Ada Lovelace',
@@ -32,7 +32,7 @@ await seedBuild(db, docs.id, {
   author: { login: 'octocat' },
 })
 await seedBuild(db, docs.id, { ...done, createdAt: day(3), branch: 'main' })
-const outside = await seedBuild(db, rival.team.id, { ...done, createdAt: day(4) })
+const outside = await seedBuild(db, rival.project.id, { ...done, createdAt: day(4) })
 
 const url = (query = '', workspace = acme.workspaceSlug) =>
   `/api/workspaces/${workspace}/builds${query}`
@@ -43,13 +43,16 @@ const reset = await fx.snapshot()
 beforeEach(reset)
 
 describe('GET /api/workspaces/:workspace/builds', () => {
-  it('lists the builds of every team, newest first, each with its team', async () => {
+  it('lists the builds of every project, newest first, each with its project', async () => {
     const body = await listed()
     expect(body.workspace.slug).toBe(acme.workspaceSlug)
     expect(body.next).toBeNull()
     // The docs builds are dated 2030, after the fixture's, so they lead.
     expect(
-      body.builds.map((b: { team: { slug: string }; number: number }) => [b.team.slug, b.number]),
+      body.builds.map((b: { project: { slug: string }; number: number }) => [
+        b.project.slug,
+        b.number,
+      ]),
     ).toEqual([
       ['docs', 3],
       ['docs', 2],
@@ -58,19 +61,21 @@ describe('GET /api/workspaces/:workspace/builds', () => {
       ['web', 1],
     ])
     expect(body.builds[0]).toMatchObject({
-      team: { slug: 'docs', name: 'docs' },
+      project: { slug: 'docs', name: 'docs' },
       counts: { total: 0 },
     })
     expect(ids(body)).not.toContain(outside.id)
   })
 
-  it('takes the same filters as a team list', async () => {
+  it('takes the same filters as a project list', async () => {
     expect((await listed('?branch=feature')).builds).toMatchObject([
-      { number: 2, team: { slug: 'docs' } },
+      { number: 2, project: { slug: 'docs' } },
     ])
     expect((await listed('?author=OCTOCAT')).builds).toMatchObject([{ number: 2 }])
     expect(
-      (await listed('?review=approved')).builds.map((b: { team: { slug: string } }) => b.team.slug),
+      (await listed('?review=approved')).builds.map(
+        (b: { project: { slug: string } }) => b.project.slug,
+      ),
     ).toEqual(['web', 'web'])
     expect(
       (await listed('?from=2030-01-02T00:00:00.000Z&to=2030-01-03T00:00:00.000Z')).builds,
@@ -101,7 +106,7 @@ describe('GET /api/workspaces/:workspace/builds', () => {
     expect((await get(url(), rivalCookie)).statusCode).toBe(404)
     expect((await get(url('', 'nope'))).statusCode).toBe(404)
     expect((await get(url('?status=bogus'))).statusCode).toBe(400)
-    // A member who is not an owner sees the workspace's teams too.
+    // A member who is not an owner sees the workspace's projects too.
     expect((await listed('', adaCookie)).builds.length).toBeGreaterThan(0)
     expect(acmeCookie).toBeTruthy()
   })
@@ -147,16 +152,16 @@ const branchesOf = async (query = '', cookie?: string) =>
     .branches.map((b: { name: string }) => b.name)
 
 describe('GET /api/workspaces/:workspace/builds/branches', () => {
-  it('lists the branches, most recently built first, for the workspace or one team', async () => {
+  it('lists the branches, most recently built first, for the workspace or one project', async () => {
     const all = await branchesOf()
     // The docs builds are dated 2030: `main` (day 3) leads, then `feature` (day 2), then the fixture's.
     expect(all.slice(0, 2)).toEqual(['main', 'feature'])
-    expect(await branchesOf(`?team=${docs.slug}`)).toEqual(['main', 'feature'])
-    expect(await branchesOf(`?team=${docs.slug}&limit=1`)).toEqual(['main'])
+    expect(await branchesOf(`?project=${docs.slug}`)).toEqual(['main', 'feature'])
+    expect(await branchesOf(`?project=${docs.slug}&limit=1`)).toEqual(['main'])
   })
 
   it('narrows by what is typed, in any case', async () => {
-    expect(await branchesOf(`?team=${docs.slug}&q=FEAT`)).toEqual(['feature'])
+    expect(await branchesOf(`?project=${docs.slug}&q=FEAT`)).toEqual(['feature'])
     expect(await branchesOf('?q=zzz')).toEqual([])
   })
 
@@ -166,9 +171,9 @@ describe('GET /api/workspaces/:workspace/builds/branches', () => {
     expect(ids(await listed('?branch=feature'))).toHaveLength(1)
   })
 
-  it('is not found for a non-member or an unknown team, and rejects a bad limit', async () => {
+  it('is not found for a non-member or an unknown project, and rejects a bad limit', async () => {
     expect((await get(url('/branches'), rivalCookie)).statusCode).toBe(404)
-    expect((await get(url('/branches?team=nope'))).statusCode).toBe(404)
+    expect((await get(url('/branches?project=nope'))).statusCode).toBe(404)
     expect((await get(url('/branches'), '')).statusCode).toBe(401)
     expect((await get(url('/branches?limit=0'))).statusCode).toBe(400)
   })

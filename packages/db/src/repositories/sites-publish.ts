@@ -1,7 +1,7 @@
 import { ValidationError } from '@circi/core'
 import { and, eq, inArray, like, sql } from 'drizzle-orm'
 
-import { files, teamSites, siteHostnames, staticSiteFiles, staticSites } from '#schema/index.ts'
+import { files, projectsites, siteHostnames, staticSiteFiles, staticSites } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /** Publishing a site version: its files and the addresses that point at it. */
@@ -68,28 +68,28 @@ export async function publishSiteVersion(
     // 1. The site: found by name, or created with a free slug.
     let [site] = await tx
       .select()
-      .from(teamSites)
-      .where(and(eq(teamSites.teamId, input.teamId), eq(teamSites.name, input.name)))
+      .from(projectsites)
+      .where(and(eq(projectsites.projectId, input.projectId), eq(projectsites.name, input.name)))
     if (site) {
       if (site.kind !== input.kind || site.spa !== input.spa) {
         ;[site] = await tx
-          .update(teamSites)
+          .update(projectsites)
           .set({ kind: input.kind, spa: input.spa })
-          .where(eq(teamSites.id, site.id))
+          .where(eq(projectsites.id, site.id))
           .returning()
       }
     } else {
       const probe = input.slugPrefix
       const rows = await tx
-        .select({ slug: teamSites.slug })
-        .from(teamSites)
-        .where(like(teamSites.slug, `${probe}%`))
+        .select({ slug: projectsites.slug })
+        .from(projectsites)
+        .where(like(projectsites.slug, `${probe}%`))
       const used = new Set(rows.map((r) => r.slug))
       const slug = input.addressing.chooseSlug((s) => used.has(s))
       ;[site] = await tx
-        .insert(teamSites)
+        .insert(projectsites)
         .values({
-          teamId: input.teamId,
+          projectId: input.projectId,
           name: input.name,
           kind: input.kind,
           slug,
@@ -105,7 +105,9 @@ export async function publishSiteVersion(
     const [existing] = await tx
       .select()
       .from(staticSites)
-      .where(and(eq(staticSites.teamSiteId, site.id), eq(staticSites.commitSha, input.commitSha)))
+      .where(
+        and(eq(staticSites.projectsiteId, site.id), eq(staticSites.commitSha, input.commitSha)),
+      )
     let version = existing
     if (version) {
       await tx.delete(staticSiteFiles).where(eq(staticSiteFiles.staticSiteId, version.id))
@@ -124,7 +126,7 @@ export async function publishSiteVersion(
       ;[version] = await tx
         .insert(staticSites)
         .values({
-          teamSiteId: site.id,
+          projectsiteId: site.id,
           commitSha: input.commitSha,
           branch: input.branch,
           entryPath: input.entryPath,
@@ -168,7 +170,7 @@ export async function publishSiteVersion(
       commitLabel = input.addressing.commitLabel(site.slug, (l) => taken.has(l))
       await tx.insert(siteHostnames).values({
         label: commitLabel,
-        teamSiteId: site.id,
+        projectsiteId: site.id,
         linkKind: 'commit',
         staticSiteId: versionId,
       })
@@ -181,7 +183,7 @@ export async function publishSiteVersion(
         .from(siteHostnames)
         .where(
           and(
-            eq(siteHostnames.teamSiteId, site.id),
+            eq(siteHostnames.projectsiteId, site.id),
             eq(siteHostnames.linkKind, 'branch'),
             eq(siteHostnames.branch, input.branch),
           ),
@@ -199,7 +201,7 @@ export async function publishSiteVersion(
         branchLabel = input.addressing.branchLabel(input.branch, site.slug, (l) => taken.has(l))
         await tx.insert(siteHostnames).values({
           label: branchLabel,
-          teamSiteId: site.id,
+          projectsiteId: site.id,
           linkKind: 'branch',
           branch: input.branch,
           staticSiteId: versionId,
@@ -223,7 +225,7 @@ export async function publishSiteVersion(
 
 export namespace publishSiteVersion {
   export interface Input {
-    teamId: string
+    projectId: string
     name: string
     kind: string
     spa: boolean

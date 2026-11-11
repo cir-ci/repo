@@ -1,8 +1,8 @@
-import { createTestDb, seedFlipFlops, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedFlipFlops, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { countOpenTriage, listFlakyScreenshots } from '#src/queries/index.ts'
-import { updateTeamSettings } from '#src/repositories/index.ts'
+import { updateProjectsettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -14,21 +14,21 @@ afterAll(async () => {
 
 /** `home` goes A, B, A, B: two returns to an earlier image. */
 async function twoFlipFlops() {
-  const { team, workspace } = await seedTeam(t.db)
-  await seedFlipFlops(t.db, team.id, 'home', ['A', 'B', 'A', 'B'])
-  return { team, workspace }
+  const { project, workspace } = await seedProject(t.db)
+  await seedFlipFlops(t.db, project.id, 'home', ['A', 'B', 'A', 'B'])
+  return { project, workspace }
 }
 
-describe("the team's flaky threshold (flip-flops)", () => {
+describe("the project's flaky threshold (flip-flops)", () => {
   it('is 3 by default, so two flip-flops are not flaky', async () => {
-    const { team } = await twoFlipFlops()
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
+    const { project } = await twoFlipFlops()
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toEqual([])
   })
 
-  it('makes a screenshot flaky at the number the team chose, in the list and the sidebar count alike', async () => {
-    const { team, workspace } = await twoFlipFlops()
-    await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 2 })
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toMatchObject([
+  it('makes a screenshot flaky at the number the project chose, in the list and the sidebar count alike', async () => {
+    const { project, workspace } = await twoFlipFlops()
+    await updateProjectsettings(t.db, project.id, { flakyAfterChanges: 2 })
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toMatchObject([
       {
         name: 'home',
         changedIn: 3,
@@ -44,14 +44,14 @@ describe("the team's flaky threshold (flip-flops)", () => {
       },
     ])
     const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now: new Date() })
-    expect(counts.get(team.id)).toBe(1)
-    await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 3 })
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
+    expect(counts.get(project.id)).toBe(1)
+    await updateProjectsettings(t.db, project.id, { flakyAfterChanges: 3 })
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toEqual([])
   })
 
   it('refuses a threshold of 1: one return is a revert, not flakiness', async () => {
-    const { team } = await seedTeam(t.db)
-    await expect(updateTeamSettings(t.db, team.id, { flakyAfterChanges: 1 })).rejects.toThrow(
+    const { project } = await seedProject(t.db)
+    await expect(updateProjectsettings(t.db, project.id, { flakyAfterChanges: 1 })).rejects.toThrow(
       /flaky after 2 to 8 flip-flops/,
     )
   })

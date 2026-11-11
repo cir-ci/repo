@@ -135,7 +135,7 @@ export function Viewer({
       // On a phone a finger scrolls the page: it draws only in draw mode.
       alwaysDraw: !phone || drawMode,
       composer: draft && inDialog === (enlarged !== null) ? regions.composer : undefined,
-      // View only: the ignore regions the team set, over the screenshot.
+      // View only: the ignore regions the project set, over the screenshot.
       ...(phone && showIgnore && ignore && imageSize?.width && imageSize.height
         ? {
             ignoreRegions: {

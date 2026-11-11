@@ -76,7 +76,7 @@ describe('BuildPage states', () => {
     )
     await renderBuild()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    // Display names stand in as slugs until the teams list arrives; Workspace / Team / Builds / Build #N.
+    // Display names stand in as slugs until the projects list arrives; Workspace / Project / Builds / Build #N.
     await expect
       .element(crumbs.getByRole('link', { name: 'acme' }))
       .toHaveAttribute('href', '/inbox')
@@ -241,7 +241,7 @@ describe('BuildPage states', () => {
     fakeBuildApi(detail({ status: 'expired', conclusion: null }))
     await renderBuild()
     await expectEmptyState('This build has expired', {
-      body: "Its screenshots were deleted under the team's retention policy.",
+      body: "Its screenshots were deleted under the project's retention policy.",
     })
     await expect.element(page.getByText('Expired', { exact: true })).toBeVisible()
     expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)

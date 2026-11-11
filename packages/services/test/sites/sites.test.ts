@@ -2,11 +2,11 @@ import { commitLabelOfVersion, findSiteByLabel, servedCommitForBranch } from '@c
 import * as schema from '@circi/db/schema'
 import {
   addTestMember,
-  addTestTeamMember,
+  addTestProjectMember,
   createTestDb,
   seedSession,
   seedSite,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
@@ -44,9 +44,9 @@ const files = [
   { path: 'copy.html', sha256: fakeSha('a'), size: 3, contentType: 'text/html' },
 ]
 
-async function publish(teamId: string, over: Partial<publishSite.Input> = {}) {
+async function publish(projectId: string, over: Partial<publishSite.Input> = {}) {
   return publishSite(t.db, {
-    teamId,
+    projectId,
     name: 'docs',
     kind: 'generic',
     spa: false,
@@ -63,8 +63,8 @@ async function publish(teamId: string, over: Partial<publishSite.Input> = {}) {
 
 describe('publishSite', () => {
   it('records each blob once and publishes the version at a commit address', async () => {
-    const { team } = await seedTeam(t.db)
-    const res = await publish(team.id)
+    const { project } = await seedProject(t.db)
+    const res = await publish(project.id)
     expect(res.version).toMatchObject({ commitSha: 'abcdef012345', fileCount: 2 })
     expect(res.branchLabel).toBeUndefined()
     const rows = await t.db
@@ -76,32 +76,32 @@ describe('publishSite', () => {
   })
 
   it('moves the branch address only for the branch tip, never for a fork', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const common = { branch: 'main', commitSha: 'abcdef012345' }
     expect(
-      (await publish(team.id, { ...common, branchTip: 'abcdef012345', fork: true })).branchLabel,
+      (await publish(project.id, { ...common, branchTip: 'abcdef012345', fork: true })).branchLabel,
     ).toBeUndefined()
     expect(
-      (await publish(team.id, { ...common, branchTip: '999999999999' })).branchLabel,
+      (await publish(project.id, { ...common, branchTip: '999999999999' })).branchLabel,
     ).toBeUndefined()
     expect(
-      (await publish(team.id, { ...common, branchTip: 'abcdef012345' })).branchLabel,
+      (await publish(project.id, { ...common, branchTip: 'abcdef012345' })).branchLabel,
     ).toBeDefined()
-    expect(await servedCommitForBranch(t.db, team.id, 'docs', 'main')).toBe('abcdef012345')
+    expect(await servedCommitForBranch(t.db, project.id, 'docs', 'main')).toBe('abcdef012345')
   })
 
   it('lets a local ancestry check stand in when there is no tip', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const input = { branch: 'dev', commitSha: 'abcdef012345' }
-    expect((await publish(team.id, input)).branchLabel).toBeUndefined()
-    expect((await publish(team.id, { ...input, descends: true })).branchLabel).toBeDefined()
+    expect((await publish(project.id, input)).branchLabel).toBeUndefined()
+    expect((await publish(project.id, { ...input, descends: true })).branchLabel).toBeDefined()
   })
 })
 
 describe('serving', () => {
   it('finds a file by path, index.html, and the SPA fallback', async () => {
-    const { team } = await seedTeam(t.db)
-    const res = await publish(team.id, { spa: true })
+    const { project } = await seedProject(t.db)
+    const res = await publish(project.id, { spa: true })
     const found = await findSiteByLabel(t.db, res.commitLabel)
     expect(found?.versionId).toBe(res.version.id)
     const base = { versionId: res.version.id, entryPath: 'index.html', spa: true }
@@ -114,8 +114,8 @@ describe('serving', () => {
   })
 
   it('refuses a token that is bad, for a missing site, or already spent', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    const label = (await seedSite(t.db, { teamId: team.id })).label ?? ''
+    const { project, owner } = await seedProject(t.db)
+    const label = (await seedSite(t.db, { projectId: project.id })).label ?? ''
     expect(await openSiteSession(t.db, { token: null, label, siteExists: true })).toBeUndefined()
     expect(await openSiteSession(t.db, { token: 'x', label, siteExists: false })).toBeUndefined()
     expect(await openSiteSession(t.db, { token: 'nope', label, siteExists: true })).toBeUndefined()
@@ -125,13 +125,13 @@ describe('serving', () => {
 
 describe('confirmSiteSession', () => {
   it('is false for a session that does not exist', async () => {
-    const { team } = await seedTeam(t.db)
-    const site = await seedSite(t.db, { teamId: team.id })
+    const { project } = await seedProject(t.db)
+    const site = await seedSite(t.db, { projectId: project.id })
     expect(
       await confirmSiteSession(t.db, {
         id: 'nope',
         label: site.label ?? '',
-        workspaceId: team.workspaceId,
+        workspaceId: project.workspaceId,
       }),
     ).toBe(false)
   })
@@ -139,8 +139,8 @@ describe('confirmSiteSession', () => {
 
 describe('handOffToSite', () => {
   it('gives a member a token that opens a site session, and everyone else nothing', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    const label = (await seedSite(t.db, { teamId: team.id })).label ?? ''
+    const { project, owner } = await seedProject(t.db)
+    const label = (await seedSite(t.db, { projectId: project.id })).label ?? ''
     const session = await seedSession(t.db, owner.id)
     const asOwner = { label, userId: owner.id, sessionId: session.id, method: 'password' as const }
 
@@ -158,17 +158,17 @@ describe('handOffToSite', () => {
     expect(await handOffToSite(t.db, { ...asOwner, label: 'no-such-address' })).toBeUndefined()
   })
 
-  it("hides a team's site from workspace members who are not in the team, but not from admins", async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
-    const label = (await seedSite(t.db, { teamId: team.id })).label ?? ''
+  it("hides a project's site from workspace members who are not in the project, but not from admins", async () => {
+    const { project, workspace, owner } = await seedProject(t.db)
+    const label = (await seedSite(t.db, { projectId: project.id })).label ?? ''
     const plain = await seedUser(t.db)
     const admin = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: plain.id, teams: [] })
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: plain.id, projects: [] })
     await addTestMember(t.db, {
       workspaceId: workspace.id,
       userId: admin.id,
       role: 'admin',
-      teams: [],
+      projects: [],
     })
     const ask = async (userId: string) =>
       handOffToSite(t.db, {
@@ -179,14 +179,14 @@ describe('handOffToSite', () => {
       })
     expect(await ask(plain.id)).toBeUndefined()
     expect(await ask(admin.id)).toBeDefined()
-    await addTestTeamMember(t.db, { teamId: team.id, userId: plain.id })
+    await addTestProjectMember(t.db, { projectId: project.id, userId: plain.id })
     expect(await ask(plain.id)).toBeDefined()
     expect(await ask(owner.id)).toBeDefined()
   })
 
   it('refuses a session whose sign-in method the workspace does not accept', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    const label = (await seedSite(t.db, { teamId: team.id })).label ?? ''
+    const { project, owner } = await seedProject(t.db)
+    const label = (await seedSite(t.db, { projectId: project.id })).label ?? ''
     const session = await seedSession(t.db, owner.id)
     expect(
       await handOffToSite(t.db, {

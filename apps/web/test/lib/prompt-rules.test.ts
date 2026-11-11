@@ -120,19 +120,19 @@ const body = (v: object) => JSON.stringify(v)
 describe('isApprovalRequest', () => {
   it('recognises approving a build or screenshots', () => {
     expect(
-      isApprovalRequest('POST', '/api/teams/a/b/builds/3/review', body({ state: 'approved' })),
+      isApprovalRequest('POST', '/api/projects/a/b/builds/3/review', body({ state: 'approved' })),
     ).toBe(true)
     expect(
       isApprovalRequest(
         'POST',
-        '/api/teams/a/b/builds/3/snapshots/review',
+        '/api/projects/a/b/builds/3/snapshots/review',
         body({ decision: 'approved', snapshotNames: ['x'] }),
       ),
     ).toBe(true)
     expect(
-      isApprovalRequest('POST', '/api/teams/a/b/builds/3/review', body({ state: 'rejected' })),
+      isApprovalRequest('POST', '/api/projects/a/b/builds/3/review', body({ state: 'rejected' })),
     ).toBe(false)
-    expect(isApprovalRequest('GET', '/api/teams/a/b/builds/3/review', undefined)).toBe(false)
+    expect(isApprovalRequest('GET', '/api/projects/a/b/builds/3/review', undefined)).toBe(false)
     expect(isApprovalRequest('POST', '/api/inbox/x/read', body({ read: true }))).toBe(false)
   })
 })

@@ -1,7 +1,7 @@
 import type { Auth, Mailer } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
-import type { getTeamContext } from '@circi/db/queries'
+import type { getProjectContext } from '@circi/db/queries'
 import type { SessionMethod } from '@circi/db/repositories'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
@@ -44,7 +44,7 @@ export namespace Deps {
 
   /** What the CI API (`/v1`) needs. */
   export interface V1 extends Deps.Base {
-    /** This instance has a GitHub App: a linked team's check is then the merge gate. */
+    /** This instance has a GitHub App: a linked project's check is then the merge gate. */
     githubApp?: boolean
     /** Whether a GitHub App exists now, also one created in the dashboard (the one-click flow). */
     githubAppNow?: () => boolean
@@ -80,7 +80,7 @@ export namespace Deps {
     /** Looks up CNAME and address records to verify a site's custom domain; replaceable in tests. Default: real DNS. */
     resolveDns?: SiteDnsResolver
     /**
-     * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so teams can be
+     * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so projects can be
      * linked to repositories and the one-click setup is off. An App created in the dashboard
      * lives in `integrations.config.github` instead.
      */
@@ -112,8 +112,8 @@ export namespace Deps {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** The team whose CI token authenticated this `/v1` request. */
-    team?: getTeamContext.Context
+    /** The project whose CI token authenticated this `/v1` request. */
+    project?: getProjectContext.Context
     /** The signed-in user, inside the session-protected dashboard API. */
     user?: { id: string; email: string; name: string; method: SessionMethod; sessionId: string }
   }

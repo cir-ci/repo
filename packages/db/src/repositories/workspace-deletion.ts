@@ -6,7 +6,7 @@ import {
   builds,
   integrations,
   notifications,
-  teams,
+  projects,
   webhooks,
   workspace,
   workspaceDeletions,
@@ -67,7 +67,7 @@ export async function listWorkspaceIdsDueForPurge(db: Database, now: Date): Prom
 }
 
 /**
- * Deletes the workspace row, and with it (cascading) its teams, builds, screenshots, members,
+ * Deletes the workspace row, and with it (cascading) its projects, builds, screenshots, members,
  * integrations and settings; and its CI tokens, which better-auth keys by workspace without a
  * foreign key. Only a workspace that is marked deleted. Written directly, not through
  * better-auth's `deleteOrganization`, because the job has no session to act as.
@@ -95,8 +95,8 @@ export async function buildsInDeletedWorkspaces(
   const rows = await db
     .select({ id: builds.id })
     .from(builds)
-    .innerJoin(teams, eq(teams.id, builds.teamId))
-    .innerJoin(workspaceDeletions, eq(workspaceDeletions.workspaceId, teams.workspaceId))
+    .innerJoin(projects, eq(projects.id, builds.projectId))
+    .innerJoin(workspaceDeletions, eq(workspaceDeletions.workspaceId, projects.workspaceId))
     .where(inArray(builds.id, buildIds))
   return new Set(rows.map((r) => r.id))
 }
@@ -115,15 +115,15 @@ export async function jobIsForDeletedWorkspace(db: Database, job: Job): Promise<
   const deleted = db.select({ one: sql`1` }).from(workspaceDeletions)
   if (buildId) {
     const [row] = await deleted
-      .innerJoin(teams, eq(teams.workspaceId, workspaceDeletions.workspaceId))
-      .innerJoin(builds, eq(builds.teamId, teams.id))
+      .innerJoin(projects, eq(projects.workspaceId, workspaceDeletions.workspaceId))
+      .innerJoin(builds, eq(builds.projectId, projects.id))
       .where(eq(builds.id, buildId))
     return row !== undefined
   }
   if (webhookId) {
     const [row] = await deleted
-      .innerJoin(teams, eq(teams.workspaceId, workspaceDeletions.workspaceId))
-      .innerJoin(webhooks, eq(webhooks.teamId, teams.id))
+      .innerJoin(projects, eq(projects.workspaceId, workspaceDeletions.workspaceId))
+      .innerJoin(webhooks, eq(webhooks.projectId, projects.id))
       .where(eq(webhooks.id, webhookId))
     return row !== undefined
   }
@@ -135,8 +135,8 @@ export async function jobIsForDeletedWorkspace(db: Database, job: Job): Promise<
   }
   if (notificationId) {
     const [row] = await deleted
-      .innerJoin(teams, eq(teams.workspaceId, workspaceDeletions.workspaceId))
-      .innerJoin(builds, eq(builds.teamId, teams.id))
+      .innerJoin(projects, eq(projects.workspaceId, workspaceDeletions.workspaceId))
+      .innerJoin(builds, eq(builds.projectId, projects.id))
       .innerJoin(notifications, eq(notifications.buildId, builds.id))
       .where(eq(notifications.id, notificationId))
     return row !== undefined

@@ -4,7 +4,7 @@ import { type WorkspaceSettings, getWorkspaceSettings } from '#queries/workspace
 import { workspaceSettings } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
-/** A workspace's defaults for its teams (a team may override each one). */
+/** A workspace's defaults for its projects (a project may override each one). */
 
 /** Saves the given settings only and returns them all. */
 export async function setWorkspaceSettings(

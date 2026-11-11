@@ -16,10 +16,10 @@ const importBody = z.strictObject({
 })
 
 /**
- *   GET  /workspaces/:workspace/github-import   the repositories of its GitHub installations no team is linked to
- *   POST /workspaces/:workspace/github-import   one team per picked repository, linked to it
+ *   GET  /workspaces/:workspace/github-import   the repositories of its GitHub installations no project is linked to
+ *   POST /workspaces/:workspace/github-import   one project per picked repository, linked to it
  *
- * Owners and admins. The teams get no CI token; it is issued from the team's settings.
+ * Owners and admins. The projects get no CI token; it is issued from the project's settings.
  */
 export const dashboardGithubImportRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,

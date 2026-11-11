@@ -1,4 +1,4 @@
-import { autoAssignAllTeams, expireStalledBuilds, runRetention } from '@circi/services'
+import { autoAssignAllProjects, expireStalledBuilds, runRetention } from '@circi/services'
 
 import { reviewSweep } from './jobs/review-sweep.ts'
 import type { startWorker } from './runner.ts'
@@ -47,7 +47,7 @@ export function startSweeps(deps: startWorker.Deps): () => void {
     }),
     // The handover (Mondays) and snoozes that ended: items nobody has go to the person on triage.
     every(deps.triageAssignIntervalMs ?? 5 * 60_000, () => {
-      autoAssignAllTeams(db).then(
+      autoAssignAllProjects(db).then(
         (n) => {
           if (n > 0) logger.info({ items: n }, 'assigned triage items to whoever is on triage')
         },

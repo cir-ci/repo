@@ -28,8 +28,8 @@ const TAB_LABEL: Record<SidebarTab, string> = {
 /** Details / Activity / Comments beside the viewer: tabs over one panel (arrow keys, Home / End). */
 export function ReviewSidebar(props: ReviewSidebar.Props) {
   const { data, tab, onTab } = props
-  const { team, build } = data
-  const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
+  const { project, build } = data
+  const comments = useQuery(commentsQuery(project.workspaceSlug, project.slug, build.number))
   const count = commentCount(comments.data?.comments ?? [])
   const tabs = SIDEBAR_TABS.map((t) => ({
     value: t,
@@ -62,15 +62,15 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
           />
         ) : tab === 'activity' ? (
           <ActivityTab
-            workspace={team.workspaceSlug}
-            team={team.slug}
+            workspace={project.workspaceSlug}
+            project={project.slug}
             number={build.number}
             onOpenComment={props.onOpenComment}
           />
         ) : (
           <CommentsTab
-            workspace={team.workspaceSlug}
-            team={team.slug}
+            workspace={project.workspaceSlug}
+            project={project.slug}
             number={build.number}
             snapshotName={props.snapshotName}
             focusedId={props.focusedId}
@@ -103,7 +103,7 @@ function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
   const now = useNow()
   const { data: session } = authClient.useSession()
   const { data: activity } = useQuery(
-    activityQuery(data.team.workspaceSlug, data.team.slug, build.number),
+    activityQuery(data.project.workspaceSlug, data.project.slug, build.number),
   )
   const reviewers = openReviewerPeople(activity?.events ?? [])
   const target = reviewTargetStatus(data.reviewTarget, now)

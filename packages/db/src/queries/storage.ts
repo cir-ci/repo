@@ -1,8 +1,8 @@
-import type { TeamColor } from '@circi/core'
+import type { ProjectColor } from '@circi/core'
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
 
-import { files, teams } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { files, projects } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { getWorkspaceSettings } from './workspace-settings.ts'
@@ -55,10 +55,10 @@ export namespace getWorkspaceStorage {
     versions?: number
   }
 
-  export interface TeamUsage {
+  export interface ProjectUsage {
     slug: string
     name: string
-    color: TeamColor
+    color: ProjectColor
     icon: string | null
     retentionDays: number
     files: number
@@ -66,12 +66,12 @@ export namespace getWorkspaceStorage {
   }
 
   export interface Result {
-    /** Distinct files across the workspace: identical files are stored once, so the per-kind and per-team numbers add up to more. */
+    /** Distinct files across the workspace: identical files are stored once, so the per-kind and per-project numbers add up to more. */
     totalBytes: number
     totalFiles: number
     kinds: KindUsage[]
-    teams: TeamUsage[]
-    /** The retention a new team starts with. */
+    projects: ProjectUsage[]
+    /** The retention a new project starts with. */
     defaultRetentionDays: number
   }
 }
@@ -89,39 +89,39 @@ function rowsOf(result: unknown): Record<string, unknown>[] {
 const num = (value: unknown) => Number(value ?? 0)
 
 /**
- * What a workspace's builds and hosted sites refer to, by kind and by team. A file shared by
- * several builds counts once per kind (and once per team); the total counts it once.
+ * What a workspace's builds and hosted sites refer to, by kind and by project. A file shared by
+ * several builds counts once per kind (and once per project); the total counts it once.
  */
 export async function getWorkspaceStorage(
   db: Database,
   workspaceId: string,
-  /** Lists only the teams this person may see (the totals still cover the whole workspace). */
+  /** Lists only the projects this person may see (the totals still cover the whole workspace). */
   viewerId?: string,
 ): Promise<getWorkspaceStorage.Result> {
-  // Every (team, file) pair the workspace refers to, with the file's size.
+  // Every (project, file) pair the workspace refers to, with the file's size.
   const refs = sql`(
-    select b.team_id, s.file_sha256 as sha, 'screenshot' as kind, f.size
+    select b.project_id, s.file_sha256 as sha, 'screenshot' as kind, f.size
       from builds b
-      join teams t on t.id = b.team_id and t.workspace_id = ${workspaceId}
+      join projects t on t.id = b.project_id and t.workspace_id = ${workspaceId}
       join screenshots s on s.build_id = b.id
       join files f on f.sha256 = s.file_sha256
     union
-    select b.team_id, s.thumbnail_sha256, 'thumbnail', f.size
+    select b.project_id, s.thumbnail_sha256, 'thumbnail', f.size
       from builds b
-      join teams t on t.id = b.team_id and t.workspace_id = ${workspaceId}
+      join projects t on t.id = b.project_id and t.workspace_id = ${workspaceId}
       join screenshots s on s.build_id = b.id
       join files f on f.sha256 = s.thumbnail_sha256
     union
-    select b.team_id, d.diff_file_sha256, 'diff', f.size
+    select b.project_id, d.diff_file_sha256, 'diff', f.size
       from builds b
-      join teams t on t.id = b.team_id and t.workspace_id = ${workspaceId}
+      join projects t on t.id = b.project_id and t.workspace_id = ${workspaceId}
       join screenshot_diffs d on d.build_id = b.id
       join files f on f.sha256 = d.diff_file_sha256
     union
-    select ts.team_id, sf.sha256, 'site', sf.size
-      from team_sites ts
-      join teams t on t.id = ts.team_id and t.workspace_id = ${workspaceId}
-      join static_sites v on v.team_site_id = ts.id
+    select ts.project_id, sf.sha256, 'site', sf.size
+      from project_sites ts
+      join projects t on t.id = ts.project_id and t.workspace_id = ${workspaceId}
+      join static_sites v on v.project_site_id = ts.id
       join static_site_files sf on sf.static_site_id = v.id
   ) refs`
   const byKind = rowsOf(
@@ -130,11 +130,11 @@ export async function getWorkspaceStorage(
       from (select distinct kind, sha, size from ${refs}) k
       group by kind`),
   )
-  const byTeam = rowsOf(
+  const byProject = rowsOf(
     await db.execute(sql`
-      select team_id, count(*)::int as files, coalesce(sum(size), 0)::float8 as bytes
-      from (select distinct team_id, sha, size from ${refs}) k
-      group by team_id`),
+      select project_id, count(*)::int as files, coalesce(sum(size), 0)::float8 as bytes
+      from (select distinct project_id, sha, size from ${refs}) k
+      group by project_id`),
   )
   const [total] = rowsOf(
     await db.execute(sql`
@@ -145,26 +145,26 @@ export async function getWorkspaceStorage(
     await db.execute(sql`
       select count(*)::int as n
       from static_sites v
-      join team_sites ts on ts.id = v.team_site_id
-      join teams t on t.id = ts.team_id and t.workspace_id = ${workspaceId}`),
+      join project_sites ts on ts.id = v.project_site_id
+      join projects t on t.id = ts.project_id and t.workspace_id = ${workspaceId}`),
   )
-  const teamRows = await db
+  const projectRows = await db
     .select({
-      id: teams.id,
-      slug: teams.slug,
-      name: teams.name,
-      color: teams.color,
-      icon: teams.icon,
-      retentionDays: teams.retentionDays,
+      id: projects.id,
+      slug: projects.slug,
+      name: projects.name,
+      color: projects.color,
+      icon: projects.icon,
+      retentionDays: projects.retentionDays,
     })
-    .from(teams)
+    .from(projects)
     .where(
       and(
-        eq(teams.workspaceId, workspaceId),
-        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+        eq(projects.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : projectVisibleTo(viewerId, projects),
       ),
     )
-  const teamUsage = new Map(byTeam.map((r) => [String(r['team_id']), r]))
+  const projectUsage = new Map(byProject.map((r) => [String(r['project_id']), r]))
   const kindUsage = new Map(byKind.map((r) => [String(r['kind']), r]))
   return {
     totalBytes: num(total?.['bytes']),
@@ -179,15 +179,15 @@ export async function getWorkspaceStorage(
       if (kind === 'site') usage.versions = num(versions?.['n'])
       return usage
     }),
-    teams: teamRows
+    projects: projectRows
       .map((t) => ({
         slug: t.slug,
         name: t.name,
         color: t.color,
         icon: t.icon,
         retentionDays: t.retentionDays,
-        files: num(teamUsage.get(t.id)?.['files']),
-        bytes: num(teamUsage.get(t.id)?.['bytes']),
+        files: num(projectUsage.get(t.id)?.['files']),
+        bytes: num(projectUsage.get(t.id)?.['bytes']),
       }))
       .toSorted((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name)),
     defaultRetentionDays: (await getWorkspaceSettings(db, workspaceId)).retentionDays,

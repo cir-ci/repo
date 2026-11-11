@@ -1,22 +1,22 @@
 import { globMatches, matchFramesToSnapshots, ValidationError } from '@circi/core'
 import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
-import { type IntegrationLink, listTeamLinks } from '@circi/db/queries'
+import { type IntegrationLink, listProjectLinks } from '@circi/db/queries'
 import {
   createIntegrationLink,
   deleteAutoLinks,
-  getTeamIntegration,
+  getProjectIntegration,
   insertIntegrationLinksIfAbsent,
-  listTeamSnapshotNames,
-  removeIntegrationTeam,
-  removeOtherTeamMappings,
+  listProjectsnapshotNames,
+  removeIntegrationProject,
+  removeOtherProjectMappings,
   setIntegrationAttention,
-  setIntegrationTeam,
+  setIntegrationProject,
 } from '@circi/db/repositories'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 
 /**
- * Team-wide integration links (`integration_links` rows of a definition's `links.kind`; Figma's
+ * Project-wide integration links (`integration_links` rows of a definition's `links.kind`; Figma's
  * snapshot-pattern-to-frame table) and the mapping they hang on. The definition does the
  * provider's part (`links.resolve`, the `design` capability); these functions open the stored
  * credentials, call it and write the rows.
@@ -50,12 +50,12 @@ function linksOf(definition: IntegrationDefinition): IntegrationDefinition.Links
   return definition.links
 }
 
-export namespace addTeamLink {
+export namespace addProjectLink {
   export interface Input {
     definition: IntegrationDefinition
     ctx: IntegrationDefinition.Context
     integration: LinkedIntegration
-    teamId: string
+    projectId: string
     /** The form's values by field key. */
     values: Readonly<Record<string, string>>
     createdBy?: string | null
@@ -64,11 +64,11 @@ export namespace addTeamLink {
 
 /**
  * Adds a link a person typed in: the definition turns the values into the link (checking them with
- * the provider), and the team's link for the same subject, if any, is replaced.
+ * the provider), and the project's link for the same subject, if any, is replaced.
  */
-export async function addTeamLink(
+export async function addProjectLink(
   db: Database,
-  input: addTeamLink.Input,
+  input: addProjectLink.Input,
 ): Promise<IntegrationLink.Row> {
   const { definition, ctx } = input
   const links = linksOf(definition)
@@ -82,7 +82,7 @@ export async function addTeamLink(
     values[f.key] = value
   }
   const subject = values[links.subject] ?? ''
-  const mapped = await getTeamIntegration(db, input.teamId, input.integration.id)
+  const mapped = await getProjectIntegration(db, input.projectId, input.integration.id)
   const draft = await links.resolve(
     values,
     {
@@ -93,7 +93,7 @@ export async function addTeamLink(
   )
   return createIntegrationLink(db, {
     integrationId: input.integration.id,
-    teamId: input.teamId,
+    projectId: input.projectId,
     subject,
     kind: links.kind,
     externalRef: draft.ref,
@@ -104,19 +104,19 @@ export async function addTeamLink(
   })
 }
 
-export namespace autoLinkTeam {
+export namespace autoLinkProject {
   export interface Input {
     definition: IntegrationDefinition
     ctx: IntegrationDefinition.Context
     integration: LinkedIntegration
-    teamId: string
+    projectId: string
     createdBy?: string | null
   }
 
   export interface Result {
     /** Links added now. */
     created: number
-    /** Snapshots the team has uploaded that still have no link. */
+    /** Snapshots the project has uploaded that still have no link. */
     unlinked: number
     /** Frames the mapped file has. */
     frames: number
@@ -124,32 +124,32 @@ export namespace autoLinkTeam {
 }
 
 /**
- * Links the team's snapshots to frames of its mapped file by name (`matchFramesToSnapshots`
+ * Links the project's snapshots to frames of its mapped file by name (`matchFramesToSnapshots`
  * in `@circi/core`): case and separators ignored, then the frame named like the last path
  * segment; ambiguous names get no link. Only snapshots no link covers yet are considered, and an
  * existing link (manual or automatic) is never replaced. The frames come from the definition's
  * `design` capability and each link is what its `linkFor` says.
  */
-export async function autoLinkTeam(
+export async function autoLinkProject(
   db: Database,
-  input: autoLinkTeam.Input,
-): Promise<autoLinkTeam.Result> {
+  input: autoLinkProject.Input,
+): Promise<autoLinkProject.Result> {
   const { definition, ctx, integration } = input
   const links = linksOf(definition)
   const design = definition.capabilities.design
   if (!links.autoLink || !design) {
     throw new ValidationError(`${definition.name} can't link automatically`)
   }
-  const mapped = await getTeamIntegration(db, input.teamId, integration.id)
-  if (!mapped) throw new ValidationError(`Choose a ${label(definition)} for this team first`)
+  const mapped = await getProjectIntegration(db, input.projectId, integration.id)
+  if (!mapped) throw new ValidationError(`Choose a ${label(definition)} for this project first`)
   const frames = await design.listFrames(
     openCredentials(definition, integration, ctx),
     mapped.externalRef,
     ctx,
   )
   const [names, existing] = await Promise.all([
-    listTeamSnapshotNames(db, input.teamId),
-    listTeamLinks(db, input.teamId, links.kind),
+    listProjectsnapshotNames(db, input.projectId),
+    listProjectLinks(db, input.projectId, links.kind),
   ])
   const uncovered = names.filter(
     (n) => !existing.some((l) => l.subject !== null && globMatches(l.subject, n)),
@@ -167,7 +167,7 @@ export async function autoLinkTeam(
       return [
         {
           integrationId: integration.id,
-          teamId: input.teamId,
+          projectId: input.projectId,
           subject: m.snapshotName,
           kind: links.kind,
           externalRef: draft.ref,
@@ -182,36 +182,36 @@ export async function autoLinkTeam(
   return { created, unlinked: uncovered.length - created, frames: frames.length }
 }
 
-export namespace mapTeam {
+export namespace mapProject {
   export interface Input {
     definition: IntegrationDefinition
     integrationId: string
-    teamId: string
+    projectId: string
     ref: string
     extra: Record<string, unknown>
   }
 }
 
 /**
- * Points a team at a target of the integration. When the definition keeps links, changing to
+ * Points a project at a target of the integration. When the definition keeps links, changing to
  * another target drops the automatic links made for the old one (they would point at things that
  * are not there); manual links stay, as a person made them. An `exclusive` definition moves the
- * team: its mapping on any other connection of the kind (a git host: of any git host) goes.
+ * project: its mapping on any other connection of the kind (a git host: of any git host) goes.
  * Mapping a git host again says the connection works, so its "needs attention" is cleared.
  */
-export async function mapTeam(db: Database, input: mapTeam.Input): Promise<void> {
+export async function mapProject(db: Database, input: mapProject.Input): Promise<void> {
   const { definition } = input
-  // One transaction, and the new mapping is written before the old ones are dropped: a team that
+  // One transaction, and the new mapping is written before the old ones are dropped: a project that
   // moves between installations (or git hosts) is never seen with no mapping, and if any step
   // fails it keeps the old one.
   await db.transaction(async (tx) => {
-    await setIntegrationTeam(tx, {
+    await setIntegrationProject(tx, {
       integrationId: input.integrationId,
-      teamId: input.teamId,
+      projectId: input.projectId,
       externalRef: input.ref,
       extra: input.extra,
     })
-    const exclusive = definition.exclusive?.team
+    const exclusive = definition.exclusive?.project
     if (exclusive) {
       const kinds =
         exclusive === 'kind'
@@ -220,8 +220,8 @@ export async function mapTeam(db: Database, input: mapTeam.Input): Promise<void>
               .all()
               .filter((d) => d.group === definition.group)
               .map((d) => d.id)
-      await removeOtherTeamMappings(tx, {
-        teamId: input.teamId,
+      await removeOtherProjectMappings(tx, {
+        projectId: input.projectId,
         keepIntegrationId: input.integrationId,
         kinds,
       })
@@ -229,7 +229,7 @@ export async function mapTeam(db: Database, input: mapTeam.Input): Promise<void>
     if (definition.capabilities.git) await setIntegrationAttention(tx, input.integrationId, null)
     if (input.definition.links) {
       await deleteAutoLinks(tx, {
-        teamId: input.teamId,
+        projectId: input.projectId,
         kind: input.definition.links.kind,
         keepScope: input.ref,
       })
@@ -237,15 +237,15 @@ export async function mapTeam(db: Database, input: mapTeam.Input): Promise<void>
   })
 }
 
-/** Stops a team using the integration; its automatic links go, manual ones stay for when a target is chosen again. */
-export async function unmapTeam(
+/** Stops a project using the integration; its automatic links go, manual ones stay for when a target is chosen again. */
+export async function unmapProject(
   db: Database,
-  input: { definition: IntegrationDefinition; integrationId: string; teamId: string },
+  input: { definition: IntegrationDefinition; integrationId: string; projectId: string },
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await removeIntegrationTeam(tx, input.integrationId, input.teamId)
+    await removeIntegrationProject(tx, input.integrationId, input.projectId)
     if (input.definition.links) {
-      await deleteAutoLinks(tx, { teamId: input.teamId, kind: input.definition.links.kind })
+      await deleteAutoLinks(tx, { projectId: input.projectId, kind: input.definition.links.kind })
     }
   })
 }

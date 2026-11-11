@@ -5,10 +5,10 @@ import { useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
 import { buildQuery, isActive } from '#features/builds/api/index.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
-import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading, projectBuildsCrumb } from '#lib/PageHeading.tsx'
 
 import { buildTitle } from './build-title.ts'
 import { BuildReview } from './BuildReview.tsx'
@@ -19,10 +19,10 @@ import styles from './BuildPage.module.css'
 export function BuildPage() {
   const params = useParams({ from: ROUTE })
   const number = Number(params.number)
-  const { data, error, refetch } = useQuery(buildQuery(params.workspace, params.team, number))
-  useDocumentTitle(`Build #${number}`, params.team)
+  const { data, error, refetch } = useQuery(buildQuery(params.workspace, params.project, number))
+  useDocumentTitle(`Build #${number}`, params.project)
   useProcessingAnnouncement(data)
-  const names = useCrumbNames(params.workspace, params.team)
+  const names = useCrumbNames(params.workspace, params.project)
 
   if (data) return <BuildReview data={data} />
 
@@ -30,7 +30,7 @@ export function BuildPage() {
   return (
     <div className={styles.page}>
       <PageHeading
-        crumbs={crumbsFor(names, [teamBuildsCrumb(params.workspace, params.team)])}
+        crumbs={crumbsFor(names, [projectBuildsCrumb(params.workspace, params.project)])}
         title={buildTitle(number)}
       />
       {error ? (

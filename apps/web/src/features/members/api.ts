@@ -113,14 +113,14 @@ export function useSaveWorkspaceSettings(workspace: string) {
     meta: { what: 'save' },
     mutationFn: (patch: Partial<Workspace.Settings>) =>
       send<{ settings: Workspace.Settings }>('PATCH', workspacePath(workspace, 'settings'), patch),
-    // Teams that inherit a setting show the workspace's value, so refresh theirs too.
+    // Projects that inherit a setting show the workspace's value, so refresh theirs too.
     onSuccess: () =>
       invalidateAll(
         queryClient,
         keys.workspaceSettings(workspace),
         // The Storage page shows the default retention beside what is used.
         keys.workspaceStorage(workspace),
-        keys.allTeamSettings(),
+        keys.allProjectsettings(),
       ),
   })
 }

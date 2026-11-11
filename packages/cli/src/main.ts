@@ -44,7 +44,7 @@ program
     'after',
     `
 Environment:
-  CIRCI_TOKEN    team CI token (required)
+  CIRCI_TOKEN    project CI token (required)
   CIRCI_API_URL  CirCI address, e.g. https://ci.acme.io
   CIRCI_COMMIT, CIRCI_BRANCH, CIRCI_PR_NUMBER, CIRCI_BASE_BRANCH
                  override what is detected from the CI environment
@@ -70,7 +70,7 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
     ) => {
       const token = process.env.CIRCI_TOKEN
       const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
-      if (!token) throw new UsageError('Set CIRCI_TOKEN to the team CI token')
+      if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
       if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
       const timeout = Number(opts.timeout)
       if (!Number.isFinite(timeout) || timeout <= 0)
@@ -103,7 +103,7 @@ function siteCommand(parent: Command, name: string, description: string, fixedKi
     .command(name)
     .description(description)
     .argument('<dir>', 'the built site (a folder with its index.html)')
-    .option('--name <name>', "which of the team's sites this is", fixedKind ?? 'site')
+    .option('--name <name>', "which of the project's sites this is", fixedKind ?? 'site')
     .option('--spa', 'serve unknown paths with the entry page (single-page apps)')
     .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
   if (!fixedKind) {
@@ -117,7 +117,7 @@ function siteCommand(parent: Command, name: string, description: string, fixedKi
     async (dir: string, opts: { name: string; kind?: string; spa?: boolean; apiUrl?: string }) => {
       const token = process.env.CIRCI_TOKEN
       const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
-      if (!token) throw new UsageError('Set CIRCI_TOKEN to the team CI token')
+      if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
       if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
       await uploadSite({
         dir,
@@ -144,7 +144,7 @@ program
     const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
     const token = process.env.CIRCI_TOKEN
     if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
-    if (!token) throw new UsageError('Set CIRCI_TOKEN to the team CI token')
+    if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
     // `eval "$(circi argos-env)"` in a shell, or append the output to $GITHUB_ENV.
     console.log(`ARGOS_API_BASE_URL=${apiUrl.replace(/\/$/, '')}/v2`)
     console.log(`ARGOS_TOKEN=${token}`)

@@ -19,7 +19,7 @@ import { findWorkspaces } from './workspaces-list.ts'
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
 
 /**
- * Settings, Workspaces (instance admins; the All teams page's sibling): every workspace of the
+ * Settings, Workspaces (instance admins; the All projects page's sibling): every workspace of the
  * instance with its size, each opening its settings hub, and the deleted ones in a group of their
  * own (days left to restore them, from their hub). New workspace is the header's button.
  */
@@ -105,7 +105,7 @@ function WorkspaceRow({ workspace: w }: WorkspaceRow.Props) {
           <span>{deletedLabel(w.daysLeft)}</span>
         ) : (
           <>
-            <span>{hubSubtitle(w.memberCount, w.teamCount)}</span>
+            <span>{hubSubtitle(w.memberCount, w.projectCount)}</span>
             <span>{formatBytes(w.storageBytes)}</span>
           </>
         )

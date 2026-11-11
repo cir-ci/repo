@@ -1,13 +1,13 @@
 import type { Page } from 'playwright'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam } from '#clients/admin.ts'
+import { createProject } from '#clients/admin.ts'
 import type { FakeGithub } from '#fakes/fake-github.ts'
 import {
   buildDetail,
   checkRunPayload,
-  createLinkedTeam,
-  type LinkedTeam,
+  createLinkedProject,
+  type LinkedProject,
   uniqueInstallationId,
   uploadPr,
 } from '#github/github-helpers.ts'
@@ -21,11 +21,11 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
 /** The installation the Integrations page connects in this file. */
 const UI_INSTALLATION = uniqueInstallationId()
 
-/** The integration page's "Add a repository by name" form: saves the link for `team`. */
-async function linkByName(page: Page, repository: string, team: string) {
+/** The integration page's "Add a repository by name" form: saves the link for `project`. */
+async function linkByName(page: Page, repository: string, project: string) {
   await page.getByLabel('Add a repository by name').fill(repository)
-  await page.getByRole('combobox', { name: 'Team', exact: true }).click()
-  await page.getByRole('option', { name: team, exact: true }).click()
+  await page.getByRole('combobox', { name: 'Project', exact: true }).click()
+  await page.getByRole('option', { name: project, exact: true }).click()
   await page.getByRole('button', { name: 'Link repository' }).click()
 }
 
@@ -37,16 +37,16 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     gh = ctx.github
   })
   const browser = useBrowser()
-  let linked: LinkedTeam
+  let linked: LinkedProject
   let workspaceSlug = ''
 
   const deliveries = async () =>
     Number((await ctx.stack.sql('select count(*) from provider_deliveries'))[0]?.[0])
 
-  it('connects GitHub in Integrations, links a repository to a team there and unlinks it', async () => {
+  it('connects GitHub in Integrations, links a repository to a project there and unlinks it', async () => {
     const { stack, setup } = ctx
     workspaceSlug = setup.workspace.slug
-    const team = await createTeam(setup.session, workspaceSlug, 'Linked in UI')
+    const project = await createProject(setup.session, workspaceSlug, 'Linked in UI')
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/workspaces/${workspaceSlug}/settings/integrations`)
     // The page header's button (an empty list shows a second one).
@@ -60,18 +60,18 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     // The integration's page shows the webhook address CirCI expects on the GitHub App.
     await page.getByText(`${stack.url}/webhooks/github`).waitFor()
     await linkByName(page, 'acme/ui-linked', 'Linked in UI')
-    await page.getByRole('combobox', { name: 'Team for acme/ui-linked' }).waitFor()
+    await page.getByRole('combobox', { name: 'Project for acme/ui-linked' }).waitFor()
 
     const settings = await setup.session.get<{
       github: { configured: boolean; link: { installationId: string; repoRef: string } | null }
-    }>(`/api/teams/${workspaceSlug}/${team.slug}/settings`)
+    }>(`/api/projects/${workspaceSlug}/${project.slug}/settings`)
     expect(settings.github).toMatchObject({
       configured: true,
       link: { installationId: UI_INSTALLATION, repoRef: 'acme/ui-linked' },
     })
     // Survives a reload; and unlinking works.
     await page.reload()
-    const picker = page.getByRole('combobox', { name: 'Team for acme/ui-linked' })
+    const picker = page.getByRole('combobox', { name: 'Project for acme/ui-linked' })
     await picker.waitFor()
     await picker.click()
     await page.getByRole('option', { name: 'Not linked' }).click()
@@ -80,23 +80,23 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
         async () =>
           (
             await setup.session.get<{ github: { link: unknown } }>(
-              `/api/teams/${workspaceSlug}/${team.slug}/settings`,
+              `/api/projects/${workspaceSlug}/${project.slug}/settings`,
             )
           ).github.link,
       )
       .toBeNull()
     const after = await setup.session.get<{ github: { link: unknown } }>(
-      `/api/teams/${workspaceSlug}/${team.slug}/settings`,
+      `/api/projects/${workspaceSlug}/${project.slug}/settings`,
     )
     expect(after.github.link).toBeNull()
   })
 
   it('refuses a malformed repository or installation ID', async () => {
     const { setup } = ctx
-    const team = await createTeam(setup.session, workspaceSlug, 'Bad link')
+    const project = await createProject(setup.session, workspaceSlug, 'Bad link')
     const bad = await setup.session.request(
       'PUT',
-      `/api/teams/${workspaceSlug}/${team.slug}/github`,
+      `/api/projects/${workspaceSlug}/${project.slug}/github`,
       {
         installationId: 'abc',
         repoRef: 'nope',
@@ -107,7 +107,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
 
   it('rejects a bad or missing signature with no side effects, and accepts a signed one', async () => {
     const { stack, setup } = ctx
-    linked = await createLinkedTeam(stack, setup.session, workspaceSlug, 'Web', {
+    linked = await createLinkedProject(stack, setup.session, workspaceSlug, 'Web', {
       repoRef: 'acme/web',
       blockMergeOnChanges: true,
     })
@@ -237,18 +237,21 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(gh.find('PATCH /repos/acme/web/issues/comments/').length).toBeGreaterThan(0)
   })
 
-  it('a 401 for the installation puts a banner on the team and its settings, until the link is saved again', async () => {
+  it('a 401 for the installation puts a banner on the project and its settings, until the link is saved again', async () => {
     const { stack, setup } = ctx
     // An installation of its own: the others in this file keep working.
     const REVOKED = uniqueInstallationId()
-    const p = await createLinkedTeam(stack, setup.session, workspaceSlug, 'Revoked', {
+    const p = await createLinkedProject(stack, setup.session, workspaceSlug, 'Revoked', {
       repoRef: 'acme/revoked',
       installationId: REVOKED,
     })
-    const teamUrl = `${stack.url}/${workspaceSlug}/${p.slug}`
+    const projectUrl = `${stack.url}/${workspaceSlug}/${p.slug}`
     const attention = async () =>
-      (await setup.session.get<{ gitAttention: unknown }>(`/api/teams/${workspaceSlug}/${p.slug}`))
-        .gitAttention
+      (
+        await setup.session.get<{ gitAttention: unknown }>(
+          `/api/projects/${workspaceSlug}/${p.slug}`,
+        )
+      ).gitAttention
     expect(await attention()).toBeNull()
 
     gh.revokeInstallation(REVOKED)
@@ -274,11 +277,11 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(gh.checkRuns.find((c) => c.headSha === pr.sha)).toBeUndefined()
 
     const page = await browser.as(setup.session)
-    await page.goto(teamUrl)
-    await page.getByText(/can.t reach GitHub for this team/).waitFor()
+    await page.goto(projectUrl)
+    await page.getByText(/can.t reach GitHub for this project/).waitFor()
     await page.getByText(/GitHub App was removed or suspended/).waitFor()
-    await page.goto(`${teamUrl}/settings`)
-    await page.getByText(/can.t reach GitHub for this team/).waitFor()
+    await page.goto(`${projectUrl}/settings`)
+    await page.getByText(/can.t reach GitHub for this project/).waitFor()
 
     // Reinstalled: saving the repository again on the GitHub integration's page clears the banner.
     gh.restoreInstallation(REVOKED)
@@ -291,12 +294,12 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     )
     await linkByName(page, 'acme/revoked', 'Revoked')
     await expect.poll(attention).toBeNull()
-    await page.goto(`${teamUrl}/settings`)
-    await page.getByText(/can.t reach GitHub for this team/).waitFor({ state: 'detached' })
+    await page.goto(`${projectUrl}/settings`)
+    await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
     expect(await attention()).toBeNull()
-    await page.goto(teamUrl)
+    await page.goto(projectUrl)
     await page.getByRole('heading', { name: 'Builds' }).waitFor()
-    expect(await page.getByText(/can.t reach GitHub for this team/).count()).toBe(0)
+    expect(await page.getByText(/can.t reach GitHub for this project/).count()).toBe(0)
   })
 
   it('tokens and the private key never reach the logs', async () => {

@@ -1,8 +1,8 @@
-import type { Team, Triage } from '@circi/api'
+import type { Project, Triage } from '@circi/api'
 import { Banner, Button } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { useSaveSettings } from '#features/teams/api/index.ts'
+import { useSaveSettings } from '#features/projects/api/index.ts'
 import { HttpError } from '#lib/http.ts'
 import { toast } from '#lib/toast.ts'
 
@@ -22,7 +22,7 @@ import { NotifySection } from './NotifySection.tsx'
 import { ReviewTargetSection } from './ReviewTargetSection.tsx'
 import { RotationSection } from './RotationSection.tsx'
 
-import teamStyles from '#features/team-settings/TeamSettings.module.css'
+import projectstyles from '#features/project-settings/Projectsettings.module.css'
 
 /**
  * The settings below the rules, saved together: the review target, the automation, and triage
@@ -31,8 +31,8 @@ import teamStyles from '#features/team-settings/TeamSettings.module.css'
  * confirmed, each in its own dialog.
  */
 export function ReviewsForm(props: ReviewsForm.Props) {
-  const saveSettings = useSaveSettings(props.workspace, props.team)
-  const { rotation: saveRotation } = useRuleActions(props.workspace, props.team)
+  const saveSettings = useSaveSettings(props.workspace, props.project)
+  const { rotation: saveRotation } = useRuleActions(props.workspace, props.project)
   const saved = formValuesOf(props.settings, props.rotation)
   const [values, setValues] = useState<FormValues>(saved)
   const [dateUnreadable, setDateUnreadable] = useState(false)
@@ -98,7 +98,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
   const fieldMessages = ['reviewTargetHours', 'reviewOverdueNotifyUserId', 'flakyAfterChanges']
   const shownByField = fieldMessages.some((f) => fields[f])
   return (
-    <form onSubmit={(e) => void submit(e)} noValidate className={teamStyles.form}>
+    <form onSubmit={(e) => void submit(e)} noValidate className={projectstyles.form}>
       <ReviewTargetSection
         hours={values.hours}
         notifyUserId={values.notifyUserId}
@@ -109,7 +109,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         disabled={disabled}
         onHoursChange={(hours) => edit({ hours })}
         onNotifyChange={(notifyUserId) => edit({ notifyUserId })}
-        className={teamStyles.number}
+        className={projectstyles.number}
       />
       <AutomationSection
         close={values.close}
@@ -123,7 +123,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         onRequireReasonChange={(requireReason) => edit({ requireReason })}
       />
       <RotationSection
-        teamName={props.settings.name}
+        projectName={props.settings.name}
         defaultBranch={props.settings.defaultBranch}
         people={props.people}
         known={props.rotation.members}
@@ -146,11 +146,11 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         onSnoozeChange={(snoozeDays) => edit({ snoozeDays })}
         onAssignOnCallChange={(assignOnCall) => edit({ assignOnCall })}
       />
-      <NotifySection workspace={props.workspace} team={props.team} />
+      <NotifySection workspace={props.workspace} project={props.project} />
       {failure && !shownByField ? <Banner tone="danger">{failure.message}</Banner> : null}
       {done ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
-        <div className={teamStyles.footer}>
+        <div className={projectstyles.footer}>
           <Button type="button" variant="ghost" onClick={discard} disabled={!dirty || saving}>
             Discard
           </Button>
@@ -166,9 +166,9 @@ export function ReviewsForm(props: ReviewsForm.Props) {
 export namespace ReviewsForm {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     settings: Pick<
-      Team.Settings,
+      Project.Settings,
       | 'name'
       | 'defaultBranch'
       | 'reviewTargetHours'
@@ -181,7 +181,7 @@ export namespace ReviewsForm {
       | 'snoozeDefaultDays'
       | 'assignTriageToOnCall'
     >
-    /** What a team that inherits the setting gets: the workspace's default. */
+    /** What a project that inherits the setting gets: the workspace's default. */
     workspaceAssignOnCall: boolean
     rotation: Triage.Rotation
     people: Person[]

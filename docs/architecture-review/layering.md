@@ -60,8 +60,8 @@ What no test or rule pins: anything about `apps/server` and `apps/worker`. That 
 
 **F1. Routes bypass the application layer for writes.**
 `apps/server/src` imports 129 distinct values from `@circi/db`: 29 queries (fine, read models), 91 repository functions
-and a few others. 42 server files call repository functions. 25 of those are mutating: `createWebhook`, `updateTeamSettings`,
-`setWorkspaceSettings`, `createReviewRule`, `addWorkspaceDomain`, `replaceIntegrationCredentials`, `setTeamAppearance`,
+and a few others. 42 server files call repository functions. 25 of those are mutating: `createWebhook`, `updateProjectsettings`,
+`setWorkspaceSettings`, `createReviewRule`, `addWorkspaceDomain`, `replaceIntegrationCredentials`, `setProjectAppearance`,
 `markFileVerified`, `setParallelTotal`, `setSetting`, and so on. `grep transaction(` in `apps/server` returns 0 and in
 `packages/services/src` 32 (8 files), so every one of those writes is a bare single statement that cannot join an outbox
 transaction. They are "simple writes that trigger nothing" today, which is exactly the CLAUDE.md allowance; the cost is that
@@ -71,18 +71,18 @@ the rule is enforced only by memory. Adding a webhook event or an audit entry to
 **F2. Routes embed schema and SQL.**
 `routes/dashboard/workspace-sso.ts` lines 67-69 and 120-122 run `select … from schema.ssoProvider where …` with drizzle
 operators directly in the handler. `routes/dashboard/triage.ts` and `ignore-regions.ts` import `schema` for
-`schema.TRIAGE_KINDS` (a constant that belongs in `core`). `http/lib/instance-settings.ts` reads `schema.teams.retentionDays.default`
+`schema.TRIAGE_KINDS` (a constant that belongs in `core`). `http/lib/instance-settings.ts` reads `schema.projects.retentionDays.default`
 to learn a default. `packages/services/src/git-events.ts` also imports `schema` for `schema.REVIEW_SOURCES`. The db package
 exports its whole schema, so any layer can reach for it.
 
 **F3. Authorization is duplicated per transport and mixes into replies.**
-`http/lib/team-access.ts` (`loadTeam`) and `http/lib/workspace-access.ts` (`loadWorkspace`) resolve the actor's membership,
+`http/lib/project-access.ts` (`loadProject`) and `http/lib/workspace-access.ts` (`loadWorkspace`) resolve the actor's membership,
 decide 404 vs 403 and write the HTTP reply, so the policy is welded to Fastify. The role rule `owner || admin` is re-implemented
 in 13 other files (18 occurrences of `role === 'owner'`/`!== 'owner'`): `settings.ts` (lines 160-167), `rules.ts`, `domains.ts`,
 `workspaces.ts`, `comments.ts`, `integrations.ts`, `integrations-generic.ts`, `workspace-sso.ts`, `workspace-auth.ts`,
 `workspace-settings.ts`, `github-app.ts`, `cli/admin.ts` and `apps/web/src/features/members/model.ts`. The CLI (`admin.ts`) and
 the HTTP API therefore each carry their own copy of "who may do this", and a job or a future second transport could not reuse
-either. `getMemberRole`/`getTeamMemberRole`/`findTeamForMember` are called from `http/lib`, so repository functions double
+either. `getMemberRole`/`getProjectMemberRole`/`findProjectForMember` are called from `http/lib`, so repository functions double
 as policy inputs.
 
 **F4. Use cases live in the worker.**
@@ -108,7 +108,7 @@ allow-list: the rule "repositories never queue" has three named exceptions becau
 
 **F7. Read models import repositories.**
 10 of 20 files in `db/src/queries` import `#repositories/…` (`insights`, `integrations`, `figma`, `search`, `storage`, `inbox`,
-`triage`, `teams`, `activity`, `workspace-builds`). Reads should depend on schema and shared SQL helpers, not on the write side.
+`triage`, `projects`, `activity`, `workspace-builds`). Reads should depend on schema and shared SQL helpers, not on the write side.
 
 **F8. Errors have three homes and a hand-written mapper.**
 `ValidationError` is in `core/errors.ts`; `NotFoundError`, `ConflictError`, `ForbiddenError`, `pgErrorCode` are in `db/errors.ts`
@@ -185,31 +185,31 @@ shaped for the API and carry no rules. Everything that changes state or enforces
 | application (`services`) | use cases, `Actor` authorization, transactions, outbox, orchestrating adapters, idempotency | HTTP, Fastify types, console, process lifecycle |
 | domain (`core`) | rules, errors, constants, schemas of value objects | database, network, time (take `now` as an argument) |
 | persistence (`db`) | tables, migrations, repositories, read models, the job table | decisions, queueing from repositories, vendor knowledge |
-| adapters | one external system each | knowing about teams, builds or users |
+| adapters | one external system each | knowing about projects, builds or users |
 | platform | config, logging, composition root | domain behaviour |
 
 ### 2.3 Cross-cutting concerns
 
 **Auth and access control.**
-Authentication stays in transport (`http/hooks/session.ts`, `team-token.ts`; `packages/auth` is an adapter). Authorization moves into the
+Authentication stays in transport (`http/hooks/session.ts`, `project-token.ts`; `packages/auth` is an adapter). Authorization moves into the
 application layer as policies that take an `Actor` and throw domain errors:
 
 ```ts
 // packages/services/src/access/actor.ts
 export type Actor =
   | { kind: 'user'; id: string; method: SessionMethod }
-  | { kind: 'ciToken'; teamId: string }
+  | { kind: 'ciToken'; projectId: string }
   | { kind: 'system' }            // worker, CLI with --admin
 // packages/services/src/access/policies.ts
 export async function requireWorkspaceMember(tx, actor, workspaceSlug): Promise<WorkspaceScope>   // throws NotFoundError
-export async function requireTeamMember(tx, actor, ref): Promise<TeamScope>                         // throws NotFoundError
-export async function requireTeamManager(tx, actor, ref): Promise<TeamScope>                        // + ForbiddenError
+export async function requireProjectMember(tx, actor, ref): Promise<Projectscope>                         // throws NotFoundError
+export async function requireProjectManager(tx, actor, ref): Promise<Projectscope>                        // + ForbiddenError
 export async function requireWorkspaceAdmin(tx, actor, workspaceSlug): Promise<WorkspaceScope>
 export async function requireInstanceAdmin(tx, actor): Promise<void>
 ```
 
-The 404-for-non-members rule (`team-access.ts`) and the `owner || admin` rule (13 files today) then exist once, with one test file.
-`loadTeam`/`loadWorkspace` shrink to "read params, call a policy, hand the scope to the handler"; the reply-writing disappears
+The 404-for-non-members rule (`project-access.ts`) and the `owner || admin` rule (13 files today) then exist once, with one test file.
+`loadProject`/`loadWorkspace` shrink to "read params, call a policy, hand the scope to the handler"; the reply-writing disappears
 because the error mapper does it.
 
 **Transactions and the outbox.**
@@ -249,7 +249,7 @@ apps/server/src
   main.ts
   http/
     app.ts                 buildServer (scopes), hooks registration
-    hooks/                 session, same-origin, team-token, instance-admin, previous-hosts   (unchanged)
+    hooks/                 session, same-origin, project-token, instance-admin, previous-hosts   (unchanged)
     routes/
       dashboard/<area>/    one folder per resource: routes.ts, schemas.ts, presenters.ts   (replaces 31 flat files)
       v1/  argos/  auth.ts  health.ts  webhooks/
@@ -264,7 +264,7 @@ apps/worker/src
 packages/services/src      application layer
   access/                  actor.ts, policies.ts
   builds/ (create, finalize, complete, fail, requeue, process)
-  reviews/  comments/  teams/  workspaces/  integrations/  git/  notifications/  retention/  triage/  views/  sites/  settings/
+  reviews/  comments/  projects/  workspaces/  integrations/  git/  notifications/  retention/  triage/  views/  sites/  settings/
   tx.ts  index.ts
 packages/core/src          domain: errors.ts, rules/, baselines/, outcome/, limits/, tokens/ (grouped, no I/O)
 packages/db/src
@@ -280,11 +280,11 @@ packages/{providers,storage,sites,diff,config,auth,integrations}   adapters (unc
 | Current | Target | Kind |
 | --- | --- | --- |
 | `apps/server/src/http/routes/dashboard/integrations-generic.ts` (723) | `routes/dashboard/integrations/{routes,oauth,mappings,schemas}.ts` + `services/src/integrations/{connect,mappings}.ts` | split |
-| `apps/server/src/http/routes/dashboard/settings.ts` (311) | `routes/dashboard/team-settings/{routes,webhooks,git-link}.ts`; webhook validation to `core/rules/webhook-events.ts`; writes to `services/src/teams/*` | split |
+| `apps/server/src/http/routes/dashboard/settings.ts` (311) | `routes/dashboard/project-settings/{routes,webhooks,git-link}.ts`; webhook validation to `core/rules/webhook-events.ts`; writes to `services/src/projects/*` | split |
 | `routes/dashboard/{rules,domains,workspace-settings,workspace-auth,workspace-sso,github-app}.ts` | `routes/dashboard/<area>/routes.ts`; writes to `services/src/{rules,workspaces,settings}/…`; the SQL in `workspace-sso.ts` to `db/queries/sso.ts` | move + extract |
-| `routes/dashboard/{views,comments,reviews,triage,inbox,workspaces,teams,issue-trackers}.ts` | same, now one call into services each | thin out |
+| `routes/dashboard/{views,comments,reviews,triage,inbox,workspaces,projects,issue-trackers}.ts` | same, now one call into services each | thin out |
 | `routes/v1/*`, `routes/argos/index.ts` (276) | `routes/v1/`, `routes/argos/` (argos split in `builds.ts` + `files.ts`) | split |
-| `http/lib/team-access.ts`, `workspace-access.ts` | `services/src/access/policies.ts` + `http/plugins/params.ts` (reads params, calls policy) | split |
+| `http/lib/project-access.ts`, `workspace-access.ts` | `services/src/access/policies.ts` + `http/plugins/params.ts` (reads params, calls policy) | split |
 | `http/lib/errors.ts` | `http/plugins/error-handler.ts` | rename |
 | `http/lib/github-app.ts` (273) | `services/src/settings/github-app.ts` (store + cache) and `composition/github-app-sync.ts` | move down |
 | `http/lib/{integration-context,install-state,instance-settings}.ts` | `services/src/integrations/context.ts`, `services/src/settings/instance.ts` | move down |
@@ -292,7 +292,7 @@ packages/{providers,storage,sites,diff,config,auth,integrations}   adapters (unc
 | `http/lib/deps.ts` | `http/plugins/scope-deps.ts` | rename |
 | `lifecycle/{runtime,services,startup,shutdown,server-options,integration-config}.ts` | `composition/` (same files); `startWorker` imported from `@circi/worker` as a package | rename |
 | `lifecycle/doctor.ts` | `services/src/diagnostics/doctor.ts` (probe injected) + `composition/doctor-fetch.ts` | split |
-| `cli/admin.ts` (611) | `cli/commands/{accounts,workspaces,teams,storage,retention,diagnostics}.ts` calling services with `Actor.system` | split |
+| `cli/admin.ts` (611) | `cli/commands/{accounts,workspaces,projects,storage,retention,diagnostics}.ts` calling services with `Actor.system` | split |
 | `apps/worker/src/jobs/process-build.ts` (208) | `services/src/builds/process.ts`; `worker/handlers/process-build.ts` (10 lines) | move down |
 | `apps/worker/src/jobs/{notify-git,deliver-webhook,integration-event,send-email,review-sweep}.ts` | `services/src/{git,webhooks,integrations,notifications}/deliver*.ts` + thin `worker/handlers/*` | move down |
 | `apps/worker/src/runner.ts` (416) | `runner.ts` (claim/retry) + `handlers/index.ts` (job kind -> handler) | split |
@@ -308,7 +308,7 @@ packages/{providers,storage,sites,diff,config,auth,integrations}   adapters (unc
 
 ### 2.6 What gets merged and what is split
 
-Merged: the three access spellings (`loadTeam`, `loadWorkspace`, 13 inline role checks) into `services/src/access`; the three
+Merged: the three access spellings (`loadProject`, `loadWorkspace`, 13 inline role checks) into `services/src/access`; the three
 error homes into `core/errors.ts`; `http/lib/build-filters.ts` into `core/build-filters.ts`; `lifecycle/` renamed `composition/` (it is
 a composition root, not a lifecycle); the two worker lib files into their natural owners.
 
@@ -324,11 +324,11 @@ internals"). A job handler is a function `(deps: { db, storage, providers, logge
 
 ## 3. Naming conventions
 
-- Use cases are verbs: `createBuild`, `requeueBuild`, `reviewBuild`, `updateTeamSettings`, `connectIntegration`. One exported function per intent;
-  its types are merged into it (`updateTeamSettings.Input`), as CLAUDE.md prescribes.
+- Use cases are verbs: `createBuild`, `requeueBuild`, `reviewBuild`, `updateProjectsettings`, `connectIntegration`. One exported function per intent;
+  its types are merged into it (`updateProjectsettings.Input`), as CLAUDE.md prescribes.
 - File per area under `services/src/<area>/`; file name is the noun or intent (`process.ts`, `bulk.ts`), never `utils.ts` or `helpers.ts`.
 - Repositories: `get*` (one or throws `NotFoundError`), `find*` (one or `undefined`), `list*` (many), `create|insert*`, `update|set*`, `delete|remove*`,
-  `record*` (append-only). Queries: `list*`/`get*` only and named after the screen (`listBuildsForTeam`).
+  `record*` (append-only). Queries: `list*`/`get*` only and named after the screen (`listBuildsForProject`).
 - Policies: `require*` (throws), `can*` (returns boolean, used by presenters).
 - Routes: `<area>/routes.ts` exports `<area>Routes: FastifyPluginAsync<Deps.X>`; schemas in `<area>/schemas.ts`; no `-generic` suffixes
   (the integrations-generic name itself is a layering smell: the generic one is now the only one).
@@ -417,7 +417,7 @@ Files: `core/src/{triage,review-sources}.ts` (new), `db/schema/*` imports them, 
 Stays: db schema test, triage/rules/webhook tests. Removes 3 of the 4 `schema` import sites in the server.
 
 ### Step 4. Access policies (M)
-Files: new `packages/services/src/access/{actor,policies}.ts` + `test/access.test.ts`; rewrite `http/lib/{team-access,workspace-access}.ts` as adapters over the policies
+Files: new `packages/services/src/access/{actor,policies}.ts` + `test/access.test.ts`; rewrite `http/lib/{project-access,workspace-access}.ts` as adapters over the policies
 (they keep their exported names and signatures, so no route changes yet); then replace inline `role === 'owner' || 'admin'` in the 13 files one by one.
 Stays: all route tests (they exercise 401/403/404 per role: `settings.test.ts`, `rules-triage.test.ts`, `integrations.test.ts`, `workspace*.test.ts`).
 Parallel (P) after the policies land: 3 agents by file groups: (a) `settings.ts`, `rules.ts`, `comments.ts`; (b) `domains.ts`, `workspaces.ts`, `workspace-settings.ts`, `workspace-auth.ts`, `workspace-sso.ts`;
@@ -431,7 +431,7 @@ one write today) and returns the changed row. Group by area, each agent owns its
 
 | Agent | Routes | New service files | Repository functions |
 | --- | --- | --- | --- |
-| A | `settings.ts`, `rules.ts`, `ignore-regions.ts` | `services/src/teams/settings.ts`, `rules/*`, `ignore-regions.ts` | `updateTeamSettings`, `setTeamAppearance`, `create/update/deleteReviewRule`, `create/deleteWebhook`, `add/removeIgnoreRegion`, `setTriageRotation` |
+| A | `settings.ts`, `rules.ts`, `ignore-regions.ts` | `services/src/projects/settings.ts`, `rules/*`, `ignore-regions.ts` | `updateProjectsettings`, `setProjectAppearance`, `create/update/deleteReviewRule`, `create/deleteWebhook`, `add/removeIgnoreRegion`, `setTriageRotation` |
 | B | `domains.ts`, `workspace-*.ts`, `workspaces.ts` | `services/src/workspaces/*` | `add/removeWorkspaceDomain`, `setWorkspaceSettings`, `setWorkspaceAuthSettings`, `setSetting` |
 | C | `integrations*.ts`, `github-app.ts`, `issue-trackers.ts` | `services/src/integrations/*`, `settings/github-app.ts` | `createIntegration`, `deleteIntegration(Link)`, `replaceIntegrationCredentials`, `setIntegrationAttention` |
 | D | `v1/*`, `argos/*`, `sites` | `services/src/builds/*`, `sites/*` | `markFileVerified`, `setParallelTotal`, `recordPublicUrl`, `createSite*` |
@@ -464,7 +464,7 @@ Risk: the tsdown server bundle resolves `@circi/worker` and `@circi/services` so
 
 ### Step 9. Route folders and thinning (M, P)
 Files: move `routes/dashboard/*.ts` into `routes/dashboard/<area>/{routes,schemas,presenters}.ts`, split `integrations-generic.ts` and `argos/index.ts`.
-Mechanical; the route-table snapshot proves no URL moved. Parallel by resource group (integrations, teams/settings, workspaces, builds/reviews, instance).
+Mechanical; the route-table snapshot proves no URL moved. Parallel by resource group (integrations, projects/settings, workspaces, builds/reviews, instance).
 Do not: combine this with step 5 in the same agent; moving and changing a file at once hides regressions.
 
 ### Step 10. Group `services` and `core` by area; enable all ratchets at zero (S)

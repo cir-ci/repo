@@ -4,7 +4,7 @@ import {
   seedChangedSnapshots,
   seedReview,
   seedScreenshot,
-  seedTeam,
+  seedProject,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -24,11 +24,11 @@ const at = (iso: string) => new Date(iso)
 
 describe('listBaselines', () => {
   it('takes, per screenshot name, the newest eligible default-branch build', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const done = { status: 'complete', conclusion: 'changes_detected' } as const
 
     // #1 approved: home (a), about (b).
-    const b1 = await seedBuild(t.db, team.id, {
+    const b1 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'main',
       reviewStatus: 'approved',
@@ -56,7 +56,7 @@ describe('listBaselines', () => {
     })
 
     // #2 approved later: replaces home only.
-    const b2 = await seedBuild(t.db, team.id, {
+    const b2 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'main',
       reviewStatus: 'approved',
@@ -78,13 +78,13 @@ describe('listBaselines', () => {
     })
 
     // #3 still waiting for review, and #4 on a branch: neither is a baseline.
-    const b3 = await seedBuild(t.db, team.id, {
+    const b3 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'main',
       createdAt: at('2026-03-03T10:00:00Z'),
     })
     await seedScreenshot(t.db, { buildId: b3.id, name: 'home', fileSha256: fakeSha('d') })
-    const b4 = await seedBuild(t.db, team.id, {
+    const b4 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'feature/x',
       reviewStatus: 'approved',
@@ -93,7 +93,7 @@ describe('listBaselines', () => {
     await seedScreenshot(t.db, { buildId: b4.id, name: 'home', fileSha256: fakeSha('e') })
 
     // #5 had no changes and needed no approval: eligible, dated by when it finished.
-    const b5 = await seedBuild(t.db, team.id, {
+    const b5 = await seedBuild(t.db, project.id, {
       status: 'complete',
       conclusion: 'no_changes',
       branch: 'main',
@@ -108,7 +108,7 @@ describe('listBaselines', () => {
     })
 
     // #6 is another build name (mobile): its own baseline for the same screenshot name.
-    const b6 = await seedBuild(t.db, team.id, {
+    const b6 = await seedBuild(t.db, project.id, {
       ...done,
       name: 'mobile',
       branch: 'main',
@@ -123,7 +123,7 @@ describe('listBaselines', () => {
     })
     await seedScreenshot(t.db, { buildId: b6.id, name: 'home', fileSha256: fakeSha('9'), size: 50 })
 
-    const items = await listBaselines(t.db, { teamId: team.id, defaultBranch: 'main' })
+    const items = await listBaselines(t.db, { projectId: project.id, defaultBranch: 'main' })
     expect(
       items.map((i) => [
         i.buildName,
@@ -149,15 +149,15 @@ describe('listBaselines', () => {
     ])
   })
 
-  it('is empty for a team without an approved default-branch build', async () => {
-    const { team } = await seedTeam(t.db)
-    await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
-    expect(await listBaselines(t.db, { teamId: team.id, defaultBranch: 'main' })).toEqual([])
+  it('is empty for a project without an approved default-branch build', async () => {
+    const { project } = await seedProject(t.db)
+    await seedBuild(t.db, project.id, { branch: 'main', status: 'complete' })
+    expect(await listBaselines(t.db, { projectId: project.id, defaultBranch: 'main' })).toEqual([])
   })
 
   it('counts a snapshot approved on its own while its build is still pending, never a rejected one', async () => {
-    const { team, owner } = await seedTeam(t.db)
-    const old = await seedBuild(t.db, team.id, {
+    const { project, owner } = await seedProject(t.db)
+    const old = await seedBuild(t.db, project.id, {
       status: 'complete',
       conclusion: 'no_changes',
       branch: 'main',
@@ -165,7 +165,7 @@ describe('listBaselines', () => {
     })
     await seedScreenshot(t.db, { buildId: old.id, name: 'home', fileSha256: fakeSha('1') })
     await seedScreenshot(t.db, { buildId: old.id, name: 'about', fileSha256: fakeSha('2') })
-    const next = await seedBuild(t.db, team.id, {
+    const next = await seedBuild(t.db, project.id, {
       status: 'complete',
       conclusion: 'changes_detected',
       branch: 'main',
@@ -176,7 +176,7 @@ describe('listBaselines', () => {
     await seedScreenshot(t.db, { buildId: next.id, name: 'about', fileSha256: fakeSha('4') })
     const shas = async () =>
       Object.fromEntries(
-        (await listBaselines(t.db, { teamId: team.id, defaultBranch: 'main' })).map((b) => [
+        (await listBaselines(t.db, { projectId: project.id, defaultBranch: 'main' })).map((b) => [
           b.name,
           b.fileSha256,
         ]),

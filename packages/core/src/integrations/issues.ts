@@ -9,8 +9,8 @@ export const ISSUE_LINK_KIND = 'issue'
 export namespace IssueText {
   export interface BuildFacts {
     number: number
-    /** The team, as `workspace/team`. */
-    team: string
+    /** The project, as `workspace/project`. */
+    project: string
     branch: string | null
     prNumber: number | null
     commitSha: string
@@ -36,8 +36,8 @@ export function issueDescription(facts: IssueText.BuildFacts): string {
   const lines: string[] = []
   lines.push(
     facts.snapshotName
-      ? `The screenshot "${facts.snapshotName}" changed in build #${facts.number} of ${facts.team}.`
-      : `Build #${facts.number} of ${facts.team} has visual changes.`,
+      ? `The screenshot "${facts.snapshotName}" changed in build #${facts.number} of ${facts.project}.`
+      : `Build #${facts.number} of ${facts.project} has visual changes.`,
   )
   const where = [
     facts.branch ? `Branch: ${facts.branch}` : null,

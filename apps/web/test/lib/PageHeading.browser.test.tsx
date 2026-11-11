@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { PageHeading, PageTitle, teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { PageHeading, PageTitle, projectCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { renderPage } from '#test/support/render.tsx'
 
 describe('PageHeading', () => {
@@ -14,12 +14,12 @@ describe('PageHeading', () => {
     expect(page.getByRole('link').elements()).toHaveLength(0)
   })
 
-  it('links a workspace crumb to the Inbox and a team crumb to its Builds page, with tooltips', async () => {
+  it('links a workspace crumb to the Inbox and a project crumb to its Builds page, with tooltips', async () => {
     await renderPage(
       <PageHeading
         crumbs={[
           workspaceCrumb({ slug: 'acme', name: 'Acme' }),
-          teamCrumb('acme', { slug: 'web', name: 'web-app' }),
+          projectCrumb('acme', { slug: 'web', name: 'web-app' }),
         ]}
         title="Webhooks"
       />,
@@ -33,14 +33,14 @@ describe('PageHeading', () => {
     await userEvent.tab()
     await expect.element(page.getByText('Workspace: opens the Inbox')).toBeVisible()
     await userEvent.tab()
-    await expect.element(page.getByText('Team: opens its Builds page')).toBeVisible()
+    await expect.element(page.getByText('Project: opens its Builds page')).toBeVisible()
   })
 
   it("shows the page's actions on the right", async () => {
     await renderPage(
-      <PageHeading title="Teams" actions={<button type="button">New team</button>} />,
+      <PageHeading title="Projects" actions={<button type="button">New project</button>} />,
     )
-    await expect.element(page.getByRole('button', { name: 'New team' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'New project' })).toBeVisible()
   })
 })
 

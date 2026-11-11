@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 
-import { builds, files, ignoreRegions, screenshots, teams } from '#schema/index.ts'
+import { builds, files, ignoreRegions, screenshots, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 export namespace listIgnoreRegionSnapshots {
@@ -19,19 +19,19 @@ export namespace listIgnoreRegionSnapshots {
 }
 
 /**
- * The screenshot names a team has ignore regions for, each with its region count and the latest
+ * The screenshot names a project has ignore regions for, each with its region count and the latest
  * screenshot from the default branch (null when no build has one any more). `also` names one more
  * screenshot to list when it has no regions yet (zero regions), so a page can open on it ready to add one.
  */
 export async function listIgnoreRegionSnapshots(
   db: Database,
-  teamId: string,
+  projectId: string,
   also?: string,
 ): Promise<listIgnoreRegionSnapshots.Snapshot[]> {
   const names = await db
     .select({ name: ignoreRegions.name, regions: sql<number>`count(*)::int` })
     .from(ignoreRegions)
-    .where(eq(ignoreRegions.teamId, teamId))
+    .where(eq(ignoreRegions.projectId, projectId))
     .groupBy(ignoreRegions.name)
     .orderBy(asc(ignoreRegions.name))
   if (also && !names.some((n) => n.name === also)) names.push({ name: also, regions: 0 })
@@ -46,12 +46,12 @@ export async function listIgnoreRegionSnapshots(
         })
         .from(screenshots)
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .innerJoin(files, eq(files.sha256, screenshots.fileSha256))
         .where(
           and(
-            eq(builds.teamId, teamId),
-            eq(builds.branch, teams.defaultBranch),
+            eq(builds.projectId, projectId),
+            eq(builds.branch, projects.defaultBranch),
             eq(builds.status, 'complete'),
             eq(screenshots.name, name),
           ),

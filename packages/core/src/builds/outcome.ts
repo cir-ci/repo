@@ -19,7 +19,7 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
         : {
             state: 'pass',
             summary: 'Build could not be checked',
-            warning: `Build ${b.status === 'error' ? 'failed to process' : 'expired'}; merges aren't blocked for this team`,
+            warning: `Build ${b.status === 'error' ? 'failed to process' : 'expired'}; merges aren't blocked for this project`,
           }
     case 'complete':
       break
@@ -35,7 +35,7 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
         : {
             state: 'pass',
             summary: 'No visual changes',
-            warning: "Not approved yet; merges aren't blocked for this team",
+            warning: "Not approved yet; merges aren't blocked for this project",
           }
     }
     return { state: 'pass', summary: 'No visual changes' }
@@ -49,7 +49,7 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
     : {
         state: 'pass',
         summary: 'Visual changes to review',
-        warning: "Changes aren't reviewed yet; merges aren't blocked for this team",
+        warning: "Changes aren't reviewed yet; merges aren't blocked for this project",
       }
 }
 

@@ -46,8 +46,8 @@ export namespace buildServer {
  *   (all)       redirect from previous dashboard hosts
  *   /healthz    /readyz          no auth
  *   /internal/…  reverse proxy checks (Caddy's TLS ask), only with static site hosting
- *   /v1/…       CI API           team token
- *   /v2/…       Argos-compatible CI API   team token
+ *   /v1/…       CI API           project token
+ *   /v2/…       Argos-compatible CI API   project token
  *   /webhooks/:kind   git hosts    signature or token (also /api/integrations/:kind/webhook)
  *   /api/auth/… sign-in          public (better-auth)
  *   /api/…      dashboard API    session cookie

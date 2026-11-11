@@ -34,7 +34,7 @@ beforeAll(async () => {
   t = await createTestDb()
   const auth = createTestAuth(t.db)
   acme = await seedTenant(auth, t.db)
-  await seedGitLink(t.db, acme.team.id, { externalId: '99', repoRef: 'Acme/Web' })
+  await seedGitLink(t.db, acme.project.id, { externalId: '99', repoRef: 'Acme/Web' })
   // The owner linked their GitHub login.
   await seedAccount(t.db, { userId: acme.owner.id, accountId: GITHUB_ID })
   app = buildServer({
@@ -69,7 +69,7 @@ afterAll(async () => {
 /** A finished build with changes on PR `pr`, with a check run id. */
 async function changedBuild(pr: number) {
   n += 1
-  const build = await seedBuild(t.db, acme.team.id, {
+  const build = await seedBuild(t.db, acme.project.id, {
     commitSha: `abc${1000 + n}`,
     branch: 'feature',
     prNumber: pr,
@@ -135,7 +135,7 @@ const noticeStates = async (id: string) =>
 describe('GitHub webhook', () => {
   it('the pull request author replaces the login CI sent', async () => {
     n += 1
-    const build = await seedBuild(t.db, acme.team.id, {
+    const build = await seedBuild(t.db, acme.project.id, {
       commitSha: `def${2000 + n}`,
       branch: 'feature',
       prNumber: 31,

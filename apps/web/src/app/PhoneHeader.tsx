@@ -56,7 +56,7 @@ function CloseSettings() {
   const { data: sidebar } = useSidebarModel(workspace?.slug)
   const back = returnTarget(
     useSettingsReturnStore((s) => s.app),
-    sidebar?.teams,
+    sidebar?.projects,
   )
   return (
     <IconButton

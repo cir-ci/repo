@@ -1,8 +1,8 @@
 export {
   hashToken,
   type IssuedToken,
-  issueTeamToken,
-  looksLikeTeamToken,
+  issueProjectToken,
+  looksLikeProjectToken,
   tokenHint,
 } from './token.ts'
 export {

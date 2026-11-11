@@ -1,4 +1,4 @@
-import { createTestDb, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -24,29 +24,29 @@ const keyFor = (s: string) => `${s.slice(0, 2)}/${s}/gen`
 const png = (s: string) => ({ sha256: s, size: 10, contentType: 'image/png' })
 
 async function newBuild(overrides: Partial<Parameters<typeof createBuild>[1]> = {}) {
-  const { team } = await seedTeam(t.db)
+  const { project } = await seedProject(t.db)
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     ...overrides,
   })
-  return { team, build }
+  return { project, build }
 }
 
 describe('createBuild', () => {
-  it('numbers builds per team', async () => {
-    const { team } = await seedTeam(t.db)
-    const a = await createBuild(t.db, { teamId: team.id, commitSha: 'aaaaaaa' })
-    const b = await createBuild(t.db, { teamId: team.id, commitSha: 'bbbbbbb' })
+  it('numbers builds per project', async () => {
+    const { project } = await seedProject(t.db)
+    const a = await createBuild(t.db, { projectId: project.id, commitSha: 'aaaaaaa' })
+    const b = await createBuild(t.db, { projectId: project.id, commitSha: 'bbbbbbb' })
     expect([a.number, b.number]).toEqual([1, 2])
     expect(a.status).toBe('uploading')
     expect(a.ancestryStatus).toBe('missing')
   })
 
   it('joins the existing build for another shard of the same parallel run', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const input = {
-      teamId: team.id,
+      projectId: project.id,
       commitSha: 'ccccccc',
       parallel: { nonce: 'run-7', total: 2 },
     }
@@ -56,12 +56,12 @@ describe('createBuild', () => {
   })
 
   it('rejects invalid input', async () => {
-    const { team } = await seedTeam(t.db)
-    await expect(createBuild(t.db, { teamId: team.id, commitSha: 'not-a-sha' })).rejects.toThrow(
-      /Invalid commit SHA/,
-    )
+    const { project } = await seedProject(t.db)
     await expect(
-      createBuild(t.db, { teamId: team.id, commitSha: 'abc1234', name: 'has space' }),
+      createBuild(t.db, { projectId: project.id, commitSha: 'not-a-sha' }),
+    ).rejects.toThrow(/Invalid commit SHA/)
+    await expect(
+      createBuild(t.db, { projectId: project.id, commitSha: 'abc1234', name: 'has space' }),
     ).rejects.toThrow(/Invalid build name/)
   })
 })

@@ -12,8 +12,8 @@ import styles from './RequestedReviewers.module.css'
  * "Requested from Dana". Read from the build's activity (the picker's own source), so it appears
  * as soon as a request is made and goes when the request is closed. Nothing while no one is asked.
  */
-export function RequestedReviewers({ workspace, team, number }: RequestedReviewers.Props) {
-  const { data } = useQuery(activityQuery(workspace, team, number))
+export function RequestedReviewers({ workspace, project, number }: RequestedReviewers.Props) {
+  const { data } = useQuery(activityQuery(workspace, project, number))
   const people = openReviewerPeople(data?.events ?? [])
   const label = requestedFromLabel(people)
   if (!label) return null
@@ -34,7 +34,7 @@ export function RequestedReviewers({ workspace, team, number }: RequestedReviewe
 export namespace RequestedReviewers {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     number: number
   }
 }

@@ -1,7 +1,7 @@
 import { checkBuildInput, assertFound } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
-import { builds, teams } from '#schema/index.ts'
+import { builds, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
@@ -9,7 +9,7 @@ import type { Build } from '#src/types.ts'
 
 /**
  * Creates a build, or joins the existing one for parallel shards (PLAN §7.1 step 4): shards
- * that start at the same moment hit the unique (team, name, commit, nonce) index and all
+ * that start at the same moment hit the unique (project, name, commit, nonce) index and all
  * get the same build.
  */
 export async function createBuild(db: Database, input: createBuild.Input): Promise<Build> {
@@ -21,7 +21,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
   })
 
   const values = {
-    teamId: input.teamId,
+    projectId: input.projectId,
     name,
     commitSha,
     branch: input.branch ?? null,
@@ -43,7 +43,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     if (input.parallel) {
       const existing = await findParallelBuild(
         tx,
-        input.teamId,
+        input.projectId,
         name,
         commitSha,
         input.parallel.nonce,
@@ -51,17 +51,17 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
       if (existing) return existing
     }
     const [counter] = await tx
-      .update(teams)
-      .set({ buildCounter: sql`${teams.buildCounter} + 1` })
-      .where(eq(teams.id, input.teamId))
-      .returning({ number: teams.buildCounter })
-    assertFound(counter, 'team not found')
+      .update(projects)
+      .set({ buildCounter: sql`${projects.buildCounter} + 1` })
+      .where(eq(projects.id, input.projectId))
+      .returning({ number: projects.buildCounter })
+    assertFound(counter, 'project not found')
 
     const [created] = await tx
       .insert(builds)
       .values({ ...values, number: counter.number })
       .onConflictDoNothing({
-        target: [builds.teamId, builds.name, builds.commitSha, builds.parallelNonce],
+        target: [builds.projectId, builds.name, builds.commitSha, builds.parallelNonce],
         where: sql`${builds.parallelNonce} is not null`,
       })
       .returning()
@@ -69,7 +69,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     // Lost the race to a concurrent shard: join its build. (The bumped number stays unused.)
     const joined =
       input.parallel &&
-      (await findParallelBuild(tx, input.teamId, name, commitSha, input.parallel.nonce))
+      (await findParallelBuild(tx, input.projectId, name, commitSha, input.parallel.nonce))
     if (!joined) throw new Error('parallel build vanished after conflict')
     return joined
   })
@@ -77,7 +77,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
 
 export namespace createBuild {
   export interface Input {
-    teamId: string
+    projectId: string
     name?: string
     commitSha: string
     branch?: string | null
@@ -96,7 +96,7 @@ export namespace createBuild {
 
 async function findParallelBuild(
   db: Database,
-  teamId: string,
+  projectId: string,
   name: string,
   commitSha: string,
   nonce: string,
@@ -106,7 +106,7 @@ async function findParallelBuild(
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, teamId),
+        eq(builds.projectId, projectId),
         eq(builds.name, name),
         eq(builds.commitSha, commitSha),
         eq(builds.parallelNonce, nonce),

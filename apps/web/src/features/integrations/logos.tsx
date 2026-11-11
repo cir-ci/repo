@@ -127,7 +127,7 @@ const MARKS: Record<string, { viewBox: string; body: ReactNode }> = {
       </g>
     ),
   },
-  teams: {
+  projects: {
     viewBox: '0 0 24 24',
     body: (
       <g fill="#6264A7">

@@ -4,14 +4,14 @@ import {
   seedDiff,
   seedScreenshot,
   seedSite,
-  seedTeam,
+  seedProject,
   seedWorkspace,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getWorkspaceStorage, storageUsage } from '#src/queries/index.ts'
-import { createTeam, setWorkspaceSettings } from '#src/repositories/index.ts'
+import { createProject, setWorkspaceSettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -23,7 +23,7 @@ afterAll(async () => {
 
 describe('getWorkspaceStorage', () => {
   it('is empty for a workspace with nothing stored', async () => {
-    const { team, workspace } = await seedTeam(t.db)
+    const { project, workspace } = await seedProject(t.db)
     const usage = await getWorkspaceStorage(t.db, workspace.id)
     expect(usage).toMatchObject({ totalBytes: 0, totalFiles: 0, defaultRetentionDays: 30 })
     expect(usage.kinds.map((k) => [k.kind, k.files, k.bytes])).toEqual([
@@ -32,22 +32,24 @@ describe('getWorkspaceStorage', () => {
       ['thumbnail', 0, 0],
       ['site', 0, 0],
     ])
-    expect(usage.teams).toMatchObject([{ slug: team.slug, files: 0, bytes: 0, retentionDays: 30 }])
+    expect(usage.projects).toMatchObject([
+      { slug: project.slug, files: 0, bytes: 0, retentionDays: 30 },
+    ])
   })
 
-  it('counts files of known sizes by kind and by team, once each, and keeps workspaces apart', async () => {
-    const first = await seedTeam(t.db, { slug: 'web' })
+  it('counts files of known sizes by kind and by project, once each, and keeps workspaces apart', async () => {
+    const first = await seedProject(t.db, { slug: 'web' })
     const { workspace } = first
-    const docs = await seedTeam(t.db, {
+    const docs = await seedProject(t.db, {
       slug: 'docs',
       workspace: { workspace, owner: first.owner },
     })
-    const elsewhere = await seedTeam(t.db)
+    const elsewhere = await seedProject(t.db)
 
     // web: two builds sharing one screenshot file (100 B), plus a second one (200 B), a
     // thumbnail (10 B) and a diff (50 B).
-    const b1 = await seedBuild(t.db, first.team.id)
-    const b2 = await seedBuild(t.db, first.team.id)
+    const b1 = await seedBuild(t.db, first.project.id)
+    const b2 = await seedBuild(t.db, first.project.id)
     await seedScreenshot(t.db, {
       buildId: b1.id,
       name: 'home',
@@ -75,7 +77,7 @@ describe('getWorkspaceStorage', () => {
       diffFileSize: 50,
     })
     // docs: the same screenshot file as web (shared bytes) and a hosted site of 30 + 70 B.
-    const b3 = await seedBuild(t.db, docs.team.id)
+    const b3 = await seedBuild(t.db, docs.project.id)
     await seedScreenshot(t.db, {
       buildId: b3.id,
       name: 'home',
@@ -83,14 +85,14 @@ describe('getWorkspaceStorage', () => {
       size: 100,
     })
     await seedSite(t.db, {
-      teamId: docs.team.id,
+      projectId: docs.project.id,
       files: [
         { path: 'index.html', sha256: fakeSha('e'), size: 30 },
         { path: 'app.js', sha256: fakeSha('f'), size: 70 },
       ],
     })
     // Another workspace's files never show up here.
-    const b4 = await seedBuild(t.db, elsewhere.team.id)
+    const b4 = await seedBuild(t.db, elsewhere.project.id)
     await seedScreenshot(t.db, { buildId: b4.id, name: 'x', fileSha256: fakeSha('9'), size: 999 })
 
     const usage = await getWorkspaceStorage(t.db, workspace.id)
@@ -102,21 +104,21 @@ describe('getWorkspaceStorage', () => {
     ])
     // Distinct files overall: a, c, b, d, e, f.
     expect(usage).toMatchObject({ totalFiles: 6, totalBytes: 460 })
-    // Per team, the shared file counts for each team that refers to it; biggest first.
-    expect(usage.teams.map((p) => [p.slug, p.files, p.bytes])).toEqual([
+    // Per project, the shared file counts for each project that refers to it; biggest first.
+    expect(usage.projects.map((p) => [p.slug, p.files, p.bytes])).toEqual([
       ['web', 4, 360],
       ['docs', 3, 200],
     ])
-    expect(usage.teams.map((p) => p.retentionDays)).toEqual([30, 30])
+    expect(usage.projects.map((p) => p.retentionDays)).toEqual([30, 30])
     // The instance-wide numbers (the CLI's) still count every verified file, by kind.
     const instance = await storageUsage(t.db)
     expect(instance.totalBytes).toBeGreaterThanOrEqual(999 + 360)
   })
 
-  it("shows each team's retention and the workspace default for new teams", async () => {
+  it("shows each project's retention and the workspace default for new projects", async () => {
     const { workspace } = await seedWorkspace(t.db)
     await setWorkspaceSettings(t.db, workspace.id, { retentionDays: 90 })
-    await createTeam(t.db, {
+    await createProject(t.db, {
       workspaceSlug: workspace.slug,
       name: 'new',
       color: 'olive',
@@ -124,7 +126,7 @@ describe('getWorkspaceStorage', () => {
     })
     const usage = await getWorkspaceStorage(t.db, workspace.id)
     expect(usage.defaultRetentionDays).toBe(90)
-    expect(usage.teams).toMatchObject([
+    expect(usage.projects).toMatchObject([
       { slug: 'new', retentionDays: 90, color: 'olive', icon: 'box' },
     ])
   })

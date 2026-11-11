@@ -6,14 +6,14 @@ import {
   seedDiff,
   seedScreenshot,
   seedReview,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'
-import { addIgnoreRegion, createTeam } from '#src/repositories/index.ts'
+import { addIgnoreRegion, createProject } from '#src/repositories/index.ts'
 import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -28,7 +28,7 @@ const at = (iso: string) => new Date(`2026-${iso}:00Z`)
 const range = { from: at('03-09T00:00'), to: at('03-23T00:00'), now: at('03-20T00:00') }
 
 /**
- * Team `web` (main, 24h target) and `docs`, plus a `secret` team the viewer is not in. Range:
+ * Project `web` (main, 24h target) and `docs`, plus a `secret` project the viewer is not in. Range:
  * Mon 9 to Mon 23 March, now = 20 March 00:00. Web's history (ready time; M is Mia, who decides):
  *  w1 feature 03-09 10:00 changes, M approves 12:00 (2h); processing 4 min
  *  w2 feature 03-10 08:00 changes, M rejects 20:00 with "Wrong font" (12h), and rejected `hero`
@@ -37,24 +37,24 @@ const range = { from: at('03-09T00:00'), to: at('03-23T00:00'), now: at('03-20T0
  *     with `hero` rejected on one screenshot and no reason
  *  main: a1 03-11, m2 03-12, m3 03-13 changes (`hero`), auto-approved; n1 03-14 no changes,
  *     auto-approved, with ignore-region hits on `hero` (40 px) and `home` (5 px). The hero image on
- *     main goes A, B, A, B: two returns to an earlier image, and the team asks for two to call it
+ *     main goes A, B, A, B: two returns to an earlier image, and the project asks for two to call it
  *     flaky.
  *  errors 03-13: two timed-out-shards messages and one upload-never-finished
  * docs: one no-change build 03-12 (auto-approved). Secret: a waiting build and a failed one.
  */
 async function history() {
-  const { team, workspace, owner } = await seedTeam(t.db, { slug: 'web' })
-  const docs = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'docs' })
-  const secret = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'secret' })
+  const { project, workspace, owner } = await seedProject(t.db, { slug: 'web' })
+  const docs = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'docs' })
+  const secret = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'secret' })
   const mia = await seedUser(t.db)
   await addTestMember(t.db, {
     workspaceId: workspace.id,
     userId: mia.id,
-    teams: [team.id, docs.id],
+    projects: [project.id, docs.id],
   })
 
   const make = async (
-    teamId: string,
+    projectId: string,
     branch: string,
     ready: string,
     over: {
@@ -64,7 +64,7 @@ async function history() {
       names?: string[]
     } = {},
   ) => {
-    const b = await seedBuild(t.db, teamId, {
+    const b = await seedBuild(t.db, projectId, {
       branch,
       status: 'complete',
       conclusion: over.conclusion ?? 'changes_detected',
@@ -81,23 +81,23 @@ async function history() {
     }
     return b
   }
-  const w1 = await make(team.id, 'feature/a', '03-09T10:00', {
+  const w1 = await make(project.id, 'feature/a', '03-09T10:00', {
     review: 'approved',
     minutes: 4,
     names: ['home'],
   })
-  const w2 = await make(team.id, 'feature/b', '03-10T08:00', {
+  const w2 = await make(project.id, 'feature/b', '03-10T08:00', {
     review: 'rejected',
     minutes: 8,
     names: ['home'],
   })
-  await make(team.id, 'feature/c', '03-17T09:00', { minutes: 6 })
-  const w4 = await make(team.id, 'feature/d', '03-19T10:00', { minutes: 10 })
+  await make(project.id, 'feature/c', '03-17T09:00', { minutes: 6 })
+  const w4 = await make(project.id, 'feature/d', '03-19T10:00', { minutes: 10 })
   const main = { review: 'approved' as const, minutes: 2, names: ['hero'] }
-  const a1 = await make(team.id, 'main', '03-11T12:00', main)
-  const m2 = await make(team.id, 'main', '03-12T12:00', main)
-  const m3 = await make(team.id, 'main', '03-13T12:00', main)
-  const n1 = await make(team.id, 'main', '03-14T12:00', {
+  const a1 = await make(project.id, 'main', '03-11T12:00', main)
+  const m2 = await make(project.id, 'main', '03-12T12:00', main)
+  const m3 = await make(project.id, 'main', '03-13T12:00', main)
+  const n1 = await make(project.id, 'main', '03-14T12:00', {
     conclusion: 'no_changes',
     review: 'approved',
     minutes: 2,
@@ -121,7 +121,10 @@ async function history() {
       seedScreenshot(t.db, { buildId: b.id, name: 'hero', fileSha256: imageSha(tag) }),
     ),
   )
-  await t.db.update(schema.teams).set({ flakyAfterChanges: 2 }).where(eq(schema.teams.id, team.id))
+  await t.db
+    .update(schema.projects)
+    .set({ flakyAfterChanges: 2 })
+    .where(eq(schema.projects.id, project.id))
 
   await seedReview(t.db, { buildId: w1.id, userId: mia.id, createdAt: at('03-09T12:00') })
   await seedReview(t.db, {
@@ -159,10 +162,10 @@ async function history() {
     ignoredChangedPixels: 40,
     ignoredRegions: ['hero'],
   })
-  await addIgnoreRegion(t.db, team.id, { name: 'hero', x: 0, y: 0, width: 10, height: 10 })
+  await addIgnoreRegion(t.db, project.id, { name: 'hero', x: 0, y: 0, width: 10, height: 10 })
 
-  const fail = async (teamId: string, message: string) => {
-    const b = await seedBuild(t.db, teamId, {
+  const fail = async (projectId: string, message: string) => {
+    const b = await seedBuild(t.db, projectId, {
       branch: 'feature/e',
       status: 'error',
       createdAt: at('03-13T10:00'),
@@ -173,10 +176,10 @@ async function history() {
       .set({ errorMessage: message })
       .where(eq(schema.builds.id, b.id))
   }
-  await fail(team.id, 'Timed out waiting for 2 of 4 shard(s): shard 3, 4. The CI job(s) failed.')
-  await fail(team.id, 'Timed out waiting for 1 of 2 shard(s). The CI job(s) failed.')
-  await fail(team.id, 'The upload never finished: the CI job stopped before sending the list.')
-  // The secret team: a waiting build and a failure that must not show to someone outside it.
+  await fail(project.id, 'Timed out waiting for 2 of 4 shard(s): shard 3, 4. The CI job(s) failed.')
+  await fail(project.id, 'Timed out waiting for 1 of 2 shard(s). The CI job(s) failed.')
+  await fail(project.id, 'The upload never finished: the CI job stopped before sending the list.')
+  // The secret project: a waiting build and a failure that must not show to someone outside it.
   await make(secret.id, 'feature/s', '03-16T10:00')
   await fail(secret.id, 'Secret failure')
   await seedBuild(t.db, secret.id, {
@@ -190,8 +193,8 @@ async function history() {
   return { workspace, owner, mia }
 }
 
-const ask = (userId: string, workspaceSlug: string, teamSlug?: string) =>
-  getInsights(t.db, { userId, workspaceSlug, ...(teamSlug ? { teamSlug } : {}), ...range })
+const ask = (userId: string, workspaceSlug: string, projectslug?: string) =>
+  getInsights(t.db, { userId, workspaceSlug, ...(projectslug ? { projectslug } : {}), ...range })
 
 describe('getInsights: time to decision, outcomes and CI health', () => {
   it('measures ready to the last decision by a person, in the summary and per week', async () => {
@@ -275,23 +278,23 @@ describe('getInsights: the queue', () => {
   it('lists the oldest waiting builds, past-target ones flagged', async () => {
     const { workspace, mia } = await history()
     const r = await ask(mia.id, workspace.slug)
-    expect(r?.oldestWaiting.map((w) => [w.branch, w.overTarget, w.team.slug])).toEqual([
+    expect(r?.oldestWaiting.map((w) => [w.branch, w.overTarget, w.project.slug])).toEqual([
       ['feature/c', true, 'web'],
       ['feature/d', false, 'web'],
     ])
     expect(r?.oldestWaiting[0]?.readyAt.toISOString()).toBe('2026-03-17T09:00:00.000Z')
   })
 
-  it('leaves out teams the person cannot see, everywhere', async () => {
+  it('leaves out projects the person cannot see, everywhere', async () => {
     const { workspace, owner, mia } = await history()
     const hidden = await ask(mia.id, workspace.slug)
     expect(hidden?.waitingNow).toBe(2)
-    expect(hidden?.teamsComparison.map((c) => c.team.slug)).toEqual(['web', 'docs'])
+    expect(hidden?.projectsComparison.map((c) => c.project.slug)).toEqual(['web', 'docs'])
     expect(hidden?.failureReasons.map((f) => f.message)).not.toContain('Secret failure')
     expect(hidden?.mostChanged.map((c) => c.name)).not.toContain('secret-shot')
     const all = await ask(owner.id, workspace.slug)
     expect(all?.waitingNow).toBe(4)
-    expect(all?.teamsComparison.map((c) => c.team.slug)).toContain('secret')
+    expect(all?.projectsComparison.map((c) => c.project.slug)).toContain('secret')
     expect(all?.failureReasons.map((f) => f.message)).toContain('Secret failure')
   })
 })
@@ -308,7 +311,7 @@ describe('getInsights: screenshots', () => {
     // main commits oldest first, true where hero's image differs from the commit before:
     // a1 has nothing before it; m2 (B), m3 (A) and n1 (B) each differ from it
     expect(r?.mostChanged[0]?.last10).toEqual([false, true, true, true])
-    expect(r?.mostChanged[0]?.team.slug).toBe('web')
+    expect(r?.mostChanged[0]?.project.slug).toBe('web')
   })
 
   it('lists the flaky screenshots by the shared rule, with flip-flops and the image-change strip', async () => {
@@ -316,7 +319,7 @@ describe('getInsights: screenshots', () => {
     const r = await ask(mia.id, workspace.slug)
     expect(r?.flakiest).toEqual([
       {
-        team: expect.objectContaining({ slug: 'web' }),
+        project: expect.objectContaining({ slug: 'web' }),
         name: 'hero',
         flipFlops: 2,
         reason: {
@@ -345,7 +348,7 @@ describe('getInsights: rejections', () => {
       {
         buildId: expect.any(String),
         number: expect.any(Number),
-        team: expect.objectContaining({ slug: 'web' }),
+        project: expect.objectContaining({ slug: 'web' }),
         reviewer: mia.name,
         reason: 'Wrong font',
         at: at('03-10T20:00'),
@@ -357,18 +360,18 @@ describe('getInsights: rejections', () => {
     const { workspace, mia } = await history()
     const r = await ask(mia.id, workspace.slug)
     expect(r?.mostRejected).toEqual([
-      { team: expect.objectContaining({ slug: 'web' }), name: 'hero', rejections: 2 },
+      { project: expect.objectContaining({ slug: 'web' }), name: 'hero', rejections: 2 },
     ])
   })
 })
 
-describe('getInsights: teams and ignore regions', () => {
-  it('compares the teams in view, busiest first, and nothing for one team', async () => {
+describe('getInsights: projects and ignore regions', () => {
+  it('compares the projects in view, busiest first, and nothing for one project', async () => {
     const { workspace, mia } = await history()
     const r = await ask(mia.id, workspace.slug)
-    expect(r?.teamsComparison).toEqual([
+    expect(r?.projectsComparison).toEqual([
       {
-        team: expect.objectContaining({ slug: 'web', colour: expect.any(String) }),
+        project: expect.objectContaining({ slug: 'web', colour: expect.any(String) }),
         builds: 8,
         buildsWithChanges: 7,
         medianReviewHours: 7,
@@ -377,7 +380,7 @@ describe('getInsights: teams and ignore regions', () => {
         failed: 3,
       },
       {
-        team: expect.objectContaining({ slug: 'docs' }),
+        project: expect.objectContaining({ slug: 'docs' }),
         builds: 1,
         buildsWithChanges: 0,
         medianReviewHours: null,
@@ -386,7 +389,7 @@ describe('getInsights: teams and ignore regions', () => {
         failed: 0,
       },
     ])
-    expect((await ask(mia.id, workspace.slug, 'web'))?.teamsComparison).toEqual([])
+    expect((await ask(mia.id, workspace.slug, 'web'))?.projectsComparison).toEqual([])
   })
 
   it('counts the diffs ignore regions kept unchanged, by region', async () => {
@@ -395,13 +398,13 @@ describe('getInsights: teams and ignore regions', () => {
     expect(r?.ignoreRegions).toEqual({
       suppressedDiffs: 2,
       top: [
-        { team: expect.objectContaining({ slug: 'web' }), region: 'hero', diffs: 1 },
-        { team: expect.objectContaining({ slug: 'web' }), region: 'home', diffs: 1 },
+        { project: expect.objectContaining({ slug: 'web' }), region: 'hero', diffs: 1 },
+        { project: expect.objectContaining({ slug: 'web' }), region: 'home', diffs: 1 },
       ],
     })
   })
 
-  it('has no ignore regions card when no team in view has a region', async () => {
+  it('has no ignore regions card when no project in view has a region', async () => {
     const { workspace, mia } = await history()
     expect((await ask(mia.id, workspace.slug, 'docs'))?.ignoreRegions).toBeNull()
   })

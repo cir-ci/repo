@@ -7,7 +7,7 @@ import type { RecentEntry } from '#lib/stores/recent-store.ts'
 import { isPhone } from '#lib/use-phone.ts'
 
 import { type Chip, type ChipKind, type Entry, type IconKey, verbOf } from './entry.ts'
-import { KIND_CHIPS, kindChip, prefixOf, teamChip } from './query.ts'
+import { KIND_CHIPS, kindChip, prefixOf, projectChip } from './query.ts'
 import { shortAgo } from './recent.ts'
 import {
   GROUP_KIND,
@@ -80,7 +80,7 @@ export function wrapIndex(length: number, current: number, delta: 1 | -1): numbe
 }
 
 const enc = encodeURIComponent
-const teamPath = (workspace: string, team: string) => `/${enc(workspace)}/${enc(team)}`
+const projectPath = (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}`
 export { buildPath } from './results.ts'
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
@@ -96,11 +96,11 @@ export function contextScopes(pathname: string): Shortcut.Scope[] {
   return ['list']
 }
 
-/** What the page you are on gives the menu: the chip, the team it scopes search to, the page's name. */
+/** What the page you are on gives the menu: the chip, the project it scopes search to, the page's name. */
 export interface PageContext {
-  /** The chip beside the field (`Web app · #148`); only a team's pages have one. */
+  /** The chip beside the field (`Web app · #148`); only a project's pages have one. */
   chip?: string
-  team?: { slug: string; name: string }
+  project?: { slug: string; name: string }
   /** The heading of the page's own actions (`Build #148`, `Reviews`). */
   heading?: string
   /** The build on screen. */
@@ -119,13 +119,13 @@ const NOT_A_WORKSPACE = new Set(['workspaces', 'account', 'instance', 'inbox', '
 
 export function pageContext(
   pathname: string,
-  teams: readonly Pick<Sidebar.Team, 'slug' | 'name'>[] | undefined,
+  projects: readonly Pick<Sidebar.Project, 'slug' | 'name'>[] | undefined,
   routeWorkspace?: string,
   workspace?: string,
 ): PageContext {
   const parts = pathname.split('/').filter(Boolean)
   const first = parts[0]
-  if (first === undefined) return { heading: 'Teams' }
+  if (first === undefined) return { heading: 'Projects' }
   if (first === 'inbox') return { heading: 'Inbox' }
   if (first === 'workspaces') {
     if (parts[2] === 'reviews') return { heading: 'Reviews' }
@@ -133,29 +133,29 @@ export function pageContext(
     return {}
   }
   if (NOT_A_WORKSPACE.has(first) || parts[1] === undefined) return {}
-  // A team of another workspace than the one the menu is about scopes nothing.
+  // A project of another workspace than the one the menu is about scopes nothing.
   if (routeWorkspace !== undefined && workspace !== undefined && routeWorkspace !== workspace)
     return {}
   const slug = decode(parts[1])
-  const team = { slug, name: teams?.find((t) => t.slug === slug)?.name ?? slug }
+  const project = { slug, name: projects?.find((t) => t.slug === slug)?.name ?? slug }
   const section = parts[2]
   if (section === 'builds' && parts[3] !== undefined && parts.length === 4) {
     return {
-      team,
-      chip: `${team.name} · #${parts[3]}`,
+      project,
+      chip: `${project.name} · #${parts[3]}`,
       heading: `Build #${parts[3]}`,
       buildNumber: Number(parts[3]),
     }
   }
-  if (section === 'triage') return { team, chip: team.name, heading: 'Triage' }
+  if (section === 'triage') return { project, chip: project.name, heading: 'Triage' }
   if (section === 'baselines' && parts.length > 3) {
     return {
-      team,
-      chip: team.name,
+      project,
+      chip: project.name,
       heading: `Baseline: ${parts.slice(3).map(decode).join(' / ')}`,
     }
   }
-  return { team, chip: team.name, heading: 'Builds' }
+  return { project, chip: project.name, heading: 'Builds' }
 }
 
 // Registry actions -------------------------------------------------------------------------
@@ -307,20 +307,20 @@ const goHint = (to: Shortcut.GoTarget) =>
 const PAGE_LINES: Record<string, string> = {
   inbox: 'Your notices: mentions, review requests and decisions on your builds.',
   reviews: "Reviews you're asked for and ones you asked.",
-  triage: "The team's flaky screenshots, missing baselines and failed builds.",
-  teams: 'Every team you can see, and a way to create one.',
+  triage: "The project's flaky screenshots, missing baselines and failed builds.",
+  projects: 'Every project you can see, and a way to create one.',
   insights: 'How reviews and builds have gone over time.',
-  settings: 'Your account, the workspace and its teams.',
+  settings: 'Your account, the workspace and its projects.',
 }
 
 export interface JumpInput {
   workspace: string | undefined
-  teams: readonly Sidebar.Team[] | undefined
+  projects: readonly Sidebar.Project[] | undefined
   views: readonly View.Item[] | undefined
   canManage?: boolean | undefined
   instanceAdmin?: boolean | undefined
-  /** The team of the address, which the Triage page opens. */
-  routeTeam?: string | undefined
+  /** The project of the address, which the Triage page opens. */
+  routeProject?: string | undefined
 }
 
 function pageEntry(
@@ -344,23 +344,23 @@ function pageEntry(
   }
 }
 
-/** Pages, then the pinned teams and the saved views, under Go to. */
+/** Pages, then the pinned projects and the saved views, under Go to. */
 export function goToEntries({
   workspace,
-  teams,
+  projects,
   views,
   canManage,
   instanceAdmin,
-  routeTeam,
+  routeProject,
 }: JumpInput): Entry[] {
   const entries: Entry[] = [pageEntry('inbox', 'Inbox', '/inbox', 'inbox', 'inbox')]
   if (workspace) {
     const ws = enc(workspace)
     entries.push(pageEntry('reviews', 'Reviews', `/workspaces/${ws}/reviews`, 'reviews', 'reviews'))
-    const triage = goPath('triage', { workspace, team: routeTeam, teams, canManage })
+    const triage = goPath('triage', { workspace, project: routeProject, projects, canManage })
     if (triage) entries.push(pageEntry('triage', 'Triage', triage, 'triage', 'triage'))
   }
-  entries.push(pageEntry('teams', 'Teams', '/', 'teams', 'teams'))
+  entries.push(pageEntry('projects', 'Projects', '/', 'projects', 'projects'))
   if (workspace) {
     entries.push(
       pageEntry('insights', 'Insights', `/workspaces/${enc(workspace)}/insights`, 'insights'),
@@ -369,8 +369,8 @@ export function goToEntries({
   const settings = goPath('settings', { workspace, canManage, instanceAdmin })
   if (settings) entries.push(pageEntry('settings', 'Settings', settings, 'settings', 'settings'))
   if (workspace) {
-    for (const p of (teams ?? []).filter((team) => team.pinned)) {
-      entries.push(teamEntry(workspace, p, GROUPS.goTo))
+    for (const p of (projects ?? []).filter((project) => project.pinned)) {
+      entries.push(projectEntry(workspace, p, GROUPS.goTo))
     }
     for (const v of views ?? []) {
       const path = `/workspaces/${enc(workspace)}/views/${enc(v.id)}`
@@ -390,25 +390,25 @@ export function goToEntries({
   return entries
 }
 
-function teamEntry(workspace: string, team: Sidebar.Team, group: string): Entry {
-  const path = teamPath(workspace, team.slug)
+function projectEntry(workspace: string, project: Sidebar.Project, group: string): Entry {
+  const path = projectPath(workspace, project.slug)
   return {
-    id: `team:${team.slug}`,
+    id: `project:${project.slug}`,
     group,
-    kind: 'team',
-    label: team.name,
-    kindLabel: 'Team',
-    icon: 'team',
-    team: { slug: team.slug, name: team.name, color: team.color, icon: team.icon },
+    kind: 'project',
+    label: project.name,
+    kindLabel: 'Project',
+    icon: 'project',
+    project: { slug: project.slug, name: project.name, color: project.color, icon: project.icon },
     target: { type: 'path', path },
     path,
     peek: {
-      kind: 'Team',
-      title: team.name,
-      lines: [`Goes to the builds of ${team.name}.`],
+      kind: 'Project',
+      title: project.name,
+      lines: [`Goes to the builds of ${project.name}.`],
       rows: [
-        { label: 'Members', value: String(team.memberCount) },
-        { label: 'Triage waiting', value: String(team.triage) },
+        { label: 'Members', value: String(project.memberCount) },
+        { label: 'Triage waiting', value: String(project.triage) },
       ],
     },
   }
@@ -419,7 +419,7 @@ function teamEntry(workspace: string, team: Sidebar.Team, group: string): Entry 
 const submenu = (
   id: string,
   label: string,
-  page: 'team' | 'workspace' | 'theme',
+  page: 'project' | 'workspace' | 'theme',
   icon: IconKey,
   keywords: string[],
   line: string,
@@ -437,9 +437,9 @@ const submenu = (
 
 export interface SwitchInput {
   workspace: string | undefined
-  teams: readonly Sidebar.Team[] | undefined
+  projects: readonly Sidebar.Project[] | undefined
   workspaces: readonly WorkspaceRef[]
-  /** May change the workspace's settings: then New team and Invite people are offered. */
+  /** May change the workspace's settings: then New project and Invite people are offered. */
   canManage?: boolean | undefined
   /** May create workspaces. */
   canCreateWorkspace?: boolean | undefined
@@ -466,28 +466,28 @@ const create = (
 })
 
 /**
- * Switch team…, Switch workspace…, New team, New workspace, Invite people, Theme…, Keyboard
+ * Switch project…, Switch workspace…, New project, New workspace, Invite people, Theme…, Keyboard
  * shortcuts, Sign out. The Create entries only show where the person may: they open the dialogs
  * the sidebar opens, and Invite people goes to Members, the workspace's invite form (settings
  * pages are never opened from inside the menu otherwise).
  */
 export function switchEntries({
   workspace,
-  teams,
+  projects,
   workspaces,
   canManage,
   canCreateWorkspace,
 }: SwitchInput): Entry[] {
   const entries: Entry[] = []
-  if (workspace && (teams?.length ?? 0) > 0) {
+  if (workspace && (projects?.length ?? 0) > 0) {
     entries.push(
       submenu(
-        'team',
-        'Switch team…',
-        'team',
-        'team',
-        ['team', 'change'],
-        'Choose another team to open.',
+        'project',
+        'Switch project…',
+        'project',
+        'project',
+        ['project', 'change'],
+        'Choose another project to open.',
       ),
     )
   }
@@ -506,12 +506,12 @@ export function switchEntries({
   if (workspace && canManage) {
     entries.push(
       create(
-        'new-team',
-        'New team',
-        'team',
-        { type: 'create', what: 'team' },
+        'new-project',
+        'New project',
+        'project',
+        { type: 'create', what: 'project' },
         ['create', 'add', 'new'],
-        'Opens the New team dialog.',
+        'Opens the New project dialog.',
       ),
     )
   }
@@ -637,8 +637,8 @@ export function needsEntries(needs: Needs, jump: JumpInput): Entry[] {
   }
   const triage = goPath('triage', {
     workspace,
-    team: jump.routeTeam,
-    teams: jump.teams,
+    project: jump.routeProject,
+    projects: jump.projects,
     canManage: jump.canManage,
   })
   if (needs.triageAssigned > 0 && triage) {
@@ -670,14 +670,14 @@ export function needsEntries(needs: Needs, jump: JumpInput): Entry[] {
 
 const RECENT_ICON: Record<RecentEntry['kind'], IconKey> = {
   build: 'status',
-  team: 'team',
+  project: 'project',
   baseline: 'layers',
   triage: 'alert',
   view: 'sliders',
 }
 const RECENT_KIND_LABEL: Record<RecentEntry['kind'], string> = {
   build: 'Build',
-  team: 'Team',
+  project: 'Project',
   baseline: 'Baseline',
   triage: 'Triage',
   view: 'Saved view',
@@ -686,7 +686,7 @@ const RECENT_KIND_LABEL: Record<RecentEntry['kind'], string> = {
 /** The kind of recent entry each kind chip asks for. */
 const CHIP_RECENT: Partial<Record<ChipKind, RecentEntry['kind']>> = {
   builds: 'build',
-  teams: 'team',
+  projects: 'project',
   baselines: 'baseline',
   triage: 'triage',
   views: 'view',
@@ -694,10 +694,11 @@ const CHIP_RECENT: Partial<Record<ChipKind, RecentEntry['kind']>> = {
 
 function recentEntry(
   r: RecentEntry,
-  teams: readonly Sidebar.Team[] | undefined,
+  projects: readonly Sidebar.Project[] | undefined,
   now: number,
 ): Entry {
-  const team = r.kind === 'team' ? teams?.find((t) => `team:${t.slug}` === r.id) : undefined
+  const project =
+    r.kind === 'project' ? projects?.find((t) => `project:${t.slug}` === r.id) : undefined
   return {
     id: `recent:${r.id}`,
     group: GROUPS.recent,
@@ -708,8 +709,15 @@ function recentEntry(
     time: shortAgo(r.at, now),
     icon: RECENT_ICON[r.kind],
     ...(r.kind === 'build' ? { status: 'needs-review' as const } : {}),
-    ...(team
-      ? { team: { slug: team.slug, name: team.name, color: team.color, icon: team.icon } }
+    ...(project
+      ? {
+          project: {
+            slug: project.slug,
+            name: project.name,
+            color: project.color,
+            icon: project.icon,
+          },
+        }
       : {}),
     target: { type: 'path', path: r.path },
     path: r.path,
@@ -717,14 +725,14 @@ function recentEntry(
       kind: RECENT_KIND_LABEL[r.kind],
       title: r.label,
       lines: [`Visited ${shortAgo(r.at, now)}.`],
-      rows: r.detail ? [{ label: 'Team', value: r.detail }] : [],
+      rows: r.detail ? [{ label: 'Project', value: r.detail }] : [],
     },
   }
 }
 
 export function recentEntries(
   recents: readonly RecentEntry[],
-  teams: readonly Sidebar.Team[] | undefined,
+  projects: readonly Sidebar.Project[] | undefined,
   now: number,
   currentPath: string,
   limit = RECENT_SHOWN,
@@ -733,7 +741,7 @@ export function recentEntries(
   return recents
     .filter((r) => r.path.split('?')[0] !== currentPath && (only === undefined || r.kind === only))
     .slice(0, limit)
-    .map((r) => recentEntry(r, teams, now))
+    .map((r) => recentEntry(r, projects, now))
 }
 
 /** How many recent searches the empty query lists. */
@@ -788,7 +796,7 @@ const FOUND_KINDS: ReadonlySet<Entry['kind']> = new Set([
   'review',
   'view',
   'person',
-  'team',
+  'project',
 ])
 
 /**
@@ -859,7 +867,7 @@ export interface ListInput {
   workspace: string | undefined
   pathname: string
   routeWorkspace: string | undefined
-  teams: readonly Sidebar.Team[] | undefined
+  projects: readonly Sidebar.Project[] | undefined
   views: readonly View.Item[] | undefined
   workspaces: readonly WorkspaceRef[]
   canManage: boolean | undefined
@@ -883,7 +891,7 @@ export interface TypedState {
   /** The text after the chips. */
   query: string
   chips: readonly Chip[]
-  /** Whether the page chip was removed (no page actions, no team scope). */
+  /** Whether the page chip was removed (no page actions, no project scope). */
   contextCleared: boolean
   results: Search.Results | undefined
   pending: boolean
@@ -892,7 +900,7 @@ export interface TypedState {
 
 export interface ListView {
   groups: Entry.GroupView[]
-  /** The team the search is limited to, by the page or by a chip. */
+  /** The project the search is limited to, by the page or by a chip. */
   scope: { slug: string; name: string } | undefined
   /** What the list says besides rows: searching, nothing found, failed. */
   state: 'results' | 'searching' | 'none' | 'error'
@@ -900,7 +908,7 @@ export interface ListView {
   message?: string
   /** A second, quieter line (the build number tip). */
   tip?: string
-  /** The page chip shows (the page context, not removed and no team chip replacing it). */
+  /** The page chip shows (the page context, not removed and no project chip replacing it). */
   context: PageContext
   showContext: boolean
   inSettings: boolean
@@ -908,16 +916,16 @@ export interface ListView {
   kinds: readonly Search.Kind[] | undefined
 }
 
-/** The team a search is limited to: a team chip, else the page's team unless its chip was removed. */
+/** The project a search is limited to: a project chip, else the page's project unless its chip was removed. */
 export function scopeOf(
-  input: Pick<ListInput, 'pathname' | 'teams' | 'routeWorkspace' | 'workspace'>,
+  input: Pick<ListInput, 'pathname' | 'projects' | 'routeWorkspace' | 'workspace'>,
   chips: readonly Chip[],
   contextCleared: boolean,
 ): { slug: string; name: string } | undefined {
-  const chip = teamChip(chips)
+  const chip = projectChip(chips)
   if (chip) return { slug: chip.slug, name: chip.name }
   if (contextCleared) return undefined
-  return pageContext(input.pathname, input.teams, input.routeWorkspace, input.workspace).team
+  return pageContext(input.pathname, input.projects, input.routeWorkspace, input.workspace).project
 }
 
 export const isReal = (e: Entry) => e.kind !== 'more' && e.kind !== 'widen' && e.kind !== 'retry'
@@ -941,9 +949,9 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
   const kind = kindChip(typed.chips)
   const q = typed.query.trim()
   const words = wordsOf(q)
-  const context = pageContext(input.pathname, input.teams, input.routeWorkspace, workspace)
-  const hasTeamChip = teamChip(typed.chips) !== undefined
-  const showContext = context.chip !== undefined && !typed.contextCleared && !hasTeamChip
+  const context = pageContext(input.pathname, input.projects, input.routeWorkspace, workspace)
+  const hasProjectChip = projectChip(typed.chips) !== undefined
+  const showContext = context.chip !== undefined && !typed.contextCleared && !hasProjectChip
   const scope = scopeOf(input, typed.chips, typed.contextCleared)
   const base = {
     scope,
@@ -959,15 +967,15 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
 
   const jump: JumpInput = {
     workspace,
-    teams: input.teams,
+    projects: input.projects,
     views: input.views,
     canManage: input.canManage,
     instanceAdmin: input.instanceAdmin,
-    routeTeam: context.team?.slug,
+    routeProject: context.project?.slug,
   }
   const switchInput: SwitchInput = {
     workspace,
-    teams: input.teams,
+    projects: input.projects,
     workspaces: input.workspaces,
     canManage: input.canManage,
     canCreateWorkspace: input.canCreateWorkspace,
@@ -989,7 +997,14 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
         GROUPS.recent,
         GROUPS.recent,
         only
-          ? recentEntries(input.recents, input.teams, input.now, input.pathname, RECENT_SHOWN, only)
+          ? recentEntries(
+              input.recents,
+              input.projects,
+              input.now,
+              input.pathname,
+              RECENT_SHOWN,
+              only,
+            )
           : [],
       )
       return { ...base, groups, state: 'results', inSettings: false }
@@ -997,7 +1012,7 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     if (kind === undefined) add('page', heading, pageActions.slice(0, PAGE_ACTIONS_MAX))
     if (kind === undefined) {
       add(GROUPS.recent, GROUPS.recent, [
-        ...recentEntries(input.recents, input.teams, input.now, input.pathname),
+        ...recentEntries(input.recents, input.projects, input.now, input.pathname),
         ...searchEntries(input.searches ?? []),
       ])
       add(GROUPS.needs, GROUPS.needs, needsEntries(input.needs, jump))
@@ -1015,8 +1030,8 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
   if (wantsLocal) {
     local.push(...pageActions, ...goToEntries(jump), ...switchEntries(switchInput))
     if (workspace) {
-      for (const t of (input.teams ?? []).filter((x) => !x.pinned)) {
-        local.push(teamEntry(workspace, t, 'Teams'))
+      for (const t of (input.projects ?? []).filter((x) => !x.pinned)) {
+        local.push(projectEntry(workspace, t, 'Projects'))
       }
     }
   }
@@ -1026,7 +1041,7 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
 
   const settingEntries: Entry[] = []
   if (wantsLocal) {
-    const sections = settingsSections({ ...settingsInput, team: context.team?.slug })
+    const sections = settingsSections({ ...settingsInput, project: context.project?.slug })
     for (const s of sections) {
       if (matchesSettings(q, s)) {
         settingEntries.push(
@@ -1040,8 +1055,8 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
   if (!commandsOnly && workspace) {
     const rc: ResultsContext = {
       workspace,
-      teams: input.teams,
-      allTeams: scope === undefined,
+      projects: input.projects,
+      allProjects: scope === undefined,
       now: input.now,
     }
     searched.push(...resultEntries(rc, typed.results))
@@ -1049,11 +1064,11 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     if (
       number !== undefined &&
       want &&
-      context.team &&
-      scope?.slug === context.team.slug &&
-      !searched.some((e) => e.id === `build:${context.team?.slug}:${number}`)
+      context.project &&
+      scope?.slug === context.project.slug &&
+      !searched.some((e) => e.id === `build:${context.project?.slug}:${number}`)
     ) {
-      searched.unshift(jumpBuildEntry(workspace, context.team, number))
+      searched.unshift(jumpBuildEntry(workspace, context.project, number))
     }
   }
   const results = searched.map((e) =>
@@ -1109,21 +1124,21 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     groups.push({ id: label, label, entries: rows })
   }
 
-  // The widen row ends the list when the search is limited to a team.
+  // The widen row ends the list when the search is limited to a project.
   const tail: Entry[] = []
   if (scope && !commandsOnly && workspace) {
     tail.push({
       id: 'widen',
       group: 'widen',
       kind: 'widen',
-      label: `Search all teams for "${q}"`,
+      label: `Search all projects for "${q}"`,
       hint: 'mod+Enter',
       icon: 'search',
       target: { type: 'widen' },
       peek: {
         kind: 'Action',
-        title: 'Search all teams',
-        lines: [`Looks for "${q}" in every team you can see, not only ${scope.name}.`],
+        title: 'Search all projects',
+        lines: [`Looks for "${q}" in every project you can see, not only ${scope.name}.`],
         rows: [],
       },
     })
@@ -1187,7 +1202,7 @@ const CHIP_OF_KIND: Record<Search.Kind, ChipKind> = {
   notifications: 'notices',
   reviews: 'reviews',
   views: 'views',
-  teams: 'teams',
+  projects: 'projects',
   people: 'people',
 }
 
@@ -1215,13 +1230,13 @@ function settingsList(
   words: readonly string[],
 ): Pick<ListView, 'groups' | 'state'> {
   const parts = input.pathname.split('/').filter(Boolean)
-  const routeTeam =
+  const routeProject =
     parts[0] !== 'workspaces' && parts[0] !== 'account' && parts[0] !== 'instance'
       ? parts[1]
       : undefined
   const sections = settingsSections({
     ...settingsInput,
-    team: routeTeam ? decodeURIComponent(routeTeam) : undefined,
+    project: routeProject ? decodeURIComponent(routeProject) : undefined,
   })
   const here = (path: string) => input.pathname === path.split('?')[0]
   const rows = sections.map((s) => sectionEntry(s, { inside: true, current: here(s.path) }))
@@ -1258,13 +1273,13 @@ export const TIPS: readonly string[] = [
   'Type # and a number to jump to a build.',
   'Type > to run a command.',
   'Press ⌘. for the actions of the highlighted row.',
-  'Type in:web to search one team.',
+  'Type in:web to search one project.',
   'Type / to search screenshots.',
 ]
 
 const GO_NOUN: Partial<Record<Entry['kind'], string>> = {
   build: 'build',
-  team: 'team',
+  project: 'project',
   page: 'page',
   branch: 'branch',
   screenshot: 'screenshot',
@@ -1313,7 +1328,7 @@ export function footerHints(input: {
   }
   const hints: Hint[] = [{ keys: ['↑', '↓'], label: 'move' }]
   hints.push({ keys: ['↵'], label: verbOf(entry) })
-  if (entry?.kind === 'widen') hints.push({ keys: ['⌘↵'], label: 'Search all teams' })
+  if (entry?.kind === 'widen') hints.push({ keys: ['⌘↵'], label: 'Search all projects' })
   else if (entry?.path) hints.push({ keys: ['⌘↵'], label: 'New tab' })
   if (input.rowActions) hints.push({ keys: ['⌘.'], label: 'Actions' })
   if (input.removable) hints.push({ keys: ['⌫'], label: 'Remove scope' })

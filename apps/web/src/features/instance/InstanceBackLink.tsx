@@ -1,4 +1,4 @@
-import { SettingsBackLink } from '#features/team-settings/SettingsBackLink.tsx'
+import { SettingsBackLink } from '#features/project-settings/SettingsBackLink.tsx'
 
 import styles from './InstanceBackLink.module.css'
 

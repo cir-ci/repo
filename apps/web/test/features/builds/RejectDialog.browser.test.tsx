@@ -29,7 +29,7 @@ describe('RejectDialog', () => {
     await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toBeRequired()
   })
 
-  it('marks the reason optional, and sends an empty one, when the team does not ask for it', async () => {
+  it('marks the reason optional, and sends an empty one, when the project does not ask for it', async () => {
     const { ready, onReject } = show({ reasonRequired: false })
     await ready
     const field = dialog().getByRole('textbox', { name: 'Reason (optional)' })

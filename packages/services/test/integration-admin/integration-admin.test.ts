@@ -1,8 +1,8 @@
 import { NotFoundError } from '@circi/core'
 import { openSecret } from '@circi/core/node'
-import { getIntegration, getSetting, listTeamLinks } from '@circi/db/queries'
+import { getIntegration, getSetting, listProjectLinks } from '@circi/db/queries'
 import { createIntegration, createIntegrationLink } from '@circi/db/repositories'
-import { createTestDb, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import {
   defineIntegration,
   IntegrationConflictError,
@@ -19,7 +19,7 @@ import {
   publicUrlProblem,
   readStoredGithubApp,
   removeIntegration,
-  removeTeamLink,
+  removeProjectLink,
   storeGithubApp,
   useStoredGithubApp,
 } from '#src/index.ts'
@@ -33,7 +33,7 @@ const ctx: IntegrationDefinition.Context = {
 
 let t: createTestDb.Result
 const seedWorkspace = async (db: createTestDb.Result['db']) => {
-  const { workspace, owner } = await seedTeam(db)
+  const { workspace, owner } = await seedProject(db)
   return { workspace, owner }
 }
 beforeAll(async () => {
@@ -151,10 +151,10 @@ describe('removeIntegration', () => {
   })
 })
 
-describe('removeTeamLink', () => {
-  it("removes the team's link, and says so when it is not there", async () => {
-    const { workspace, team } = await seedTeam(t.db)
-    const other = await seedTeam(t.db)
+describe('removeProjectLink', () => {
+  it("removes the project's link, and says so when it is not there", async () => {
+    const { workspace, project } = await seedProject(t.db)
+    const other = await seedProject(t.db)
     const integration = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'figma',
@@ -164,19 +164,19 @@ describe('removeTeamLink', () => {
     })
     const link = await createIntegrationLink(t.db, {
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       kind: 'figma-frame',
       subject: 'home',
       externalRef: 'F:1:1',
       payload: {},
     })
-    const input = { integrationId: integration.id, teamId: team.id, linkId: link.id }
-    await expect(removeTeamLink(t.db, { ...input, teamId: other.team.id })).rejects.toThrow(
-      NotFoundError,
-    )
-    await removeTeamLink(t.db, input)
-    expect(await listTeamLinks(t.db, team.id, 'figma-frame')).toEqual([])
-    await expect(removeTeamLink(t.db, input)).rejects.toThrow('Link not found')
+    const input = { integrationId: integration.id, projectId: project.id, linkId: link.id }
+    await expect(
+      removeProjectLink(t.db, { ...input, projectId: other.project.id }),
+    ).rejects.toThrow(NotFoundError)
+    await removeProjectLink(t.db, input)
+    expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toEqual([])
+    await expect(removeProjectLink(t.db, input)).rejects.toThrow('Link not found')
   })
 })
 

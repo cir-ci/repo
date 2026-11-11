@@ -9,7 +9,11 @@ import {
   rememberWorkspace,
   workspaceToRemember,
 } from '#app/shell-model.ts'
-import { capabilitiesQuery, teamsQuery, useRememberWorkspace } from '#features/teams/api/index.ts'
+import {
+  capabilitiesQuery,
+  projectsQuery,
+  useRememberWorkspace,
+} from '#features/projects/api/index.ts'
 
 /** The workspaces the person can switch between, and the one the shell is about (address, else `remembered`, else first). */
 export function useWorkspaces(remembered: string | undefined): {
@@ -17,9 +21,13 @@ export function useWorkspaces(remembered: string | undefined): {
   workspace: WorkspaceRef | undefined
 } {
   const params = useParams({ strict: false })
-  const { data: overview } = useQuery(teamsQuery())
+  const { data: overview } = useQuery(projectsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
-  const workspaces = listWorkspaces(overview?.teams, caps?.manageableWorkspaces, params.workspace)
+  const workspaces = listWorkspaces(
+    overview?.projects,
+    caps?.manageableWorkspaces,
+    params.workspace,
+  )
   return { workspaces, workspace: pickWorkspace(workspaces, params.workspace, remembered) }
 }
 
@@ -30,12 +38,12 @@ export function useWorkspaces(remembered: string | undefined): {
  */
 export function useRememberOpenedWorkspace(): void {
   const params = useParams({ strict: false })
-  const { data: overview } = useQuery(teamsQuery())
+  const { data: overview } = useQuery(projectsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const remember = useRememberWorkspace()
   const sent = useRef<string | undefined>(undefined)
   // Only real memberships count: no address is passed, so an unknown one isn't made up.
-  const known = listWorkspaces(overview?.teams, caps?.manageableWorkspaces)
+  const known = listWorkspaces(overview?.projects, caps?.manageableWorkspaces)
   const slug = caps ? workspaceToRemember(params.workspace, known, caps.lastWorkspace) : undefined
   useEffect(() => {
     if (!slug || sent.current === slug) return

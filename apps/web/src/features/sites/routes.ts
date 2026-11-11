@@ -4,11 +4,11 @@ import { rootRoute } from '#app/root-route.ts'
 
 const sitesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$workspace/$team/sites',
-  component: lazyRouteComponent(() => import('./TeamSitesPage.tsx'), 'TeamSitesPage'),
+  path: '$workspace/$project/sites',
+  component: lazyRouteComponent(() => import('./ProjectsitesPage.tsx'), 'ProjectsitesPage'),
 })
 
-// Where a hosted site sends people to sign in. Two static segments beat `$workspace/$team`.
+// Where a hosted site sends people to sign in. Two static segments beat `$workspace/$project`.
 const siteHandoffRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '_sso/site',

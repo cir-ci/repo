@@ -54,7 +54,7 @@
   min-width: 0;
 }
 
-.teamName {
+.projectName {
   display: inline-flex;
   flex: 1 1 200px;
   align-items: center;
@@ -177,7 +177,7 @@
   border-top: 1px solid var(--circi-line-subtle);
 }
 
-/* Settings under a team row: events and switches. */
+/* Settings under a project row: events and switches. */
 .extras {
   display: flex;
   flex-direction: column;
@@ -248,7 +248,7 @@
   padding: 8px;
 }
 
-/* "Webhooks" in the note: a link (or a menu of the teams) in the note's own size. */
+/* "Webhooks" in the note: a link (or a menu of the projects) in the note's own size. */
 .noteLink {
   font-size: inherit;
   text-decoration: underline;

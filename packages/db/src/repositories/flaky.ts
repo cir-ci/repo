@@ -2,7 +2,7 @@ import { onlyFlakyChanges, type FlakyChange, type FlakyDecision } from '@circi/c
 import { eq } from 'drizzle-orm'
 
 import { flakyVerdictsFor } from '#queries/flaky.ts'
-import { screenshotDiffs, screenshots, teams } from '#schema/index.ts'
+import { screenshotDiffs, screenshots, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -11,14 +11,14 @@ import type { Database } from '#src/client.ts'
  */
 
 /**
- * The gate's decision for a build: the team's flaky set as of the builds before this one (so the
+ * The gate's decision for a build: the project's flaky set as of the builds before this one (so the
  * build's own changes, or anything that came after it, never count), and whether every change in
  * the build is a flaky screenshot that looks like its known variation (`onlyFlakyChanges`).
  * Read only; `setBuildResult` stores it on the build when it finishes.
  */
 export async function buildFlakyDecision(
   db: Database,
-  build: { id: string; teamId: string; number: number },
+  build: { id: string; projectId: string; number: number },
 ): Promise<FlakyDecision> {
   const diffs = await db
     .select({
@@ -46,10 +46,10 @@ export async function buildFlakyDecision(
       })
     }
   }
-  const [team] = await db.select().from(teams).where(eq(teams.id, build.teamId))
-  if (!team) return { flakyOnly: false, flaky: [] }
-  const found = await flakyVerdictsFor(db, [team], { beforeNumber: build.number })
-  const flaky = (found.get(team.id)?.flaky ?? []).map((f) => ({
+  const [project] = await db.select().from(projects).where(eq(projects.id, build.projectId))
+  if (!project) return { flakyOnly: false, flaky: [] }
+  const found = await flakyVerdictsFor(db, [project], { beforeNumber: build.number })
+  const flaky = (found.get(project.id)?.flaky ?? []).map((f) => ({
     name: f.name,
     reason: f.reason,
     knownImages: f.knownImages,

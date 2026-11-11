@@ -70,7 +70,7 @@ export namespace startWorker {
     retentionIntervalMs?: number
     /** How often overdue review requests are looked for (default 5 minutes); 0 turns it off. */
     reviewSweepIntervalMs?: number
-    /** How often triage items nobody has go to the person on triage, for teams that want it (default 5 minutes); 0 turns it off. */
+    /** How often triage items nobody has go to the person on triage, for projects that want it (default 5 minutes); 0 turns it off. */
     triageAssignIntervalMs?: number
     /** How often to look for them (default 5 minutes). */
     maintenanceIntervalMs?: number

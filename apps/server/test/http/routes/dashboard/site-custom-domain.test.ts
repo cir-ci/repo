@@ -82,13 +82,13 @@ beforeAll(async () => {
   acme = await seedTenant(auth, t.db)
   rival = await seedTenant(auth, t.db)
   await t.db
-    .update(schema.teams)
+    .update(schema.projects)
     .set({ staticHostingEnabled: true })
-    .where(eq(schema.teams.id, acme.team.id))
+    .where(eq(schema.projects.id, acme.project.id))
   await t.db
-    .update(schema.teams)
+    .update(schema.projects)
     .set({ staticHostingEnabled: true })
-    .where(eq(schema.teams.id, rival.team.id))
+    .where(eq(schema.projects.id, rival.project.id))
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
   const member = { email: 'plain-member@acme.test', password: 'plain-member-password-long' }
@@ -151,7 +151,7 @@ const api = (
 ) =>
   app.inject({
     method,
-    url: `/api/teams/${acme.workspaceSlug}/web/sites${path}`,
+    url: `/api/projects/${acme.workspaceSlug}/web/sites${path}`,
     headers: { cookie, origin: DASH, ...(payload ? { 'content-type': 'application/json' } : {}) },
     ...(payload ? { payload: JSON.stringify(payload) } : {}),
   })
@@ -191,7 +191,7 @@ describe('setting a custom domain in the dashboard API', () => {
     expect((await api('POST', `${domainPath()}/verify`, ownerCookie, {})).statusCode).toBe(400)
   })
 
-  it('is for owners and admins; others get 403, and strangers the same 404 as a missing team', async () => {
+  it('is for owners and admins; others get 403, and strangers the same 404 as a missing project', async () => {
     const body = { domain: 'other.acme.com' }
     expect((await api('PUT', domainPath(), memberCookie, body)).statusCode).toBe(403)
     expect((await api('DELETE', domainPath(), memberCookie)).statusCode).toBe(403)
@@ -223,11 +223,11 @@ describe('setting a custom domain in the dashboard API', () => {
     }
     expect((await set(DOMAIN)).statusCode).toBe(200)
 
-    // Another team's site can't take it, whoever holds it.
+    // Another project's site can't take it, whoever holds it.
     const theirs = (await upload(MAIN1, 'main', 'r', rival.token, 'rival-sb')).json().site.slug
     const clash = await app.inject({
       method: 'PUT',
-      url: `/api/teams/${rival.workspaceSlug}/web/sites/${theirs}/domain`,
+      url: `/api/projects/${rival.workspaceSlug}/web/sites/${theirs}/domain`,
       headers: { cookie: rivalCookie, origin: DASH, 'content-type': 'application/json' },
       payload: JSON.stringify({ domain: DOMAIN.toUpperCase() }),
     })
@@ -342,12 +342,12 @@ describe('serving the default branch on the custom domain', () => {
     expect((await siteGet('/', { cookie: siteCookie })).body).toBe('v2')
   })
 
-  it("uses the team's default branch setting; with no upload on it, answers like an unknown address", async () => {
+  it("uses the project's default branch setting; with no upload on it, answers like an unknown address", async () => {
     const { siteCookie } = await openDomain()
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ defaultBranch: 'release' })
-      .where(eq(schema.teams.id, acme.team.id))
+      .where(eq(schema.projects.id, acme.project.id))
     const empty = await siteGet('/', { cookie: siteCookie })
     const unknown = await siteGet('/', {}, `${'0'.repeat(12)}-nothing-here.${SITES}`)
     expect(empty.statusCode).toBe(302)
@@ -357,9 +357,9 @@ describe('serving the default branch on the custom domain', () => {
     // The handoff refuses it too: no token for an address with nothing to show.
     expect((await openDomain()).hand.statusCode).toBe(404)
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ defaultBranch: 'main' })
-      .where(eq(schema.teams.id, acme.team.id))
+      .where(eq(schema.projects.id, acme.project.id))
     expect((await siteGet('/', { cookie: siteCookie })).statusCode).toBe(200)
   })
 
@@ -386,9 +386,9 @@ describe('serving the default branch on the custom domain', () => {
   it('serves a domain only while it is verified, and only for sites; other hosts are untouched', async () => {
     const { siteCookie } = await openDomain()
     await t.db
-      .update(schema.teamSites)
+      .update(schema.projectsites)
       .set({ customDomainVerifiedAt: null })
-      .where(eq(schema.teamSites.slug, slug))
+      .where(eq(schema.projectsites.slug, slug))
     // Not verified: not a site host any more, so the request reaches the ordinary routes.
     const gone = await siteGet('/healthz', { cookie: siteCookie })
     expect(gone.json()).toEqual({ status: 'ok' })
@@ -396,7 +396,7 @@ describe('serving the default branch on the custom domain', () => {
     expect((await siteGet('/', { cookie: siteCookie })).statusCode).toBe(200)
 
     // A site host never reaches a dashboard route; the dashboard host never serves a file.
-    expect((await siteGet('/api/teams', { cookie: siteCookie })).statusCode).toBe(404)
+    expect((await siteGet('/api/projects', { cookie: siteCookie })).statusCode).toBe(404)
     expect((await siteGet('/healthz', { cookie: siteCookie })).statusCode).toBe(404)
     const dash = await siteGet('/healthz', {}, 'ci.acme.io')
     expect(dash.json()).toEqual({ status: 'ok' })

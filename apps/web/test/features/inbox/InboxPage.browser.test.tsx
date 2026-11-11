@@ -33,7 +33,7 @@ const item = (id: string, over: Record<string, unknown> = {}) => ({
   },
   changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
   request: { dueAt: null, overdueByMs: 0 },
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   alsoInReviews: false,
   ...over,
@@ -259,7 +259,7 @@ describe('InboxPage', () => {
     let approved = false
     const api = fakeApi({
       'GET /api/inbox': () => list(approved ? [] : [item('n1', { readAt: 'x' })]),
-      'POST /api/teams/acme/web/builds/12/review': () => {
+      'POST /api/projects/acme/web/builds/12/review': () => {
         approved = true
         return { body: { build: {} } }
       },
@@ -288,7 +288,7 @@ describe('InboxPage', () => {
       'GET /api/inbox': list([
         item('n1', { kind: 'mentioned', payload: { snippet: 'Is it 2px?', commentId: 'c1' } }),
       ]),
-      'POST /api/teams/acme/web/builds/12/comments': { status: 201, body: { id: 'c2' } },
+      'POST /api/projects/acme/web/builds/12/comments': { status: 201, body: { id: 'c2' } },
     })
     await show()
     await page.getByRole('textbox', { name: 'Reply' }).fill('Yes, 2px')
@@ -350,7 +350,7 @@ describe('InboxPage', () => {
     await expectEmptyState(title, { body })
   })
 
-  it('finds notifications by text, team or build, keeps the text in the address and clears it with Esc', async () => {
+  it('finds notifications by text, project or build, keeps the text in the address and clears it with Esc', async () => {
     fakeApi({
       'GET /api/inbox': list([
         item('n1'),
@@ -358,7 +358,7 @@ describe('InboxPage', () => {
           kind: 'build_rejected',
           actor: { id: 'u3', name: 'Grace', image: null },
           payload: { reason: 'Logo moved' },
-          team: { slug: 'docs', name: 'Docs' },
+          project: { slug: 'docs', name: 'Docs' },
           build: { ...item('x').build, number: 13, branch: 'feature/logo' },
         }),
       ]),
@@ -565,7 +565,7 @@ describe('right-click menu on an inbox item', () => {
   it('approves everything from the menu', async () => {
     const api = fakeApi({
       'GET /api/inbox': list([item('n1', { readAt: 'x' })]),
-      'POST /api/teams/acme/web/builds/12/review': { body: { build: {} } },
+      'POST /api/projects/acme/web/builds/12/review': { body: { build: {} } },
     })
     await show()
     await firstRow().click({ button: 'right' })

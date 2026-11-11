@@ -85,7 +85,7 @@ export interface RequestReviewUndo {
 export async function undoRequestReview(
   tx: Database,
   data: RequestReviewUndo,
-  who: { teamId: string; userId: string },
+  who: { projectId: string; userId: string },
 ): Promise<void> {
   for (const requestId of data.requestIds) {
     // eslint-disable-next-line no-await-in-loop -- one transaction, one connection

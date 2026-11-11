@@ -39,7 +39,7 @@ export namespace Review {
     id: string
     state: ReviewRequestState
     createdAt: string
-    /** When the team's review target runs out; null when the team has none. */
+    /** When the project's review target runs out; null when the project has none. */
     dueAt: string | null
     /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
     overdueByMs: number
@@ -57,7 +57,7 @@ export namespace Review {
     requestedBy: { id: string; name: string; image: string | null } | null
     build: {
       number: number
-      /** The build's name; "default" for a team's only build per commit. */
+      /** The build's name; "default" for a project's only build per commit. */
       name: string
       branch: string | null
       prNumber: number | null
@@ -66,7 +66,7 @@ export namespace Review {
       conclusion: BuildConclusion | null
       reviewStatus: ReviewStatus
     }
-    team: { slug: string; name: string }
+    project: { slug: string; name: string }
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: { changed: number; added: number; removed: number; unchanged: number }

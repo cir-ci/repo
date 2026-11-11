@@ -5,7 +5,7 @@ import {
   resetBuild,
   setBuildResult,
   setWorkspaceSettings,
-  updateTeamSettings,
+  updateProjectsettings,
 } from '@circi/db/repositories'
 import {
   createTestDb,
@@ -13,7 +13,7 @@ import {
   seedBuild,
   seedDiff,
   seedFlipFlops,
-  seedTeam,
+  seedProject,
 } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -34,14 +34,14 @@ interface Change {
 }
 
 /**
- * A team whose `wobble` screenshot is flaky on main (A, B, A, B, A: three returns to an earlier
+ * A project whose `wobble` screenshot is flaky on main (A, B, A, B, A: three returns to an earlier
  * image, the biggest wobble 0.05), and a pull request build that changed `wobble` like `change`.
  */
 async function flakyPr(over: { changed?: string[]; change?: Change } = {}) {
-  const seeded = await seedTeam(t.db)
-  const { team } = seeded
-  await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B', 'A'], 0.05)
-  const build = await seedBuild(t.db, team.id, {
+  const seeded = await seedProject(t.db)
+  const { project } = seeded
+  await seedFlipFlops(t.db, project.id, 'wobble', ['A', 'B', 'A', 'B', 'A'], 0.05)
+  const build = await seedBuild(t.db, project.id, {
     branch: 'feature',
     prNumber: 3,
     status: 'complete',
@@ -123,30 +123,30 @@ describe('gateInputs', () => {
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
   })
 
-  it('lets a team override the workspace either way', async () => {
-    const { build, workspace, team } = await flakyPr()
+  it('lets a project override the workspace either way', async () => {
+    const { build, workspace, project } = await flakyPr()
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
-    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: true })
+    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: true })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
 
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: true })
-    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: false })
+    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: false })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: false })
     expect(await outcomeOf(build)).toMatchObject({ state: 'pass' })
 
     // Back to null: the workspace's value applies again.
-    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: null })
+    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: null })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
   })
 
   it("doesn't count the build's own changes towards its flaky set", async () => {
-    // Main flipped A, B, A, B: two returns, short of the team's 3. The gated build is on main
+    // Main flipped A, B, A, B: two returns, short of the project's 3. The gated build is on main
     // and returns to A, which would make three. It must be judged against the builds before it.
-    const { team, workspace } = await seedTeam(t.db)
+    const { project, workspace } = await seedProject(t.db)
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
-    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B'], 0.05)
-    const build = await seedBuild(t.db, team.id, {
+    await seedFlipFlops(t.db, project.id, 'wobble', ['A', 'B', 'A', 'B'], 0.05)
+    const build = await seedBuild(t.db, project.id, {
       branch: 'main',
       status: 'complete',
       conclusion: 'changes_detected',
@@ -164,10 +164,10 @@ describe('gateInputs', () => {
 
 describe('the recorded decision', () => {
   it('is what the status endpoint and the check read, so a later main build cannot flip them', async () => {
-    const { team, workspace } = await seedTeam(t.db)
+    const { project, workspace } = await seedProject(t.db)
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
-    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B', 'A'], 0.05)
-    const pr = await seedBuild(t.db, team.id, {
+    await seedFlipFlops(t.db, project.id, 'wobble', ['A', 'B', 'A', 'B', 'A'], 0.05)
+    const pr = await seedBuild(t.db, project.id, {
       branch: 'feature',
       prNumber: 5,
       status: 'processing',
@@ -199,9 +199,9 @@ describe('the recorded decision', () => {
     // Later main builds change the list: wobble stops flipping (a redesign), and the window moves on.
     for (const image of ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']) {
       // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
-      await seedFlipFlops(t.db, team.id, 'wobble', [image], 0.5)
+      await seedFlipFlops(t.db, project.id, 'wobble', [image], 0.5)
     }
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toEqual([])
     // The pull request keeps the answer it was gated with.
     expect(await gateInputs(t.db, done)).toMatchObject({ flakyOnly: true })
     expect(await outcomeOf(done)).toMatchObject({ state: 'pass' })
@@ -215,8 +215,8 @@ describe('the recorded decision', () => {
   })
 
   it('is not made for a build without changes', async () => {
-    const { team } = await seedTeam(t.db)
-    const pr = await seedBuild(t.db, team.id, {
+    const { project } = await seedProject(t.db)
+    const pr = await seedBuild(t.db, project.id, {
       branch: 'feature',
       prNumber: 6,
       status: 'processing',

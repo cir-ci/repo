@@ -7,7 +7,7 @@ import { buildList } from '#features/command/model.ts'
 
 /**
  * Settings is a closed area (CLAUDE.md, Style): no link or redirect moves someone between settings
- * (account, workspace, team and instance settings) and the rest of the dashboard. This scans every
+ * (account, workspace, project and instance settings) and the rest of the dashboard. This scans every
  * route pattern a source file links, navigates or redirects to, and fails when a settings file
  * targets an app page or an app file targets a settings page. The few allowed crossings are named.
  */
@@ -16,24 +16,24 @@ const SRC = join(import.meta.dirname, '../../src')
 
 /** Files that are part of settings, whatever folder they sit in. */
 const SETTINGS_FILES: RegExp[] = [
-  /^features\/(team-settings|workspace-settings|account|instance|members|integrations|regions)\//,
+  /^features\/(project-settings|workspace-settings|account|instance|members|integrations|regions)\//,
   /^features\/reviews\/settings\//,
-  /^features\/teams\/DeleteTeamSection\.tsx$/,
+  /^features\/projects\/DeleteProjectsection\.tsx$/,
   /^features\/sidebar\/SettingsNav\.tsx$/,
 ]
 
-/** Entry points into settings (the workspace and account menus, ⌘K, the team page's Settings button, context menus) and shared redirects. */
+/** Entry points into settings (the workspace and account menus, ⌘K, the project page's Settings button, context menus) and shared redirects. */
 const ENTRY_POINTS = new Set([
   'features/auth/UserMenu.tsx',
   'features/sidebar/WorkspaceSwitcher.tsx',
-  'features/teams/TeamPage.tsx',
-  'features/teams/routes.ts',
-  // A team's right-click menu (sidebar entry, Teams page row): Team settings, for those who may manage.
-  'features/teams/TeamContextMenu.tsx',
+  'features/projects/ProjectPage.tsx',
+  'features/projects/routes.ts',
+  // A project's right-click menu (sidebar entry, Projects page row): Project settings, for those who may manage.
+  'features/projects/ProjectContextMenu.tsx',
   'features/command/model.ts',
   // The phone's More sheet: the workspace and account settings entries (built from helpers, not route literals).
   'app/PhoneMore.tsx',
-  // The Teams and Settings crumbs, which only settings pages use.
+  // The Projects and Settings crumbs, which only settings pages use.
   'lib/crumbs.ts',
 ])
 
@@ -46,7 +46,7 @@ const WAY_BACK = new Set([
 ])
 
 const SETTINGS_TARGET =
-  /^\/(workspaces\/\$workspace\/settings|\$workspace\/\$team\/settings|account|instance)(\/|$)/
+  /^\/(workspaces\/\$workspace\/settings|\$workspace\/\$project\/settings|account|instance)(\/|$)/
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -56,7 +56,7 @@ function files(dir: string): string[] {
   })
 }
 
-/** The route patterns a file names: string literals like '/$workspace/$team/sites' (never API paths or imports). */
+/** The route patterns a file names: string literals like '/$workspace/$project/sites' (never API paths or imports). */
 function routeLiterals(source: string): string[] {
   const code = source
     .split('\n')
@@ -125,7 +125,7 @@ describe('settings is a closed area', () => {
     const outward = all
       .filter(({ rel }) => SETTINGS_FILES.some((re) => re.test(rel)))
       .filter(({ source }) =>
-        /\b(crumbsFor|workspaceCrumb|teamCrumb|teamBuildsCrumb)\(/.test(source),
+        /\b(crumbsFor|workspaceCrumb|projectCrumb|projectBuildsCrumb)\(/.test(source),
       )
       .map(({ rel }) => rel)
     expect(outward).toEqual([])
@@ -135,7 +135,7 @@ describe('settings is a closed area', () => {
     const base = {
       workspace: 'acme',
       routeWorkspace: undefined,
-      teams: [],
+      projects: [],
       views: [],
       workspaces: [],
       canManage: true,

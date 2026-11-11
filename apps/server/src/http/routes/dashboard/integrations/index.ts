@@ -12,7 +12,7 @@ export { dashboardIssueTrackerRoutes } from './issue-trackers.ts'
 
 /**
  * The generic integration routes: every integration of the registry (`@circi/integrations`) is
- * connected, installed and mapped to teams through these, with no route of its own. Everyone
+ * connected, installed and mapped to projects through these, with no route of its own. Everyone
  * in the workspace can look at an integration's mappings; owners and admins connect, choose
  * targets and change settings. The events themselves are delivered by the worker's
  * `integration-event` job.

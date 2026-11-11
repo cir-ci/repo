@@ -2,7 +2,7 @@ import { HeadObjectCommand } from '@aws-sdk/client-s3'
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { createProject, type CreatedProject } from '#clients/admin.ts'
 import { fileRows, noisePng, sha256Hex } from '#clients/storage.ts'
 import { uploadBuild, uploadOrThrow } from '#clients/upload.ts'
 import { Repo } from '#github/git-repo.ts'
@@ -14,7 +14,7 @@ import { useStack } from '#stack/vitest.ts'
 describe('S3 storage', () => {
   const ctx = useStack({ dedicated: true, storage: 's3', setup: true })
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
 
   const s3 = () => {
     const bucket = ctx.stack.s3
@@ -23,13 +23,14 @@ describe('S3 storage', () => {
   }
   const build = (n: number) =>
     ctx.setup.session.get<Build.Detail>(
-      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/builds/${n}`,
+      `/api/projects/${ctx.setup.workspace.slug}/${project.slug}/builds/${n}`,
     )
-  const upload = (wait = true) => uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait })
+  const upload = (wait = true) =>
+    uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait })
 
   beforeAll(async () => {
     repo = await Repo.create()
-    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Shop')
+    project = await createProject(ctx.setup.session, ctx.setup.workspace.slug, 'Shop')
   })
   afterAll(async () => {
     await repo.destroy()
@@ -140,7 +141,7 @@ describe('S3 storage', () => {
         const started = Date.now()
         const down = await uploadBuild({
           stack: ctx.stack,
-          token: team.token,
+          token: project.token,
           repo: outage,
           wait: true,
         })
@@ -179,7 +180,7 @@ describe('S3 storage', () => {
       await outage.commit('s3 is back')
       const up = await uploadOrThrow({
         stack: ctx.stack,
-        token: team.token,
+        token: project.token,
         repo: outage,
         wait: true,
       })

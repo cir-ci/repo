@@ -11,7 +11,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
-import { loadBuild, loadTeam } from '#http/lib/team-access.ts'
+import { loadBuild, loadProject } from '#http/lib/project-access.ts'
 import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -23,17 +23,17 @@ const body = z.object({
 
 /**
  * `POST …/builds/:number/review`: approve or reject a build's changes. Any member of the
- * team's workspace may decide; everyone else gets the same "not found" as for a build
+ * project's workspace may decide; everyone else gets the same "not found" as for a build
  * that doesn't exist. Decisions can be changed, and the latest one counts.
  */
 export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.post('/teams/:workspace/:team/builds/:number/review', async (req) => {
+  app.post('/projects/:workspace/:project/builds/:number/review', async (req) => {
     const { state, reason } = parse(body, req.body)
-    const { build, user, team } = await loadBuild(deps, req, { notFound: 'Build not found' })
+    const { build, user, project } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
     const { build: updated, undo } = await reviewBuildUndoable(deps.db, {
       buildId: build.id,
-      teamId: team.id,
+      projectId: project.id,
       userId: user.id,
       state,
       ...(reason ? { reason } : {}),
@@ -54,13 +54,13 @@ export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
    * `POST …/builds/:number/snapshots/review`: approve or reject some snapshots of a build.
    * Members decide as for the whole build; the build's status follows from the decisions.
    */
-  app.post('/teams/:workspace/:team/builds/:number/snapshots/review', async (req) => {
+  app.post('/projects/:workspace/:project/builds/:number/snapshots/review', async (req) => {
     const { snapshotNames, decision, reason } = parse(snapshotsBody, req.body)
-    const { build, user, team } = await loadBuild(deps, req, { notFound: 'Build not found' })
+    const { build, user, project } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
     const { build: updated, undo } = await reviewSnapshotsUndoable(deps.db, {
       buildId: build.id,
-      teamId: team.id,
+      projectId: project.id,
       userId: user.id,
       decision,
       snapshotNames,
@@ -96,15 +96,15 @@ const bulkBody = z.object({
 })
 
 /**
- * `POST …/builds/review`: approve or reject several builds of a team at once. All or
- * nothing: an id that isn't a build of the team (or can't be reviewed) fails the call.
+ * `POST …/builds/review`: approve or reject several builds of a project at once. All or
+ * nothing: an id that isn't a build of the project (or can't be reviewed) fails the call.
  */
 export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.post('/teams/:workspace/:team/builds/review', async (req) => {
+  app.post('/projects/:workspace/:project/builds/review', async (req) => {
     const input = parse(bulkBody, req.body)
-    const { team, user } = await loadTeam(deps, req)
+    const { project, user } = await loadProject(deps, req)
     const { builds } = await reviewBuilds(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: input.buildIds,
       userId: user.id,
       state: input.decision,
@@ -124,12 +124,12 @@ export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = asy
    * `POST …/builds/request-review`: ask each reviewer to review each build, in one transaction.
    * All or nothing, like the bulk decision above. Any member may ask.
    */
-  app.post('/teams/:workspace/:team/builds/request-review', async (req) => {
+  app.post('/projects/:workspace/:project/builds/request-review', async (req) => {
     const input = parse(requestBulkBody, req.body)
-    const found = await loadTeam(deps, req)
-    const { team, user } = found
+    const found = await loadProject(deps, req)
+    const { project, user } = found
     const { requests, undo } = await requestReviewsUndoable(deps.db, {
-      teamId: team.id,
+      projectId: project.id,
       buildIds: input.buildIds,
       reviewerIds: input.reviewerIds,
       requestedById: user.id,

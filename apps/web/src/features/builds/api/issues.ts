@@ -2,34 +2,34 @@ import type { Build, Issue } from '@circi/api'
 import { defaultIssueTitle, issueDescription } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { teamPath } from '#lib/api-paths.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 import { fileUrl } from './index.ts'
 
-const base = (workspace: string, team: string, number: number) =>
-  teamPath(workspace, team, 'builds', number, 'issues')
+const base = (workspace: string, project: string, number: number) =>
+  projectPath(workspace, project, 'builds', number, 'issues')
 
-/** The issues created from a build and the trackers its team files issues in (none: no "Create issue"). */
-export const issuesQuery = (workspace: string, team: string, number: number) =>
+/** The issues created from a build and the trackers its project files issues in (none: no "Create issue"). */
+export const issuesQuery = (workspace: string, project: string, number: number) =>
   queryOptions({
-    queryKey: keys.issues(workspace, team, number),
-    queryFn: () => getJson<Issue.List>(base(workspace, team, number)),
+    queryKey: keys.issues(workspace, project, number),
+    queryFn: () => getJson<Issue.List>(base(workspace, project, number)),
   })
 
 /** Creates an issue; the build page, its issues and its activity refresh afterwards. */
-export function useCreateIssue(workspace: string, team: string, number: number) {
+export function useCreateIssue(workspace: string, project: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
     meta: { what: 'create the issue' },
-    mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(workspace, team, number), input),
+    mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(workspace, project, number), input),
     onSuccess: () =>
       invalidateAll(
         queryClient,
-        keys.issues(workspace, team, number),
-        keys.build(workspace, team, number),
-        keys.activity(workspace, team, number),
+        keys.issues(workspace, project, number),
+        keys.build(workspace, project, number),
+        keys.activity(workspace, project, number),
       ),
   })
 }
@@ -40,20 +40,20 @@ export function useCreateIssue(workspace: string, team: string, number: number) 
  * served (the server uses its configured public address, which is the same place).
  */
 export function issuePreview(
-  data: Pick<Build.Detail, 'team' | 'build' | 'reviews' | 'diffs'>,
+  data: Pick<Build.Detail, 'project' | 'build' | 'reviews' | 'diffs'>,
   snapshotName: string | null,
   origin: string,
 ): { title: string; description: string } {
-  const { build, team } = data
+  const { build, project } = data
   const shot = snapshotName ? data.diffs.find((d) => d.name === snapshotName) : undefined
   const sha = shot?.diff?.sha256 ?? shot?.head?.sha256 ?? null
-  const buildUrl = `${origin}/${team.workspaceSlug}/${team.slug}/builds/${build.number}`
+  const buildUrl = `${origin}/${project.workspaceSlug}/${project.slug}/builds/${build.number}`
   const rejection = data.reviews.find((r) => r.state === 'rejected')
   return {
     title: defaultIssueTitle(snapshotName, build.number),
     description: issueDescription({
       number: build.number,
-      team: `${team.workspaceSlug}/${team.slug}`,
+      project: `${project.workspaceSlug}/${project.slug}`,
       branch: build.branch,
       prNumber: build.prNumber,
       commitSha: build.commitSha,

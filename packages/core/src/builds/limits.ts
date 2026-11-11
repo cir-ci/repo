@@ -9,8 +9,8 @@ export const COMMIT_SHA_RE = /^[0-9a-fA-F]{7,64}$/
 export const SHA256_RE = /^[0-9a-f]{64}$/
 export const BUILD_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 
-/** What a new team's retention starts at (the `teams.retention_days` column default). */
-export const DEFAULT_TEAM_RETENTION_DAYS = 30
+/** What a new project's retention starts at (the `projects.retention_days` column default). */
+export const DEFAULT_PROJECT_RETENTION_DAYS = 30
 
 /** Most ancestor commits a build may list for baseline resolution. */
 export const MAX_ANCESTORS = 2_000

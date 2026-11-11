@@ -1,40 +1,40 @@
 import { and, eq, isNotNull, isNull, notExists, or, sql } from 'drizzle-orm'
 
-import { teams, triageItems, workspaceDeletions, workspaceSettings } from '#schema/index.ts'
+import { projects, triageItems, workspaceDeletions, workspaceSettings } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 import { type TriageItem, checkRef } from './triage.ts'
 
 /**
- * The "assign new triage items to whoever is on triage" setting, at the store: which teams have
+ * The "assign new triage items to whoever is on triage" setting, at the store: which projects have
  * it on, and handing items over without overriding a person. Which items are open, and who is on
  * triage, is the service's call (`autoAssignTriage` in `@circi/services`).
  */
 
 /**
- * Teams where the setting is on (the team's own value, else the workspace's) and that have a
- * rotation, in live workspaces. `workspaceId` or `teamId` narrows the list.
+ * Projects where the setting is on (the project's own value, else the workspace's) and that have a
+ * rotation, in live workspaces. `workspaceId` or `projectId` narrows the list.
  */
-export async function listTeamsAssigningToOnCall(
+export async function listProjectsAssigningToOnCall(
   db: Database,
-  scope: { workspaceId?: string; teamId?: string } = {},
+  scope: { workspaceId?: string; projectId?: string } = {},
 ): Promise<string[]> {
   const rows = await db
-    .select({ id: teams.id })
-    .from(teams)
-    .leftJoin(workspaceSettings, eq(workspaceSettings.workspaceId, teams.workspaceId))
+    .select({ id: projects.id })
+    .from(projects)
+    .leftJoin(workspaceSettings, eq(workspaceSettings.workspaceId, projects.workspaceId))
     .where(
       and(
-        isNotNull(teams.triageRotationStartsOn),
-        sql`coalesce(${teams.assignTriageToOnCall}, ${workspaceSettings.assignTriageToOnCall}, false)`,
+        isNotNull(projects.triageRotationStartsOn),
+        sql`coalesce(${projects.assignTriageToOnCall}, ${workspaceSettings.assignTriageToOnCall}, false)`,
         notExists(
           db
             .select({ one: sql`1` })
             .from(workspaceDeletions)
-            .where(eq(workspaceDeletions.workspaceId, teams.workspaceId)),
+            .where(eq(workspaceDeletions.workspaceId, projects.workspaceId)),
         ),
-        scope.workspaceId === undefined ? undefined : eq(teams.workspaceId, scope.workspaceId),
-        scope.teamId === undefined ? undefined : eq(teams.id, scope.teamId),
+        scope.workspaceId === undefined ? undefined : eq(projects.workspaceId, scope.workspaceId),
+        scope.projectId === undefined ? undefined : eq(projects.id, scope.projectId),
       ),
     )
   return rows.map((r) => r.id)
@@ -49,23 +49,23 @@ export async function listTeamsAssigningToOnCall(
  */
 export async function autoAssignTriageItems(
   db: Database,
-  input: { teamId: string; assigneeId: string; items: Pick<TriageItem.Ref, 'kind' | 'key'>[] },
+  input: { projectId: string; assigneeId: string; items: Pick<TriageItem.Ref, 'kind' | 'key'>[] },
 ): Promise<{ kind: string; key: string }[]> {
   const changed: { kind: string; key: string }[] = []
   for (const item of input.items) {
-    const kind = checkRef({ teamId: input.teamId, ...item })
+    const kind = checkRef({ projectId: input.projectId, ...item })
     // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
     const rows = await db
       .insert(triageItems)
       .values({
-        teamId: input.teamId,
+        projectId: input.projectId,
         kind,
         key: item.key,
         assigneeId: input.assigneeId,
         assignmentSource: 'auto',
       })
       .onConflictDoUpdate({
-        target: [triageItems.teamId, triageItems.kind, triageItems.key],
+        target: [triageItems.projectId, triageItems.kind, triageItems.key],
         set: { assigneeId: input.assigneeId, assignmentSource: 'auto' },
         setWhere: and(
           isNull(triageItems.dismissedAt),

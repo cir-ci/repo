@@ -40,7 +40,7 @@ export namespace RejectDialog {
     /** What is being rejected: the snapshot's name. */
     subject: string
     pending: boolean
-    /** The team asks for a reason (the default until it is known). */
+    /** The project asks for a reason (the default until it is known). */
     reasonRequired?: boolean
     onCancel: () => void
     onReject: (reason: string) => void

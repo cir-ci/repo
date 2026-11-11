@@ -5,12 +5,12 @@ import { join } from 'node:path'
 import { sealSecret } from '@circi/core/node'
 import { getIntegration } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
-import { createBuild, createIntegration, setIntegrationTeam } from '@circi/db/repositories'
+import { createBuild, createIntegration, setIntegrationProject } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedReviewRequest,
   seedUser,
   seedChangedSnapshots,
@@ -38,11 +38,11 @@ afterAll(async () => {
 
 async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
   await t.db.delete(schema.jobs)
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -59,14 +59,14 @@ async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
     encryptedCredentials: sealSecret(SECRET, 'xoxb-good'),
   })
   if (options.mapped !== false) {
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: 'C123',
       extra: { name: 'reviews', ...(options.events ? { events: options.events } : {}) },
     })
   }
-  return { team, workspace, owner, reviewer, build, integration }
+  return { project, workspace, owner, reviewer, build, integration }
 }
 
 const jobs = () =>
@@ -86,8 +86,8 @@ async function drain(edge: Edge) {
 }
 
 describe('integrationEvent (Slack)', () => {
-  it('posts a review request once, to the team channel, with a link to the build', async () => {
-    const { owner, reviewer, build, team, workspace } = await setup()
+  it('posts a review request once, to the project channel, with a link to the build', async () => {
+    const { owner, reviewer, build, project, workspace } = await setup()
     const host = fakeSlackHost(['xoxb-good'])
     await requestReview(t.db, {
       buildId: build.id,
@@ -99,7 +99,7 @@ describe('integrationEvent (Slack)', () => {
     expect(host.posted[0]).toMatchObject({ channel: 'C123', token: 'xoxb-good' })
     expect(host.posted[0]?.text).toContain('Review requested')
     expect(JSON.stringify(host.posted[0]?.blocks)).toContain(
-      `${ORIGIN}/${workspace.slug}/${team.slug}/builds/${build.number}`,
+      `${ORIGIN}/${workspace.slug}/${project.slug}/builds/${build.number}`,
     )
     expect(JSON.stringify(host.posted[0]?.blocks)).toContain(reviewer.name)
   })
@@ -141,7 +141,7 @@ describe('integrationEvent (Slack)', () => {
     expect(host.posted.map((m) => m.text)).toEqual([expect.stringContaining('Review overdue')])
   })
 
-  it('sends nothing when the team has no channel', async () => {
+  it('sends nothing when the project has no channel', async () => {
     const { owner, reviewer, build } = await setup({ mapped: false })
     const host = fakeSlackHost(['xoxb-good'])
     await requestReview(t.db, {
@@ -155,7 +155,7 @@ describe('integrationEvent (Slack)', () => {
   })
 
   it('sends only the events the mapping lists, and re-checks the mapping when the job runs', async () => {
-    const { owner, reviewer, build, integration, team } = await setup({
+    const { owner, reviewer, build, integration, project } = await setup({
       events: ['build.rejected'],
     })
     const host = fakeSlackHost(['xoxb-good'])
@@ -168,9 +168,11 @@ describe('integrationEvent (Slack)', () => {
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     expect(await jobs()).toHaveLength(1)
     // The channel is cleared before the worker gets to it.
-    await t.db.delete(schema.integrationTeams).where(eq(schema.integrationTeams.teamId, team.id))
+    await t.db
+      .delete(schema.integrationProjects)
+      .where(eq(schema.integrationProjects.projectId, project.id))
     expect(await drain(host.integrations)).toEqual([
-      { status: 'skipped', reason: 'team is not mapped' },
+      { status: 'skipped', reason: 'project is not mapped' },
     ])
     expect(host.posted).toHaveLength(0)
     expect(integration.id).toBeTruthy()

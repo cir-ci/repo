@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { createProject, type CreatedProject } from '#clients/admin.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
 import { disableWebhooks, failures, gapsOf, hookJobs } from '#clients/webhook-jobs.ts'
 import { listen } from '#fakes/http.ts'
@@ -28,13 +28,13 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
     },
   })
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
   const closers: (() => Promise<void>)[] = []
   let n = 0
 
   beforeAll(async () => {
     repo = await Repo.create()
-    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Retries')
+    project = await createProject(ctx.setup.session, ctx.setup.workspace.slug, 'Retries')
   })
   afterAll(async () => {
     await Promise.all(closers.map((close) => close()))
@@ -43,7 +43,7 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
 
   const apiAdd = (url: string) =>
     ctx.setup.session.post<{ webhook: { id: string }; secret: string }>(
-      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/webhooks`,
+      `/api/projects/${ctx.setup.workspace.slug}/${project.slug}/webhooks`,
       { url, events: ['build.completed'] },
     )
   /** A new build on main: one `build.completed` event for every enabled webhook. */
@@ -51,7 +51,7 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
     n += 1
     await repo.writeShots({ home: { dot: { x: 10 * n, y: 10 * n } } })
     await repo.commit(`main ${n}`)
-    await uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
+    await uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
   }
 
   it('a failing receiver is retried with exponential backoff and the same delivery id, until it recovers', async () => {

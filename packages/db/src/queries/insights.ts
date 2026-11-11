@@ -21,7 +21,7 @@ import {
   files,
   member,
   workspace,
-  teams,
+  projects,
   reviewRequests,
   reviews,
   screenshotDiffs,
@@ -29,8 +29,8 @@ import {
   snapshotReviews,
   user,
 } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { FLAKY_HISTORY_MAX_BUILDS, loadFlakyHistory, type FlakyHistoryBuild } from './flaky.ts'
@@ -43,14 +43,14 @@ import {
   personDecidedBuilds,
   rejectionEvents,
   suppressedDiffs,
-  teamRef,
-  teamsWithIgnoreRegions,
+  projectRef,
+  projectsWithIgnoreRegions,
   waitCandidates,
 } from './insights-parts.ts'
 
 /**
  * Insights (PLAN M4 metrics): aggregates over a workspace's review history, optionally for
- * one team. Everything is limited to workspaces the user belongs to and the teams they can see.
+ * one project. Everything is limited to workspaces the user belongs to and the projects they can see.
  *
  * Definitions:
  * - A build is *ready* when it finished (`completedAt`, else `createdAt`).
@@ -59,17 +59,17 @@ import {
  *   decision falls in. *Decided* is the same with the last decision (the build's approval or
  *   rejection), for whole-build decisions.
  * - Change rate is finished builds with changes over all finished builds, by ready time.
- * - A screenshot is flaky at a moment by the team's flaky rule (`flakyScreenshots`) over its
+ * - A screenshot is flaky at a moment by the project's flaky rule (`flakyScreenshots`) over its
  *   default-branch history up to then, loaded by the same bounded query as every other flaky answer
  *   (`loadFlakyHistory`). Insights has no flaky definition of its own: the Flaky screenshots chart, the
  *   Flakiest list (flip-flops, and a strip of which of the last 10 commits changed the image from the
- *   one before) and the Teams comparison's Flaky now all read that one verdict.
+ *   one before) and the Projects comparison's Flaky now all read that one verdict.
  * - A build's outcome (one per finished build, by ready time): failed (`error`), else rejected,
  *   else approved by a person, else auto-approved; a build still waiting has none yet.
  */
 
 /**
- * Which of a team's last 10 default-branch commits changed a screenshot's image from the commit
+ * Which of a project's last 10 default-branch commits changed a screenshot's image from the commit
  * before it (oldest first). A commit with several runs counts by its last image; a commit
  * without the screenshot is skipped, so a removal is not a change. The first commit ever seen
  * has nothing before it. Not the diff status: this is the rule's own view of change.
@@ -101,7 +101,7 @@ export namespace getInsights {
     failedBuilds: number
   }
 
-  export interface TeamRef {
+  export interface ProjectRef {
     slug: string
     name: string
     colour: string
@@ -140,7 +140,7 @@ export namespace getInsights {
   }
 
   export interface ScreenshotChange {
-    team: TeamRef
+    project: ProjectRef
     name: string
     changedBuilds: number
     builds: number
@@ -148,7 +148,7 @@ export namespace getInsights {
   }
 
   export interface FlakyScreenshot {
-    team: TeamRef
+    project: ProjectRef
     name: string
     /** Times a commit's image came back to one it already had in the last 10 commits. */
     flipFlops: number
@@ -159,7 +159,7 @@ export namespace getInsights {
 
   export interface Report {
     workspace: { slug: string; name: string }
-    team: string | null
+    project: string | null
     range: { from: Date; to: Date }
     summary: getInsights.Summary
     previous: getInsights.Summary
@@ -167,15 +167,15 @@ export namespace getInsights {
     bucket: 'day' | 'week'
     weeks: getInsights.Week[]
     storage: {
-      teams: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
+      projects: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
       totalBytes: number
     }
     reviewers: getInsights.Reviewer[]
-    /** The review target the scope shares, in hours; null when there is none or teams differ. */
+    /** The review target the scope shares, in hours; null when there is none or projects differ. */
     reviewTargetHours: number | null
-    /** Days of branch builds retention keeps: the shortest and longest of the scope's teams. */
+    /** Days of branch builds retention keeps: the shortest and longest of the scope's projects. */
     retentionDays: { min: number; max: number } | null
-    /** Changes before a screenshot is flaky, when every team in the scope agrees; else null. */
+    /** Changes before a screenshot is flaky, when every project in the scope agrees; else null. */
     flakyAfterChanges: number | null
     /** Builds waiting for a decision at the end of each day of the range. */
     backlog: { day: Date; waiting: number }[]
@@ -183,7 +183,7 @@ export namespace getInsights {
     oldestWaiting: {
       buildId: string
       number: number
-      team: TeamRef
+      project: ProjectRef
       branch: string | null
       author: string | null
       readyAt: Date
@@ -197,15 +197,15 @@ export namespace getInsights {
       recent: {
         buildId: string
         number: number
-        team: TeamRef
+        project: ProjectRef
         reviewer: string | null
         reason: string
         at: Date
       }[]
     }
-    mostRejected: { team: TeamRef; name: string; rejections: number }[]
-    teamsComparison: {
-      team: TeamRef
+    mostRejected: { project: ProjectRef; name: string; rejections: number }[]
+    projectsComparison: {
+      project: ProjectRef
       builds: number
       buildsWithChanges: number
       medianReviewHours: number | null
@@ -214,24 +214,24 @@ export namespace getInsights {
       failed: number
     }[]
     failureReasons: { message: string; builds: number }[]
-    /** Null when no team in view has an ignore region. */
+    /** Null when no project in view has an ignore region. */
     ignoreRegions: {
       suppressedDiffs: number
-      top: { team: TeamRef; region: string; diffs: number }[]
+      top: { project: ProjectRef; region: string; diffs: number }[]
     } | null
   }
 }
 
 /**
  * The report for `[from, to)` and the stretch of equal length before it. Undefined when the
- * workspace (or the narrowed team) isn't visible to `userId`.
+ * workspace (or the narrowed project) isn't visible to `userId`.
  */
 export async function getInsights(
   db: Database,
   input: {
     userId: string
     workspaceSlug: string
-    teamSlug?: string
+    projectslug?: string
     from: Date
     to: Date
     now?: Date
@@ -249,47 +249,47 @@ export async function getInsights(
 
   const scoped = await db
     .select({
-      id: teams.id,
-      slug: teams.slug,
-      name: teams.name,
-      color: teams.color,
-      icon: teams.icon,
-      defaultBranch: teams.defaultBranch,
-      reviewTargetHours: teams.reviewTargetHours,
-      retentionDays: teams.retentionDays,
-      flakyAfterChanges: teams.flakyAfterChanges,
+      id: projects.id,
+      slug: projects.slug,
+      name: projects.name,
+      color: projects.color,
+      icon: projects.icon,
+      defaultBranch: projects.defaultBranch,
+      reviewTargetHours: projects.reviewTargetHours,
+      retentionDays: projects.retentionDays,
+      flakyAfterChanges: projects.flakyAfterChanges,
     })
-    .from(teams)
+    .from(projects)
     .where(
       and(
-        eq(teams.workspaceId, found.id),
-        teamVisibleTo(input.userId, teams),
-        ...(input.teamSlug === undefined ? [] : [eq(teams.slug, input.teamSlug)]),
+        eq(projects.workspaceId, found.id),
+        projectVisibleTo(input.userId, projects),
+        ...(input.projectslug === undefined ? [] : [eq(projects.slug, input.projectslug)]),
       ),
     )
-    .orderBy(teams.slug)
-  if (input.teamSlug !== undefined && scoped.length === 0) return undefined
-  const teamIds = scoped.map((p) => p.id)
+    .orderBy(projects.slug)
+  if (input.projectslug !== undefined && scoped.length === 0) return undefined
+  const projectIds = scoped.map((p) => p.id)
 
   const { from, to } = input
   const now = input.now ?? new Date()
   const span = to.getTime() - from.getTime()
   const previousFrom = new Date(from.getTime() - span)
   const targets = new Map(scoped.map((p) => [p.id, p.reviewTargetHours]))
-  const refs = new Map(scoped.map((p) => [p.id, teamRef(p)]))
-  const refOf = (id: string): getInsights.TeamRef => refs.get(id) ?? teamRef(scoped[0]!)
+  const refs = new Map(scoped.map((p) => [p.id, projectRef(p)]))
+  const refOf = (id: string): getInsights.ProjectRef => refs.get(id) ?? projectRef(scoped[0]!)
   const bucket = span <= 7 * DAY_MS ? 'day' : 'week'
   const step = bucket === 'day' ? DAY_MS : WEEK_MS
 
-  const empty = teamIds.length === 0
+  const empty = projectIds.length === 0
   const [reviewed, decided, finished, personDecided, waits] = empty
     ? [[], [], [], new Set<string>(), []]
     : await Promise.all([
-        firstReviews(db, teamIds, previousFrom, to),
-        lastDecisions(db, teamIds, previousFrom, to),
-        finishedBuilds(db, teamIds, previousFrom, to),
-        personDecidedBuilds(db, teamIds, previousFrom, to),
-        waitCandidates(db, teamIds, from, to),
+        firstReviews(db, projectIds, previousFrom, to),
+        lastDecisions(db, projectIds, previousFrom, to),
+        finishedBuilds(db, projectIds, previousFrom, to),
+        personDecidedBuilds(db, projectIds, previousFrom, to),
+        waitCandidates(db, projectIds, from, to),
       ])
 
   const summarize = (lo: Date, hi: Date): getInsights.Summary => {
@@ -306,13 +306,13 @@ export async function getInsights(
       p90ReviewHours: percentile(hours, 0.9),
       buildsReviewed: inRange.length,
       reviewedOverTarget: inRange.filter((r) => {
-        const target = targets.get(r.teamId)
+        const target = targets.get(r.projectId)
         // Counting working days, like the request's own due time.
         const due = reviewDueAt(r.readyAt, target ?? null)
         return due !== null && r.reviewedAt.getTime() > due.getTime()
       }).length,
       reviewedWithTarget: inRange.filter(
-        (r) => targets.get(r.teamId) !== null && targets.get(r.teamId) !== undefined,
+        (r) => targets.get(r.projectId) !== null && targets.get(r.projectId) !== undefined,
       ).length,
       buildsFinished: done.length,
       buildsWithChanges: withChanges,
@@ -373,17 +373,17 @@ export async function getInsights(
     .filter((w) => w.pending)
     .toSorted((a, b) => a.readyAt.getTime() - b.readyAt.getTime())
 
-  const [mostChanged, mostRejected, rejected, suppressed, regionTeams] = empty
+  const [mostChanged, mostRejected, rejected, suppressed, regionProjects] = empty
     ? [[], [], [], [], 0]
     : await Promise.all([
-        mostChangedScreenshots(db, teamIds, from, to),
-        mostRejectedScreenshots(db, teamIds, from, to),
-        rejectionEvents(db, teamIds, from, to),
-        suppressedDiffs(db, teamIds, from, to),
-        teamsWithIgnoreRegions(db, teamIds),
+        mostChangedScreenshots(db, projectIds, from, to),
+        mostRejectedScreenshots(db, projectIds, from, to),
+        rejectionEvents(db, projectIds, from, to),
+        suppressedDiffs(db, projectIds, from, to),
+        projectsWithIgnoreRegions(db, projectIds),
       ])
 
-  // The team's flaky screenshots now: the shared rule over the history up to the end of the range.
+  // The project's flaky screenshots now: the shared rule over the history up to the end of the range.
   const flakyNow = new Map(
     scoped.map((p) => [
       p.id,
@@ -398,7 +398,7 @@ export async function getInsights(
       (flakyNow.get(p.id) ?? []).map((v) => {
         const strip = changeStrip(history.get(p.id) ?? [], v.name)
         return {
-          team: refOf(p.id),
+          project: refOf(p.id),
           name: v.name,
           flipFlops: v.flipFlops,
           reason: v.why,
@@ -410,7 +410,7 @@ export async function getInsights(
       (a, b) =>
         b.flipFlops - a.flipFlops ||
         b.last10.filter(Boolean).length - a.last10.filter(Boolean).length ||
-        a.team.name.localeCompare(b.team.name) ||
+        a.project.name.localeCompare(b.project.name) ||
         a.name.localeCompare(b.name),
     )
     .slice(0, 5)
@@ -422,29 +422,29 @@ export async function getInsights(
   }
   const rejectedBuildIds = new Set(rejected.map((e) => e.buildId))
 
-  const regionCounts = new Map<string, { teamId: string; region: string; diffs: number }>()
+  const regionCounts = new Map<string, { projectId: string; region: string; diffs: number }>()
   for (const d of suppressed) {
     for (const region of new Set(d.regions)) {
-      const key = `${d.teamId}\u0000${region}`
-      const row = regionCounts.get(key) ?? { teamId: d.teamId, region, diffs: 0 }
+      const key = `${d.projectId}\u0000${region}`
+      const row = regionCounts.get(key) ?? { projectId: d.projectId, region, diffs: 0 }
       row.diffs += 1
       regionCounts.set(key, row)
     }
   }
 
-  const teamsComparison =
-    input.teamSlug === undefined
+  const projectsComparison =
+    input.projectslug === undefined
       ? scoped
           .map((p) => {
-            const own = inRangeFinished.filter((b) => b.teamId === p.id)
+            const own = inRangeFinished.filter((b) => b.projectId === p.id)
             const done = own.filter((b) => b.status === 'complete')
             return {
-              team: refOf(p.id),
+              project: refOf(p.id),
               builds: done.length,
               buildsWithChanges: done.filter((b) => b.changed).length,
               medianReviewHours: median(
                 reviewed
-                  .filter((r) => r.teamId === p.id && r.reviewedAt >= from && r.reviewedAt < to)
+                  .filter((r) => r.projectId === p.id && r.reviewedAt >= from && r.reviewedAt < to)
                   .map((r) => r.hours),
               ),
               reviewTargetHours: p.reviewTargetHours,
@@ -452,19 +452,19 @@ export async function getInsights(
               failed: own.length - done.length,
             }
           })
-          .toSorted((a, b) => b.builds - a.builds || a.team.name.localeCompare(b.team.name))
+          .toSorted((a, b) => b.builds - a.builds || a.project.name.localeCompare(b.project.name))
       : []
 
   return {
     workspace: { slug: found.slug, name: found.name },
-    team: input.teamSlug ?? null,
+    project: input.projectslug ?? null,
     range: { from, to },
     summary,
     previous: summarize(previousFrom, from),
     bucket,
     weeks,
-    storage: await storageByTeam(db, scoped),
-    reviewers: await reviewerLoad(db, { workspaceId: found.id, teamIds, from, to, now }),
+    storage: await storageByProject(db, scoped),
+    reviewers: await reviewerLoad(db, { workspaceId: found.id, projectIds, from, to, now }),
     reviewTargetHours: shared(scoped.map((p) => p.reviewTargetHours)),
     retentionDays:
       scoped.length === 0
@@ -485,11 +485,11 @@ export async function getInsights(
     })),
     waitingNow: waiting.length,
     oldestWaiting: waiting.slice(0, 5).map((w) => {
-      const due = reviewDueAt(w.readyAt, targets.get(w.teamId) ?? null)
+      const due = reviewDueAt(w.readyAt, targets.get(w.projectId) ?? null)
       return {
         buildId: w.id,
         number: w.number,
-        team: refOf(w.teamId),
+        project: refOf(w.projectId),
         branch: w.branch,
         author: w.author,
         readyAt: w.readyAt,
@@ -497,11 +497,11 @@ export async function getInsights(
       }
     }),
     mostChanged: mostChanged.map((c) => ({
-      team: refOf(c.teamId),
+      project: refOf(c.projectId),
       name: c.name,
       changedBuilds: c.changedBuilds,
       builds: c.builds,
-      last10: changeStrip(history.get(c.teamId) ?? [], c.name),
+      last10: changeStrip(history.get(c.projectId) ?? [], c.name),
     })),
     flakiest,
     rejections: {
@@ -512,23 +512,23 @@ export async function getInsights(
       recent: [...recent.values()].slice(0, 4).map((e) => ({
         buildId: e.buildId,
         number: e.number,
-        team: refOf(e.teamId),
+        project: refOf(e.projectId),
         reviewer: e.reviewer,
         reason: e.reason?.trim() ?? '',
         at: e.at,
       })),
     },
     mostRejected: mostRejected.map((r) => ({
-      team: refOf(r.teamId),
+      project: refOf(r.projectId),
       name: r.name,
       rejections: r.rejections,
     })),
-    teamsComparison,
+    projectsComparison,
     failureReasons: failureReasons(
       inRangeFinished.filter((b) => b.status === 'error').map((b) => b.errorMessage),
     ),
     ignoreRegions:
-      regionTeams === 0
+      regionProjects === 0
         ? null
         : {
             suppressedDiffs: suppressed.length,
@@ -537,7 +537,7 @@ export async function getInsights(
               .toArray()
               .toSorted((a, b) => b.diffs - a.diffs || a.region.localeCompare(b.region))
               .slice(0, 4)
-              .map((r) => ({ team: refOf(r.teamId), region: r.region, diffs: r.diffs })),
+              .map((r) => ({ project: refOf(r.projectId), region: r.region, diffs: r.diffs })),
           },
   }
 }
@@ -552,22 +552,26 @@ function outcomeOf(
   if (b.reviewStatus !== 'approved') return null
   return decidedByPerson ? 'approved' : 'autoApproved'
 }
-/** The one value every team has, or null when there are none or they differ. */
+/** The one value every project has, or null when there are none or they differ. */
 function shared(values: (number | null)[]): number | null {
   const first = values[0]
   return first !== undefined && values.every((v) => v === first) ? first : null
 }
 
 /** Builds whose first human decision falls in `[from, to)`, with the wait before it. */
-async function firstReviews(db: Database, teamIds: string[], from: Date, to: Date) {
+async function firstReviews(db: Database, projectIds: string[], from: Date, to: Date) {
   const readyAt = sql<Date>`coalesce(${builds.completedAt}, ${builds.createdAt})`
   const firstAt = min(reviews.createdAt)
   const rows = await db
-    .select({ teamId: builds.teamId, readyAt, reviewedAt: firstAt })
+    .select({ projectId: builds.projectId, readyAt, reviewedAt: firstAt })
     .from(reviews)
     .innerJoin(builds, eq(builds.id, reviews.buildId))
     .where(
-      and(inArray(builds.teamId, teamIds), isNotNull(reviews.userId), ne(reviews.source, 'auto')),
+      and(
+        inArray(builds.projectId, projectIds),
+        isNotNull(reviews.userId),
+        ne(reviews.source, 'auto'),
+      ),
     )
     .groupBy(builds.id)
     .having(and(gte(firstAt, from), lt(firstAt, to)))
@@ -576,7 +580,7 @@ async function firstReviews(db: Database, teamIds: string[], from: Date, to: Dat
     const ready = new Date(r.readyAt)
     return [
       {
-        teamId: r.teamId,
+        projectId: r.projectId,
         readyAt: ready,
         reviewedAt: r.reviewedAt,
         hours: Math.max(0, r.reviewedAt.getTime() - ready.getTime()) / HOUR_MS,
@@ -586,12 +590,12 @@ async function firstReviews(db: Database, teamIds: string[], from: Date, to: Dat
 }
 
 /** Builds that finished (or failed) with their ready time in `[from, to)`. */
-async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: Date) {
+async function finishedBuilds(db: Database, projectIds: string[], from: Date, to: Date) {
   const readyAt = sql<Date>`coalesce(${builds.completedAt}, ${builds.createdAt})`
   const rows = await db
     .select({
       id: builds.id,
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       status: builds.status,
       conclusion: builds.conclusion,
       reviewStatus: builds.reviewStatus,
@@ -604,7 +608,7 @@ async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: D
     .from(builds)
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         inArray(builds.status, ['complete', 'error']),
         sql`${readyAt} >= ${from.toISOString()}::timestamptz`,
         sql`${readyAt} < ${to.toISOString()}::timestamptz`,
@@ -612,7 +616,7 @@ async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: D
     )
   return rows.map((r) => ({
     id: r.id,
-    teamId: r.teamId,
+    projectId: r.projectId,
     status: r.status,
     reviewStatus: r.reviewStatus,
     errorMessage: r.errorMessage,
@@ -624,8 +628,8 @@ async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: D
   }))
 }
 
-/** Bytes of distinct files (screenshots, thumbnails and diffs) each team's builds refer to. */
-async function storageByTeam(
+/** Bytes of distinct files (screenshots, thumbnails and diffs) each project's builds refer to. */
+async function storageByProject(
   db: Database,
   scoped: { id: string; slug: string; name: string; color: string; icon: string | null }[],
 ): Promise<getInsights.Report['storage']> {
@@ -634,30 +638,30 @@ async function storageByTeam(
   if (ids.length > 0) {
     const refs = union(
       db
-        .select({ teamId: builds.teamId, sha: screenshots.fileSha256 })
+        .select({ projectId: builds.projectId, sha: screenshots.fileSha256 })
         .from(screenshots)
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
-        .where(inArray(builds.teamId, ids)),
+        .where(inArray(builds.projectId, ids)),
       db
-        .select({ teamId: builds.teamId, sha: sql<string>`${screenshots.thumbnailSha256}` })
+        .select({ projectId: builds.projectId, sha: sql<string>`${screenshots.thumbnailSha256}` })
         .from(screenshots)
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
-        .where(and(inArray(builds.teamId, ids), isNotNull(screenshots.thumbnailSha256))),
+        .where(and(inArray(builds.projectId, ids), isNotNull(screenshots.thumbnailSha256))),
       db
         .select({
-          teamId: builds.teamId,
+          projectId: builds.projectId,
           sha: sql<string>`${screenshotDiffs.diffFileSha256}`,
         })
         .from(screenshotDiffs)
         .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
-        .where(and(inArray(builds.teamId, ids), isNotNull(screenshotDiffs.diffFileSha256))),
+        .where(and(inArray(builds.projectId, ids), isNotNull(screenshotDiffs.diffFileSha256))),
     ).as('refs')
     const rows = await db
-      .select({ teamId: refs.teamId, bytes: sum(files.size) })
+      .select({ projectId: refs.projectId, bytes: sum(files.size) })
       .from(refs)
       .innerJoin(files, eq(files.sha256, refs.sha))
-      .groupBy(refs.teamId)
-    for (const r of rows) bytes.set(r.teamId, Number(r.bytes ?? 0))
+      .groupBy(refs.projectId)
+    for (const r of rows) bytes.set(r.projectId, Number(r.bytes ?? 0))
   }
   const list = scoped.map((p) => ({
     slug: p.slug,
@@ -666,12 +670,12 @@ async function storageByTeam(
     icon: p.icon,
     bytes: bytes.get(p.id) ?? 0,
   }))
-  return { teams: list, totalBytes: list.reduce((s, p) => s + p.bytes, 0) }
+  return { projects: list, totalBytes: list.reduce((s, p) => s + p.bytes, 0) }
 }
 
 async function reviewerLoad(
   db: Database,
-  input: { workspaceId: string; teamIds: string[]; from: Date; to: Date; now: Date },
+  input: { workspaceId: string; projectIds: string[]; from: Date; to: Date; now: Date },
 ): Promise<getInsights.Reviewer[]> {
   const members = await db
     .select({ id: user.id, name: user.name, image: user.image })
@@ -684,7 +688,7 @@ async function reviewerLoad(
       { ...m, openRequests: 0, overdue: 0, reviews: 0, medianResponseHours: null },
     ]),
   )
-  if (input.teamIds.length > 0) {
+  if (input.projectIds.length > 0) {
     // A person's load is the builds they decided on in the range: a build-level decision, or a
     // decision on any of its snapshots. A build's `reviews` row is only written by whoever
     // moves its status, so counting those alone left out everyone who decided some snapshots
@@ -702,7 +706,7 @@ async function reviewerLoad(
       .innerJoin(builds, eq(builds.id, reviews.buildId))
       .where(
         and(
-          inArray(builds.teamId, input.teamIds),
+          inArray(builds.projectId, input.projectIds),
           isNotNull(reviews.userId),
           ne(reviews.source, 'auto'),
           gte(reviews.createdAt, input.from),
@@ -715,7 +719,7 @@ async function reviewerLoad(
       .innerJoin(builds, eq(builds.id, snapshotReviews.buildId))
       .where(
         and(
-          inArray(builds.teamId, input.teamIds),
+          inArray(builds.projectId, input.projectIds),
           isNotNull(snapshotReviews.userId),
           ne(snapshotReviews.source, 'auto'),
           gte(snapshotReviews.createdAt, input.from),
@@ -740,7 +744,7 @@ async function reviewerLoad(
       })
       .from(reviewRequests)
       .innerJoin(builds, eq(builds.id, reviewRequests.buildId))
-      .where(inArray(builds.teamId, input.teamIds))
+      .where(inArray(builds.projectId, input.projectIds))
     const responses = new Map<string, number[]>()
     for (const r of requests) {
       const row = load.get(r.reviewerId)

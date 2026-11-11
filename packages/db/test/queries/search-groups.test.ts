@@ -1,13 +1,13 @@
 import {
   addTestMember,
-  addTestTeamMember,
+  addTestProjectMember,
   createTestDb,
   seedBuild,
   seedNotification,
   seedReviewRequest,
   seedSavedView,
   seedScreenshot,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
@@ -15,7 +15,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { searchWorkspace } from '#src/queries/index.ts'
-import { createTeam } from '#src/repositories/index.ts'
+import { createProject } from '#src/repositories/index.ts'
 import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -29,14 +29,14 @@ afterAll(async () => {
 const now = new Date('2026-03-10T12:00:00.000Z')
 
 /**
- * Team `open` (the owner and `outsider` are in it) and `secret` (the owner only; the outsider has
+ * Project `open` (the owner and `outsider` are in it) and `secret` (the owner only; the outsider has
  * notifications, a review request and a view about it from before they were removed).
  */
 async function setup() {
-  const first = await seedTeam(t.db, { slug: 'open' })
+  const first = await seedProject(t.db, { slug: 'open' })
   const { workspace, owner } = first
-  const secret = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'secret' })
-  await addTestTeamMember(t.db, { teamId: secret.id, userId: owner.id })
+  const secret = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'secret' })
+  await addTestProjectMember(t.db, { projectId: secret.id, userId: owner.id })
   const outsider = await seedUser(t.db)
   await t.db
     .update(schema.user)
@@ -45,10 +45,10 @@ async function setup() {
   await addTestMember(t.db, {
     workspaceId: workspace.id,
     userId: outsider.id,
-    teams: [first.team.id],
+    projects: [first.project.id],
   })
 
-  const shipped = await seedBuild(t.db, first.team.id, {
+  const shipped = await seedBuild(t.db, first.project.id, {
     branch: 'main',
     status: 'complete',
     conclusion: 'no_changes',
@@ -66,7 +66,7 @@ async function setup() {
     name: 'checkout/summary',
     fileSha256: fakeSha('a'),
   })
-  const broken = await seedBuild(t.db, first.team.id, { branch: 'main', status: 'error' })
+  const broken = await seedBuild(t.db, first.project.id, { branch: 'main', status: 'error' })
   await seedNotification(t.db, {
     userId: outsider.id,
     kind: 'build_rejected',
@@ -113,7 +113,7 @@ async function setup() {
   await seedSavedView(t.db, {
     userId: outsider.id,
     workspaceId: workspace.id,
-    teamId: secret.id,
+    projectId: secret.id,
     name: 'Checkout secret view',
   })
   const search = (userId: string, query: string) =>
@@ -134,9 +134,9 @@ describe('searchWorkspace groups', () => {
   })
 
   it('ranks an exact build number ahead of a pull request with the same number', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db, { slug: 'rank' })
-    await seedBuild(t.db, team.id, { prNumber: 2 })
-    await seedBuild(t.db, team.id)
+    const { project, workspace, owner } = await seedProject(t.db, { slug: 'rank' })
+    await seedBuild(t.db, project.id, { prNumber: 2 })
+    await seedBuild(t.db, project.id)
     const found = await searchWorkspace(t.db, {
       userId: owner.id,
       workspaceSlug: workspace.slug,
@@ -149,8 +149,8 @@ describe('searchWorkspace groups', () => {
   })
 
   it('ranks exact, prefix and segment matches of screenshot names before the rest', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db, { slug: 'rank-names' })
-    const b = await seedBuild(t.db, team.id)
+    const { project, workspace, owner } = await seedProject(t.db, { slug: 'rank-names' })
+    const b = await seedBuild(t.db, project.id)
     const names = ['about-cart', 'ui/cart', 'cart-page', 'cart']
     for (const [i, name] of names.entries()) {
       // eslint-disable-next-line no-await-in-loop -- sequential seeding
@@ -173,10 +173,10 @@ describe('searchWorkspace groups', () => {
     const s = await setup()
     const found = await s.search(s.owner.id, 'summary')
     expect(found?.baselines).toMatchObject([
-      { teamSlug: 'open', name: 'checkout/summary', buildNumber: 1 },
+      { projectslug: 'open', name: 'checkout/summary', buildNumber: 1 },
     ])
-    const { team, workspace, owner } = await seedTeam(t.db, { slug: 'feature-only' })
-    const b = await seedBuild(t.db, team.id, { branch: 'feature/x', status: 'complete' })
+    const { project, workspace, owner } = await seedProject(t.db, { slug: 'feature-only' })
+    const b = await seedBuild(t.db, project.id, { branch: 'feature/x', status: 'complete' })
     await seedScreenshot(t.db, {
       buildId: b.id,
       name: 'only-on-a-branch',
@@ -194,12 +194,12 @@ describe('searchWorkspace groups', () => {
   it('finds triage items by kind and build number', async () => {
     const s = await setup()
     const found = await s.search(s.owner.id, 'failed')
-    expect(found?.triage.map((i) => [i.teamSlug, i.kind]).toSorted()).toEqual([
+    expect(found?.triage.map((i) => [i.projectslug, i.kind]).toSorted()).toEqual([
       ['open', 'failed'],
       ['secret', 'failed'],
     ])
     const byNumber = await s.search(s.owner.id, `#${s.broken.number}`)
-    expect(byNumber?.triage.find((i) => i.teamSlug === 'open')).toMatchObject({
+    expect(byNumber?.triage.find((i) => i.projectslug === 'open')).toMatchObject({
       kind: 'failed',
       key: `build:${s.broken.number}`,
       snapshotName: null,
@@ -239,10 +239,15 @@ describe('searchWorkspace groups', () => {
   it('finds open review requests asked of you or by you, with their Reviews tab', async () => {
     const s = await setup()
     expect((await s.search(s.outsider.id, 'mobile'))?.reviews).toMatchObject([
-      { id: s.request.id, tab: 'for-you', teamSlug: 'open', reviewer: { name: 'Olive Outsider' } },
+      {
+        id: s.request.id,
+        tab: 'for-you',
+        projectslug: 'open',
+        reviewer: { name: 'Olive Outsider' },
+      },
     ])
     const asked = (await s.search(s.owner.id, 'olive'))?.reviews.filter(
-      (r) => r.teamSlug === 'open',
+      (r) => r.projectslug === 'open',
     )
     expect(asked).toMatchObject([{ id: s.request.id, tab: 'created' }])
   })
@@ -250,24 +255,24 @@ describe('searchWorkspace groups', () => {
   it('finds your own saved views only', async () => {
     const s = await setup()
     expect((await s.search(s.outsider.id, 'checkout'))?.views).toMatchObject([
-      { id: s.view.id, name: 'Checkout reviews', team: null },
+      { id: s.view.id, name: 'Checkout reviews', project: null },
     ])
     expect((await s.search(s.owner.id, 'checkout'))?.views).toEqual([])
   })
 
-  it('leaves a hidden team out of every group, though the person has rows about it', async () => {
+  it('leaves a hidden project out of every group, though the person has rows about it', async () => {
     const s = await setup()
     for (const q of ['secretive', 'feed99', 'checkout/hidden', 'secret', 'view', 'approved']) {
       // eslint-disable-next-line no-await-in-loop -- reads
       const found = await s.search(s.outsider.id, q)
       expect(JSON.stringify({ ...found, query: '' })).not.toMatch(/secret|hidden|feed999/i)
     }
-    // The owner is in the team and does see them.
+    // The owner is in the project and does see them.
     expect((await s.search(s.owner.id, 'secretive'))?.builds).toMatchObject([
-      { teamSlug: 'secret', name: 'secretive' },
+      { projectslug: 'secret', name: 'secretive' },
     ])
     expect((await s.search(s.owner.id, 'checkout/hidden'))?.baselines).toHaveLength(1)
-    expect((await s.search(s.owner.id, 'failed'))?.triage.map((i) => i.teamSlug)).toContain(
+    expect((await s.search(s.owner.id, 'failed'))?.triage.map((i) => i.projectslug)).toContain(
       'secret',
     )
   })

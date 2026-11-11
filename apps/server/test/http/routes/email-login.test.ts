@@ -102,7 +102,7 @@ describe('email login', () => {
       .flat()
       .map((c) => String(c).split(';')[0])
       .join('; ')
-    const me = await on.inject({ url: '/api/teams', headers: { cookie } })
+    const me = await on.inject({ url: '/api/projects', headers: { cookie } })
     expect(me.statusCode).toBe(200)
     // Signing in with a code must not cost an operator-created account its password.
     await signIn(on, tenant.owner.email, tenant.owner.password)
@@ -202,8 +202,8 @@ describe('invitations', () => {
     expect(res.statusCode).toBe(200)
     const cookie = cookieOf(res)
 
-    const before = await on.inject({ url: '/api/teams', headers: { cookie } })
-    expect(before.json().teams).toHaveLength(0)
+    const before = await on.inject({ url: '/api/projects', headers: { cookie } })
+    expect(before.json().projects).toHaveLength(0)
     const accepted = await on.inject({
       method: 'POST',
       url: '/api/auth/organization/accept-invitation',
@@ -211,13 +211,13 @@ describe('invitations', () => {
       payload: { invitationId },
     })
     expect(accepted.statusCode).toBe(200)
-    // Accepting joins the workspace and no team.
+    // Accepting joins the workspace and no project.
     const after = await on.inject({
       url: `/api/workspaces/${tenant.workspaceSlug}/sidebar`,
       headers: { cookie },
     })
     expect(after.statusCode).toBe(200)
-    expect(after.json().teams).toEqual([])
+    expect(after.json().projects).toEqual([])
   })
 
   it('does not let another address use the invitation', async () => {

@@ -6,10 +6,10 @@ import { useState, type FormEvent } from 'react'
 import { AuthPage } from '#features/auth/AuthPage.tsx'
 import { BannerSlot } from '#features/auth/BannerSlot.tsx'
 import { checksQuery, FINDING_LEVEL } from '#features/instance/api/admin.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
-import { useCreateTeam } from '#features/teams/api/new-team.ts'
-import { DEFAULT_BRANCH } from '#features/teams/new-team.ts'
-import { CreatedStep } from '#features/teams/NewTeamDialog.tsx'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
+import { useCreateProject } from '#features/projects/api/new-project.ts'
+import { DEFAULT_BRANCH } from '#features/projects/new-project.ts'
+import { CreatedStep } from '#features/projects/NewProjectDialog.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { keys } from '#lib/query-keys.ts'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
@@ -35,7 +35,7 @@ export function SetupContinue() {
       {step === 3 ? (
         <StorageStep onContinue={() => setStep(4)} />
       ) : (
-        <TeamStep onBack={() => setStep(3)} />
+        <Projectstep onBack={() => setStep(3)} />
       )}
     </AuthPage>
   )
@@ -85,14 +85,14 @@ function StorageStep({ onContinue }: { onContinue: () => void }) {
   )
 }
 
-/** Step 4: the first team and its CI snippet, or skip it. */
-function TeamStep({ onBack }: { onBack: () => void }) {
+/** Step 4: the first project and its CI snippet, or skip it. */
+function Projectstep({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: caps } = useQuery(capabilitiesQuery())
-  const create = useCreateTeam()
+  const create = useCreateProject()
   const finish = useFinishSetup()
-  const created = useSetupStore((s) => s.team)
+  const created = useSetupStore((s) => s.project)
   const hold = useSetupStore((s) => s.hold)
   const release = useSetupStore((s) => s.release)
   const [name, setName] = useState('')
@@ -106,8 +106,8 @@ function TeamStep({ onBack }: { onBack: () => void }) {
     release()
     if (created) {
       void navigate({
-        to: '/$workspace/$team',
-        params: { workspace: created.workspace, team: created.slug },
+        to: '/$workspace/$project',
+        params: { workspace: created.workspace, project: created.slug },
       })
     }
   }
@@ -123,9 +123,9 @@ function TeamStep({ onBack }: { onBack: () => void }) {
     create.mutate(
       { workspace, name: name.trim(), defaultBranch: branch, repo: undefined },
       {
-        onSuccess: (team) => {
+        onSuccess: (project) => {
           // The page stays until "Done" (the token is shown once); the server's setup ends now.
-          hold(team)
+          hold(project)
           finish.mutate()
         },
       },
@@ -150,7 +150,7 @@ function TeamStep({ onBack }: { onBack: () => void }) {
       <BannerSlot>{create.error?.message}</BannerSlot>
       <TextField
         name="name"
-        label="Team name"
+        label="Project name"
         size="lg"
         required
         autoFocus
@@ -180,7 +180,7 @@ function TeamStep({ onBack }: { onBack: () => void }) {
           Skip for now
         </Button>
         <Button type="submit" variant="primary" size="lg" loading={create.isPending}>
-          Create team
+          Create project
         </Button>
       </div>
     </form>

@@ -8,9 +8,9 @@ export namespace Insights {
     p90ReviewHours: number | null
     /** Builds whose first review (by a person) fell in the range. */
     buildsReviewed: number
-    /** Of those, how many waited longer than their team's review target. */
+    /** Of those, how many waited longer than their project's review target. */
     reviewedOverTarget: number
-    /** Of the reviewed builds, how many belong to a team with a review target. */
+    /** Of the reviewed builds, how many belong to a project with a review target. */
     reviewedWithTarget: number
     /** Finished builds in the range, and how many of them had changes. */
     buildsFinished: number
@@ -29,12 +29,12 @@ export namespace Insights {
     failedBuilds: number
   }
 
-  /** A team as the lists and charts name it: `colour` is its identity colour (`--circi-team-*`). */
-  export interface TeamRef {
+  /** A project as the lists and charts name it: `colour` is its identity colour (`--circi-project-*`). */
+  export interface ProjectRef {
     slug: string
     name: string
     colour: string
-    /** The team's icon name (Lucide), for its avatar; null shows only the marble. */
+    /** The project's icon name (Lucide), for its avatar; null shows only the marble. */
     icon: string | null
   }
 
@@ -67,7 +67,7 @@ export namespace Insights {
 
   /** A screenshot and how often it changed: `last10` is oldest first, true for a change. */
   export interface ScreenshotChange {
-    team: TeamRef
+    project: ProjectRef
     name: string
     changedBuilds: number
     builds: number
@@ -76,7 +76,7 @@ export namespace Insights {
 
   /** A flaky screenshot: `last10` is oldest first, true where that commit's image differs from the one before. */
   export interface FlakyScreenshot {
-    team: TeamRef
+    project: ProjectRef
     name: string
     /** Times a commit's image came back to one it already had in the last 10 default-branch commits. */
     flipFlops: number
@@ -88,7 +88,7 @@ export namespace Insights {
   export interface WaitingBuild {
     buildId: string
     number: number
-    team: TeamRef
+    project: ProjectRef
     branch: string | null
     author: string | null
     readyAt: string
@@ -103,15 +103,15 @@ export namespace Insights {
     recent: {
       buildId: string
       number: number
-      team: TeamRef
+      project: ProjectRef
       reviewer: string | null
       reason: string
       at: string
     }[]
   }
 
-  export interface TeamComparison {
-    team: TeamRef
+  export interface ProjectComparison {
+    project: ProjectRef
     builds: number
     buildsWithChanges: number
     medianReviewHours: number | null
@@ -124,12 +124,12 @@ export namespace Insights {
   export interface IgnoreRegionsEffect {
     /** Diffs the ignore regions kept unchanged in the range. */
     suppressedDiffs: number
-    top: { team: TeamRef; region: string; diffs: number }[]
+    top: { project: ProjectRef; region: string; diffs: number }[]
   }
 
   export interface Storage {
-    /** Bytes of distinct stored files each team's builds refer to. */
-    teams: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
+    /** Bytes of distinct stored files each project's builds refer to. */
+    projects: { slug: string; name: string; colour: string; icon: string | null; bytes: number }[]
     totalBytes: number
   }
 
@@ -147,11 +147,11 @@ export namespace Insights {
     medianResponseHours: number | null
   }
 
-  /** `GET /api/workspaces/:workspace/insights?team=&from=&to=`. */
+  /** `GET /api/workspaces/:workspace/insights?project=&from=&to=`. */
   export interface Report {
     workspace: { slug: string; name: string }
-    /** The team slug when narrowed to one; null for the whole workspace. */
-    team: string | null
+    /** The project slug when narrowed to one; null for the whole workspace. */
+    project: string | null
     range: { from: string; to: string }
     summary: Summary
     /** The same numbers for the stretch of equal length just before `range`. */
@@ -161,11 +161,11 @@ export namespace Insights {
     weeks: Week[]
     storage: Storage
     reviewers: Reviewer[]
-    /** The review target the scope shares, in hours; null when there is none or teams differ. */
+    /** The review target the scope shares, in hours; null when there is none or projects differ. */
     reviewTargetHours: number | null
-    /** Days of branch builds retention keeps: the shortest and longest of the scope's teams. */
+    /** Days of branch builds retention keeps: the shortest and longest of the scope's projects. */
     retentionDays: { min: number; max: number } | null
-    /** Flip-flops before a screenshot counts as flaky, when every team in the scope agrees. */
+    /** Flip-flops before a screenshot counts as flaky, when every project in the scope agrees. */
     flakyAfterChanges: number | null
     /** Builds waiting for a review at the end of each day of the range. */
     backlog: { day: string; waiting: number }[]
@@ -175,12 +175,12 @@ export namespace Insights {
     mostChanged: ScreenshotChange[]
     flakiest: FlakyScreenshot[]
     rejections: Rejections
-    mostRejected: { team: TeamRef; name: string; rejections: number }[]
-    /** One row per team in view; empty when narrowed to one team. */
-    teamsComparison: TeamComparison[]
+    mostRejected: { project: ProjectRef; name: string; rejections: number }[]
+    /** One row per project in view; empty when narrowed to one project. */
+    projectsComparison: ProjectComparison[]
     /** The five most common messages of failed builds. */
     failureReasons: { message: string; builds: number }[]
-    /** Null when no team in view has an ignore region. */
+    /** Null when no project in view has an ignore region. */
     ignoreRegions: IgnoreRegionsEffect | null
   }
 }

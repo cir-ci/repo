@@ -48,7 +48,7 @@ describe('fresh stack, local-disk storage', () => {
     await page.getByLabel('Workspace name').fill('Acme Inc')
     await page.getByRole('button', { name: 'Continue' }).click()
 
-    // Step 3 (the account exists and the page resumes here): the storage check, then the team step,
+    // Step 3 (the account exists and the page resumes here): the storage check, then the project step,
     // which is skipped to reach the app.
     await page.getByText('Step 3 of 4').waitFor()
     await page.getByRole('button', { name: 'Continue' }).click()

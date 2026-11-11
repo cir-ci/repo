@@ -21,7 +21,7 @@ import { useClientLink } from '#lib/use-client-link.ts'
 
 import { AddIntegrationDialog } from './AddIntegrationDialog.tsx'
 import { connectNote } from './api/generic.ts'
-import { groupItems, integrationLabel, integrationsQuery, teamCountLabel } from './api/index.ts'
+import { groupItems, integrationLabel, integrationsQuery, projectCountLabel } from './api/index.ts'
 import { IntegrationFrame } from './IntegrationFrame.tsx'
 import { ProviderLogo } from './logos.tsx'
 
@@ -30,8 +30,8 @@ import styles from './Integrations.module.css'
 /**
  * Workspace settings › Integrations: what the workspace has connected, under its group
  * headings, each with Configure. Adding is the dialog; removing and reconnecting are on the
- * integration's own page. Teams have no integration settings of their own; each integration's
- * page says which teams use it. Owners and admins add; everyone else can look.
+ * integration's own page. Projects have no integration settings of their own; each integration's
+ * page says which projects use it. Owners and admins add; everyone else can look.
  */
 export function IntegrationsPage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/integrations' })
@@ -129,7 +129,7 @@ function Row(props: { workspace: string; item: Integration.Item; logo: string })
       <span className={styles.name}>
         <Text>{item.kindName}</Text>
         <Text variant="small" tone="tertiary">
-          {item.name} · {teamCountLabel(item.teamCount)}
+          {item.name} · {projectCountLabel(item.projectCount)}
         </Text>
       </span>
       <span
@@ -152,21 +152,21 @@ function Row(props: { workspace: string; item: Integration.Item; logo: string })
 }
 
 /**
- * "Webhooks" in the note under the integrations: a team's own setting, so with one team it opens
- * that team's Webhooks page, and with several a menu of the teams, each opening its Webhooks page.
+ * "Webhooks" in the note under the integrations: a project's own setting, so with one project it opens
+ * that project's Webhooks page, and with several a menu of the projects, each opening its Webhooks page.
  * Both stay inside settings.
  */
 function WebhooksLink({ workspace }: { workspace: string }) {
   const navigate = useNavigate()
   const clientLink = useClientLink()
   const { data: model } = useSidebarModel(workspace)
-  const teams = model?.teams ?? []
-  const webhooksOf = (team: string) => ({
-    to: '/$workspace/$team/settings/webhooks' as const,
-    params: { workspace, team },
+  const projects = model?.projects ?? []
+  const webhooksOf = (project: string) => ({
+    to: '/$workspace/$project/settings/webhooks' as const,
+    params: { workspace, project },
   })
-  const [only] = teams
-  if (teams.length === 1 && only) {
+  const [only] = projects
+  if (projects.length === 1 && only) {
     const link = clientLink(webhooksOf(only.slug))
     return (
       <a href={link.href} onClick={link.onClick} className={styles.noteLink}>
@@ -174,7 +174,7 @@ function WebhooksLink({ workspace }: { workspace: string }) {
       </a>
     )
   }
-  if (teams.length === 0) return <>Webhooks</>
+  if (projects.length === 0) return <>Webhooks</>
   return (
     <Menu
       size="md"
@@ -183,11 +183,11 @@ function WebhooksLink({ workspace }: { workspace: string }) {
           Webhooks
         </Button>
       }
-      items={teams.map((t) => ({
+      items={projects.map((t) => ({
         label: t.name,
         icon: (
           <Avatar
-            type="team"
+            type="project"
             aria-hidden
             slug={t.slug}
             name={t.name}

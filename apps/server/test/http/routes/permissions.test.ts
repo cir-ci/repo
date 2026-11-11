@@ -10,93 +10,93 @@ import { startDashboard } from '#test/support/dashboard-fixture.ts'
  * without someone saying who may call it.
  *
  *   signed out            401 everywhere
- *   outside the workspace 404 on team and workspace routes, and the very answer a made-up
- *                         workspace gets (a non-member must not learn that a team exists)
+ *   outside the workspace 404 on project and workspace routes, and the very answer a made-up
+ *                         workspace gets (a non-member must not learn that a project exists)
  *   plain member          403 on the admin-only writes; never 401/403/"not found" on the ones
  *                         a member may call
  *   admin                 passes the access check on the admin-only writes too
  *
  * The lists are derived from the access checks in `apps/server/src/http/routes/dashboard`:
- * `loadTeam(…, { manage: true })`, `loadForManager`, `managed` (owners and admins) against
- * `loadTeam`/`loadWorkspace` alone (any member).
+ * `loadProject(…, { manage: true })`, `loadForManager`, `managed` (owners and admins) against
+ * `loadProject`/`loadWorkspace` alone (any member).
  */
 
-const TEAM = '/api/teams/:workspace/:team'
+const PROJECT = '/api/projects/:workspace/:project'
 const WORKSPACE = '/api/workspaces/:workspace'
 
 /** Writes any member of the workspace may make. */
 const MEMBER_WRITABLE = new Set([
-  `POST ${TEAM}/builds/review`,
-  `POST ${TEAM}/builds/request-review`,
-  `POST ${TEAM}/builds/:number/issues`,
-  `POST ${TEAM}/builds/:number/review`,
-  `POST ${TEAM}/builds/:number/review-requests`,
-  `POST ${TEAM}/builds/:number/snapshots/review`,
-  `POST ${TEAM}/builds/:number/comments`,
-  `PATCH ${TEAM}/builds/:number/comments/:id`,
-  `PATCH ${TEAM}/builds/:number/comments/:id/region`,
-  `DELETE ${TEAM}/builds/:number/comments/:id`,
-  `POST ${TEAM}/undo/:id`,
-  `POST ${TEAM}/triage/assign`,
-  `POST ${TEAM}/triage/snooze`,
-  `POST ${TEAM}/triage/dismiss`,
-  `POST ${TEAM}/triage/rerun`,
-  `POST ${TEAM}/review-requests/:id/dismiss`,
-  `POST ${TEAM}/review-requests/:id/nudge`,
-  `POST ${TEAM}/review-requests/:id/snooze`,
-  `POST ${TEAM}/review-requests/:id/unsnooze`,
+  `POST ${PROJECT}/builds/review`,
+  `POST ${PROJECT}/builds/request-review`,
+  `POST ${PROJECT}/builds/:number/issues`,
+  `POST ${PROJECT}/builds/:number/review`,
+  `POST ${PROJECT}/builds/:number/review-requests`,
+  `POST ${PROJECT}/builds/:number/snapshots/review`,
+  `POST ${PROJECT}/builds/:number/comments`,
+  `PATCH ${PROJECT}/builds/:number/comments/:id`,
+  `PATCH ${PROJECT}/builds/:number/comments/:id/region`,
+  `DELETE ${PROJECT}/builds/:number/comments/:id`,
+  `POST ${PROJECT}/undo/:id`,
+  `POST ${PROJECT}/triage/assign`,
+  `POST ${PROJECT}/triage/snooze`,
+  `POST ${PROJECT}/triage/dismiss`,
+  `POST ${PROJECT}/triage/rerun`,
+  `POST ${PROJECT}/review-requests/:id/dismiss`,
+  `POST ${PROJECT}/review-requests/:id/nudge`,
+  `POST ${PROJECT}/review-requests/:id/snooze`,
+  `POST ${PROJECT}/review-requests/:id/unsnooze`,
   `POST ${WORKSPACE}/views`,
   `PUT ${WORKSPACE}/views/order`,
   `PATCH ${WORKSPACE}/views/:id`,
   `DELETE ${WORKSPACE}/views/:id`,
-  `PUT ${WORKSPACE}/pinned-teams/:team`,
-  `DELETE ${WORKSPACE}/pinned-teams/:team`,
+  `PUT ${WORKSPACE}/pinned-projects/:project`,
+  `DELETE ${WORKSPACE}/pinned-projects/:project`,
   `PUT ${WORKSPACE}/last-opened`,
 ])
 
 /**
  * Writes owners and admins make for anyone and a member makes only for themselves (leaving a
- * team). Asked here for someone else, so a member gets 403; `team-members.test.ts` covers the rest.
+ * project). Asked here for someone else, so a member gets 403; `project-members.test.ts` covers the rest.
  */
-const SELF_OR_ADMIN = new Set([`DELETE ${TEAM}/members/:userId`])
+const SELF_OR_ADMIN = new Set([`DELETE ${PROJECT}/members/:userId`])
 
 /** Writes only owners and admins may make (members get 403). */
 const ADMIN_ONLY = new Set([
   `POST ${WORKSPACE}/github-import`,
   `PUT ${WORKSPACE}/picture`,
   `DELETE ${WORKSPACE}/picture`,
-  `DELETE ${TEAM}`,
-  `PATCH ${TEAM}/settings`,
-  `PATCH ${TEAM}/appearance`,
-  `POST ${TEAM}/ignore-regions`,
-  `PATCH ${TEAM}/ignore-regions/:id`,
-  `DELETE ${TEAM}/ignore-regions/:id`,
-  `POST ${TEAM}/token`,
-  `PUT ${TEAM}/triage-rotation`,
-  `PUT ${TEAM}/github`,
-  `DELETE ${TEAM}/github`,
-  `PUT ${TEAM}/sites/:site/domain`,
-  `DELETE ${TEAM}/sites/:site/domain`,
-  `POST ${TEAM}/sites/:site/domain/verify`,
-  `POST ${TEAM}/members`,
-  `POST ${TEAM}/webhooks`,
-  `DELETE ${TEAM}/webhooks/:id`,
-  `POST ${TEAM}/webhooks/:id/test`,
-  `POST ${TEAM}/rules`,
-  `PUT ${TEAM}/rules/order`,
-  `PUT ${TEAM}/rules/:id`,
-  `DELETE ${TEAM}/rules/:id`,
+  `DELETE ${PROJECT}`,
+  `PATCH ${PROJECT}/settings`,
+  `PATCH ${PROJECT}/appearance`,
+  `POST ${PROJECT}/ignore-regions`,
+  `PATCH ${PROJECT}/ignore-regions/:id`,
+  `DELETE ${PROJECT}/ignore-regions/:id`,
+  `POST ${PROJECT}/token`,
+  `PUT ${PROJECT}/triage-rotation`,
+  `PUT ${PROJECT}/github`,
+  `DELETE ${PROJECT}/github`,
+  `PUT ${PROJECT}/sites/:site/domain`,
+  `DELETE ${PROJECT}/sites/:site/domain`,
+  `POST ${PROJECT}/sites/:site/domain/verify`,
+  `POST ${PROJECT}/members`,
+  `POST ${PROJECT}/webhooks`,
+  `DELETE ${PROJECT}/webhooks/:id`,
+  `POST ${PROJECT}/webhooks/:id/test`,
+  `POST ${PROJECT}/rules`,
+  `PUT ${PROJECT}/rules/order`,
+  `PUT ${PROJECT}/rules/:id`,
+  `DELETE ${PROJECT}/rules/:id`,
   `PATCH ${WORKSPACE}`,
   `DELETE ${WORKSPACE}`,
-  `POST ${WORKSPACE}/teams`,
+  `POST ${WORKSPACE}/projects`,
   // The tree merges `/integrations/:id` and `/integrations/:kind`; `:id` stands for both.
   `DELETE ${WORKSPACE}/integrations/:id`,
   `POST ${WORKSPACE}/integrations/:id/connect`,
-  `PUT ${WORKSPACE}/integrations/:id/teams/:team`,
-  `DELETE ${WORKSPACE}/integrations/:id/teams/:team`,
-  `POST ${WORKSPACE}/integrations/:id/teams/:team/links`,
-  `POST ${WORKSPACE}/integrations/:id/teams/:team/links/auto`,
-  `DELETE ${WORKSPACE}/integrations/:id/teams/:team/links/:linkId`,
+  `PUT ${WORKSPACE}/integrations/:id/projects/:project`,
+  `DELETE ${WORKSPACE}/integrations/:id/projects/:project`,
+  `POST ${WORKSPACE}/integrations/:id/projects/:project/links`,
+  `POST ${WORKSPACE}/integrations/:id/projects/:project/links/auto`,
+  `DELETE ${WORKSPACE}/integrations/:id/projects/:project/links/:linkId`,
   `PATCH ${WORKSPACE}/auth`,
   `PATCH ${WORKSPACE}/settings`,
   `POST ${WORKSPACE}/sso`,
@@ -106,7 +106,7 @@ const ADMIN_ONLY = new Set([
   `POST ${WORKSPACE}/domains/:id/verify`,
 ])
 
-/** Writes about the signed-in user themselves, not a team or workspace: only 401 applies. */
+/** Writes about the signed-in user themselves, not a project or workspace: only 401 applies. */
 const USER_SCOPED = new Set([
   'POST /api/workspaces',
   'POST /api/site-handoff',
@@ -128,17 +128,17 @@ const USER_SCOPED = new Set([
  */
 const UUID = '00000000-0000-4000-8000-000000000000'
 const BODIES: Record<string, unknown> = {
-  [`POST ${TEAM}/builds/review`]: { buildIds: [UUID], decision: 'approved' },
-  [`POST ${TEAM}/builds/request-review`]: { buildIds: [UUID], reviewerIds: ['someone'] },
-  [`POST ${TEAM}/builds/:number/review`]: { state: 'approved' },
-  [`POST ${TEAM}/builds/:number/review-requests`]: { reviewerId: 'someone' },
-  [`POST ${TEAM}/builds/:number/snapshots/review`]: {
+  [`POST ${PROJECT}/builds/review`]: { buildIds: [UUID], decision: 'approved' },
+  [`POST ${PROJECT}/builds/request-review`]: { buildIds: [UUID], reviewerIds: ['someone'] },
+  [`POST ${PROJECT}/builds/:number/review`]: { state: 'approved' },
+  [`POST ${PROJECT}/builds/:number/review-requests`]: { reviewerId: 'someone' },
+  [`POST ${PROJECT}/builds/:number/snapshots/review`]: {
     snapshotNames: ['home'],
     decision: 'approved',
   },
-  [`POST ${TEAM}/review-requests/:id/snooze`]: { kind: 'next_push' },
-  [`POST ${WORKSPACE}/teams`]: { name: 'Another team' },
-  [`POST ${TEAM}/members`]: { userIds: [] },
+  [`POST ${PROJECT}/review-requests/:id/snooze`]: { kind: 'next_push' },
+  [`POST ${WORKSPACE}/projects`]: { name: 'Another project' },
+  [`POST ${PROJECT}/members`]: { userIds: [] },
 }
 
 const isWrite = (method: string): method is Verb =>
@@ -194,15 +194,21 @@ afterAll(() => fx.close())
 
 function urlOf(pattern: string, workspace = fx.acme.workspaceSlug): string {
   return pattern.replace(/:(\w+)/g, (_, name: string) =>
-    name === 'workspace' ? workspace : name === 'team' ? 'web' : name === 'number' ? '999' : UUID,
+    name === 'workspace'
+      ? workspace
+      : name === 'project'
+        ? 'web'
+        : name === 'number'
+          ? '999'
+          : UUID,
   )
 }
 
 const bodyOf = (key: string) => BODIES[key] ?? {}
 
-type Scope = 'team' | 'workspace' | 'instance' | 'user' | undefined
+type Scope = 'project' | 'workspace' | 'instance' | 'user' | undefined
 function scopeOf({ pattern, key }: Route): Scope {
-  if (pattern.startsWith(`${TEAM}/`) || pattern === TEAM) return 'team'
+  if (pattern.startsWith(`${PROJECT}/`) || pattern === PROJECT) return 'project'
   if (pattern.startsWith(`${WORKSPACE}/`) || pattern === WORKSPACE) return 'workspace'
   if (pattern.startsWith('/api/instance/')) return 'instance'
   return USER_SCOPED.has(key) ? 'user' : undefined
@@ -215,7 +221,7 @@ describe('the route table', () => {
       .filter(
         (r) =>
           scopeOf(r) === undefined ||
-          (['team', 'workspace'].includes(scopeOf(r) ?? '') &&
+          (['project', 'workspace'].includes(scopeOf(r) ?? '') &&
             !MEMBER_WRITABLE.has(r.key) &&
             !SELF_OR_ADMIN.has(r.key) &&
             !ADMIN_ONLY.has(r.key)),
@@ -245,7 +251,7 @@ async function problems<T>(items: T[], check: (item: T) => Promise<string | unde
 const refusedAccess = (res: { statusCode: number; body: string }) =>
   res.statusCode === 401 ||
   res.statusCode === 403 ||
-  (res.statusCode === 404 && /"(Team|Workspace) not found"/.test(res.body))
+  (res.statusCode === 404 && /"(Project|Workspace) not found"/.test(res.body))
 
 describe('signed out', () => {
   it('gets 401 on every write route', async () => {
@@ -275,8 +281,8 @@ describe('instance routes', () => {
 })
 
 describe('outside the workspace', () => {
-  it('gets 404 on every team and workspace write, the same answer as for a made-up workspace', async () => {
-    const tenant = routes.filter((x) => ['team', 'workspace'].includes(scopeOf(x) ?? ''))
+  it('gets 404 on every project and workspace write, the same answer as for a made-up workspace', async () => {
+    const tenant = routes.filter((x) => ['project', 'workspace'].includes(scopeOf(x) ?? ''))
     expect(
       await problems(
         tenant.flatMap((r) => [outsider, fx.rivalClient].map((who) => ({ r, who }))),
@@ -320,9 +326,9 @@ describe('a plain member', () => {
 })
 
 describe('an admin', () => {
-  // Deleting the workspace is for its owner; deleting the team or rotating its token would
+  // Deleting the workspace is for its owner; deleting the project or rotating its token would
   // change the fixture the other cases share.
-  const skipped = new Set([`DELETE ${WORKSPACE}`, `DELETE ${TEAM}`, `POST ${TEAM}/token`])
+  const skipped = new Set([`DELETE ${WORKSPACE}`, `DELETE ${PROJECT}`, `POST ${PROJECT}/token`])
 
   it('passes the access check on the admin-only writes', async () => {
     expect(

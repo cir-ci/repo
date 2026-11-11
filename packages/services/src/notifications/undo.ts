@@ -50,7 +50,7 @@ export async function withNoticeUndo<T>(
     const data: NoticeUndo = { id: input.id, field: input.field, previous, after: next }
     const undo = await recordUndo(tx, {
       userId: input.userId,
-      teamId: null,
+      projectId: null,
       kind: input.kind,
       data,
     })

@@ -183,12 +183,12 @@ const connection = async () =>
     (i) => i.workspaceId === workspace.id && i.kind === 'bitbucket',
   )
 
-describe('Bitbucket mapping page and team mapping', () => {
+describe('Bitbucket mapping page and project mapping', () => {
   beforeEach(() => connectAcme({ bitbucketWorkspace: 'acme-ws', token: 'newer', username: 'ann' }))
 
   it('shows members the page without the webhook secret, and managers with it', async () => {
     const id = (await connection())?.id
-    const url = `${base}/${id}/teams`
+    const url = `${base}/${id}/projects`
     const manager = (await call('GET', url, ownerCookie)).json()
     expect(manager).toMatchObject({
       canManage: true,
@@ -197,7 +197,7 @@ describe('Bitbucket mapping page and team mapping', () => {
         url: `${ORIGIN}/webhooks/bitbucket`,
         secret: derivedWebhookSecret(AUTH_SECRET, 'bitbucket'),
       },
-      teams: [{ slug: 'web', mapping: null }],
+      projects: [{ slug: 'web', mapping: null }],
     })
     const member = (await call('GET', url, louCookie)).json()
     expect(member).toMatchObject({ canManage: false, webhook: { secret: null } })
@@ -214,25 +214,28 @@ describe('Bitbucket mapping page and team mapping', () => {
     expect(JSON.parse(listed[0]?.credentials ?? '{}')).toEqual({ token: 'newer', username: 'ann' })
   })
 
-  it('maps a team to a repository, and unmaps it', async () => {
+  it('maps a project to a repository, and unmaps it', async () => {
     const id = (await connection())?.id
-    const url = `${base}/${id}/teams/web`
+    const url = `${base}/${id}/projects/web`
     const body = { ref: 'acme-ws/web' }
     expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
     expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
     expect((await call('PUT', url, ownerCookie, { ref: 'nonsense' })).statusCode).toBe(400)
     expect(
-      (await call('PUT', `${base}/${crypto.randomUUID()}/teams/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${crypto.randomUUID()}/projects/web`, ownerCookie, body))
+        .statusCode,
     ).toBe(404)
-    expect((await call('PUT', `${base}/${id}/teams/nope`, ownerCookie, body)).statusCode).toBe(404)
+    expect((await call('PUT', `${base}/${id}/projects/nope`, ownerCookie, body)).statusCode).toBe(
+      404,
+    )
     expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
-    expect((await call('GET', `${base}/${id}/teams`, ownerCookie)).json().teams).toMatchObject([
-      { slug: 'web', mapping: { ref: 'acme-ws/web' } },
-    ])
+    expect(
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects,
+    ).toMatchObject([{ slug: 'web', mapping: { ref: 'acme-ws/web' } }])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
     expect(
-      (await call('GET', `${base}/${id}/teams`, ownerCookie)).json().teams[0].mapping,
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects[0].mapping,
     ).toBeNull()
   })
 

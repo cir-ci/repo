@@ -58,7 +58,7 @@ describe('the build page', () => {
     fakeBuildApi(detail())
     await renderPage(framed(<BuildPage />), {
       viewport: [width, height],
-      route: '$workspace/$team/builds/$number',
+      route: '$workspace/$project/builds/$number',
       url: '/acme/web-app/builds/7',
       announcer: true,
       validateSearch: validateBuildSearch,
@@ -75,7 +75,7 @@ describe('the build page', () => {
     fakeBuildApi(detail())
     await renderPage(framed(<BuildPage />), {
       viewport: [390, 2400],
-      route: '$workspace/$team/builds/$number',
+      route: '$workspace/$project/builds/$number',
       url: '/acme/web-app/builds/7',
       announcer: true,
       validateSearch: validateBuildSearch,
@@ -97,7 +97,7 @@ describe('Reviews', () => {
       route: '/workspaces/$workspace/reviews',
       url: '/workspaces/acme/reviews',
       announcer: true,
-      otherRoutes: ['/$workspace/$team/builds/$number'],
+      otherRoutes: ['/$workspace/$project/builds/$number'],
       validateSearch: validateReviewsSearch,
     })
     const layout = await vi.waitUntil(() => document.querySelector('main [class*="layout"]'))
@@ -144,7 +144,7 @@ describe('Inbox with a notification open', () => {
       },
       changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
       request: { dueAt: null, overdueByMs: 0 },
-      team: { slug: 'web', name: 'Web' },
+      project: { slug: 'web', name: 'Web' },
       workspace: { slug: 'acme', name: 'Acme' },
       alsoInReviews: false,
     }

@@ -1,6 +1,6 @@
 export {
   autoAssignAfterBuild,
-  autoAssignAllTeams,
+  autoAssignAllProjects,
   autoAssignTriage,
   autoAssignWorkspace,
 } from './auto-assign.ts'

@@ -8,9 +8,9 @@ type Segment = string | number
 const join = (base: string, rest: readonly Segment[]) =>
   rest.reduce<string>((path, part) => `${path}/${seg(String(part))}`, base)
 
-/** `/api/teams/:workspace/:team/...rest`. A query string is appended by the caller. */
-export const teamPath = (workspace: string, team: string, ...rest: Segment[]) =>
-  join(`/api/teams/${seg(workspace)}/${seg(team)}`, rest)
+/** `/api/projects/:workspace/:project/...rest`. A query string is appended by the caller. */
+export const projectPath = (workspace: string, project: string, ...rest: Segment[]) =>
+  join(`/api/projects/${seg(workspace)}/${seg(project)}`, rest)
 
 /** `/api/workspaces/:workspace/...rest`. A query string is appended by the caller. */
 export const workspacePath = (workspace: string, ...rest: Segment[]) =>

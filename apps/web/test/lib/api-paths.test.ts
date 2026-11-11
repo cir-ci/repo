@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
-import { inboxPath, instancePath, teamPath, workspacePath } from '#lib/api-paths.ts'
+import { inboxPath, instancePath, projectPath, workspacePath } from '#lib/api-paths.ts'
 
-describe('teamPath', () => {
-  it('builds the team root and its sub-resources', () => {
-    expect(teamPath('acme', 'web')).toBe('/api/teams/acme/web')
-    expect(teamPath('acme', 'web', 'rules', 'order')).toBe('/api/teams/acme/web/rules/order')
+describe('projectPath', () => {
+  it('builds the project root and its sub-resources', () => {
+    expect(projectPath('acme', 'web')).toBe('/api/projects/acme/web')
+    expect(projectPath('acme', 'web', 'rules', 'order')).toBe('/api/projects/acme/web/rules/order')
   })
 
   it('escapes slugs and values, and stringifies numbers', () => {
-    expect(teamPath('a b', 'c/d', 'builds', 12, 'review')).toBe(
-      '/api/teams/a%20b/c%2Fd/builds/12/review',
+    expect(projectPath('a b', 'c/d', 'builds', 12, 'review')).toBe(
+      '/api/projects/a%20b/c%2Fd/builds/12/review',
     )
-    expect(teamPath('acme', 'web', 'ignore-regions', '../x?y#z')).toBe(
-      '/api/teams/acme/web/ignore-regions/..%2Fx%3Fy%23z',
+    expect(projectPath('acme', 'web', 'ignore-regions', '../x?y#z')).toBe(
+      '/api/projects/acme/web/ignore-regions/..%2Fx%3Fy%23z',
     )
   })
 
   it('leaves a query string to the caller', () => {
-    expect(`${teamPath('acme', 'web', 'snapshots', 'a b', 'history')}?limit=5`).toBe(
-      '/api/teams/acme/web/snapshots/a%20b/history?limit=5',
+    expect(`${projectPath('acme', 'web', 'snapshots', 'a b', 'history')}?limit=5`).toBe(
+      '/api/projects/acme/web/snapshots/a%20b/history?limit=5',
     )
   })
 })
@@ -30,8 +30,8 @@ describe('workspacePath', () => {
     expect(workspacePath('acme', 'builds', 'suggestions')).toBe(
       '/api/workspaces/acme/builds/suggestions',
     )
-    expect(workspacePath('ac me', 'pinned-teams', 'a/b')).toBe(
-      '/api/workspaces/ac%20me/pinned-teams/a%2Fb',
+    expect(workspacePath('ac me', 'pinned-projects', 'a/b')).toBe(
+      '/api/workspaces/ac%20me/pinned-projects/a%2Fb',
     )
   })
 })

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const kindParams = z.object({ workspace: z.string(), kind: z.string() })
 export const idParams = z.object({ workspace: z.string(), id: z.uuid() })
-export const mappingParams = idParams.extend({ team: z.string() })
+export const mappingParams = idParams.extend({ project: z.string() })
 export const callbackParams = z.object({ kind: z.string() })
 export const callbackQuery = z.object({
   code: z.string().optional(),

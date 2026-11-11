@@ -108,9 +108,9 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
           env="STORAGE_DRIVER"
         />
         <Setting
-          title={`New teams keep builds for ${retention.defaultTeamRetentionDays} days`}
-          note="Each team can change this in its own settings."
-          env="DEFAULT_TEAM_RETENTION_DAYS"
+          title={`New projects keep builds for ${retention.defaultProjectRetentionDays} days`}
+          note="Each project can change this in its own settings."
+          env="DEFAULT_PROJECT_RETENTION_DAYS"
         />
         <Setting
           title={`Unused files are deleted after ${retention.gcGraceHours} hours`}
@@ -141,7 +141,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
         {settings.staticSites ? (
           <Setting
             title={<Text variant="mono">{settings.staticSites.host}</Text>}
-            note={`Largest site ${settings.staticSites.maxMb} MB. Teams switch hosting on in their own settings.`}
+            note={`Largest site ${settings.staticSites.maxMb} MB. Projects switch hosting on in their own settings.`}
             env="STATIC_SITES_HOST, STATIC_SITES_MAX_MB"
           >
             <Link to="/instance/health" className={styles.env}>
@@ -151,7 +151,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
         ) : (
           <Setting
             title="Not set up"
-            note="Teams can't host sites until a separate domain is configured."
+            note="Projects can't host sites until a separate domain is configured."
             env="STATIC_SITES_HOST"
           />
         )}

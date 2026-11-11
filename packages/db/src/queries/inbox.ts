@@ -8,13 +8,13 @@ import {
   notificationPreferences,
   notifications,
   workspace,
-  teams,
+  projects,
   reviewRequests,
   screenshotDiffs,
   user,
 } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
@@ -23,7 +23,7 @@ import type { Build } from '#src/types.ts'
  * isolation). Deleted ones never show; snoozed ones are hidden until they wake.
  */
 
-/** `for-you`: about you and your work. `everything`: also team-wide notices. `snoozed`: put off. */
+/** `for-you`: about you and your work. `everything`: also project-wide notices. `snoozed`: put off. */
 export const INBOX_TABS = ['for-you', 'everything', 'snoozed'] as const
 export namespace listInbox {
   export type Tab = (typeof INBOX_TABS)[number]
@@ -41,7 +41,7 @@ export namespace listInbox {
     /** Null for notices that are not about one build. */
     build: {
       number: number
-      /** The build's name; "default" for a team's only build per commit. */
+      /** The build's name; "default" for a project's only build per commit. */
       name: string
       branch: string | null
       prNumber: number | null
@@ -58,7 +58,7 @@ export namespace listInbox {
     } | null
     /** The person's open review request for the build: its target and how far past it. */
     request: { dueAt: Date | null; overdueByMs: number } | null
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
     workspace: { slug: string; name: string } | null
     /** The same build also waits for this person's review on the Reviews page. */
     alsoInReviews: boolean
@@ -72,7 +72,7 @@ export namespace listInbox {
   }
 }
 
-/** The kinds the "For you" tab shows: everything except team-wide notices. */
+/** The kinds the "For you" tab shows: everything except project-wide notices. */
 export const FOR_YOU_KINDS: readonly NotificationKind[] = [
   'review_requested',
   'review_re_requested',
@@ -120,7 +120,7 @@ export async function listInbox(
         status: builds.status,
         reviewStatus: builds.reviewStatus,
       },
-      team: { slug: teams.slug, name: teams.name },
+      project: { slug: projects.slug, name: projects.name },
       workspace: { slug: workspace.slug, name: workspace.name },
       alsoInReviews: sql<boolean>`exists (
         select 1 from ${reviewRequests}
@@ -130,8 +130,8 @@ export async function listInbox(
     })
     .from(notifications)
     .leftJoin(builds, eq(builds.id, notifications.buildId))
-    .leftJoin(teams, eq(teams.id, builds.teamId))
-    .leftJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .leftJoin(projects, eq(projects.id, builds.projectId))
+    .leftJoin(workspace, eq(workspace.id, projects.workspaceId))
     .leftJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .where(and(visibleWhere(input), scope))
     .orderBy(desc(notifications.createdAt), desc(notifications.id))
@@ -250,7 +250,7 @@ export async function listInbox(
               overdueByMs: overdueBy(request.dueAt, input.now, request.snoozed),
             }
           : null,
-        team: r.n.buildId === null ? null : r.team,
+        project: r.n.buildId === null ? null : r.project,
         workspace: r.n.buildId === null ? null : r.workspace,
         alsoInReviews: r.alsoInReviews,
       }
@@ -267,8 +267,8 @@ export async function countUnreadNotifications(
     .select({ count: sql<number>`count(*)::int` })
     .from(notifications)
     .leftJoin(builds, eq(builds.id, notifications.buildId))
-    .leftJoin(teams, eq(teams.id, builds.teamId))
-    .leftJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .leftJoin(projects, eq(projects.id, builds.projectId))
+    .leftJoin(workspace, eq(workspace.id, projects.workspaceId))
     .leftJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .where(
       and(
@@ -290,7 +290,7 @@ function visibleWhere(input: { userId: string; method?: SessionMethod }): SQL {
         and(
           isNotNull(member.userId),
           workspaceAccepts(workspace.id, input.method),
-          teamVisibleTo(input.userId, teams),
+          projectVisibleTo(input.userId, projects),
         ),
       ),
     ) ?? sql`false`

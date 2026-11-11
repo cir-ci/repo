@@ -60,14 +60,21 @@ export const UserPicture = () => (
   </Both>
 )
 
-export const TeamSizes = () => (
+export const Projectsizes = () => (
   <Both>
     <div style={row}>
-      <Avatar type="team" slug="web-app" name="Web app" color="slate" icon={null} size={16} />
-      <Avatar type="team" slug="storefront" name="Storefront" color="plum" icon={null} size={20} />
-      <Avatar type="team" slug="mobile" name="Mobile" color="olive" icon={null} size={24} />
+      <Avatar type="project" slug="web-app" name="Web app" color="slate" icon={null} size={16} />
       <Avatar
-        type="team"
+        type="project"
+        slug="storefront"
+        name="Storefront"
+        color="plum"
+        icon={null}
+        size={20}
+      />
+      <Avatar type="project" slug="mobile" name="Mobile" color="olive" icon={null} size={24} />
+      <Avatar
+        type="project"
         slug="design-system"
         name="Design system"
         color="moss"
@@ -78,21 +85,28 @@ export const TeamSizes = () => (
   </Both>
 )
 
-export const TeamIcons = () => (
+export const ProjectIcons = () => (
   <Both>
     <div style={row}>
-      <Avatar type="team" slug="web-app" name="Web app" color="slate" icon="globe" size={16} />
+      <Avatar type="project" slug="web-app" name="Web app" color="slate" icon="globe" size={16} />
       <Avatar
-        type="team"
+        type="project"
         slug="storefront"
         name="Storefront"
         color="plum"
         icon="shopping-cart"
         size={20}
       />
-      <Avatar type="team" slug="mobile" name="Mobile" color="olive" icon="smartphone" size={24} />
       <Avatar
-        type="team"
+        type="project"
+        slug="mobile"
+        name="Mobile"
+        color="olive"
+        icon="smartphone"
+        size={24}
+      />
+      <Avatar
+        type="project"
         slug="design-system"
         name="Design system"
         color="moss"
@@ -103,13 +117,13 @@ export const TeamIcons = () => (
   </Both>
 )
 
-export const TeamColors = () => (
+export const ProjectColors = () => (
   <Both>
     <div style={row}>
       {COLORS.map((color) => (
         <Avatar
           key={color}
-          type="team"
+          type="project"
           slug="web"
           name={color}
           color={color}
@@ -121,13 +135,13 @@ export const TeamColors = () => (
   </Both>
 )
 
-export const TeamMarbles = () => (
+export const ProjectMarbles = () => (
   <Both>
     <div style={row}>
       {['web', 'storefront', 'mobile', 'design-system', 'docs', 'api'].map((slug) => (
         <Avatar
           key={slug}
-          type="team"
+          type="project"
           slug={slug}
           name={slug}
           color="mauve"

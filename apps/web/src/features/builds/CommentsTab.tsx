@@ -33,10 +33,10 @@ import styles from './Discussion.module.css'
  * focuses it). A comment on a region is written in the popover on the image, not here.
  */
 export function CommentsTab(props: CommentsTab.Props) {
-  const { workspace, team, number, snapshotName, focusedId } = props
-  const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
-  const members = useMentionMembers(workspace, team)
-  const add = useAddComment(workspace, team, number)
+  const { workspace, project, number, snapshotName, focusedId } = props
+  const { data, error, isPending } = useQuery(commentsQuery(workspace, project, number))
+  const members = useMentionMembers(workspace, project)
+  const add = useAddComment(workspace, project, number)
 
   const comments = data?.comments ?? []
   const threads = groupThreads(comments)
@@ -85,7 +85,7 @@ export function CommentsTab(props: CommentsTab.Props) {
               number={numbering.get(t.root.id)}
               focused={t.root.id === focusedId}
               workspace={workspace}
-              team={team}
+              project={project}
               build={number}
               onShow={props.onShowSnapshot}
             />
@@ -99,7 +99,7 @@ export function CommentsTab(props: CommentsTab.Props) {
 export namespace CommentsTab {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     number: number
     /** The snapshot on screen: a region drawn on it is pinned to this name. */
     snapshotName: string | null
@@ -117,12 +117,12 @@ function ThreadView({
   number,
   focused,
   workspace,
-  team,
+  project,
   build,
   onShow,
 }: ThreadView.Props) {
   const [replying, setReplying] = useState(false)
-  const add = useAddComment(workspace, team, build)
+  const add = useAddComment(workspace, project, build)
   const { root, replies } = thread
   const card = useRef<HTMLDivElement>(null)
   // A marker or an activity line points here: scroll to the thread and move focus into it.
@@ -140,7 +140,13 @@ function ThreadView({
       data-focused={focused ? '' : undefined}
       tabIndex={-1}
     >
-      <CommentView comment={root} members={members} workspace={workspace} team={team} build={build}>
+      <CommentView
+        comment={root}
+        members={members}
+        workspace={workspace}
+        project={project}
+        build={build}
+      >
         {root.snapshotName && root.region ? (
           <button
             type="button"
@@ -158,7 +164,7 @@ function ThreadView({
             comment={r}
             members={members}
             workspace={workspace}
-            team={team}
+            project={project}
             build={build}
           />
         </div>
@@ -204,7 +210,7 @@ namespace ThreadView {
     number: number | undefined
     focused: boolean
     workspace: string
-    team: string
+    project: string
     build: number
     onShow: (snapshotName: string, commentId: string) => void
   }
@@ -213,10 +219,10 @@ namespace ThreadView {
 /** The one face every comment by someone who has left shares. */
 const LEFT_MEMBER_ID = 'left-member'
 
-function CommentView({ comment, members, workspace, team, build, children }: CommentView.Props) {
+function CommentView({ comment, members, workspace, project, build, children }: CommentView.Props) {
   const [editing, setEditing] = useState(false)
-  const edit = useEditComment(workspace, team, build)
-  const remove = useDeleteComment(workspace, team, build)
+  const edit = useEditComment(workspace, project, build)
+  const remove = useDeleteComment(workspace, project, build)
   const [deleting, setDeleting] = useState(false)
   const name = comment.author?.name ?? 'Someone who has left'
   const deleted = comment.deletedAt !== null
@@ -330,7 +336,7 @@ namespace CommentView {
     comment: Comment.Item
     members: readonly Mention.Member[]
     workspace: string
-    team: string
+    project: string
     build: number
     children?: React.ReactNode
   }

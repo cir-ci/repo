@@ -1,10 +1,10 @@
 import { COMMIT_SHA_RE, isSha256, MAX_PARALLEL_SHARDS, ValidationError } from '@circi/core'
-import { finalizeTeamBuild, findBaseline, startBuildUpload } from '@circi/services'
+import { finalizeProjectBuild, findBaseline, startBuildUpload } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { requireTeamToken, currentTeam } from '#http/hooks/team-token.ts'
+import { requireProjectToken, currentProject } from '#http/hooks/project-token.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
@@ -18,7 +18,7 @@ import { uploadRoutes } from './uploads.ts'
  * Cypress, Storybook…) can point them at CirCI by changing the API address and token. Shapes
  * follow `@argos-ci/core`'s `upload()`:
  *
- *   GET  /project          what the SDK needs to know about the team
+ *   GET  /project          what the SDK needs to know about the project
  *   POST /baseline         the SDK found the commit history itself and asks which build it maps to
  *   POST /builds           create the build, learn which files to upload
  *   POST /uploads/…        the "presigned" upload target (multipart form with the file)
@@ -34,23 +34,23 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   await v2.register(uploadRoutes, deps)
 
   await v2.register(async (api) => {
-    api.addHook('onRequest', requireTeamToken(deps.auth, deps.db))
+    api.addHook('onRequest', requireProjectToken(deps.auth, deps.db))
 
     api.get('/project', async (req) => {
-      const { team } = currentTeam(req)
+      const { project } = currentProject(req)
       return {
-        id: team.id,
-        defaultBaseBranch: team.defaultBranch,
+        id: project.id,
+        defaultBaseBranch: project.defaultBranch,
         // We can't read the repository ourselves, so SDKs must send their own history.
         hasRemoteContentAccess: false,
       }
     })
 
     api.post('/baseline', async (req) => {
-      const { team } = currentTeam(req)
+      const { project } = currentProject(req)
       const body = parse(baselineBody, req.body)
       const found = await findBaseline(deps.db, {
-        teamId: team.id,
+        projectId: project.id,
         name: buildName(body.name) ?? 'default',
         commits: body.commits,
       })
@@ -67,7 +67,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
     })
 
     api.post('/builds', { bodyLimit: JSON_LIMIT }, async (req, reply) => {
-      const ctx = currentTeam(req)
+      const ctx = currentProject(req)
       const body = parse(createBody, req.body)
       const keys = [...new Set(body.screenshots.map((s) => s.key))]
       const bad = keys.find((k) => !isSha256(k))
@@ -88,7 +88,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
       const name = buildName(body.name)
       const { build, planned } = await startBuildUpload(deps.db, {
         build: {
-          teamId: ctx.team.id,
+          projectId: ctx.project.id,
           commitSha: commit,
           ...(name ? { name } : {}),
           branch: body.branch ?? null,
@@ -124,11 +124,11 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
     })
 
     api.put('/builds/:id', { bodyLimit: JSON_LIMIT }, async (req, reply) => {
-      const ctx = currentTeam(req)
+      const ctx = currentProject(req)
       const { id } = parse(z.object({ id: z.uuid() }), req.params)
       const body = parse(updateBody, req.body)
-      const result = await finalizeTeamBuild(deps.db, {
-        teamId: ctx.team.id,
+      const result = await finalizeProjectBuild(deps.db, {
+        projectId: ctx.project.id,
         buildId: id,
         ...(body.parallelTotal !== undefined && body.parallelTotal !== null
           ? { parallelTotal: body.parallelTotal }

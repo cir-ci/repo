@@ -36,7 +36,7 @@ const ICONS: Record<InstanceHubKey, ReactNode> = {
 }
 
 /**
- * The Instance hub (instance admins; the workspace and team hubs' sibling): the instance's tile and
+ * The Instance hub (instance admins; the workspace and project hubs' sibling): the instance's tile and
  * name ("Instance", it has none of its own) with its address beneath, then one row for each
  * Instance page in groups (People, Workspaces, Server), each with a one-line summary. The account
  * total, the workspace count and the public URL come from the queries those pages read (the

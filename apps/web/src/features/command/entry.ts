@@ -1,5 +1,5 @@
 import type { Search } from '@circi/api'
-import type { ColorMode, Status, TeamColor } from '@circi/ui'
+import type { ColorMode, Status, ProjectColor } from '@circi/ui'
 
 /**
  * What the command menu lists: one `Entry` per row, whatever it is (a page, an item found by
@@ -7,12 +7,12 @@ import type { ColorMode, Status, TeamColor } from '@circi/ui'
  * draws them from these fields alone.
  */
 
-/** The glyph of a row; the menu maps each to an icon. `status` and `team` rows carry their own data. */
+/** The glyph of a row; the menu maps each to an icon. `status` and `project` rows carry their own data. */
 export type IconKey =
   | 'inbox'
   | 'reviews'
   | 'triage'
-  | 'teams'
+  | 'projects'
   | 'insights'
   | 'settings'
   | 'branch'
@@ -23,7 +23,7 @@ export type IconKey =
   | 'eye'
   | 'sliders'
   | 'status'
-  | 'team'
+  | 'project'
   | 'workspace'
   | 'approve'
   | 'reject'
@@ -45,7 +45,7 @@ export type IconKey =
 /** What a row is: places and items carry a kind label, actions a tinted tile. */
 export type EntryKind =
   | 'page'
-  | 'team'
+  | 'project'
   | 'build'
   | 'branch'
   | 'screenshot'
@@ -75,23 +75,25 @@ export type ChipKind =
   | 'notices'
   | 'reviews'
   | 'views'
-  | 'teams'
+  | 'projects'
   | 'people'
   | 'commands'
 
-/** A removable chip in the field: a kind prefix (`#`, `/`, `>`, `@`) or a team (`in:web`). */
-export type Chip = { type: 'kind'; kind: ChipKind } | { type: 'team'; slug: string; name: string }
+/** A removable chip in the field: a kind prefix (`#`, `/`, `>`, `@`) or a project (`in:web`). */
+export type Chip =
+  | { type: 'kind'; kind: ChipKind }
+  | { type: 'project'; slug: string; name: string }
 
 /** The nested lists a row with a chevron opens, and the actions of one row. */
-export type PageId = 'team' | 'workspace' | 'theme' | 'row' | 'reason' | 'reviewers'
+export type PageId = 'project' | 'workspace' | 'theme' | 'row' | 'reason' | 'reviewers'
 
 /** What a row's actions work on: what the search result knows about the thing. */
 export type Subject =
-  | { type: 'build'; workspace: string; team: string; number: number; label: string }
+  | { type: 'build'; workspace: string; project: string; number: number; label: string }
   | {
       type: 'review'
       workspace: string
-      team: string
+      project: string
       number: number
       id: string
       label: string
@@ -99,7 +101,7 @@ export type Subject =
   | {
       type: 'triage'
       workspace: string
-      team: string
+      project: string
       kind: Search.Triage['kind']
       key: string
       label: string
@@ -129,7 +131,7 @@ export type RowAction =
        * build, replacing earlier decisions.
        */
       names?: string[] | 'undecided'
-      /** Why it is rejected; a team that requires one asks for it first. */
+      /** Why it is rejected; a project that requires one asks for it first. */
       reason?: string
     }
   | { type: 'requestReview'; subject: ReviewSubject; reviewers: Reviewer[] }
@@ -165,7 +167,7 @@ export interface Entry {
   label: string
   /** Grey text after the label (the branch of a build, the reason of a triage item). */
   detail?: string
-  /** Tertiary text at the end of a place or item row (`Build`, `Team`). Never on an action. */
+  /** Tertiary text at the end of a place or item row (`Build`, `Project`). Never on an action. */
   kindLabel?: string
   /** A relative time after the kind label (Recent). */
   time?: string
@@ -176,8 +178,8 @@ export interface Entry {
   status?: Status
   /** The picture of a person row. */
   avatar?: { id: string; name: string; image: string | null }
-  /** The tile of a team row. */
-  team?: { slug: string; name: string; color: TeamColor; icon: string | null }
+  /** The tile of a project row. */
+  project?: { slug: string; name: string; color: ProjectColor; icon: string | null }
   /** A notice that is unread draws a dot on its bell. */
   unread?: boolean
   /** The current choice of a nested list. */
@@ -208,11 +210,11 @@ export namespace Entry {
     | { type: 'widen' }
     | { type: 'clear' }
     | { type: 'retry' }
-    | { type: 'team'; slug: string }
+    | { type: 'project'; slug: string }
     | { type: 'workspace'; slug: string }
     | { type: 'signOut' }
     | { type: 'run'; action: RowAction }
-    | { type: 'create'; what: 'team' | 'workspace' }
+    | { type: 'create'; what: 'project' | 'workspace' }
     /** A recent search: puts its text back in the field. */
     | { type: 'search'; text: string }
     | { type: 'clearSearches' }

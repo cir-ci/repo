@@ -1,7 +1,7 @@
 /**
  * The TanStack Query keys, one function per resource, so a key's tuple exists once and an
  * invalidation in another feature cannot drift from the query it targets. A function called with
- * fewer arguments returns a prefix (`keys.triage()` matches every team's queue).
+ * fewer arguments returns a prefix (`keys.triage()` matches every project's queue).
  */
 
 import type { QueryClient } from '@tanstack/react-query'
@@ -9,41 +9,44 @@ import type { QueryClient } from '@tanstack/react-query'
 type Key = readonly unknown[]
 
 export const keys = {
-  // Teams and their pages.
-  teams: () => ['teams'] as const,
-  /** A team's builds page; `page` is `before`, then the filters and the order (see `teamBuildsQuery`). */
-  team: (workspace: string, team: string, ...page: unknown[]) =>
-    ['team', workspace, team, ...page] as const,
-  teamSettings: (workspace: string, team: string) => ['settings', workspace, team] as const,
-  /** Every team's settings (the prefix of `teamSettings`). */
-  allTeamSettings: () => ['settings'] as const,
-  teamMembers: (workspace: string, team: string) => ['team-members', workspace, team] as const,
-  token: (workspace: string, team: string) => ['token', workspace, team] as const,
-  ignoreRegions: (workspace: string, team: string) => ['ignore-regions', workspace, team] as const,
-  flaky: (workspace: string, team: string) => ['flaky', workspace, team] as const,
-  baselines: (workspace: string, team: string) => ['baselines', workspace, team] as const,
-  sites: (workspace: string, team: string) => ['team-sites', workspace, team] as const,
-  rules: (workspace: string, team: string) => ['rules', workspace, team] as const,
-  triage: (workspace?: string, team?: string) =>
-    (workspace === undefined ? ['triage'] : ['triage', workspace, team]) as Key,
-  snapshotHistory: (workspace: string, team: string, name: string, build: unknown) =>
-    ['snapshot-history', workspace, team, name, build] as const,
+  // Projects and their pages.
+  projects: () => ['projects'] as const,
+  /** A project's builds page; `page` is `before`, then the filters and the order (see `projectBuildsQuery`). */
+  project: (workspace: string, project: string, ...page: unknown[]) =>
+    ['project', workspace, project, ...page] as const,
+  projectsettings: (workspace: string, project: string) =>
+    ['settings', workspace, project] as const,
+  /** Every project's settings (the prefix of `projectsettings`). */
+  allProjectsettings: () => ['settings'] as const,
+  projectMembers: (workspace: string, project: string) =>
+    ['project-members', workspace, project] as const,
+  token: (workspace: string, project: string) => ['token', workspace, project] as const,
+  ignoreRegions: (workspace: string, project: string) =>
+    ['ignore-regions', workspace, project] as const,
+  flaky: (workspace: string, project: string) => ['flaky', workspace, project] as const,
+  baselines: (workspace: string, project: string) => ['baselines', workspace, project] as const,
+  sites: (workspace: string, project: string) => ['project-sites', workspace, project] as const,
+  rules: (workspace: string, project: string) => ['rules', workspace, project] as const,
+  triage: (workspace?: string, project?: string) =>
+    (workspace === undefined ? ['triage'] : ['triage', workspace, project]) as Key,
+  snapshotHistory: (workspace: string, project: string, name: string, build: unknown) =>
+    ['snapshot-history', workspace, project, name, build] as const,
 
   // A build.
-  build: (workspace: string, team: string, number: unknown) =>
-    ['build', workspace, team, number] as const,
-  comments: (workspace: string, team: string, number: unknown) =>
-    ['comments', workspace, team, number] as const,
-  activity: (workspace: string, team: string, number: unknown) =>
-    ['activity', workspace, team, number] as const,
-  issues: (workspace: string, team: string, number: unknown) =>
-    ['issues', workspace, team, number] as const,
+  build: (workspace: string, project: string, number: unknown) =>
+    ['build', workspace, project, number] as const,
+  comments: (workspace: string, project: string, number: unknown) =>
+    ['comments', workspace, project, number] as const,
+  activity: (workspace: string, project: string, number: unknown) =>
+    ['activity', workspace, project, number] as const,
+  issues: (workspace: string, project: string, number: unknown) =>
+    ['issues', workspace, project, number] as const,
 
   // Workspaces.
   workspace: (workspace: string) => ['workspace', workspace] as const,
   workspaceGeneral: (workspace: string) => ['workspace-general', workspace] as const,
-  /** The teams each workspace member is in. */
-  memberTeams: (workspace: string) => ['member-teams', workspace] as const,
+  /** The projects each workspace member is in. */
+  memberProjects: (workspace: string) => ['member-projects', workspace] as const,
   memberSignIn: (workspace: string) => ['member-sign-in', workspace] as const,
   workspaceStorage: (workspace: string) => ['workspace-storage', workspace] as const,
   workspaceAuth: (workspace: string) => ['workspace-auth', workspace] as const,
@@ -55,21 +58,21 @@ export const keys = {
     ['workspace-builds', workspace, ...page] as const,
   buildSuggestions: (workspace: string, field: string, text: string) =>
     ['build-suggestions', workspace, field, text] as const,
-  branches: (workspace: string, team: string | null, text: string) =>
-    ['branches', workspace, team, text] as const,
+  branches: (workspace: string, project: string | null, text: string) =>
+    ['branches', workspace, project, text] as const,
   views: (workspace: string) => ['views', workspace] as const,
   /** The sidebar of one workspace, or (no argument) of all of them. */
   sidebar: (workspace?: string) =>
     (workspace === undefined ? ['sidebar'] : ['sidebar', workspace]) as Key,
   search: (workspace: string, q: string, scope?: unknown) =>
     ['search', workspace, q, scope ?? null] as const,
-  insights: (workspace: string, team: string | null, from: unknown, to: unknown) =>
-    ['insights', workspace, team, from, to] as const,
+  insights: (workspace: string, project: string | null, from: unknown, to: unknown) =>
+    ['insights', workspace, project, from, to] as const,
   /** Integrations of a workspace; `rest` narrows to a mapping, targets or links. */
   integrations: (workspace: string, ...rest: unknown[]) =>
     ['integrations', workspace, ...rest] as const,
   capabilities: () => ['capabilities'] as const,
-  /** The GitHub repositories of a workspace that no team is linked to (Import from GitHub). */
+  /** The GitHub repositories of a workspace that no project is linked to (Import from GitHub). */
   githubImport: (workspace: string) => ['github-import', workspace] as const,
 
   // The signed-in user.

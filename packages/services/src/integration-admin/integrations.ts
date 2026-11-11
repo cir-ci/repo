@@ -14,7 +14,7 @@ import { type IntegrationDefinition, IntegrationConflictError } from '@circi/int
 
 /**
  * What a workspace's owners and admins do to its integrations: connect one, remove one, remove a
- * team's link, and flag one when its provider stops accepting it.
+ * project's link, and flag one when its provider stops accepting it.
  */
 
 export namespace connectIntegration {
@@ -77,7 +77,7 @@ export async function connectIntegration(
   })
 }
 
-/** Removes an integration; every team mapped to it stops using it. Throws when it is not the workspace's. */
+/** Removes an integration; every project mapped to it stops using it. Throws when it is not the workspace's. */
 export async function removeIntegration(
   db: Database,
   input: { workspaceId: string; integrationId: string },
@@ -88,13 +88,13 @@ export async function removeIntegration(
   assertFound(removed, 'Integration not found')
 }
 
-/** Removes one of a team's links of the integration. Throws when there is no such link. */
-export async function removeTeamLink(
+/** Removes one of a project's links of the integration. Throws when there is no such link. */
+export async function removeProjectLink(
   db: Database,
-  input: { integrationId: string; teamId: string; linkId: string },
+  input: { integrationId: string; projectId: string; linkId: string },
 ): Promise<void> {
   const removed = await db.transaction((tx) =>
-    deleteIntegrationLink(tx, input.integrationId, input.linkId, input.teamId),
+    deleteIntegrationLink(tx, input.integrationId, input.linkId, input.projectId),
   )
   assertFound(removed, 'Link not found')
 }

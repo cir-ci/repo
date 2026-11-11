@@ -6,10 +6,10 @@ import { lazy, type ReactNode, Suspense } from 'react'
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
+import { ProjectDialogs } from '#features/projects/ProjectDialogs.tsx'
 import { AddToHomeScreenSheet } from '#features/pwa/AddToHomeScreenSheet.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
-import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
@@ -78,13 +78,13 @@ export function Shell() {
 
 /**
  * First-run setup's later steps come before the app while the server says they are pending (only
- * the instance admin is told), and stay while the first team's token is on screen. The
+ * the instance admin is told), and stay while the first project's token is on screen. The
  * frame waits for them only right after the account was made on the setup page, so it never flashes
  * before the steps.
  */
 function SetupGate({ user }: { user: SessionUser }) {
   const { data: caps, isPending } = useQuery(capabilitiesQuery())
-  const holding = useSetupStore((s) => s.team !== undefined)
+  const holding = useSetupStore((s) => s.project !== undefined)
   const arriving = useSetupStore((s) => s.arriving)
   if (isPending && arriving) return <SessionCheck />
   if (caps?.setupPending || holding) {
@@ -122,7 +122,7 @@ const frameOf = (handle: HTMLElement) => handle.parentElement?.parentElement
 function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
-  // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
+  // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Project, Instance).
   const inSettings = isSettingsSection(section)
   const phone = usePhone()
   // A phone has no sidebar: the bottom tabs and the More sheet (and, in settings, the sections
@@ -158,7 +158,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
           </TabGate>
         </PanelNotices>
       </AppFrame>
-      <TeamDialogs />
+      <ProjectDialogs />
       <WindowTitleBar />
       <AppContextMenu />
       <AddToHomeScreenSheet />

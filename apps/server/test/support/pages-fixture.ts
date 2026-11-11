@@ -14,7 +14,7 @@ import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from './helpers
 
 /**
  * A dashboard server with no builds: Acme (an owner and one plain member) and an unrelated
- * Rival, all signed in. For the team and workspace page routes, whose tests seed what they need.
+ * Rival, all signed in. For the project and workspace page routes, whose tests seed what they need.
  */
 export async function startPages() {
   const t = await createTestDb()

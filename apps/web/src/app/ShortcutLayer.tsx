@@ -4,9 +4,9 @@ import { type ReactNode, useEffect } from 'react'
 
 import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { classifyVisit } from '#features/command/recent.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useRememberOpenedWorkspace, useWorkspaces } from '#features/sidebar/use-workspaces.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentStore } from '#lib/stores/recent-store.ts'
@@ -53,23 +53,23 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     const visit = classifyVisit(
       address.pathname,
       address.search,
-      sidebar?.teams,
+      sidebar?.projects,
       sidebar?.views,
       Date.now(),
     )
     if (visit) record(visit.workspace, visit.entry)
     // The visit is the address; the sidebar's lists only name it.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [address.pathname, address.search, sidebar?.teams === undefined])
+  }, [address.pathname, address.search, sidebar?.projects === undefined])
 
   useTabShortcuts()
   useShortcutHandlers({
     go: ({ to }) => {
       const path = goPath(to, {
         workspace: workspace?.slug,
-        // A team in the address only counts when it belongs to the workspace being shown.
-        team: params.workspace === workspace?.slug ? params.team : undefined,
-        teams: sidebar?.teams,
+        // A project in the address only counts when it belongs to the workspace being shown.
+        project: params.workspace === workspace?.slug ? params.project : undefined,
+        projects: sidebar?.projects,
         canManage: sidebar?.canManage,
         instanceAdmin: caps?.instanceAdmin,
       })
@@ -90,7 +90,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         open={commandOpen}
         onOpenChange={setCommandOpen}
         workspace={workspace?.slug}
-        teams={sidebar?.teams}
+        projects={sidebar?.projects}
         views={sidebar?.views}
         canManage={sidebar?.canManage}
         workspaces={workspaces}

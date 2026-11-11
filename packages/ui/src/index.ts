@@ -49,7 +49,12 @@ export { Autocomplete } from './Autocomplete.js'
 export { SuggestTextarea } from './SuggestTextarea.js'
 export { Avatar } from './Avatar.js'
 export { AvatarStack } from './AvatarStack.js'
-export { peoplePalette, teamPalette, useAvatarScheme, workspacePalette } from './avatar-palettes.js'
+export {
+  peoplePalette,
+  projectPalette,
+  useAvatarScheme,
+  workspacePalette,
+} from './avatar-palettes.js'
 export { Badge } from './Badge.js'
 export { Banner } from './Banner.js'
 export { Breadcrumbs } from './Breadcrumbs.js'
@@ -94,7 +99,7 @@ export {
   type ToastManager,
   type ToastTone,
 } from './Toast.js'
-export { TEAM_COLORS, type TeamColor } from './team-icons.js'
+export { PROJECT_COLORS, type ProjectColor } from './project-icons.js'
 export { SettingsPage } from './SettingsPage.js'
 export { SettingsSection } from './SettingsSection.js'
 export { SettingsRow } from './SettingsRow.js'

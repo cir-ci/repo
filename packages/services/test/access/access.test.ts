@@ -7,28 +7,28 @@ import {
   canAdjustCommentRegion,
   canDeleteWorkspace,
   canManageWorkspace,
-  canReadTeam,
-  canAddTeamMembers,
+  canReadProject,
+  canAddProjectMembers,
   canReadWorkspace,
-  canRemoveTeamMember,
-  canSeeTeam,
-  canWriteTeam,
+  canRemoveProjectMember,
+  canSeeProject,
+  canWriteProject,
   isInstanceAdmin,
   isWorkspaceOwner,
 } from '#src/index.ts'
 
-const actor = (role: string | undefined, instanceAdmin = false, teamMember = true): Actor => ({
+const actor = (role: string | undefined, instanceAdmin = false, projectMember = true): Actor => ({
   userId: 'u1',
   instanceAdmin,
   role,
-  teamMember,
+  projectMember,
 })
 
-describe('workspace and team policies', () => {
+describe('workspace and project policies', () => {
   it('lets any member read', () => {
     for (const role of ['owner', 'admin', 'member']) {
       expect(canReadWorkspace(actor(role))).toEqual({ allow: true })
-      expect(canReadTeam(actor(role))).toEqual({ allow: true })
+      expect(canReadProject(actor(role))).toEqual({ allow: true })
     }
   })
 
@@ -36,9 +36,9 @@ describe('workspace and team policies', () => {
     const none = actor(undefined, true)
     for (const policy of [
       canReadWorkspace,
-      canReadTeam,
+      canReadProject,
       canManageWorkspace,
-      canWriteTeam,
+      canWriteProject,
       canDeleteWorkspace,
     ]) {
       expect(policy(none)).toEqual({ allow: false, reason: 'not-member' })
@@ -46,7 +46,7 @@ describe('workspace and team policies', () => {
   })
 
   it('lets only owners and admins manage', () => {
-    for (const policy of [canManageWorkspace, canWriteTeam]) {
+    for (const policy of [canManageWorkspace, canWriteProject]) {
       expect(policy(actor('owner'))).toEqual({ allow: true })
       expect(policy(actor('admin'))).toEqual({ allow: true })
       expect(policy(actor('member'))).toEqual({ allow: false, reason: 'not-manager' })
@@ -65,42 +65,42 @@ describe('workspace and team policies', () => {
   })
 })
 
-describe('team visibility and members', () => {
-  it('shows a team to its members and to owners and admins, and hides it from other members', () => {
-    expect(canSeeTeam(actor('member', false, true))).toEqual({ allow: true })
-    expect(canSeeTeam(actor('owner', false, false))).toEqual({ allow: true })
-    expect(canSeeTeam(actor('admin', false, false))).toEqual({ allow: true })
-    expect(canSeeTeam(actor('member', false, false))).toEqual({
+describe('project visibility and members', () => {
+  it('shows a project to its members and to owners and admins, and hides it from other members', () => {
+    expect(canSeeProject(actor('member', false, true))).toEqual({ allow: true })
+    expect(canSeeProject(actor('owner', false, false))).toEqual({ allow: true })
+    expect(canSeeProject(actor('admin', false, false))).toEqual({ allow: true })
+    expect(canSeeProject(actor('member', false, false))).toEqual({
       allow: false,
       reason: 'not-member',
     })
-    expect(canReadTeam(actor('member', false, false))).toEqual({
+    expect(canReadProject(actor('member', false, false))).toEqual({
       allow: false,
       reason: 'not-member',
     })
-    expect(canSeeTeam({ userId: 'u1', instanceAdmin: false, role: 'member' })).toEqual({
+    expect(canSeeProject({ userId: 'u1', instanceAdmin: false, role: 'member' })).toEqual({
       allow: false,
       reason: 'not-member',
     })
   })
 
-  it('answers a member of a hidden team as for a team that does not exist, even on a manage check', () => {
+  it('answers a member of a hidden project as for a project that does not exist, even on a manage check', () => {
     const hidden = actor('member', false, false)
-    expect(canWriteTeam(hidden)).toEqual({ allow: false, reason: 'not-member' })
-    expect(canAddTeamMembers(hidden)).toEqual({ allow: false, reason: 'not-member' })
-    expect(canRemoveTeamMember(hidden, 'u1')).toEqual({ allow: false, reason: 'not-member' })
+    expect(canWriteProject(hidden)).toEqual({ allow: false, reason: 'not-member' })
+    expect(canAddProjectMembers(hidden)).toEqual({ allow: false, reason: 'not-member' })
+    expect(canRemoveProjectMember(hidden, 'u1')).toEqual({ allow: false, reason: 'not-member' })
   })
 
   it('lets owners and admins add anyone and remove anyone; members only leave', () => {
     for (const role of ['owner', 'admin']) {
-      expect(canAddTeamMembers(actor(role, false, false))).toEqual({ allow: true })
-      expect(canRemoveTeamMember(actor(role, false, false), 'someone-else')).toEqual({
+      expect(canAddProjectMembers(actor(role, false, false))).toEqual({ allow: true })
+      expect(canRemoveProjectMember(actor(role, false, false), 'someone-else')).toEqual({
         allow: true,
       })
     }
-    expect(canAddTeamMembers(actor('member'))).toEqual({ allow: false, reason: 'not-manager' })
-    expect(canRemoveTeamMember(actor('member'), 'u1')).toEqual({ allow: true })
-    expect(canRemoveTeamMember(actor('member'), 'u2')).toEqual({
+    expect(canAddProjectMembers(actor('member'))).toEqual({ allow: false, reason: 'not-manager' })
+    expect(canRemoveProjectMember(actor('member'), 'u1')).toEqual({ allow: true })
+    expect(canRemoveProjectMember(actor('member'), 'u2')).toEqual({
       allow: false,
       reason: 'not-manager',
     })
@@ -108,22 +108,22 @@ describe('team visibility and members', () => {
 })
 
 describe('assertAllowed', () => {
-  const messages = { notFound: 'Team not found', forbidden: 'Only owners and admins' }
+  const messages = { notFound: 'Project not found', forbidden: 'Only owners and admins' }
 
   it('does nothing when allowed', () => {
-    expect(() => assertAllowed(canWriteTeam(actor('owner')), messages)).not.toThrow()
+    expect(() => assertAllowed(canWriteProject(actor('owner')), messages)).not.toThrow()
   })
 
   it('throws NotFoundError (404 semantics) for a non-member, even on a manage check', () => {
-    expect(() => assertAllowed(canWriteTeam(actor(undefined)), messages)).toThrow(
-      new NotFoundError('Team not found'),
+    expect(() => assertAllowed(canWriteProject(actor(undefined)), messages)).toThrow(
+      new NotFoundError('Project not found'),
     )
-    expect(() => assertAllowed(canWriteTeam(actor(undefined)), messages)).toThrow(NotFoundError)
+    expect(() => assertAllowed(canWriteProject(actor(undefined)), messages)).toThrow(NotFoundError)
   })
 
   it('throws ForbiddenError (403 semantics) for a member without the role', () => {
-    expect(() => assertAllowed(canWriteTeam(actor('member')), messages)).toThrow(ForbiddenError)
-    expect(() => assertAllowed(canWriteTeam(actor('member')), messages)).toThrow(
+    expect(() => assertAllowed(canWriteProject(actor('member')), messages)).toThrow(ForbiddenError)
+    expect(() => assertAllowed(canWriteProject(actor('member')), messages)).toThrow(
       'Only owners and admins',
     )
   })

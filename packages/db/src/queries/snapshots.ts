@@ -10,7 +10,7 @@ import {
   screenshotDiffs,
   screenshots,
   snapshotReviews,
-  teams,
+  projects,
   user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -55,13 +55,13 @@ export const SNAPSHOT_HISTORY_MAX = 20
 
 /**
  * The last `limit` builds (default 5, at most 20) that have a snapshot called `name`, on the
- * team's default branch and, when `branch` differs from it, on that branch too. With `build`
+ * project's default branch and, when `branch` differs from it, on that branch too. With `build`
  * the default branch list is anchored there: it starts at that build (a triage item's own).
  */
 export async function getSnapshotHistory(
   db: Database,
   input: {
-    teamId: string
+    projectId: string
     name: string
     branch?: string | null
     limit?: number
@@ -69,8 +69,8 @@ export async function getSnapshotHistory(
     build?: number
   },
 ): Promise<getSnapshotHistory.Result | undefined> {
-  const [team] = await db.select().from(teams).where(eq(teams.id, input.teamId))
-  if (!team) return undefined
+  const [project] = await db.select().from(projects).where(eq(projects.id, input.projectId))
+  if (!project) return undefined
   const limit = Math.min(Math.max(Math.trunc(input.limit ?? 5), 1), SNAPSHOT_HISTORY_MAX)
 
   const head = aliasedTable(screenshots, 'head')
@@ -102,7 +102,7 @@ export async function getSnapshotHistory(
       .leftJoin(baseFile, eq(baseFile.sha256, base.fileSha256))
       .where(
         and(
-          eq(builds.teamId, team.id),
+          eq(builds.projectId, project.id),
           eq(builds.branch, branch),
           eq(screenshotDiffs.name, input.name),
           upTo === undefined ? undefined : lte(builds.number, upTo),
@@ -135,10 +135,10 @@ export async function getSnapshotHistory(
     })
   }
 
-  const viewed = input.branch && input.branch !== team.defaultBranch ? input.branch : null
+  const viewed = input.branch && input.branch !== project.defaultBranch ? input.branch : null
   return {
-    defaultBranch: team.defaultBranch,
-    default: await onBranch(team.defaultBranch, input.build),
+    defaultBranch: project.defaultBranch,
+    default: await onBranch(project.defaultBranch, input.build),
     branch: viewed ? await onBranch(viewed) : null,
   }
 }

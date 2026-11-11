@@ -88,7 +88,7 @@ export namespace ReasonDialog {
     confirmLabel: string
     /** Shown when the reason is empty after the field was touched. */
     invalidMessage: string
-    /** Whether the reason must be filled in (default); a team can make it optional. */
+    /** Whether the reason must be filled in (default); a project can make it optional. */
     required?: boolean
     /** Shown under the field while it is valid (the shortcut, for example). */
     hint?: ReactNode

@@ -242,7 +242,7 @@ describe('onlyFlakyChanges', () => {
   })
 })
 
-describe('the team threshold', () => {
+describe('the project threshold', () => {
   it('is 2 to 8 flip-flops: one is a normal revert, more than the window allows never happens', () => {
     for (const ok of [2, 3, 8]) expect(() => assertFlakyAfterChanges(ok)).not.toThrow()
     for (const bad of [0, 1, 9, 10, 2.5])

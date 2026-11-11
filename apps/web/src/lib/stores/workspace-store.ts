@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { create } from 'zustand'
 
 import { readRememberedWorkspace, rememberWorkspace } from '#app/shell-model.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 
 /**
  * The workspace the person chose in this tab (the switcher's choice), shared by the sidebar, the
- * settings nav, the Teams page and the shortcuts. Also kept in the browser as the fallback for when
+ * settings nav, the Projects page and the shortcuts. Also kept in the browser as the fallback for when
  * the account's remembered workspace (on the server) isn't there to read yet.
  */
 export const useWorkspaceStore = create<WorkspaceStore.State & WorkspaceStore.Actions>()((set) => ({

@@ -28,8 +28,8 @@ function recorded<T>(data: unknown): T {
  * or dismissing, reading, removing, asking for a review. `id` is the token the action returned.
  *
  * - Only the person who did it (`ForbiddenError` otherwise).
- * - Scoped like the action: a team's actions through that team (`teamId`), the inbox's with no
- *   team; anything else is "not found".
+ * - Scoped like the action: a project's actions through that project (`projectId`), the inbox's with no
+ *   project; anything else is "not found".
  * - Once (`ConflictError` when it was already undone), and only while the token lasts
  *   (`UNDO_WINDOW_MS`, `ConflictError` after).
  * - Only while nothing newer changed the same thing (`ConflictError`, and the message says so).
@@ -39,19 +39,19 @@ function recorded<T>(data: unknown): T {
  */
 export async function undoAction(
   db: Database,
-  input: { id: string; userId: string; teamId: string | null; now?: Date },
+  input: { id: string; userId: string; projectId: string | null; now?: Date },
 ): Promise<{ kind: UndoAction['kind'] }> {
   const now = input.now ?? new Date()
   return db.transaction(async (tx) => {
     const row = await lockUndoAction(tx, input.id)
-    if (!row || row.teamId !== input.teamId) throw new NotFoundError('Nothing to undo')
+    if (!row || row.projectId !== input.projectId) throw new NotFoundError('Nothing to undo')
     if (row.userId !== input.userId) throw new ForbiddenError('Only the person who did it can undo')
     if (row.usedAt) throw new ConflictError('Already undone')
     if (row.expiresAt.getTime() < now.getTime()) {
       throw new ConflictError("It's too late to undo that")
     }
     const data = row.data
-    const teamId = row.teamId ?? ''
+    const projectId = row.projectId ?? ''
     switch (row.kind) {
       case 'build_review':
         await undoBuildReview(tx, recorded<BuildReviewUndo>(data))
@@ -61,14 +61,14 @@ export async function undoAction(
         break
       case 'request_review':
         await undoRequestReview(tx, recorded<RequestReviewUndo>(data), {
-          teamId,
+          projectId,
           userId: row.userId,
         })
         break
       case 'triage_assign':
       case 'triage_snooze':
       case 'triage_dismiss':
-        await undoTriage(tx, recorded<TriageUndo>(data), teamId)
+        await undoTriage(tx, recorded<TriageUndo>(data), projectId)
         break
       case 'notice_read':
       case 'notice_snooze':

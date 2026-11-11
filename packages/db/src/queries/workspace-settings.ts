@@ -1,22 +1,22 @@
 import {
   DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL,
   DEFAULT_FLAKY_BLOCKS_MERGE,
-  type TeamColor,
+  type ProjectColor,
 } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
-import { teams, workspaceSettings } from '#schema/index.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { projects, workspaceSettings } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
-/** A workspace's defaults for its teams (a team may override each one). */
+/** A workspace's defaults for its projects (a project may override each one). */
 
 export interface WorkspaceSettings {
   /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
   flakyBlocksMerge: boolean
   /** Whether new triage items are assigned to whoever is on triage. */
   assignTriageToOnCall: boolean
-  /** Retention in days that a new team starts with; teams already made keep their own. */
+  /** Retention in days that a new project starts with; projects already made keep their own. */
   retentionDays: number
 }
 
@@ -46,17 +46,17 @@ export async function getWorkspaceSettings(
     : DEFAULTS
 }
 
-/** Each team's own flaky-gate and triage-assignment settings: null when it inherits the workspace's default. */
-export async function listTeamFlakyOverrides(
+/** Each project's own flaky-gate and triage-assignment settings: null when it inherits the workspace's default. */
+export async function listProjectFlakyOverrides(
   db: Database,
   workspaceId: string,
-  /** Lists only the teams this person may see. */
+  /** Lists only the projects this person may see. */
   viewerId?: string,
 ): Promise<
   {
     slug: string
     name: string
-    color: TeamColor
+    color: ProjectColor
     icon: string | null
     flakyBlocksMerge: boolean | null
     assignTriageToOnCall: boolean | null
@@ -64,19 +64,19 @@ export async function listTeamFlakyOverrides(
 > {
   return db
     .select({
-      slug: teams.slug,
-      name: teams.name,
-      color: teams.color,
-      icon: teams.icon,
-      flakyBlocksMerge: teams.flakyBlocksMerge,
-      assignTriageToOnCall: teams.assignTriageToOnCall,
+      slug: projects.slug,
+      name: projects.name,
+      color: projects.color,
+      icon: projects.icon,
+      flakyBlocksMerge: projects.flakyBlocksMerge,
+      assignTriageToOnCall: projects.assignTriageToOnCall,
     })
-    .from(teams)
+    .from(projects)
     .where(
       and(
-        eq(teams.workspaceId, workspaceId),
-        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+        eq(projects.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : projectVisibleTo(viewerId, projects),
       ),
     )
-    .orderBy(asc(teams.name))
+    .orderBy(asc(projects.name))
 }

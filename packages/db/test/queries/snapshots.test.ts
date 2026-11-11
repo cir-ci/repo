@@ -1,4 +1,4 @@
-import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getSnapshotHistory } from '#src/queries/index.ts'
@@ -13,7 +13,7 @@ afterAll(async () => {
 
 describe('getSnapshotHistory', () => {
   it('lists the newest builds with the snapshot, per branch, newest first', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const numbers: Record<string, number[]> = { main: [], feature: [] }
     for (const [branch, name, status] of [
       ['main', 'checkout/home', 'unchanged'],
@@ -24,14 +24,14 @@ describe('getSnapshotHistory', () => {
       ['feature', 'checkout/home', 'unchanged'],
     ] as const) {
       // oxlint-disable-next-line no-await-in-loop -- ordered fixture
-      const build = await seedBuild(t.db, team.id, { branch, status: 'complete' })
+      const build = await seedBuild(t.db, project.id, { branch, status: 'complete' })
       // oxlint-disable-next-line no-await-in-loop -- ordered fixture
       await seedDiff(t.db, { buildId: build.id, name, status })
       if (name === 'checkout/home') numbers[branch]?.push(build.number)
     }
 
     const both = await getSnapshotHistory(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       name: 'checkout/home',
       branch: 'feature',
     })
@@ -46,7 +46,7 @@ describe('getSnapshotHistory', () => {
     expect(both?.default[0]?.build).toMatchObject({ branch: 'main', status: 'complete' })
 
     const anchored = await getSnapshotHistory(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       name: 'checkout/home',
       build: numbers.main?.[1] ?? 0,
     })
@@ -56,21 +56,26 @@ describe('getSnapshotHistory', () => {
     ])
 
     const limited = await getSnapshotHistory(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       name: 'checkout/home',
       limit: 2,
     })
     expect(limited?.default).toHaveLength(2)
     expect(limited?.branch).toBeNull()
     const sameAsDefault = await getSnapshotHistory(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       name: 'checkout/home',
       branch: 'main',
     })
     expect(sameAsDefault?.branch).toBeNull()
-    expect((await getSnapshotHistory(t.db, { teamId: team.id, name: 'nope' }))?.default).toEqual([])
     expect(
-      await getSnapshotHistory(t.db, { teamId: '00000000-0000-0000-0000-000000000000', name: 'x' }),
+      (await getSnapshotHistory(t.db, { projectId: project.id, name: 'nope' }))?.default,
+    ).toEqual([])
+    expect(
+      await getSnapshotHistory(t.db, {
+        projectId: '00000000-0000-0000-0000-000000000000',
+        name: 'x',
+      }),
     ).toBeUndefined()
   })
 })

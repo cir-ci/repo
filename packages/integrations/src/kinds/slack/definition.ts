@@ -14,7 +14,7 @@ import {
 } from './messages.ts'
 
 /**
- * Slack: install the CirCI Slack app into a workspace (OAuth v2), then each team sends the
+ * Slack: install the CirCI Slack app into a workspace (OAuth v2), then each project sends the
  * notices it chooses to one channel. The bot token is the credential (sealed as is). The client
  * and the message builders are in `client.ts` and `messages.ts` beside it; this file only wires them to the SDK.
  */
@@ -63,7 +63,7 @@ export const slack = defineIntegration({
   id: 'slack',
   group: 'chat',
   name: 'Slack',
-  description: 'Review requested, overdue and rejected notices in a channel per team.',
+  description: 'Review requested, overdue and rejected notices in a channel per project.',
   logo: 'slack',
   // Nothing to type: the workspace is connected by installing the app.
   credentials: z.object({}),
@@ -123,7 +123,7 @@ export const slack = defineIntegration({
 
   mapping: {
     description:
-      'Choose a channel for each team and which events it hears about. A team without a channel sends nothing.',
+      'Choose a channel for each project and which events it hears about. A project without a channel sends nothing.',
     target: {
       label: 'Channel',
       kind: 'select',

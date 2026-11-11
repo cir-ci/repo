@@ -17,16 +17,16 @@ acme ▾                       +
 Search                     ⌘K
 Inbox                       3      notifications for you
 Reviews                     4      builds waiting on your review
-Teams
+Projects
 Insights
-Settings                           account · workspace · team, one tree
+Settings                           account · workspace · project, one tree
 Your views
   Failing on main                  saved views, pinned
   My open PRs
-Teams
+Projects
   web-app
     Builds
-    Triage                  3      per-team queue
+    Triage                  3      per-project queue
     Baselines
     Settings
   storybook
@@ -42,18 +42,18 @@ for Inbox and Reviews, neutral for Triage.
 | # | Feature (Linear) | CirCI screen | Board | Backend it needs |
 |---|---|---|---|---|
 | 1 | Inbox | Notifications: review requested / re-requested, @mention, your build approved or rejected (with reason), review overdue, GitHub app broken, flaky detected. Tabs For you / Everything; read, snooze, delete | `Inbox.dc.html` | `notifications` table written inside the services' transactions (outbox), worker job for email |
-| 2 | Triage + responsibility | Per-team queue: Flaky, No baseline, Failed, Integration. Accept as baseline, add ignore region, assign, snooze, dismiss. "On triage" rotation | `Triage.dc.html` | read model in `db/queries`; ignore-region writes from the web (today CLI only); `triage_snoozes`; rotation on the team |
-| 3 | Command menu ⌘K + quick look | Jump to `#148`, branch, PR, team; actions in context; quick look on → | `Command.dc.html` | one search endpoint in `db/queries`; the rest is web |
+| 2 | Triage + responsibility | Per-project queue: Flaky, No baseline, Failed, Integration. Accept as baseline, add ignore region, assign, snooze, dismiss. "On triage" rotation | `Triage.dc.html` | read model in `db/queries`; ignore-region writes from the web (today CLI only); `triage_snoozes`; rotation on the project |
+| 3 | Command menu ⌘K + quick look | Jump to `#148`, branch, PR, project; actions in context; quick look on → | `Command.dc.html` | one search endpoint in `db/queries`; the rest is web |
 | 4 | Filters, Display options, Custom views | Builds list: filter chips (status, branch, author, reviewer, build name, date), display popover (group, order, properties), Save view → sidebar | `BuildsViews.dc.html` | query params on the builds query (PLAN §7.5); `saved_views` table later, URL-encoded filters first |
 | 5 | Peek, bulk actions | Space previews a build; X selects; bottom bar Approve / Reject / Request review | `BuildsViews.dc.html` | loop over `reviewBuild` in one service call |
 | 6 | Comments, @mentions, activity | Build review sidebar tabs Details / Activity / Comments; comments pinned to a snapshot region; reject asks for a reason | `Activity.dc.html` | `comments` table, mentions feed notifications; timeline reads `reviews.source`, `build_checks`, jobs |
 | 7 | Reviews (Diffs) | A new Reviews page (`apps/web` has none yet): For you, Created by you and Snoozed tabs, overdue badge, the one snooze menu, superseded requests closed | `Reviews.dc.html` | `review_requests` table + `requestReview` service; build author from CI or the GitHub user |
-| 8 | Triage rules / assignment | Review rules: snapshot-name or build-name patterns → reviewers; fallback rotation | `ReviewSettings.dc.html` | `review_rules` on the team, resolved in `finalizeBuild` |
-| 9 | Review target (SLAs) | A review target per team (24h by default); a missed one shows "Overdue Xh" in Reviews and Inbox and can escalate to someone | `ReviewSettings.dc.html`, Reviews, Inbox | rule in `@circi/core`, team setting, worker sweep |
+| 8 | Triage rules / assignment | Review rules: snapshot-name or build-name patterns → reviewers; fallback rotation | `ReviewSettings.dc.html` | `review_rules` on the project, resolved in `finalizeBuild` |
+| 9 | Review target (SLAs) | A review target per project (24h by default); a missed one shows "Overdue Xh" in Reviews and Inbox and can escalate to someone | `ReviewSettings.dc.html`, Reviews, Inbox | rule in `@circi/core`, project setting, worker sweep |
 | 10 | Auto-close | Close review requests when a newer build on the same branch arrives (PLAN §7.4 "superseded") | `ReviewSettings.dc.html`, Reviews | service-side, in `finalizeBuild` |
-| 11 | Subscriptions, Slack | Watch a team or branch; webhook payload format Slack | `BuildsViews.dc.html` (Watch), `ReviewSettings.dc.html` (format) | `subscriptions` table; Slack formatter beside webhook signing |
-| 12 | Settings structure | One settings sub-nav: Account · Workspace · Team | `ReviewSettings.dc.html` | design only |
-| 13 | Insights | Time to review, builds reviewed, change rate, flaky trend, storage per team, reviewer load | `Insights.dc.html` | aggregate queries (PLAN M4 storage page and metrics) |
+| 11 | Subscriptions, Slack | Watch a project or branch; webhook payload format Slack | `BuildsViews.dc.html` (Watch), `ReviewSettings.dc.html` (format) | `subscriptions` table; Slack formatter beside webhook signing |
+| 12 | Settings structure | One settings sub-nav: Account · Workspace · Project | `ReviewSettings.dc.html` | design only |
+| 13 | Insights | Time to review, builds reviewed, change rate, flaky trend, storage per project, reviewer load | `Insights.dc.html` | aggregate queries (PLAN M4 storage page and metrics) |
 | 14 | Keyboard shortcuts help | `?` opens every shortcut, grouped | `Shortcuts.dc.html` | design only (remaining-work §3) |
 
 ## Keyboard map (one table, used by every board)
@@ -62,7 +62,7 @@ for Inbox and Reviews, neutral for Triage.
 |---|---|---|
 | ⌘K | everywhere | command menu |
 | ? | everywhere | shortcuts help |
-| G I · G R · G P · G T · G S | everywhere | go to Inbox, Reviews, Teams, Triage, Settings |
+| G I · G R · G P · G T · G S | everywhere | go to Inbox, Reviews, Projects, Triage, Settings |
 | J / K | lists | move |
 | ↵ | lists | open |
 | Space | lists | peek |
@@ -98,7 +98,7 @@ The order below was the design order. The build order is in `docs/plans/next-ste
   their linked sign-in account.
 - **Email:** in-app by default. Email only for "review requested" and "overdue", only when SMTP is
   configured, and each user can turn it off.
-- **Triage rotation:** per team (Triage itself is per team; workspace-wide problems go
+- **Triage rotation:** per project (Triage itself is per project; workspace-wide problems go
   to the Inbox and a workspace banner).
 - **After approving from Inbox or Reviews:** move to the next item.
 
@@ -107,17 +107,17 @@ The order below was the design order. The build order is in `docs/plans/next-ste
 Design: canvas › Screens › "7 · Integrations" (Integrations, the Add dialog, Figma integration,
 Build review · Design mode, each with a light twin). Nothing is built.
 
-Integrations belong to the **workspace**; teams have no integration settings of their own
-(the team's "GitHub" settings item goes away). Workspace settings › **Integrations** lists only
+Integrations belong to the **workspace**; projects have no integration settings of their own
+(the project's "GitHub" settings item goes away). Workspace settings › **Integrations** lists only
 the integrations that have been added, grouped by kind, each with its provider's logo.
 **Add integration** opens a dialog listing every available integration (searchable, filterable by
 group); adding one connects it and puts it on the list. Each integration's own page maps it to
-teams: which repository, channel, tracker team or Figma file each team uses.
+projects: which repository, channel, tracker project or Figma file each project uses.
 
 | Group | Providers | What CirCI does |
 |---|---|---|
-| Git hosts | GitHub (exists), GitLab, Bitbucket, Azure DevOps | Build status on the PR/MR, one summary comment, sign-in with the host account. One repository per team. |
-| Chat | Slack, Microsoft Teams | Review requested, overdue and rejected events to a channel per team (replaces the Slack webhook format). |
+| Git hosts | GitHub (exists), GitLab, Bitbucket, Azure DevOps | Build status on the PR/MR, one summary comment, sign-in with the host account. One repository per project. |
+| Chat | Slack, Microsoft Teams | Review requested, overdue and rejected events to a channel per project (replaces the Slack webhook format). |
 | Design tools | Figma (Penpot planned) | See below. |
 | Issue trackers | Linear, Jira | "Create issue" on a rejected snapshot, with the diff attached; the build links to the issue. |
 
@@ -140,9 +140,9 @@ teams: which repository, channel, tracker team or Figma file each team uses.
 - `packages/db`: widen `GIT_PROVIDER_KINDS`; `provider_connections.installation_id` becomes a
   generic external id plus encrypted credentials for token-based hosts. New `integrations` table
   for non-git connections (kind, workspace, credentials, needs-attention, as git connections have),
-  `integration_teams` (integration, team, external ref: repository, channel, tracker team or
-  Figma file; owned by the workspace's integration, not the team), and
-  `figma_links` (team, snapshot name pattern, Figma file/node id, how linked).
+  `integration_projects` (integration, project, external ref: repository, channel, tracker project or
+  Figma file; owned by the workspace's integration, not the project), and
+  `figma_links` (project, snapshot name pattern, Figma file/node id, how linked).
 - `packages/services`: Figma comment posting and chat/issue notices go through the existing outbox,
   queued in `reviewBuild` / `completeBuild`, like webhooks today.
 - `apps/worker`: a Figma render job (export a frame as PNG at the snapshot's size, cache by the

@@ -1,14 +1,14 @@
 import type { Site } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { teamPath } from '#lib/api-paths.ts'
+import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { keys } from '#lib/query-keys.ts'
 
-export const teamSitesQuery = (workspace: string, team: string) =>
+export const projectsitesQuery = (workspace: string, project: string) =>
   queryOptions({
-    queryKey: keys.sites(workspace, team),
-    queryFn: () => getJson<Site.List>(teamPath(workspace, team, 'sites')),
+    queryKey: keys.sites(workspace, project),
+    queryFn: () => getJson<Site.List>(projectPath(workspace, project, 'sites')),
   })
 
 /** Asks for access to one site address; the answer says where to go to open it. */
@@ -22,10 +22,10 @@ export const formatSize = (bytes: number) =>
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 /** Sets, checks and removes one site's custom domain; each refreshes the sites list. */
-export function useCustomDomain(workspace: string, team: string, site: string) {
+export function useCustomDomain(workspace: string, project: string, site: string) {
   const queryClient = useQueryClient()
-  const path = teamPath(workspace, team, 'sites', site, 'domain')
-  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.sites(workspace, team) })
+  const path = projectPath(workspace, project, 'sites', site, 'domain')
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.sites(workspace, project) })
   return {
     set: useMutation({
       meta: { what: 'save the domain' },

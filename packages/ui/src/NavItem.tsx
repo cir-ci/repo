@@ -69,7 +69,7 @@ export namespace NavItem {
     selected?: boolean
     /** A sub-item: 28px tall, indented under its parent. */
     sub?: boolean
-    /** A "more" row ("All teams"): 28px, 13px secondary text, no icon, its label aligned with the items' labels. */
+    /** A "more" row ("All projects"): 28px, 13px secondary text, no icon, its label aligned with the items' labels. */
     more?: boolean
   }
 }

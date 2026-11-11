@@ -1,6 +1,6 @@
 import { reviewDueAt, reviewersForBuild, rotationFor } from '@circi/core'
-import { type Build, type Database, type ReviewRequest, type Team } from '@circi/db'
-import { getTeamById, isTeamMember, listStalledBuilds } from '@circi/db/queries'
+import { type Build, type Database, type ReviewRequest, type Project } from '@circi/db'
+import { getProjectById, isProjectMember, listStalledBuilds } from '@circi/db/queries'
 import { enqueueJob, QUEUES, queueGitNotify, queueWebhookEvent } from '@circi/db/queue'
 import {
   closeReviewRequestsForBuild,
@@ -35,7 +35,7 @@ import { autoAssignAfterBuild } from '#src/triage/auto-assign.ts'
 /**
  * Stores one shard's screenshots; once the last shard is in, queues the build for diffing,
  * closes review requests on older builds of the same branch as superseded, and asks the people
- * the team's review rules name (else this week's person on triage) to review the build.
+ * the project's review rules name (else this week's person on triage) to review the build.
  */
 export async function finalizeBuild(
   db: Database,
@@ -51,21 +51,21 @@ export async function finalizeBuild(
         dedupeKey: result.build.id,
       })
       await queueGitNotify(tx, result.build, integrationRegistry.gitKinds())
-      const team = await getTeamById(tx, result.build.teamId)
+      const project = await getProjectById(tx, result.build.projectId)
       let superseded: ReviewRequest[] = []
-      // A newer build on the branch replaces the older builds' review requests (unless the team
+      // A newer build on the branch replaces the older builds' review requests (unless the project
       // keeps them open).
-      if (team?.closeReviewsOnNewerBuild !== false && result.build.branch !== null) {
+      if (project?.closeReviewsOnNewerBuild !== false && result.build.branch !== null) {
         superseded = await supersedeReviewRequests(tx, {
-          teamId: result.build.teamId,
+          projectId: result.build.projectId,
           branch: result.build.branch,
           beforeNumber: result.build.number,
         })
         await clearRequestNotices(tx, superseded)
       }
-      if (team) {
-        await requestRuleReviewers(tx, team, result.build, options.now ?? new Date(), {
-          reRequest: team.reRequestOnNewerBuild ? superseded : [],
+      if (project) {
+        await requestRuleReviewers(tx, project, result.build, options.now ?? new Date(), {
+          reRequest: project.reRequestOnNewerBuild ? superseded : [],
         })
       }
     }
@@ -73,18 +73,18 @@ export async function finalizeBuild(
   })
 }
 /**
- * Opens a review request (asked by nobody: the system) for each reviewer the team's rules
+ * Opens a review request (asked by nobody: the system) for each reviewer the project's rules
  * name for this build, once each. A build no rule matches goes to whoever is on triage this
- * week, if the team has a rotation; with neither, nobody is asked.
+ * week, if the project has a rotation; with neither, nobody is asked.
  */
 async function requestRuleReviewers(
   db: Database,
-  team: Team,
+  project: Project,
   build: Build,
   now: Date,
   options: { reRequest: ReviewRequest[] },
 ): Promise<void> {
-  const rules = await listRulesForResolution(db, team.id)
+  const rules = await listRulesForResolution(db, project.id)
   let reviewerIds =
     rules.length === 0
       ? []
@@ -93,20 +93,20 @@ async function requestRuleReviewers(
           snapshotNames: await listScreenshotNames(db, build.id),
         })
   if (reviewerIds.length === 0) {
-    const rotation = await getRotationForResolution(db, team.id)
+    const rotation = await getRotationForResolution(db, project.id)
     const onTriage = rotation ? rotationFor(now, rotation.memberIds, rotation.startsOn) : null
     reviewerIds = onTriage ? [onTriage] : []
   }
-  const dueAt = reviewDueAt(now, team.reviewTargetHours)
+  const dueAt = reviewDueAt(now, project.reviewTargetHours)
   // The people someone asked on the closed requests, asked again by the same person (with the
-  // team's setting), if they still belong to the team and didn't write the build. Requests a rule
+  // project's setting), if they still belong to the project and didn't write the build. Requests a rule
   // or the rotation made aren't repeated: the rules above already chose for this build.
   const again = new Map<string, string>()
   for (const old of options.reRequest) {
     if (old.requestedById === null || again.has(old.reviewerId)) continue
     if (old.reviewerId === build.authorUserId) continue
     // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
-    if (await isTeamMember(db, team.id, old.reviewerId))
+    if (await isProjectMember(db, project.id, old.reviewerId))
       again.set(old.reviewerId, old.requestedById)
   }
   const asked = [
@@ -161,10 +161,10 @@ export async function completeBuild(
   await db.transaction(async (tx) => {
     const done = await setBuildResult(tx, build, result)
     // Nothing to review (no changes, or approved on its own): requests made at upload close. A
-    // team that doesn't approve no-change builds on their own keeps those requests open.
-    const team = await getTeamById(tx, done.teamId)
+    // project that doesn't approve no-change builds on their own keeps those requests open.
+    const project = await getProjectById(tx, done.projectId)
     const waitsForApproval =
-      done.conclusion === 'no_changes' && team?.autoApproveNoChanges === false
+      done.conclusion === 'no_changes' && project?.autoApproveNoChanges === false
     if (
       !waitsForApproval &&
       (done.conclusion === 'no_changes' || done.reviewStatus === 'approved')
@@ -243,19 +243,19 @@ export interface AuthorClaim {
 }
 
 /**
- * The member an author is: the one user of the team's workspace whose linked sign-in
+ * The member an author is: the one user of the project's workspace whose linked sign-in
  * account has the claimed provider id, else the one whose verified email matches. No match, or
  * more than one, gives null: a wrong guess would show someone else's name on a build.
  */
 export async function matchAuthor(
   db: Database,
-  teamId: string,
+  projectId: string,
   claim: AuthorClaim,
 ): Promise<string | null> {
   if (claim.providerId) {
     const byAccount = await findMembersByAccount(
       db,
-      teamId,
+      projectId,
       claim.provider ?? 'github',
       claim.providerId,
     )
@@ -263,7 +263,7 @@ export async function matchAuthor(
     if (byAccount.length > 1) return null
   }
   if (claim.email) {
-    const byEmail = await findMembersByVerifiedEmail(db, teamId, claim.email)
+    const byEmail = await findMembersByVerifiedEmail(db, projectId, claim.email)
     if (byEmail.length === 1) return byEmail[0] ?? null
   }
   return null
@@ -278,7 +278,7 @@ export async function startBuild(
   if (!author || (!author.login && !author.email && !author.providerId)) {
     return createBuild(db, rest)
   }
-  const userId = await matchAuthor(db, input.teamId, author)
+  const userId = await matchAuthor(db, input.projectId, author)
   return createBuild(db, {
     ...rest,
     author: { login: author.login ?? null, email: author.email ?? null, userId },
@@ -292,7 +292,7 @@ export async function startBuild(
 export async function recordPullRequestAuthor(
   db: Database,
   input: {
-    teamId: string
+    projectId: string
     prNumber: number
     login: string
     providerId?: string | null
@@ -300,12 +300,12 @@ export async function recordPullRequestAuthor(
     provider?: string
   },
 ): Promise<number> {
-  const userId = await matchAuthor(db, input.teamId, {
+  const userId = await matchAuthor(db, input.projectId, {
     provider: input.provider ?? 'github',
     providerId: input.providerId ?? null,
   })
   return setPullRequestAuthor(db, {
-    teamId: input.teamId,
+    projectId: input.projectId,
     prNumber: input.prNumber,
     login: input.login,
     userId,

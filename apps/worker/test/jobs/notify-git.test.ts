@@ -1,5 +1,5 @@
 import { type Job } from '@circi/db'
-import { getTeamGitAttention } from '@circi/db/queries'
+import { getProjectGitAttention } from '@circi/db/queries'
 import {
   claimJob,
   completeJob,
@@ -7,7 +7,7 @@ import {
   getCheckRunId,
   getPrCommentId,
 } from '@circi/db/queue'
-import { createBuild, setWorkspaceSettings, updateTeamSettings } from '@circi/db/repositories'
+import { createBuild, setWorkspaceSettings, updateProjectsettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
   createTestDb,
@@ -16,7 +16,7 @@ import {
   seedDiff,
   seedFlipFlops,
   seedGitLink,
-  seedTeam,
+  seedProject,
   seedChangedSnapshots,
 } from '@circi/db/testing'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
@@ -43,10 +43,10 @@ async function nextJob(): Promise<Job> {
 
 async function linkedBuild(prNumber: number | null) {
   await t.db.delete(schema.jobs)
-  const { team, owner } = await seedTeam(t.db)
-  await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
+  const { project, owner } = await seedProject(t.db)
+  await seedGitLink(t.db, project.id, { externalId: '99', repoRef: 'acme/web' })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'feature',
     ...(prNumber ? { prNumber } : {}),
@@ -55,7 +55,7 @@ async function linkedBuild(prNumber: number | null) {
     .update(schema.builds)
     .set({ status: 'processing' })
     .where(eq(schema.builds.id, build.id))
-  return { team, owner, build: { ...build, status: 'processing' as const } }
+  return { project, owner, build: { ...build, status: 'processing' as const } }
 }
 
 const publicOrigin = 'https://ci.acme.io'
@@ -64,7 +64,7 @@ const revoked = () =>
 
 async function setup() {
   const linked = await linkedBuild(null)
-  await seedGitLink(t.db, linked.team.id, { externalId: '77', repoRef: 'acme/web' })
+  await seedGitLink(t.db, linked.project.id, { externalId: '77', repoRef: 'acme/web' })
   await completeBuild(t.db, linked.build, { conclusion: 'no_changes', approval: 'none' })
   return linked
 }
@@ -85,10 +85,10 @@ const sitesDeps = {
 /** A PR build with two changed snapshots, complete, its notify job queued and waiting. */
 async function reviewableBuild(prNumber: number, commitSha = 'abc1234') {
   await t.db.delete(schema.jobs)
-  const { team, owner } = await seedTeam(t.db)
-  await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
+  const { project, owner } = await seedProject(t.db)
+  await seedGitLink(t.db, project.id, { externalId: '99', repoRef: 'acme/web' })
   const created = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha,
     branch: 'feature',
     prNumber,
@@ -106,7 +106,7 @@ async function reviewableBuild(prNumber: number, commitSha = 'abc1234') {
       approval: 'none',
     },
   )
-  return { team, owner, build: created }
+  return { project, owner, build: created }
 }
 
 /** Queues a notice by hand, for a second look at the comment after the state changed. */
@@ -127,11 +127,11 @@ async function runNext(deps: Omit<notifyGit.Deps, 'db' | 'publicOrigin'> & objec
 
 describe('the pull request comment', () => {
   it('lists the sites uploaded for the head commit, and is rewritten when one is uploaded later', async () => {
-    const { team, build } = await reviewableBuild(5, 'abcdef012345')
+    const { project, build } = await reviewableBuild(5, 'abcdef012345')
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ staticHostingEnabled: true })
-      .where(eq(schema.teams.id, team.id))
+      .where(eq(schema.projects.id, project.id))
     const fake = recordingGithub()
     const deps = { github: fake.github, sites: sitesDeps }
 
@@ -139,7 +139,7 @@ describe('the pull request comment', () => {
     expect(fake.comments[0]?.body).not.toContain('Hosted sites')
 
     await publishSite(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       name: 'ui-sb',
       kind: 'storybook',
       spa: false,
@@ -170,12 +170,12 @@ describe('the pull request comment', () => {
     )
   })
 
-  it('leaves the section out when the team has hosting off, the instance has none, or the commit has no site', async () => {
-    const { team, build } = await reviewableBuild(6, 'abcdef012346')
+  it('leaves the section out when the project has hosting off, the instance has none, or the commit has no site', async () => {
+    const { project, build } = await reviewableBuild(6, 'abcdef012346')
     const fake = recordingGithub()
     const upload = (commitSha: string) =>
       publishSite(t.db, {
-        teamId: team.id,
+        projectId: project.id,
         name: 'docs',
         kind: 'generic',
         spa: false,
@@ -195,16 +195,16 @@ describe('the pull request comment', () => {
     await t.db.delete(schema.jobs)
     await queueNotice(build.id)
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ staticHostingEnabled: false })
-      .where(eq(schema.teams.id, team.id))
+      .where(eq(schema.projects.id, project.id))
     await runNext({ github: fake.github, sites: sitesDeps })
-    expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites') // hosting off for the team
+    expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites') // hosting off for the project
 
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ staticHostingEnabled: true })
-      .where(eq(schema.teams.id, team.id))
+      .where(eq(schema.projects.id, project.id))
     await queueNotice(build.id)
     await runNext({ github: fake.github }) // the job runs with no sites configured
     expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites')
@@ -269,7 +269,7 @@ describe('notifyGit', () => {
 
     expect(fake.comments[0]?.pr).toBe(5)
     expect(fake.comments[0]?.body).toContain('CirCI visual tests')
-    expect(await getPrCommentId(t.db, build.teamId, 5)).toBe('7001')
+    expect(await getPrCommentId(t.db, build.projectId, 5)).toBe('7001')
 
     // Approving queues another job, which updates the same check run and comment.
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
@@ -279,13 +279,13 @@ describe('notifyGit', () => {
     expect(fake.comments[1]?.existing).toBe('7001')
   })
 
-  it('passes a flaky-only change when flaky screenshots do not block merges (workspace default, team override)', async () => {
+  it('passes a flaky-only change when flaky screenshots do not block merges (workspace default, project override)', async () => {
     await t.db.delete(schema.jobs)
-    const { team, workspace } = await seedTeam(t.db)
-    await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
+    const { project, workspace } = await seedProject(t.db)
+    await seedGitLink(t.db, project.id, { externalId: '99', repoRef: 'acme/web' })
     // `wobble` keeps returning to an image it had on main: A, B, A, B, A.
-    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B', 'A'])
-    const pr = await seedBuild(t.db, team.id, {
+    await seedFlipFlops(t.db, project.id, 'wobble', ['A', 'B', 'A', 'B', 'A'])
+    const pr = await seedBuild(t.db, project.id, {
       branch: 'feature',
       prNumber: 4,
       status: 'complete',
@@ -318,8 +318,8 @@ describe('notifyGit', () => {
     expect(fake.checks.at(-1)?.input.report).toMatchObject({
       title: 'Only flaky screenshots changed (1 changed)',
     })
-    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: true })
-    expect(await conclusion()).toBe('action_required') // the team overrides the workspace
+    await updateProjectsettings(t.db, project.id, { flakyBlocksMerge: true })
+    expect(await conclusion()).toBe('action_required') // the project overrides the workspace
   })
 
   it('serializes concurrent jobs, so one build gets one check run and one comment', async () => {
@@ -389,10 +389,10 @@ describe('notifyGit', () => {
     expect(fake.comments).toHaveLength(0)
   })
 
-  it('queues nothing for a team that is not linked, and skips without a GitHub App', async () => {
+  it('queues nothing for a project that is not linked, and skips without a GitHub App', async () => {
     await t.db.delete(schema.jobs)
-    const { team } = await seedTeam(t.db)
-    const build = await createBuild(t.db, { teamId: team.id, commitSha: 'def5678' })
+    const { project } = await seedProject(t.db)
+    const build = await createBuild(t.db, { projectId: project.id, commitSha: 'def5678' })
     await t.db
       .update(schema.builds)
       .set({ status: 'processing' })
@@ -415,15 +415,15 @@ describe('notifyGit', () => {
   })
 
   describe('a revoked installation', () => {
-    it('stops retrying, records that the team needs attention, and clears it when GitHub answers again', async () => {
-      const { team, build } = await setup()
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
+    it('stops retrying, records that the project needs attention, and clears it when GitHub answers again', async () => {
+      const { project, build } = await setup()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
 
       const job = await nextJob()
       const result = await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, job)
       // Returned, not thrown: the queue marks the job done instead of retrying five times.
       expect(result).toMatchObject({ status: 'skipped', reason: expect.stringContaining('77') })
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toMatchObject({
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toMatchObject({
         reason: 'installation_revoked',
       })
 
@@ -434,7 +434,7 @@ describe('notifyGit', () => {
           job,
         ),
       ).rejects.toThrow('bad gateway')
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
 
       // The App was reinstalled: the next call works and the warning goes away.
       const fake = recordingGithub()
@@ -442,16 +442,16 @@ describe('notifyGit', () => {
         status: 'notified',
       })
       expect(fake.checks).toHaveLength(1)
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
       expect(await getCheckRunId(t.db, build.id)).toBe('9001')
     })
 
-    it('is cleared by linking the team to the installation again', async () => {
-      const { team } = await setup()
+    it('is cleared by linking the project to the installation again', async () => {
+      const { project } = await setup()
       await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, await nextJob())
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
-      await seedGitLink(t.db, team.id, { externalId: '77', repoRef: 'acme/web' })
-      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
+      await seedGitLink(t.db, project.id, { externalId: '77', repoRef: 'acme/web' })
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
     })
   })
 })

@@ -1,7 +1,7 @@
 import { resolveBaseline } from '@circi/core'
 import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
 
-import { type BaselineSource, builds, teams, snapshotReviews } from '#schema/index.ts'
+import { type BaselineSource, builds, projects, snapshotReviews } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
@@ -14,26 +14,26 @@ export type BaselineCandidate = Build & {
 }
 
 /**
- * Possible baselines: same team and name, finished, not the build itself. Each carries the
+ * Possible baselines: same project and name, finished, not the build itself. Each carries the
  * names of its approved and rejected snapshots, so one approved snapshot of a build still
  * waiting on review can be a baseline (`resolveBaseline` in `@circi/core`).
  */
 export async function listBaselineCandidates(
   db: Database,
-  build: Pick<Build, 'teamId' | 'name' | 'ancestorShas'> & { id?: string },
+  build: Pick<Build, 'projectId' | 'name' | 'ancestorShas'> & { id?: string },
 ): Promise<BaselineCandidate[]> {
   const conditions = [
-    eq(builds.teamId, build.teamId),
+    eq(builds.projectId, build.projectId),
     eq(builds.name, build.name),
     eq(builds.status, 'complete'),
     ...(build.id ? [ne(builds.id, build.id)] : []),
   ]
   const shas = [...new Set(build.ancestorShas)]
-  const team = await db
-    .select({ defaultBranch: teams.defaultBranch })
-    .from(teams)
-    .where(eq(teams.id, build.teamId))
-  const defaultBranch = team[0]?.defaultBranch ?? 'main'
+  const project = await db
+    .select({ defaultBranch: projects.defaultBranch })
+    .from(projects)
+    .where(eq(projects.id, build.projectId))
+  const defaultBranch = project[0]?.defaultBranch ?? 'main'
 
   // Builds on ancestor commits, plus recent default-branch builds for the fallback.
   const byAncestry =
@@ -95,24 +95,24 @@ export async function setBuildBaseline(
 }
 
 /**
- * The baseline an Argos SDK asks for: the newest eligible build of this team and build name
+ * The baseline an Argos SDK asks for: the newest eligible build of this project and build name
  * on one of `commits` (nearest first), if any.
  */
 export async function findBaselineByCommits(
   db: Database,
-  input: { teamId: string; name: string; commits: string[] },
+  input: { projectId: string; name: string; commits: string[] },
 ): Promise<{ id: string; commitSha: string; branch: string | null } | undefined> {
   const candidates = await listBaselineCandidates(db, {
-    teamId: input.teamId,
+    projectId: input.projectId,
     name: input.name,
     ancestorShas: input.commits,
   })
-  const team = await db
-    .select({ defaultBranch: teams.defaultBranch })
-    .from(teams)
-    .where(eq(teams.id, input.teamId))
+  const project = await db
+    .select({ defaultBranch: projects.defaultBranch })
+    .from(projects)
+    .where(eq(projects.id, input.projectId))
   const resolved = resolveBaseline(
-    { ancestorShas: input.commits, defaultBranch: team[0]?.defaultBranch ?? 'main' },
+    { ancestorShas: input.commits, defaultBranch: project[0]?.defaultBranch ?? 'main' },
     candidates,
   )
   return resolved.via === 'none' ? undefined : resolved.build

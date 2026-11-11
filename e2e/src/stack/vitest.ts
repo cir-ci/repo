@@ -24,7 +24,7 @@ export interface StackContext {
   readonly setup: completeSetup.Result
   /** An instance admin's session (the first-run account). Needs `setup: true` or a shared stack. */
   readonly admin: Session
-  /** Another fresh workspace with its own owner (and optionally a team), through the API. */
+  /** Another fresh workspace with its own owner (and optionally a project), through the API. */
   tenant(options?: createTenant.Options): Promise<Tenant>
   /** The fake GitHub of the `github` profile, reset for this file. */
   readonly github: FakeGithub

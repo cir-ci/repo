@@ -42,7 +42,7 @@ const ICONS: Record<IconKey, ComponentType<IconProps>> = {
   inbox: InboxIcon,
   reviews: CheckCircleIcon,
   triage: ListChecksIcon,
-  teams: UsersIcon,
+  projects: UsersIcon,
   insights: InsightsIcon,
   settings: SettingsIcon,
   branch: GitBranchIcon,
@@ -53,7 +53,7 @@ const ICONS: Record<IconKey, ComponentType<IconProps>> = {
   eye: EyeIcon,
   sliders: SlidersIcon,
   status: CheckCircleIcon,
-  team: UsersIcon,
+  project: UsersIcon,
   workspace: BuildingIcon,
   approve: CheckIcon,
   reject: CloseIcon,
@@ -83,7 +83,7 @@ const TILE_KINDS: ReadonlySet<Entry['kind']> = new Set([
 ])
 
 /**
- * The leading mark of a row (16px): the state glyph of a build, the tile of a team, a plain
+ * The leading mark of a row (16px): the state glyph of a build, the tile of a project, a plain
  * line icon for places and items, and for an action the tinted 24px tile, the one device that
  * says "this does something". All of them are decorative: the row's name says what it is.
  */
@@ -109,15 +109,15 @@ export function CommandIcon({ entry }: CommandIcon.Props) {
       />
     )
   }
-  if (entry.team) {
+  if (entry.project) {
     return (
       <Avatar
-        type="team"
+        type="project"
         aria-hidden
-        slug={entry.team.slug}
-        name={entry.team.name}
-        color={entry.team.color}
-        icon={entry.team.icon}
+        slug={entry.project.slug}
+        name={entry.project.name}
+        color={entry.project.color}
+        icon={entry.project.icon}
         size={16}
       />
     )

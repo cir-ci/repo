@@ -1,7 +1,7 @@
 import { Avatar, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { CheckedTextField } from '#lib/CheckedTextField.tsx'
 import { IdentityFields } from '#lib/IdentityFields.tsx'

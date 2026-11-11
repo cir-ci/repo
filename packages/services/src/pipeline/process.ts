@@ -1,6 +1,6 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
 import { type Database, type NewScreenshotDiff, type Screenshot } from '@circi/db'
-import { getBuild, getTeamById } from '@circi/db/queries'
+import { getBuild, getProjectById } from '@circi/db/queries'
 import {
   buildFlakyDecision,
   findDecidedRerunOf,
@@ -64,13 +64,13 @@ export async function processBuild(
   if (!build) return { status: 'skipped', reason: 'build no longer exists' }
   if (build.status !== 'processing')
     return { status: 'skipped', reason: `build is ${build.status}` }
-  const team = await getTeamById(db, build.teamId)
-  if (!team) return { status: 'skipped', reason: 'team no longer exists' }
+  const project = await getProjectById(db, build.projectId)
+  if (!project) return { status: 'skipped', reason: 'project no longer exists' }
 
   // 1. Baseline.
   const candidates = await listBaselineCandidates(db, build)
   const resolution = resolveBaseline(
-    { ancestorShas: build.ancestorShas, defaultBranch: team.defaultBranch },
+    { ancestorShas: build.ancestorShas, defaultBranch: project.defaultBranch },
     candidates,
   )
   const baseBuild = resolution.via === 'none' ? undefined : resolution.build
@@ -97,7 +97,7 @@ export async function processBuild(
   for (const shot of head) {
     if (!decidedNames.has(shot.name)) continue
     const own = resolveBaseline(
-      { ancestorShas: build.ancestorShas, defaultBranch: team.defaultBranch },
+      { ancestorShas: build.ancestorShas, defaultBranch: project.defaultBranch },
       candidates,
       shot.name,
     )
@@ -141,7 +141,7 @@ export async function processBuild(
 
   // 4. Pixel diffs for same-name pairs with different bytes.
   const diffRows = await listBuildDiffs(db, build.id)
-  const ignored = await ignoreRegionsByName(db, build.teamId)
+  const ignored = await ignoreRegionsByName(db, build.projectId)
   const byName = new Map(diffRows.map((r) => [r.name, r]))
   const statuses: string[] = []
   await mapLimit(pairs, concurrency, async (pair) => {
@@ -171,7 +171,7 @@ export async function processBuild(
         loader(pair.head.fileSha256),
       ])
       const res = await diff.diffImages(basePng, headPng, {
-        threshold: team.diffThreshold,
+        threshold: project.diffThreshold,
         ...(ignored.has(pair.name) ? { ignore: ignored.get(pair.name) ?? [] } : {}),
       })
       let diffFileSha256: string | null = null
@@ -212,7 +212,7 @@ export async function processBuild(
   })
 
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
-  // no baseline (a team's first) is never auto-approved: someone reviews every screenshot once.
+  // no baseline (a project's first) is never auto-approved: someone reviews every screenshot once.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
   // The flaky set the merge gate will use, decided now from the builds before this one and kept
   // on the build, so a later default-branch build changing the list never flips this build's check.
@@ -223,9 +223,9 @@ export async function processBuild(
   if (conclusion === 'changes_detected') {
     if (
       baseBuild !== undefined &&
-      team.autoApproveDefaultBranch &&
+      project.autoApproveDefaultBranch &&
       build.prNumber === null &&
-      build.branch === team.defaultBranch
+      build.branch === project.defaultBranch
     ) {
       outcome = { conclusion, approval: 'default-branch', ...decided }
     } else {

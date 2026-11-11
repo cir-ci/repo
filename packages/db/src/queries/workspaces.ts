@@ -69,7 +69,7 @@ export async function getMemberRole(
   return row?.role
 }
 
-/** Workspaces where the user is an owner or admin, i.e. may create teams. */
+/** Workspaces where the user is an owner or admin, i.e. may create projects. */
 export async function listManageableWorkspaces(
   db: Database,
   userId: string,

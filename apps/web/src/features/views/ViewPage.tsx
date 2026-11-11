@@ -10,8 +10,8 @@ import {
 } from '#features/builds/list/builds-filters.ts'
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
 import { BuildsFind } from '#features/builds/list/BuildsFind.tsx'
-import { teamQuery, workspaceBuildsQuery } from '#features/teams/api/index.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { projectQuery, workspaceBuildsQuery } from '#features/projects/api/index.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
@@ -19,9 +19,9 @@ import { useDisplayStore } from '#lib/stores/display-store.ts'
 
 import { findView, viewsQuery } from './api.ts'
 
-import styles from '#features/teams/TeamPage.module.css'
+import styles from '#features/projects/ProjectPage.module.css'
 
-/** A saved view: its team's builds list with the view's filters applied (editable for this visit only). */
+/** A saved view: its project's builds list with the view's filters applied (editable for this visit only). */
 export function ViewPage() {
   const { workspace, view: id } = useParams({ from: '/workspaces/$workspace/views/$view' })
   const query = useQuery(viewsQuery(workspace))
@@ -50,7 +50,7 @@ export function ViewPage() {
               workspace={workspace}
               crumbs={crumbs}
               title={view.name}
-              {...(view.team ? { team: view.team.slug } : {})}
+              {...(view.project ? { project: view.project.slug } : {})}
               filters={parseFilters({ ...view.filters })}
             />
           )
@@ -62,26 +62,26 @@ export function ViewPage() {
 
 function ViewBuilds({
   workspace,
-  team,
+  project,
   crumbs,
   title,
   filters: initial,
 }: {
   workspace: string
   /** Absent for a view across the whole workspace. */
-  team?: string
+  project?: string
   crumbs: ReadonlyArray<PageHeading.Crumb>
   title: string
   filters: BuildFilters
 }) {
   const [filters, setFilters] = useState(initial)
-  // A workspace-wide list pages by a build id kept here; a team's pages by number, in its URL.
+  // A workspace-wide list pages by a build id kept here; a project's pages by number, in its URL.
   const [cursor, setCursor] = useState<string>()
   const order = useDisplayStore((s) => s.display.order)
   // The same queries as the list's own, so the page header knows whether there is anything to find.
-  const scoped = team !== undefined
-  const teamResult = useQuery({
-    ...teamQuery(workspace, team ?? '', undefined, filters, order),
+  const scoped = project !== undefined
+  const projectResult = useQuery({
+    ...projectQuery(workspace, project ?? '', undefined, filters, order),
     enabled: scoped,
     placeholderData: keepPreviousData,
   })
@@ -90,7 +90,7 @@ function ViewBuilds({
     enabled: !scoped,
     placeholderData: keepPreviousData,
   })
-  const builds = (scoped ? teamResult : workspaceResult).data?.builds ?? []
+  const builds = (scoped ? projectResult : workspaceResult).data?.builds ?? []
   const change = (next: BuildFilters) => {
     setFilters(next)
     setCursor(undefined)
@@ -109,7 +109,7 @@ function ViewBuilds({
       <div className={styles.content}>
         <BuildsBrowser
           workspace={workspace}
-          team={team}
+          project={project}
           filters={filters}
           onFiltersChange={change}
           cursor={cursor}

@@ -13,8 +13,8 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useInstall } from '#features/pwa/use-install.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { usePhone } from '#lib/use-phone.ts'
 

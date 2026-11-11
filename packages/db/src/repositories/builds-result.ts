@@ -11,7 +11,7 @@ import { approveChangedSnapshots, carryRejection, supersedeSnapshotReviews } fro
 /** Recording how a build ended, and resetting it for another run. */
 
 /**
- * Finishes a build. On the team's default branch with auto-approve on, a build with changes
+ * Finishes a build. On the project's default branch with auto-approve on, a build with changes
  * is approved automatically (recorded as an `auto` review) so it becomes the next baseline.
  */
 /**
@@ -82,7 +82,7 @@ export namespace setBuildResult {
 }
 
 /**
- * The earlier build whose decision a re-run inherits, if any: same team, build name and commit,
+ * The earlier build whose decision a re-run inherits, if any: same project, build name and commit,
  * currently approved or rejected, with exactly the same screenshots (same names, same bytes);
  * the newest such build decides. This is what lets "approve in the dashboard, then re-run the CI
  * job" go green, and "reject, then re-run" stay red: the re-run is a new build, but nothing in it
@@ -98,7 +98,7 @@ export async function findDecidedRerunOf(
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, build.teamId),
+        eq(builds.projectId, build.projectId),
         eq(builds.name, build.name),
         eq(builds.commitSha, build.commitSha),
         eq(builds.status, 'complete'),

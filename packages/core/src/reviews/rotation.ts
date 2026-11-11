@@ -26,9 +26,9 @@ export function rotationHandover(date: Date): Date {
 export const DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL = false
 
 /**
- * Whether new triage items go to whoever is on triage. The team's own value wins; `null` means
+ * Whether new triage items go to whoever is on triage. The project's own value wins; `null` means
  * "inherit from the workspace".
  */
-export function resolveAssignTriageToOnCall(workspace: boolean, team: boolean | null): boolean {
-  return team ?? workspace
+export function resolveAssignTriageToOnCall(workspace: boolean, project: boolean | null): boolean {
+  return project ?? workspace
 }

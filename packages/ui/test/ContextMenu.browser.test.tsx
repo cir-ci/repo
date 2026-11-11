@@ -104,10 +104,10 @@ describe('ContextMenu', () => {
   it('wraps children it cannot give props to, without a box of its own', async () => {
     await render(
       <ContextMenu items={[{ label: 'Open' }]}>
-        <a href="/x">Team link</a>
+        <a href="/x">Project link</a>
       </ContextMenu>,
     )
-    await page.getByText('Team link').click({ button: 'right' })
+    await page.getByText('Project link').click({ button: 'right' })
     await expect.element(page.getByRole('menuitem', { name: 'Open' })).toBeVisible()
   })
 

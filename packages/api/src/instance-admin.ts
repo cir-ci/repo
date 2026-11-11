@@ -53,7 +53,7 @@ export namespace InstanceAdmin {
     /** Its uploaded picture's address; null when it has none. */
     picture: string | null
     memberCount: number
-    teamCount: number
+    projectCount: number
     /** Bytes of the distinct files the workspace's builds refer to. */
     storageBytes: number
     createdAt: string
@@ -63,7 +63,7 @@ export namespace InstanceAdmin {
     daysLeft: number | null
     /** The display name of its longest-standing owner; null when it has none. */
     ownerName: string | null
-    /** Whether the signed-in instance admin belongs to it: only members may open its teams. */
+    /** Whether the signed-in instance admin belongs to it: only members may open its projects. */
     youAreMember: boolean
   }
 
@@ -96,8 +96,8 @@ export namespace InstanceAdmin {
     /** Who may create workspaces in the dashboard. */
     workspaceCreation: 'admin' | 'anyone'
     retention: {
-      /** What a new team starts with, in days. */
-      defaultTeamRetentionDays: number
+      /** What a new project starts with, in days. */
+      defaultProjectRetentionDays: number
       /** Hours an unused file waits before it is deleted. */
       gcGraceHours: number
       /** Minutes after which a build still uploading fails; 0 never. */

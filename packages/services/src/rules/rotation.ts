@@ -4,15 +4,15 @@ import { setTriageRotation } from '@circi/db/repositories'
 
 import { autoAssignTriage } from '#src/triage/auto-assign.ts'
 
-/** Replaces the team's triage rotation; an empty list turns it off. */
+/** Replaces the project's triage rotation; an empty list turns it off. */
 export async function replaceTriageRotation(
   db: Database,
-  input: { teamId: string; memberIds: string[]; startsOn?: Date },
+  input: { projectId: string; memberIds: string[]; startsOn?: Date },
 ): Promise<getTriageRotation.Rotation> {
   return db.transaction(async (tx) => {
     const rotation = await setTriageRotation(tx, input)
     // A new rotation may put someone else on triage: automatic assignments move to them.
-    await autoAssignTriage(tx, { teamId: input.teamId })
+    await autoAssignTriage(tx, { projectId: input.projectId })
     return rotation
   })
 }

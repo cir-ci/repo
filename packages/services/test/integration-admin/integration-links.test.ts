@@ -1,19 +1,19 @@
 import { ValidationError } from '@circi/core'
 import { sealSecret } from '@circi/core/node'
-import { listTeamLinks } from '@circi/db/queries'
+import { listProjectLinks } from '@circi/db/queries'
 import {
   createIntegration,
   createIntegrationLink,
-  getTeamIntegration,
-  setIntegrationTeam,
+  getProjectIntegration,
+  setIntegrationProject,
 } from '@circi/db/repositories'
-import { createTestDb, seedBuild, seedTeam, seedScreenshot } from '@circi/db/testing'
+import { createTestDb, seedBuild, seedProject, seedScreenshot } from '@circi/db/testing'
 import { defineIntegration, type IntegrationDefinition } from '@circi/integrations'
 import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { addTeamLink, autoLinkTeam, mapTeam, unmapTeam } from '#src/index.ts'
+import { addProjectLink, autoLinkProject, mapProject, unmapProject } from '#src/index.ts'
 
 const SECRET = 'instance-secret-for-tests'
 const ctx: IntegrationDefinition.Context = {
@@ -87,7 +87,7 @@ function fakeDesign(files: Record<string, { id: string; name: string }[]>) {
 }
 
 async function seedMapped(snapshots: string[], fileRef: string | null = 'FileKey12345') {
-  const { workspace, team } = await seedTeam(t.db)
+  const { workspace, project } = await seedProject(t.db)
   const integration = await createIntegration(t.db, {
     workspaceId: workspace.id,
     kind: 'figma',
@@ -96,32 +96,32 @@ async function seedMapped(snapshots: string[], fileRef: string | null = 'FileKey
     encryptedCredentials: sealSecret(SECRET, 'figd_token'),
   })
   if (fileRef) {
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: fileRef,
       extra: { name: 'Checkout v3' },
     })
   }
-  const build = await seedBuild(t.db, team.id)
+  const build = await seedBuild(t.db, project.id)
   for (const [i, name] of snapshots.entries()) {
     // eslint-disable-next-line no-await-in-loop -- sequential seeding
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha(i.toString(16)), name })
   }
-  return { workspace, team, integration }
+  return { workspace, project, integration }
 }
 
-const linksOf = async (teamId: string) =>
-  (await listTeamLinks(t.db, teamId, 'figma-frame')).map((l) => [
+const linksOf = async (projectId: string) =>
+  (await listProjectLinks(t.db, projectId, 'figma-frame')).map((l) => [
     l.subject,
     l.externalRef,
     l.payload.source,
     l.title,
   ])
 
-describe('autoLinkTeam', () => {
+describe('autoLinkProject', () => {
   it('links snapshots to frames by name with the opened credentials', async () => {
-    const { team, integration } = await seedMapped(['checkout/cart', 'home', 'about'])
+    const { project, integration } = await seedMapped(['checkout/cart', 'home', 'about'])
     const { definition, asked } = fakeDesign({
       FileKey12345: [
         { id: '1:1', name: 'Home' },
@@ -129,43 +129,43 @@ describe('autoLinkTeam', () => {
         { id: '1:3', name: 'Pricing' },
       ],
     })
-    const result = await autoLinkTeam(t.db, {
+    const result = await autoLinkProject(t.db, {
       definition,
       ctx,
       integration,
-      teamId: team.id,
+      projectId: project.id,
     })
     expect(result).toEqual({ created: 2, unlinked: 1, frames: 3 })
     expect(asked).toEqual([{ credentials: 'figd_token', fileRef: 'FileKey12345' }])
-    expect(await linksOf(team.id)).toEqual(
+    expect(await linksOf(project.id)).toEqual(
       expect.arrayContaining([
         ['home', 'FileKey12345:1:1', 'auto', 'Home'],
         ['checkout/cart', 'FileKey12345:1:2', 'auto', 'Cart'],
       ]),
     )
-    const [first] = await listTeamLinks(t.db, team.id, 'figma-frame')
+    const [first] = await listProjectLinks(t.db, project.id, 'figma-frame')
     expect(first?.payload).toMatchObject({ source: 'auto', scope: 'FileKey12345' })
   })
 
   it('never overwrites a manual link, and is idempotent', async () => {
-    const { team, integration } = await seedMapped(['home'])
+    const { project, integration } = await seedMapped(['home'])
     await createIntegrationLink(t.db, {
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       kind: 'figma-frame',
       subject: 'home',
       externalRef: 'FileKey12345:9:9',
       payload: { source: 'manual' },
     })
     const { definition } = fakeDesign({ FileKey12345: [{ id: '1:1', name: 'Home' }] })
-    const input = { definition, ctx, integration, teamId: team.id }
-    expect(await autoLinkTeam(t.db, input)).toEqual({ created: 0, unlinked: 0, frames: 1 })
-    expect(await autoLinkTeam(t.db, input)).toEqual({ created: 0, unlinked: 0, frames: 1 })
-    expect(await linksOf(team.id)).toEqual([['home', 'FileKey12345:9:9', 'manual', null]])
+    const input = { definition, ctx, integration, projectId: project.id }
+    expect(await autoLinkProject(t.db, input)).toEqual({ created: 0, unlinked: 0, frames: 1 })
+    expect(await autoLinkProject(t.db, input)).toEqual({ created: 0, unlinked: 0, frames: 1 })
+    expect(await linksOf(project.id)).toEqual([['home', 'FileKey12345:9:9', 'manual', null]])
   })
 
   it('makes no link when two frames match equally', async () => {
-    const { team, integration } = await seedMapped(['cart'])
+    const { project, integration } = await seedMapped(['cart'])
     const { definition } = fakeDesign({
       FileKey12345: [
         { id: '1:1', name: 'Cart' },
@@ -173,51 +173,51 @@ describe('autoLinkTeam', () => {
       ],
     })
     expect(
-      await autoLinkTeam(t.db, { definition, ctx, integration, teamId: team.id }),
+      await autoLinkProject(t.db, { definition, ctx, integration, projectId: project.id }),
     ).toMatchObject({ created: 0, unlinked: 1 })
-    expect(await linksOf(team.id)).toEqual([])
+    expect(await linksOf(project.id)).toEqual([])
   })
 
   it('says what is missing: no mapped file, an unreadable credential, no auto-linking', async () => {
     const { definition } = fakeDesign({})
     const noFile = await seedMapped([], null)
     await expect(
-      autoLinkTeam(t.db, {
+      autoLinkProject(t.db, {
         definition,
         ctx,
         integration: noFile.integration,
-        teamId: noFile.team.id,
+        projectId: noFile.project.id,
       }),
-    ).rejects.toThrow('Choose a file for this team first')
+    ).rejects.toThrow('Choose a file for this project first')
 
-    const { team, integration } = await seedMapped([])
+    const { project, integration } = await seedMapped([])
     await expect(
-      autoLinkTeam(t.db, {
+      autoLinkProject(t.db, {
         definition,
         ctx: { ...ctx, authSecret: 'another-secret' },
         integration,
-        teamId: team.id,
+        projectId: project.id,
       }),
     ).rejects.toBeInstanceOf(ValidationError)
 
     const { links: _links, ...rest } = definition
     await expect(
-      autoLinkTeam(t.db, {
+      autoLinkProject(t.db, {
         definition: { ...rest },
         ctx,
         integration,
-        teamId: team.id,
+        projectId: project.id,
       }),
     ).rejects.toThrow('has no links')
   })
 })
 
-describe('addTeamLink', () => {
+describe('addProjectLink', () => {
   it('has the definition resolve the values and replaces the link of the same subject', async () => {
-    const { team, integration } = await seedMapped([])
+    const { project, integration } = await seedMapped([])
     const { definition } = fakeDesign({})
-    const base = { definition, ctx, integration, teamId: team.id }
-    const first = await addTeamLink(t.db, {
+    const base = { definition, ctx, integration, projectId: project.id }
+    const first = await addProjectLink(t.db, {
       ...base,
       values: { pattern: ' cart ', url: 'https://f/1' },
     })
@@ -227,74 +227,74 @@ describe('addTeamLink', () => {
       url: 'https://f/1',
       payload: { source: 'manual', nodeId: 'https://f/1' },
     })
-    const again = await addTeamLink(t.db, {
+    const again = await addProjectLink(t.db, {
       ...base,
       values: { pattern: 'cart', url: 'https://f/2' },
     })
     expect(again.id).toBe(first.id)
-    expect(await linksOf(team.id)).toHaveLength(1)
+    expect(await linksOf(project.id)).toHaveLength(1)
   })
 
   it('works without a mapped file, and wants every field', async () => {
-    const { team, integration } = await seedMapped([], null)
+    const { project, integration } = await seedMapped([], null)
     const { definition } = fakeDesign({})
-    const base = { definition, ctx, integration, teamId: team.id }
+    const base = { definition, ctx, integration, projectId: project.id }
     expect(
-      (await addTeamLink(t.db, { ...base, values: { pattern: 'a', url: 'u' } })).externalRef,
+      (await addProjectLink(t.db, { ...base, values: { pattern: 'a', url: 'u' } })).externalRef,
     ).toBe('nofile:u')
-    await expect(addTeamLink(t.db, { ...base, values: { pattern: 'a' } })).rejects.toThrow(
+    await expect(addProjectLink(t.db, { ...base, values: { pattern: 'a' } })).rejects.toThrow(
       'Frame address is required',
     )
     await expect(
-      addTeamLink(t.db, { ...base, values: { pattern: 'x'.repeat(201), url: 'u' } }),
+      addProjectLink(t.db, { ...base, values: { pattern: 'x'.repeat(201), url: 'u' } }),
     ).rejects.toThrow('Screenshot name is too long')
   })
 })
 
-describe('mapTeam / unmapTeam', () => {
+describe('mapProject / unmapProject', () => {
   it('changing the target drops automatic links made for the old one and keeps manual ones', async () => {
-    const { team, integration } = await seedMapped(['home'])
+    const { project, integration } = await seedMapped(['home'])
     const { definition } = fakeDesign({ FileKey12345: [{ id: '1:1', name: 'Home' }] })
-    const input = { definition, ctx, integration, teamId: team.id }
-    await autoLinkTeam(t.db, input)
-    await addTeamLink(t.db, { ...input, values: { pattern: 'manual', url: 'u' } })
+    const input = { definition, ctx, integration, projectId: project.id }
+    await autoLinkProject(t.db, input)
+    await addProjectLink(t.db, { ...input, values: { pattern: 'manual', url: 'u' } })
     // The same target again keeps every link.
-    await mapTeam(t.db, {
+    await mapProject(t.db, {
       definition,
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       ref: 'FileKey12345',
       extra: { name: 'Renamed' },
     })
-    expect(await linksOf(team.id)).toHaveLength(2)
-    expect((await getTeamIntegration(t.db, team.id, integration.id))?.extra).toEqual({
+    expect(await linksOf(project.id)).toHaveLength(2)
+    expect((await getProjectIntegration(t.db, project.id, integration.id))?.extra).toEqual({
       name: 'Renamed',
     })
-    await mapTeam(t.db, {
+    await mapProject(t.db, {
       definition,
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       ref: 'OtherFile9999',
       extra: {},
     })
-    expect((await linksOf(team.id)).map((l) => l[2])).toEqual(['manual'])
-    await unmapTeam(t.db, { definition, integrationId: integration.id, teamId: team.id })
-    expect(await getTeamIntegration(t.db, team.id, integration.id)).toBeUndefined()
-    expect(await linksOf(team.id)).toHaveLength(1)
+    expect((await linksOf(project.id)).map((l) => l[2])).toEqual(['manual'])
+    await unmapProject(t.db, { definition, integrationId: integration.id, projectId: project.id })
+    expect(await getProjectIntegration(t.db, project.id, integration.id)).toBeUndefined()
+    expect(await linksOf(project.id)).toHaveLength(1)
   })
 
   it('maps and unmaps a definition without links as plain writes', async () => {
-    const { team, integration } = await seedMapped([], null)
+    const { project, integration } = await seedMapped([], null)
     const { links: _links, ...definition } = fakeDesign({}).definition
-    await mapTeam(t.db, {
+    await mapProject(t.db, {
       definition,
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       ref: 'k',
       extra: {},
     })
-    expect(await getTeamIntegration(t.db, team.id, integration.id)).toBeDefined()
-    await unmapTeam(t.db, { definition, integrationId: integration.id, teamId: team.id })
-    expect(await getTeamIntegration(t.db, team.id, integration.id)).toBeUndefined()
+    expect(await getProjectIntegration(t.db, project.id, integration.id)).toBeDefined()
+    await unmapProject(t.db, { definition, integrationId: integration.id, projectId: project.id })
+    expect(await getProjectIntegration(t.db, project.id, integration.id)).toBeUndefined()
   })
 })

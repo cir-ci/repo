@@ -7,7 +7,7 @@ import { fakeApi } from '#test/support/fetch.ts'
 import { centerOf, pointerDrag, pointIn, stubPointerCapture } from '#test/support/pointer.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const API = '/api/teams/acme/web'
+const API = '/api/projects/acme/web'
 const NAME = 'checkout/summary'
 /** The screenshot is 1000 × 500 pixels, shown at 500 × 250: one screen pixel is two of its own. */
 const LATEST = { buildNumber: 148, sha256: 'sha', width: 1000, height: 500 }
@@ -58,7 +58,7 @@ async function show(canManage: boolean, failWith?: string, delayMs = 0) {
   await renderPage(
     <IgnoreRegionsEditor
       workspace="acme"
-      team="web"
+      project="web"
       name={NAME}
       latest={LATEST}
       defaultBranch="main"

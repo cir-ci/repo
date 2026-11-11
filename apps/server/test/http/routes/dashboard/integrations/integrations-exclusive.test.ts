@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
-import { listIntegrationTeams } from '@circi/db/repositories'
+import { listIntegrationProjects } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import {
   defineIntegration,
@@ -22,7 +22,7 @@ import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helper
 
 /**
  * The `exclusive` flag: one external account connects in ONE workspace of the instance, and a
- * team maps to one connection of the kind (mapping to a second moves it). `replaceOnReconnect`
+ * project maps to one connection of the kind (mapping to a second moves it). `replaceOnReconnect`
  * turns a second connect of the same account in the same workspace into a replacement.
  */
 
@@ -53,7 +53,7 @@ const make = (
     ...options,
   })
 
-const exclusive = make('exclusive', { exclusive: { account: true, team: 'kind' } })
+const exclusive = make('exclusive', { exclusive: { account: true, project: 'kind' } })
 const replacing = make('replacing', { replaceOnReconnect: true })
 const plain = make('plain')
 
@@ -130,8 +130,8 @@ describe('replaceOnReconnect', () => {
   })
 })
 
-describe('exclusive.team', () => {
-  it('moves a team to the second connection of the kind, and only within the kind', async () => {
+describe('exclusive.project', () => {
+  it('moves a project to the second connection of the kind, and only within the kind', async () => {
     expect((await connect(acme.workspaceSlug, ownerCookie, 'exclusive', 'one')).statusCode).toBe(
       201,
     )
@@ -141,13 +141,13 @@ describe('exclusive.team', () => {
     const first = all.find((i) => i.kind === 'exclusive' && i.displayName === 'one')
     const plainOne = all.find((i) => i.kind === 'plain')
     const put = (id: string | undefined) =>
-      call('PUT', `${base(acme.workspaceSlug)}/${id}/teams/web`, ownerCookie, { ref: 'room-1' })
+      call('PUT', `${base(acme.workspaceSlug)}/${id}/projects/web`, ownerCookie, { ref: 'room-1' })
     expect((await put(first?.id)).statusCode).toBe(204)
     expect((await put(plainOne?.id)).statusCode).toBe(204)
     expect((await put(two.json().id)).statusCode).toBe(204)
-    expect(await listIntegrationTeams(t.db, first?.id ?? '')).toEqual([])
-    expect(await listIntegrationTeams(t.db, two.json().id)).toHaveLength(1)
+    expect(await listIntegrationProjects(t.db, first?.id ?? '')).toEqual([])
+    expect(await listIntegrationProjects(t.db, two.json().id)).toHaveLength(1)
     // A kind without the flag keeps its own mapping, and may be mapped twice.
-    expect(await listIntegrationTeams(t.db, plainOne?.id ?? '')).toHaveLength(1)
+    expect(await listIntegrationProjects(t.db, plainOne?.id ?? '')).toHaveLength(1)
   })
 })

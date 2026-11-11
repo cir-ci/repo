@@ -1,13 +1,13 @@
 import type { Integration } from '@circi/api'
 import { NotFoundError, ValidationError } from '@circi/core'
-import { getTeamBySlugs, listWorkspaceTeamMappings } from '@circi/db/queries'
+import { getProjectBySlugs, listWorkspaceProjectMappings } from '@circi/db/queries'
 import {
   type IntegrationDefinition,
   mappingExtraSchema,
   normalizeExtra,
   describeDefinition,
 } from '@circi/integrations'
-import { mapTeam, unmapTeam } from '@circi/services'
+import { mapProject, unmapProject } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 
 import { integrationContext } from '#composition/integration-context.ts'
@@ -33,10 +33,10 @@ async function listRepositories(
 }
 
 /**
- *   GET    /workspaces/:workspace/integrations/:id/targets         what a team can be pointed at
- *   GET    /workspaces/:workspace/integrations/:id/teams        the integration and every team's mapping
- *   PUT    /workspaces/:workspace/integrations/:id/teams/:team   map a team
- *   DELETE /workspaces/:workspace/integrations/:id/teams/:team   stop
+ *   GET    /workspaces/:workspace/integrations/:id/targets         what a project can be pointed at
+ *   GET    /workspaces/:workspace/integrations/:id/projects        the integration and every project's mapping
+ *   PUT    /workspaces/:workspace/integrations/:id/projects/:project   map a project
+ *   DELETE /workspaces/:workspace/integrations/:id/projects/:project   stop
  */
 export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
@@ -44,7 +44,7 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
 ) => {
   const { loadForManager, integrationFor, contextFor, providerFailed } = createGeneric(deps)
 
-  /** What the integration's account lets a team be pointed at (channels, teams…). */
+  /** What the integration's account lets a project be pointed at (channels, projects…). */
   const targets = async (req: FastifyRequest) => {
     const found = await loadForManager(req)
     const { id } = parse(idParams, req.params)
@@ -68,14 +68,14 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
     }
   }
 
-  /** Points a team at a target (replacing its earlier one) with the definition's settings. */
+  /** Points a project at a target (replacing its earlier one) with the definition's settings. */
   const put = async (req: FastifyRequest, reply: FastifyReply) => {
     const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
     const loaded = await integrationFor(found.workspace.id, params.id)
     const { integration, definition } = loaded
     const mapping = definition.mapping
-    if (!mapping) throw new NotFoundError(`${definition.name} has no team mapping`)
+    if (!mapping) throw new NotFoundError(`${definition.name} has no project mapping`)
     const body = parse(mappingBody, req.body)
     const invalid = mapping.target.validate?.(body.ref)
     if (invalid) throw new ValidationError(invalid)
@@ -83,9 +83,9 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
       throw new ValidationError(`The ${mapping.target.label.toLowerCase()}'s name is required`)
     }
     const extra = normalizeExtra(mapping, parse(mappingExtraSchema(mapping), body.extra ?? {}))
-    const team = await getTeamBySlugs(deps.db, {
+    const project = await getProjectBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
-      teamSlug: params.team,
+      projectslug: params.project,
     })
     let target: { ref: string; name?: string | undefined } = {
       ref: body.ref,
@@ -101,39 +101,39 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
         return providerFailed(req, loaded, err)
       }
     }
-    await mapTeam(deps.db, {
+    await mapProject(deps.db, {
       definition,
       integrationId: integration.id,
-      teamId: team.id,
+      projectId: project.id,
       ref: target.ref,
       extra: { ...(target.name ? { name: target.name } : {}), ...extra },
     })
     return reply.code(204).send()
   }
 
-  /** Stops a team using the integration. */
+  /** Stops a project using the integration. */
   const remove = async (req: FastifyRequest, reply: FastifyReply) => {
     const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
     const loaded = await integrationFor(found.workspace.id, params.id)
-    const team = await getTeamBySlugs(deps.db, {
+    const project = await getProjectBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
-      teamSlug: params.team,
+      projectslug: params.project,
     })
-    await unmapTeam(deps.db, {
+    await unmapProject(deps.db, {
       definition: loaded.definition,
       integrationId: loaded.integration.id,
-      teamId: team.id,
+      projectId: project.id,
     })
     return reply.code(204).send()
   }
 
   app.get('/workspaces/:workspace/integrations/:id/targets', targets)
-  app.put('/workspaces/:workspace/integrations/:id/teams/:team', put)
-  app.delete('/workspaces/:workspace/integrations/:id/teams/:team', remove)
+  app.put('/workspaces/:workspace/integrations/:id/projects/:project', put)
+  app.delete('/workspaces/:workspace/integrations/:id/projects/:project', remove)
 
-  /** The integration, its definition's public spec, and how each team of the workspace maps to it. */
-  app.get('/workspaces/:workspace/integrations/:id/teams', async (req) => {
+  /** The integration, its definition's public spec, and how each project of the workspace maps to it. */
+  app.get('/workspaces/:workspace/integrations/:id/projects', async (req) => {
     const found = await loadWorkspace(deps, req)
     const { id } = parse(idParams, req.params)
     const loaded = await integrationFor(found.workspace.id, id)
@@ -155,8 +155,13 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
         ctx ?? { authSecret: '', publicOrigin: deps.publicOrigin, config: {} },
       ),
       webhook: webhookOf(definition, ctx, deps.publicOrigin, role),
-      teams: (
-        await listWorkspaceTeamMappings(deps.db, found.workspace.id, integration.id, found.user.id)
+      projects: (
+        await listWorkspaceProjectMappings(
+          deps.db,
+          found.workspace.id,
+          integration.id,
+          found.user.id,
+        )
       ).map((p) => ({
         slug: p.slug,
         name: p.name,

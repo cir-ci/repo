@@ -50,12 +50,12 @@ export const Column = () => (
             </Badge>
           }
         />
-        <SettingsRow label="Flaky screenshots block merges" detail="Applies to every team.">
+        <SettingsRow label="Flaky screenshots block merges" detail="Applies to every project.">
           <Switch label="On" defaultChecked />
         </SettingsRow>
       </SettingsSection>
       <SettingsSection title="Danger zone" tone="danger">
-        <SettingsRow label="Delete workspace" detail="Deletes its teams, builds and sites.">
+        <SettingsRow label="Delete workspace" detail="Deletes its projects, builds and sites.">
           <Button variant="danger">Delete workspace</Button>
         </SettingsRow>
       </SettingsSection>

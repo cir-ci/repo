@@ -5,7 +5,7 @@ import type { NavigateOptions } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { workspaceSettingsQuery, useSaveWorkspaceSettings } from '#features/members/api.ts'
-import { TeamAvatars } from '#lib/TeamAvatars.tsx'
+import { ProjectAvatars } from '#lib/ProjectAvatars.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { inheritance } from './model.ts'
@@ -13,7 +13,7 @@ import { inheritance } from './model.ts'
 import styles from './Settings.module.css'
 
 /**
- * Defaults for the workspace's teams; each team may override them in its settings. The merge gate
+ * Defaults for the workspace's projects; each project may override them in its settings. The merge gate
  * decides what a pull request's check says, so a change waits for Save (with Discard).
  */
 export function BuildSettings({ workspace }: BuildSettings.Props) {
@@ -34,7 +34,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
     <>
       <SettingsSection
         title="Merge gate defaults"
-        description="Every team follows these unless its own settings override them."
+        description="Every project follows these unless its own settings override them."
       >
         <SettingsRow>
           <Checkbox
@@ -48,13 +48,13 @@ function Defaults({ workspace, data }: Defaults.Props) {
             }}
           />
         </SettingsRow>
-        {data.teams.length > 0 ? (
+        {data.projects.length > 0 ? (
           <SettingsRow>
             <Followers
-              split={inheritance(data.teams)}
-              link={(team) => ({
-                to: '/$workspace/$team/settings/general',
-                params: { workspace, team: team.slug },
+              split={inheritance(data.projects)}
+              link={(project) => ({
+                to: '/$workspace/$project/settings/general',
+                params: { workspace, project: project.slug },
                 hash: 'merge-gate',
               })}
             />
@@ -74,13 +74,13 @@ function Defaults({ workspace, data }: Defaults.Props) {
             }}
           />
         </SettingsRow>
-        {data.teams.length > 0 ? (
+        {data.projects.length > 0 ? (
           <SettingsRow>
             <Followers
-              split={inheritance(data.teams, 'assignTriageToOnCall')}
-              link={(team) => ({
-                to: '/$workspace/$team/settings/reviews',
-                params: { workspace, team: team.slug },
+              split={inheritance(data.projects, 'assignTriageToOnCall')}
+              link={(project) => ({
+                to: '/$workspace/$project/settings/reviews',
+                params: { workspace, project: project.slug },
                 hash: 'assign-on-call',
               })}
             />
@@ -124,8 +124,8 @@ function Defaults({ workspace, data }: Defaults.Props) {
 }
 
 /**
- * "<teams> inherit this" and, when some teams have their own value, "<teams> set their own": each
- * team an avatar that links to the team's setting.
+ * "<projects> inherit this" and, when some projects have their own value, "<projects> set their own": each
+ * project an avatar that links to the project's setting.
  */
 function Followers({ split, link }: Followers.Props) {
   const { inheriting, overriding } = split
@@ -133,17 +133,17 @@ function Followers({ split, link }: Followers.Props) {
     <div className={styles.followers}>
       <span className={styles.followGroup}>
         {inheriting.length === 0 ? (
-          'No team inherits this'
+          'No project inherits this'
         ) : (
           <>
-            <TeamAvatars teams={inheriting} link={link} />
+            <ProjectAvatars projects={inheriting} link={link} />
             {inheriting.length === 1 ? 'inherits this' : 'inherit this'}
           </>
         )}
       </span>
       {overriding.length > 0 ? (
         <span className={styles.followGroup}>
-          <TeamAvatars teams={overriding} link={link} note={(team) => team.value} />
+          <ProjectAvatars projects={overriding} link={link} note={(project) => project.value} />
           {overriding.length === 1 ? 'sets its own' : 'set their own'}
         </span>
       ) : null}
@@ -159,8 +159,8 @@ export namespace BuildSettings {
 
 namespace Followers {
   export interface Props {
-    split: ReturnType<typeof inheritance<Workspace.TeamOverride>>
-    link: (team: Workspace.TeamOverride) => NavigateOptions
+    split: ReturnType<typeof inheritance<Workspace.ProjectOverride>>
+    link: (project: Workspace.ProjectOverride) => NavigateOptions
   }
 }
 

@@ -3,7 +3,7 @@ import {
   seedBuild,
   seedGitConnection,
   seedGitLink,
-  seedTeam,
+  seedProject,
 } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,13 +12,13 @@ import { integrationLinks } from '#schema/integration-links.ts'
 import { ConflictError } from '#src/errors.ts'
 import {
   getIntegration,
-  getTeamLink,
+  getProjectLink,
   listBuildLinks,
   listIntegrations,
   listWorkspaceIntegrations,
-  listWorkspaceTeamMappings,
-  listTeamIntegrations,
-  listTeamLinks,
+  listWorkspaceProjectMappings,
+  listProjectIntegrations,
+  listProjectLinks,
 } from '#src/queries/index.ts'
 import { markInstallationNeedsAttention } from '#src/queue/index.ts'
 import {
@@ -28,15 +28,15 @@ import {
   deleteIntegration,
   deleteIntegrationLink,
   findIntegrationByExternalId,
-  getTeamIntegration,
+  getProjectIntegration,
   isAccountClaimedElsewhere,
-  removeOtherTeamMappings,
+  removeOtherProjectMappings,
   insertIntegrationLinksIfAbsent,
-  listIntegrationTeams,
-  removeIntegrationTeam,
+  listIntegrationProjects,
+  removeIntegrationProject,
   replaceIntegrationCredentials,
   setIntegrationAttention,
-  setIntegrationTeam,
+  setIntegrationProject,
 } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
@@ -48,9 +48,9 @@ afterAll(async () => {
 })
 
 describe('integrations', () => {
-  it('adds, lists with team counts, maps teams once each, and removes with its mappings', async () => {
-    const { workspace, team, owner } = await seedTeam(t.db)
-    const other = await seedTeam(t.db)
+  it('adds, lists with project counts, maps projects once each, and removes with its mappings', async () => {
+    const { workspace, project, owner } = await seedProject(t.db)
+    const other = await seedProject(t.db)
     const slack = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'slack',
@@ -75,26 +75,26 @@ describe('integrations', () => {
       externalId: 'T1',
     })
 
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: slack.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: '#ci',
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: slack.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: '#visual',
       extra: { mentions: true },
     })
-    expect(await listIntegrationTeams(t.db, slack.id)).toEqual([
+    expect(await listIntegrationProjects(t.db, slack.id)).toEqual([
       expect.objectContaining({
-        slug: team.slug,
+        slug: project.slug,
         externalRef: '#visual',
         extra: { mentions: true },
       }),
     ])
     expect(await listIntegrations(t.db, workspace.id)).toEqual([
-      expect.objectContaining({ id: slack.id, displayName: 'Acme workspace', teamCount: 1 }),
+      expect.objectContaining({ id: slack.id, displayName: 'Acme workspace', projectCount: 1 }),
     ])
 
     await setIntegrationAttention(t.db, slack.id, 'token_revoked')
@@ -104,11 +104,11 @@ describe('integrations', () => {
     })
     expect(await getIntegration(t.db, other.workspace.id, slack.id)).toBeUndefined()
 
-    await removeIntegrationTeam(t.db, slack.id, team.id)
-    expect(await listIntegrationTeams(t.db, slack.id)).toEqual([])
-    await setIntegrationTeam(t.db, {
+    await removeIntegrationProject(t.db, slack.id, project.id)
+    expect(await listIntegrationProjects(t.db, slack.id)).toEqual([])
+    await setIntegrationProject(t.db, {
       integrationId: slack.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: '#x',
     })
 
@@ -118,7 +118,7 @@ describe('integrations', () => {
   })
 
   it('stores any kind: the registry validates kinds, not the table', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     const row = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'teams',
@@ -129,7 +129,7 @@ describe('integrations', () => {
   })
 
   it('finds an integration by its external account and replaces its credentials', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     const made = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'slack',
@@ -153,33 +153,33 @@ describe('integrations', () => {
     })
   })
 
-  it('lists every team of the workspace with its mapping on one integration', async () => {
-    const { workspace, team, owner } = await seedTeam(t.db)
-    const second = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'backend' })
+  it('lists every project of the workspace with its mapping on one integration', async () => {
+    const { workspace, project, owner } = await seedProject(t.db)
+    const second = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'backend' })
     const made = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'slack',
       displayName: 'Acme',
       externalId: 'T-map',
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: made.id,
-      teamId: second.team.id,
+      projectId: second.project.id,
       externalRef: 'C1',
       extra: { name: 'web', events: ['build.rejected'] },
     })
-    const rows = await listWorkspaceTeamMappings(t.db, workspace.id, made.id)
+    const rows = await listWorkspaceProjectMappings(t.db, workspace.id, made.id)
     expect(rows.map((r) => [r.slug, r.mapping?.externalRef ?? null])).toEqual([
       ['backend', 'C1'],
-      [team.slug, null],
+      [project.slug, null],
     ])
     expect(rows[0]?.mapping?.extra).toEqual({ name: 'web', events: ['build.rejected'] })
   })
 })
 
 describe('integration links', () => {
-  it('keeps one team-wide link per kind and subject, and any number per build', async () => {
-    const { workspace, team } = await seedTeam(t.db)
+  it('keeps one project-wide link per kind and subject, and any number per build', async () => {
+    const { workspace, project } = await seedProject(t.db)
     const made = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'figma',
@@ -188,7 +188,7 @@ describe('integration links', () => {
     })
     const first = await createIntegrationLink(t.db, {
       integrationId: made.id,
-      teamId: team.id,
+      projectId: project.id,
       kind: 'figma-frame',
       subject: 'checkout/*',
       externalRef: 'file:1',
@@ -196,37 +196,37 @@ describe('integration links', () => {
     })
     const again = await createIntegrationLink(t.db, {
       integrationId: made.id,
-      teamId: team.id,
+      projectId: project.id,
       kind: 'figma-frame',
       subject: 'checkout/*',
       externalRef: 'file:2',
     })
     expect(again.id).toBe(first.id)
     expect(again.externalRef).toBe('file:2')
-    expect(await listTeamLinks(t.db, team.id, 'figma-frame')).toHaveLength(1)
+    expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toHaveLength(1)
     expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(true)
     expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(false)
-    expect(await listTeamLinks(t.db, team.id, 'figma-frame')).toEqual([])
+    expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toEqual([])
   })
 })
 
 async function seedFigma() {
-  const { workspace, team } = await seedTeam(t.db)
+  const { workspace, project } = await seedProject(t.db)
   const made = await createIntegration(t.db, {
     workspaceId: workspace.id,
     kind: 'figma',
     displayName: 'Figma',
     externalId: `F-${workspace.id}`,
   })
-  return { workspace, team, made }
+  return { workspace, project, made }
 }
 
 describe('integration link helpers', () => {
-  it('adds automatic links without replacing a subject the team has, and drops them by scope', async () => {
-    const { team, made } = await seedFigma()
+  it('adds automatic links without replacing a subject the project has, and drops them by scope', async () => {
+    const { project, made } = await seedFigma()
     const link = (subject: string, scope: string, source: 'auto' | 'manual') => ({
       integrationId: made.id,
-      teamId: team.id,
+      projectId: project.id,
       kind: 'figma-frame',
       subject,
       externalRef: `${scope}:1`,
@@ -242,32 +242,32 @@ describe('integration link helpers', () => {
     ).toBe(2)
     expect(await insertIntegrationLinksIfAbsent(t.db, [])).toBe(0)
     const subjects = async () =>
-      (await listTeamLinks(t.db, team.id, 'figma-frame')).map((l) => l.subject)
+      (await listProjectLinks(t.db, project.id, 'figma-frame')).map((l) => l.subject)
     expect(await subjects()).toEqual(['cart', 'home', 'pay'])
     // Keeping FileA drops FileB's automatic link only; the manual one stays whatever its file.
-    await deleteAutoLinks(t.db, { teamId: team.id, kind: 'figma-frame', keepScope: 'FileA' })
+    await deleteAutoLinks(t.db, { projectId: project.id, kind: 'figma-frame', keepScope: 'FileA' })
     expect(await subjects()).toEqual(['cart', 'pay'])
-    await deleteAutoLinks(t.db, { teamId: team.id, kind: 'figma-frame' })
+    await deleteAutoLinks(t.db, { projectId: project.id, kind: 'figma-frame' })
     expect(await subjects()).toEqual(['cart'])
   })
 
-  it('deletes a link of a team only through that team', async () => {
+  it('deletes a link of a project only through that project', async () => {
     const a = await seedFigma()
     const b = await seedFigma()
     const link = await createIntegrationLink(t.db, {
       integrationId: a.made.id,
-      teamId: a.team.id,
+      projectId: a.project.id,
       kind: 'figma-frame',
       subject: 'x',
       externalRef: 'k:1',
     })
-    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, b.team.id)).toBe(false)
-    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, a.team.id)).toBe(true)
+    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, b.project.id)).toBe(false)
+    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, a.project.id)).toBe(true)
   })
 
   it("lists a build's links oldest first with their integration and author", async () => {
-    const { team, made } = await seedFigma()
-    const build = await seedBuild(t.db, team.id)
+    const { project, made } = await seedFigma()
+    const build = await seedBuild(t.db, project.id)
     const created: { id: string }[] = []
     for (const key of ['WEB-1', 'WEB-2']) {
       // oxlint-disable-next-line no-await-in-loop -- order matters
@@ -304,41 +304,41 @@ describe('integration link helpers', () => {
     expect(await listBuildLinks(t.db, build.id)).toHaveLength(3)
   })
 
-  it('lists the integrations of given kinds a team is mapped to, and one with its mapping', async () => {
-    const { workspace, team, made } = await seedFigma()
+  it('lists the integrations of given kinds a project is mapped to, and one with its mapping', async () => {
+    const { workspace, project, made } = await seedFigma()
     const linear = await createIntegration(t.db, {
       workspaceId: workspace.id,
       kind: 'linear',
       displayName: 'Acme',
       externalId: 'L1',
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: made.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: 'FileKey',
       extra: { name: 'Checkout' },
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: linear.id,
-      teamId: team.id,
-      externalRef: 'team-1',
+      projectId: project.id,
+      externalRef: 'project-1',
       extra: { name: 'Web' },
     })
-    const mapped = await listTeamIntegrations(t.db, team.id, ['linear', 'jira'])
+    const mapped = await listProjectIntegrations(t.db, project.id, ['linear', 'jira'])
     expect(mapped.map((m) => [m.kind, m.externalRef, m.extra.name])).toEqual([
-      ['linear', 'team-1', 'Web'],
+      ['linear', 'project-1', 'Web'],
     ])
-    expect(await listTeamIntegrations(t.db, team.id, [])).toEqual([])
-    expect((await getTeamIntegration(t.db, team.id, made.id))?.externalRef).toBe('FileKey')
-    const other = await seedTeam(t.db)
-    expect(await getTeamIntegration(t.db, other.team.id, made.id)).toBeUndefined()
+    expect(await listProjectIntegrations(t.db, project.id, [])).toEqual([])
+    expect((await getProjectIntegration(t.db, project.id, made.id))?.externalRef).toBe('FileKey')
+    const other = await seedProject(t.db)
+    expect(await getProjectIntegration(t.db, other.project.id, made.id)).toBeUndefined()
   })
 })
 
 describe('git hosts as integrations', () => {
-  it('counts teams, shows needs-attention with its time, and removing it stops every team', async () => {
-    const { workspace, team, owner } = await seedTeam(t.db)
-    const second = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'backend' })
+  it('counts projects, shows needs-attention with its time, and removing it stops every project', async () => {
+    const { workspace, project, owner } = await seedProject(t.db)
+    const second = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'backend' })
     const { id } = await seedGitConnection(t.db, { workspaceId: workspace.id, externalId: '501' })
     expect(
       (await seedGitConnection(t.db, { workspaceId: workspace.id, externalId: '501' })).id,
@@ -347,12 +347,12 @@ describe('git hosts as integrations', () => {
       id,
       kind: 'github',
       displayName: 'Installation 501',
-      teamCount: 0,
+      projectCount: 0,
     })
 
-    await seedGitLink(t.db, team.id, { externalId: '501', repoRef: 'acme/web' })
-    await seedGitLink(t.db, second.team.id, { externalId: '501', repoRef: 'acme/api' })
-    expect((await listIntegrations(t.db, workspace.id))[0]?.teamCount).toBe(2)
+    await seedGitLink(t.db, project.id, { externalId: '501', repoRef: 'acme/web' })
+    await seedGitLink(t.db, second.project.id, { externalId: '501', repoRef: 'acme/api' })
+    expect((await listIntegrations(t.db, workspace.id))[0]?.projectCount).toBe(2)
 
     await markInstallationNeedsAttention(t.db, 'github', '501', 'The App was removed')
     expect(
@@ -367,22 +367,22 @@ describe('git hosts as integrations', () => {
         group: 'git',
         needsAttention: true,
         attentionReason: 'The App was removed',
-        teamCount: 2,
+        projectCount: 2,
       }),
     ])
 
-    const stranger = await seedTeam(t.db)
+    const stranger = await seedProject(t.db)
     expect(await deleteIntegration(t.db, stranger.workspace.id, id)).toBe(false)
     expect(await getIntegration(t.db, workspace.id, id)).toBeDefined()
     expect(await deleteIntegration(t.db, workspace.id, id)).toBe(true)
-    expect(await getTeamLink(t.db, team.id, ['github'])).toBeUndefined()
-    expect(await getTeamLink(t.db, second.team.id, ['github'])).toBeUndefined()
+    expect(await getProjectLink(t.db, project.id, ['github'])).toBeUndefined()
+    expect(await getProjectLink(t.db, second.project.id, ['github'])).toBeUndefined()
     expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('tells whether another workspace has the account, and sets the time of attention once', async () => {
-    const a = await seedTeam(t.db)
-    const b = await seedTeam(t.db)
+    const a = await seedProject(t.db)
+    const b = await seedProject(t.db)
     const { id } = await seedGitConnection(t.db, {
       workspaceId: a.workspace.id,
       externalId: '8000',
@@ -400,10 +400,10 @@ describe('git hosts as integrations', () => {
     expect((await getIntegration(t.db, a.workspace.id, id))?.needsAttentionAt).toBeNull()
   })
 
-  it("drops a team's mappings on other integrations of the kinds, keeping the one named", async () => {
-    const { workspace, team } = await seedTeam(t.db)
-    const one = await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'a/b' })
-    const two = await seedGitLink(t.db, team.id, {
+  it("drops a project's mappings on other integrations of the kinds, keeping the one named", async () => {
+    const { workspace, project } = await seedProject(t.db)
+    const one = await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'a/b' })
+    const two = await seedGitLink(t.db, project.id, {
       exclusive: false,
       kind: 'gitlab',
       externalId: 'h#1',
@@ -415,20 +415,20 @@ describe('git hosts as integrations', () => {
       displayName: 'Chat',
       externalId: 's',
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: slack.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: 'C1',
     })
-    const removed = await removeOtherTeamMappings(t.db, {
-      teamId: team.id,
+    const removed = await removeOtherProjectMappings(t.db, {
+      projectId: project.id,
       keepIntegrationId: two.integrationId,
       kinds: ['github', 'gitlab'],
     })
     expect(removed).toEqual([one.integrationId])
     // Same-instant inserts have no defined order: compare the set.
     expect(
-      (await listTeamIntegrations(t.db, team.id, ['github', 'gitlab', 'slack']))
+      (await listProjectIntegrations(t.db, project.id, ['github', 'gitlab', 'slack']))
         .map((m) => m.kind)
         .toSorted(),
     ).toEqual(['gitlab', 'slack'])

@@ -49,11 +49,11 @@ export const PlainTitle = () => (
             color: tokens.accent.onAccent,
           }}
         >
-          New team
+          New project
         </button>
       }
     >
-      Teams
+      Projects
     </PanelHeader>
   </div>
 )

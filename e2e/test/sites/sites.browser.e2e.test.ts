@@ -2,17 +2,17 @@
 import { createHash } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 
-import type { Team } from '@circi/api'
+import type { Project } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   addMemberViaCli,
   createWorkspace,
-  createTeam,
+  createProject,
   createUserViaCli,
   newAccount,
   signIn,
-  type CreatedTeam,
+  type CreatedProject,
   type Session,
 } from '#clients/admin.ts'
 import {
@@ -53,7 +53,7 @@ describe('static sites (local-disk storage)', () => {
   const ctx = useStack({ dedicated: true, setup: true, sitesHost: 'sites.localhost' })
   const browser = useBrowser()
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
   let workspace: string
   const dirs: string[] = []
   let sha1 = ''
@@ -75,7 +75,7 @@ describe('static sites (local-disk storage)', () => {
   }) =>
     uploadSiteCli({
       stack: ctx.stack,
-      token: team.token,
+      token: project.token,
       repo,
       dir: await dir(opts.files),
       ...(opts.name ? { name: opts.name } : {}),
@@ -104,22 +104,25 @@ describe('static sites (local-disk storage)', () => {
         branches: { branch: string; address: string; commitSha: string }[]
         versions: { commitSha: string; branch: string | null; address: string | null }[]
       }[]
-    }>(`/api/teams/${workspace}/${team.slug}/sites`)
+    }>(`/api/projects/${workspace}/${project.slug}/sites`)
 
-  it('refuses an upload while hosting is off for the team, saying how to turn it on', async () => {
+  it('refuses an upload while hosting is off for the project, saying how to turn it on', async () => {
     const { stack, setup } = ctx
     workspace = setup.workspace.slug
-    team = await createTeam(setup.session, workspace, 'Docs Hub')
+    project = await createProject(setup.session, workspace, 'Docs Hub')
     await repo.commit('one')
     sha1 = await repo.sha()
     const up = await upload({ files: STORYBOOK_V1, storybook: true })
     expect(up.exitCode).not.toBe(0)
-    expect(up.stderr).toMatch(/hosting is off for this team/i)
+    expect(up.stderr).toMatch(/hosting is off for this project/i)
     expect((await sitesList()).sites).toEqual([])
 
-    await setup.session.patch<Team.Settings>(`/api/teams/${workspace}/${team.slug}/settings`, {
-      staticHostingEnabled: true,
-    })
+    await setup.session.patch<Project.Settings>(
+      `/api/projects/${workspace}/${project.slug}/settings`,
+      {
+        staticHostingEnabled: true,
+      },
+    )
     expect(stack.sitesHost).toBe('sites.localhost')
   })
 
@@ -138,7 +141,7 @@ describe('static sites (local-disk storage)', () => {
     branchAddress = up.branchAddress ?? ''
   })
 
-  it("lists the site on the team's Sites page with its kind, commit, branch and a link", async () => {
+  it("lists the site on the project's Sites page with its kind, commit, branch and a link", async () => {
     const { stack, setup } = ctx
     const api = await sitesList()
     expect(api.configured).toBe(true)
@@ -153,7 +156,7 @@ describe('static sites (local-disk storage)', () => {
     })
 
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${workspace}/${team.slug}/sites`)
+    await page.goto(`${stack.url}/${workspace}/${project.slug}/sites`)
     await page.getByRole('heading', { level: 1, name: 'Sites' }).waitFor()
     await page.getByText('Storybook', { exact: true }).waitFor()
     expect(await page.getByRole('link', { name: 'main', exact: true }).getAttribute('href')).toBe(
@@ -579,7 +582,7 @@ describe('static sites (local-disk storage)', () => {
     const target = before.sites.find((s) => s.name === 'plain')
     const address = target?.versions[0]?.address ?? ''
     expect(address).not.toBe('')
-    // Keep the team's sites for a day, and make this one (on a branch that is not the default
+    // Keep the project's sites for a day, and make this one (on a branch that is not the default
     // branch's, which never expires) three days old.
     await repo.git('checkout', '-q', '-b', 'old-feature')
     await repo.commit('feature work')
@@ -588,7 +591,7 @@ describe('static sites (local-disk storage)', () => {
       name: 'oldie',
     })
     expect(feature.exitCode, feature.stderr).toBe(0)
-    await setup.session.patch(`/api/teams/${workspace}/${team.slug}/settings`, {
+    await setup.session.patch(`/api/projects/${workspace}/${project.slug}/settings`, {
       retentionDays: 1,
     })
     const { cookie } = await siteCookieFor(stack, setup.session, feature.commitAddress ?? '')
@@ -596,8 +599,8 @@ describe('static sites (local-disk storage)', () => {
       200,
     )
     await stack.sql(
-      `update static_sites set created_at = now() - interval '3 days' where team_site_id in (select id from team_sites where name = 'oldie');` +
-        ` update site_hostnames set updated_at = now() - interval '3 days' where team_site_id in (select id from team_sites where name = 'oldie')`,
+      `update static_sites set created_at = now() - interval '3 days' where project_site_id in (select id from project_sites where name = 'oldie');` +
+        ` update site_hostnames set updated_at = now() - interval '3 days' where project_site_id in (select id from project_sites where name = 'oldie')`,
     )
     await stack.exec('circi', ['circi', 'admin', 'storage', 'gc', '--grace-hours', '0'])
 
@@ -642,8 +645,8 @@ describe('static sites (S3 storage)', () => {
     const s3 = stack.s3
     if (!s3) throw new Error('no bucket')
     const workspace = setup.workspace.slug
-    const team = await createTeam(setup.session, workspace, 'Bucket Docs')
-    await setup.session.patch(`/api/teams/${workspace}/${team.slug}/settings`, {
+    const project = await createProject(setup.session, workspace, 'Bucket Docs')
+    await setup.session.patch(`/api/projects/${workspace}/${project.slug}/settings`, {
       staticHostingEnabled: true,
     })
     const page = '<!doctype html><h1>from the bucket</h1>'
@@ -651,7 +654,7 @@ describe('static sites (S3 storage)', () => {
     await repo.commit('one')
     const up = await uploadSiteCli({
       stack,
-      token: team.token,
+      token: project.token,
       repo,
       dir: dirPath,
       name: 'docs',

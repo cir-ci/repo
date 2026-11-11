@@ -3,7 +3,7 @@ import {
   seedBuild,
   seedDiff,
   seedFile,
-  seedTeam,
+  seedProject,
   seedScreenshot,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
@@ -26,8 +26,8 @@ afterAll(async () => {
 })
 
 async function newBuild() {
-  const { team } = await seedTeam(t.db)
-  return seedBuild(t.db, team.id)
+  const { project } = await seedProject(t.db)
+  return seedBuild(t.db, project.id)
 }
 
 describe('screenshots', () => {

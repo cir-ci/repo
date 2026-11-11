@@ -59,7 +59,7 @@ export namespace IdentityEditor {
     panel: ReactNode
     /** The popover's accessible name. */
     panelLabel: string
-    /** A wide panel (the team's colours and icon grid) instead of a small menu. */
+    /** A wide panel (the project's colours and icon grid) instead of a small menu. */
     wide?: boolean
     /** False: the avatar and the name are shown, not editable. */
     canEdit?: boolean

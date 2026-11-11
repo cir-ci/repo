@@ -22,8 +22,8 @@ import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
 import { onInstancePage } from '#features/instance/hub-model.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
@@ -34,11 +34,11 @@ import styles from './SettingsNav.module.css'
 
 /**
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
- * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Teams
- * (each team the person may see, opening its settings hub, then All teams) and, for the people
- * who run the instance, Instance, above Workspaces and Teams (the hierarchy: Account, Instance,
- * Workspaces, Teams): one entry (a tile and its name) that opens the Instance hub and
- * stays selected on every Instance page but All workspaces. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
+ * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Projects
+ * (each project the person may see, opening its settings hub, then All projects) and, for the people
+ * who run the instance, Instance, above Workspaces and Projects (the hierarchy: Account, Instance,
+ * Workspaces, Projects): one entry (a tile and its name) that opens the Instance hub and
+ * stays selected on every Instance page but All workspaces. A project stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
  * Instance admins get a Workspaces section (every live workspace of the instance, each opening its
  * settings hub and selected on every page of it, then All workspaces: the list, with New workspace
  * and the deleted ones) in place of the Workspace one. On a
@@ -62,7 +62,7 @@ export function SettingsNav() {
   const router = useRouter()
   const back = returnTarget(
     useSettingsReturnStore((s) => s.app),
-    model?.teams,
+    model?.projects,
   )
   // Settings only owners and admins can change are left out for everyone else (their pages send them away).
   const canManage = model?.canManage === true
@@ -204,41 +204,41 @@ export function SettingsNav() {
         </NavSection>
       ) : null}
       {workspace ? (
-        <NavSection label="Teams">
-          {(model?.teams ?? []).map((team) => {
-            const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(team.slug)}/settings`
+        <NavSection label="Projects">
+          {(model?.projects ?? []).map((project) => {
+            const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(project.slug)}/settings`
             return (
               <NavLink
-                key={team.slug}
-                to="/$workspace/$team/settings"
-                params={{ workspace: workspace.slug, team: team.slug }}
+                key={project.slug}
+                to="/$workspace/$project/settings"
+                params={{ workspace: workspace.slug, project: project.slug }}
                 icon={
                   <Avatar
-                    type="team"
+                    type="project"
                     aria-hidden
-                    slug={team.slug}
-                    name={team.name}
-                    color={team.color}
-                    icon={team.icon}
+                    slug={project.slug}
+                    name={project.name}
+                    color={project.color}
+                    icon={project.icon}
                     size={18}
                   />
                 }
-                // Every page of the team's settings belongs to its entry: the hub and the pages below it.
+                // Every page of the project's settings belongs to its entry: the hub and the pages below it.
                 selected={pathname === base || pathname.startsWith(`${base}/`)}
               >
-                {team.name}
+                {project.name}
               </NavLink>
             )
           })}
           <NavLink
-            to="/workspaces/$workspace/settings/teams"
+            to="/workspaces/$workspace/settings/projects"
             params={{ workspace: workspace.slug }}
             icon={<LayersIcon />}
             selected={
-              pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/teams`
+              pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/projects`
             }
           >
-            All teams
+            All projects
           </NavLink>
         </NavSection>
       ) : null}
@@ -266,11 +266,11 @@ function WorkspaceEntry({ workspace, pathname }: WorkspaceEntry.Props) {
         />
       }
       // Every page of the workspace's settings belongs to its entry: the hub and the pages below
-      // it, except the teams list, which belongs to "All teams" (one selected entry per page).
+      // it, except the projects list, which belongs to "All projects" (one selected entry per page).
       selected={
         (pathname === base || pathname.startsWith(`${base}/`)) &&
-        pathname !== `${base}/teams` &&
-        !pathname.startsWith(`${base}/teams/`)
+        pathname !== `${base}/projects` &&
+        !pathname.startsWith(`${base}/projects/`)
       }
     >
       {workspace.name}

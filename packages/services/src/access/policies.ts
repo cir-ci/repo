@@ -4,7 +4,7 @@ import type { Actor } from './actor.ts'
 
 /**
  * The answer of a policy. A non-member is `not-member`, which callers present as "not found"
- * (so the existence of a workspace or team is not revealed); a member who lacks the role is
+ * (so the existence of a workspace or project is not revealed); a member who lacks the role is
  * `not-manager`, `not-owner` or `not-instance-admin`, which callers present as "forbidden".
  * Order matters: membership is always decided before the role.
  */
@@ -27,18 +27,18 @@ export function canReadWorkspace(actor: Actor): Decision {
 }
 
 /**
- * A team is visible to its members and to the workspace's owners and admins. Other workspace
- * members get `not-member`, which callers present as "not found" like a team that doesn't exist.
+ * A project is visible to its members and to the workspace's owners and admins. Other workspace
+ * members get `not-member`, which callers present as "not found" like a project that doesn't exist.
  */
-export function canSeeTeam(actor: Actor): Decision {
+export function canSeeProject(actor: Actor): Decision {
   const read = canReadWorkspace(actor)
   if (!read.allow) return read
-  return canManage(actor.role) || actor.teamMember === true ? ALLOW : deny('not-member')
+  return canManage(actor.role) || actor.projectMember === true ? ALLOW : deny('not-member')
 }
 
-/** Whoever sees a team may read it (and its member list). */
-export function canReadTeam(actor: Actor): Decision {
-  return canSeeTeam(actor)
+/** Whoever sees a project may read it (and its member list). */
+export function canReadProject(actor: Actor): Decision {
+  return canSeeProject(actor)
 }
 
 /** Owners and admins change a workspace's settings. */
@@ -48,21 +48,21 @@ export function canManageWorkspace(actor: Actor): Decision {
   return canManage(actor.role) ? ALLOW : deny('not-manager')
 }
 
-/** Owners and admins change a team's settings, rules and integrations. */
-export function canWriteTeam(actor: Actor): Decision {
-  const see = canSeeTeam(actor)
+/** Owners and admins change a project's settings, rules and integrations. */
+export function canWriteProject(actor: Actor): Decision {
+  const see = canSeeProject(actor)
   if (!see.allow) return see
   return canManageWorkspace(actor)
 }
 
-/** Owners and admins add people to any team, themselves included. */
-export function canAddTeamMembers(actor: Actor): Decision {
-  return canWriteTeam(actor)
+/** Owners and admins add people to any project, themselves included. */
+export function canAddProjectMembers(actor: Actor): Decision {
+  return canWriteProject(actor)
 }
 
-/** Owners and admins remove anyone from a team; a member of it can remove only themselves (leave). */
-export function canRemoveTeamMember(actor: Actor, targetUserId: string): Decision {
-  const see = canSeeTeam(actor)
+/** Owners and admins remove anyone from a project; a member of it can remove only themselves (leave). */
+export function canRemoveProjectMember(actor: Actor, targetUserId: string): Decision {
+  const see = canSeeProject(actor)
   if (!see.allow) return see
   if (canManage(actor.role)) return ALLOW
   return actor.userId === targetUserId ? ALLOW : deny('not-manager')
@@ -95,7 +95,7 @@ export function isInstanceAdmin(actor: Pick<Actor, 'instanceAdmin'>): Decision {
 
 export namespace assertAllowed {
   export interface Messages {
-    /** The message for a non-member, e.g. "Team not found". */
+    /** The message for a non-member, e.g. "Project not found". */
     notFound: string
     /** The message for a member without the role. */
     forbidden?: string

@@ -76,12 +76,12 @@ export interface PushPayload {
   url: string
   /** The notification's ID: one notification per event, and the Inbox item to mark read. */
   tag: string
-  team: string | null
+  project: string | null
 }
 
 /** Reads a push body; a body that is missing or not ours still shows something sensible. */
 export function parsePushPayload(text: string | null): PushPayload {
-  const fallback: PushPayload = { title: 'CirCI', body: '', url: '/', tag: '', team: null }
+  const fallback: PushPayload = { title: 'CirCI', body: '', url: '/', tag: '', project: null }
   if (!text) return fallback
   try {
     const value: unknown = JSON.parse(text)
@@ -98,7 +98,7 @@ export function parsePushPayload(text: string | null): PushPayload {
       // Only a path in this app: a push never sends a window to another site.
       url: url?.startsWith('/') && !url.startsWith('//') ? url : '/',
       tag: str('tag') ?? '',
-      team: str('team') ?? null,
+      project: str('project') ?? null,
     }
   } catch {
     return fallback

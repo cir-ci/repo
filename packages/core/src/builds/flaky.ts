@@ -3,11 +3,11 @@
  * the flaky list, Triage, the sidebar count, Insights and the merge gate all feed it the same
  * history (`@circi/db`'s `loadFlakyHistory`) so they cannot disagree.
  *
- * A screenshot is flaky when its image on the team's default branch keeps coming back to
+ * A screenshot is flaky when its image on the project's default branch keeps coming back to
  * something it already was, or when the same commit rendered it differently on two runs. A
  * screenshot that was simply redesigned (A, then B, then C) is not flaky: it moved on, it
  * never came back. Whether a pull request whose only changes are flaky ones holds the merge is
- * a setting: the workspace sets it, and a team may override it.
+ * a setting: the workspace sets it, and a project may override it.
  */
 
 /** How many of the most recent default-branch commits the rule looks at. */
@@ -15,22 +15,22 @@ export const FLAKY_WINDOW = 10
 /** The default number of flip-flops (`flakyAfterChanges`) before a screenshot is flaky. */
 export const FLAKY_MIN_CHANGES = 3
 /**
- * The fewest flip-flops a team may ask for. One return to an earlier image is what a normal
+ * The fewest flip-flops a project may ask for. One return to an earlier image is what a normal
  * revert looks like; two is a pattern.
  */
 export const MIN_FLAKY_FLIP_FLOPS = 2
 /**
- * The most a team may ask for. In a window of `FLAKY_WINDOW` commits the first image cannot be a
+ * The most a project may ask for. In a window of `FLAKY_WINDOW` commits the first image cannot be a
  * return and the second cannot either, so more than window - 2 could never happen.
  */
 export const MAX_FLAKY_FLIP_FLOPS = FLAKY_WINDOW - 2
 
 /**
- * The effective "flaky screenshots block merges" value. The team's own value wins; `null`
+ * The effective "flaky screenshots block merges" value. The project's own value wins; `null`
  * means "inherit from the workspace".
  */
-export function resolveFlakyBlocksMerge(workspace: boolean, team: boolean | null): boolean {
-  return team ?? workspace
+export function resolveFlakyBlocksMerge(workspace: boolean, project: boolean | null): boolean {
+  return project ?? workspace
 }
 
 /** What a workspace says when it has never been asked: flaky changes block like any other. */
@@ -60,11 +60,11 @@ export interface FlakyReturn {
   backTo: number
 }
 
-/** The evidence of flip-flops: returns to an earlier image, against the team's limit. */
+/** The evidence of flip-flops: returns to an earlier image, against the project's limit. */
 export interface FlakyFlipFlop {
   /** Returns counted in the window (`returns.length`). */
   count: number
-  /** The flip-flops the team needs before a screenshot is flaky (never below the lowest allowed). */
+  /** The flip-flops the project needs before a screenshot is flaky (never below the lowest allowed). */
   threshold: number
   /** How many commits the rule looked at (up to `FLAKY_WINDOW`). */
   window: number
@@ -118,7 +118,7 @@ export type FlakyGateEntry = Pick<FlakyVerdict, 'name' | 'reason' | 'knownImages
 export interface FlakyDecision {
   /** Every change was a flaky screenshot and looked like its known variation. */
   flakyOnly: boolean
-  /** The team's flaky screenshots among the builds before this one. */
+  /** The project's flaky screenshots among the builds before this one. */
   flaky: FlakyGateEntry[]
 }
 
@@ -176,8 +176,8 @@ function phrases(reason: FlakyReason): string[] {
 
 /**
  * A reason as one sentence. The short form ("Came back to an earlier image 3 times") is for rows;
- * with `detail` it says how far back it looked and the team's limit ("... in the last 10 commits;
- * the team's limit is 2."). `inline` keeps it lower case, for use inside a sentence. Every place that shows why a screenshot is flaky uses this.
+ * with `detail` it says how far back it looked and the project's limit ("... in the last 10 commits;
+ * the project's limit is 2."). `inline` keeps it lower case, for use inside a sentence. Every place that shows why a screenshot is flaky uses this.
  */
 export function flakyReasonText(
   reason: FlakyReason,
@@ -188,7 +188,7 @@ export function flakyReasonText(
   if (!options.detail) return text
   if (reason.kind === 'reruns_disagree') return `${text}; one disagreement is enough.`
   const looked = ` in the last ${plural(reason.flipFlop.window, 'commit')}`
-  const limit = `the team's limit is ${reason.flipFlop.threshold}`
+  const limit = `the project's limit is ${reason.flipFlop.threshold}`
   return reason.kind === 'both'
     ? `${text}${looked}; ${limit}, and one disagreement is enough.`
     : `${text}${looked}; ${limit}.`
@@ -218,7 +218,7 @@ export function flakyEvidence(reason: FlakyReason): FlakyEvidence[] {
 }
 
 /**
- * The screenshots that are flaky after `builds`, a team's completed default-branch builds up to
+ * The screenshots that are flaky after `builds`, a project's completed default-branch builds up to
  * some moment. Only the last `window` distinct commits count; several runs of one commit are
  * one point in the sequence.
  *
@@ -230,7 +230,7 @@ export function flakyEvidence(reason: FlakyReason): FlakyEvidence[] {
  * - Rerun disagreement: two runs of the same commit that produced different images. Same code,
  *   same screenshot, different pixels: nondeterminism, the strongest signal, so one such commit
  *   is enough whatever the threshold.
- * - Otherwise flaky when the flip-flops reach `threshold` (the team's `flakyAfterChanges`, never
+ * - Otherwise flaky when the flip-flops reach `threshold` (the project's `flakyAfterChanges`, never
  *   below `MIN_FLAKY_FLIP_FLOPS`).
  *
  * Worst first (most commits with changes), then by name.
@@ -376,7 +376,7 @@ export namespace onlyFlakyChanges {
     counts: { added: number; removed: number; changed: number; failed: number }
     /** The screenshots whose status is `changed`. */
     changes: readonly FlakyChange[]
-    /** The team's flaky screenshots as of the builds before this one. */
+    /** The project's flaky screenshots as of the builds before this one. */
     flaky: readonly FlakyGateEntry[]
   }
 }

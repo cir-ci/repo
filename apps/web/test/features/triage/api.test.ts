@@ -21,7 +21,7 @@ const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   kind: 'flaky',
   key: 'home',
   snapshotName: 'home',
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   build: {
     number: 12,
     branch: 'main',
@@ -141,7 +141,7 @@ describe('snapshotHistoryQuery', () => {
       return Response.json({ defaultBranch: 'main', default: [], branch: null })
     })
     await new QueryClient().fetchQuery(snapshotHistoryQuery('acme', 'web', 'checkout/home', 12))
-    expect(asked).toBe('/api/teams/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12')
+    expect(asked).toBe('/api/projects/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12')
     vi.unstubAllGlobals()
   })
 })

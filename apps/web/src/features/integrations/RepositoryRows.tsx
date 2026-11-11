@@ -7,41 +7,41 @@ import { repositoryRows, targetsQuery } from './api/generic.ts'
 
 import styles from './Integrations.module.css'
 
-/** The picker's "no team" choice; a team slug can't be this. */
+/** The picker's "no project" choice; a project slug can't be this. */
 const NONE = '~none'
 
 /**
- * A git host's repositories, each with the team its pull requests report to (GitHub, GitLab and
+ * A git host's repositories, each with the project its pull requests report to (GitHub, GitLab and
  * Bitbucket share this). The rows are the repositories the host offers; one the host no longer
- * lists but a team still reports to says "Needs attention" with Reinstall. Choosing a team (or
- * "Not linked") saves at once. The server stores it the other way round (a team has one
- * repository), so choosing a team moves that team here from its old repository.
+ * lists but a project still reports to says "Needs attention" with Reinstall. Choosing a project (or
+ * "Not linked") saves at once. The server stores it the other way round (a project has one
+ * repository), so choosing a project moves that project here from its old repository.
  */
 export function RepositoryRows(props: RepositoryRows.Props) {
-  const { teams, spec } = props
+  const { projects, spec } = props
   const targets = useQuery({
     ...targetsQuery(props.workspace, props.integrationId),
     enabled: props.canManage,
   })
-  const rows = repositoryRows(teams, props.canManage ? (targets.data?.targets ?? null) : null)
+  const rows = repositoryRows(projects, props.canManage ? (targets.data?.targets ?? null) : null)
   const items = [
     { value: NONE, label: 'Not linked' },
-    ...teams.map((t) => ({ value: t.slug, label: t.name })),
+    ...projects.map((t) => ({ value: t.slug, label: t.name })),
   ]
   const [typed, setTyped] = useState('')
-  const [typedTeam, setTypedTeam] = useState(teams[0]?.slug ?? '')
+  const [typedProject, setTypedProject] = useState(projects[0]?.slug ?? '')
   const noun = spec.targetLabel.toLowerCase()
 
-  function choose(row: { ref: string; team: string | null }, next: string) {
+  function choose(row: { ref: string; project: string | null }, next: string) {
     const to = next === NONE ? null : next
-    if (to === row.team) return
-    props.onAssign({ ref: row.ref, from: row.team, to })
+    if (to === row.project) return
+    props.onAssign({ ref: row.ref, from: row.project, to })
   }
 
   function add(e: FormEvent) {
     e.preventDefault()
-    if (typed.trim() === '' || typedTeam === '') return
-    props.onAssign({ ref: typed.trim(), from: null, to: typedTeam })
+    if (typed.trim() === '' || typedProject === '') return
+    props.onAssign({ ref: typed.trim(), from: null, to: typedProject })
     setTyped('')
   }
 
@@ -67,7 +67,7 @@ export function RepositoryRows(props: RepositoryRows.Props) {
       {rows.length > 0 ? (
         <ul className={styles.box} aria-label={`${spec.targetLabel}s`}>
           {rows.map((row) => {
-            const team = teams.find((t) => t.slug === row.team)
+            const project = projects.find((t) => t.slug === row.project)
             return (
               <li key={row.ref}>
                 <div className={styles.row}>
@@ -85,14 +85,14 @@ export function RepositoryRows(props: RepositoryRows.Props) {
                   {props.canManage ? (
                     <Select
                       className={styles.picker}
-                      label={`Team for ${row.label}`}
+                      label={`Project for ${row.label}`}
                       hideLabel
                       items={items}
-                      value={row.team ?? NONE}
+                      value={row.project ?? NONE}
                       onValueChange={(v) => choose(row, v)}
                     />
                   ) : (
-                    <Text>{team?.name ?? 'Not linked'}</Text>
+                    <Text>{project?.name ?? 'Not linked'}</Text>
                   )}
                   {row.broken && props.reinstall ? props.reinstall : null}
                 </div>
@@ -101,7 +101,7 @@ export function RepositoryRows(props: RepositoryRows.Props) {
           })}
         </ul>
       ) : null}
-      {props.canManage && teams.length > 0 ? (
+      {props.canManage && projects.length > 0 ? (
         <form onSubmit={add} noValidate aria-label={`Add a ${noun}`} className={styles.inline}>
           <TextField
             className={styles.grow}
@@ -111,10 +111,10 @@ export function RepositoryRows(props: RepositoryRows.Props) {
             {...(spec.targetPlaceholder ? { placeholder: spec.targetPlaceholder } : {})}
           />
           <Select
-            label="Team"
-            items={teams.map((t) => ({ value: t.slug, label: t.name }))}
-            value={typedTeam}
-            onValueChange={setTypedTeam}
+            label="Project"
+            items={projects.map((t) => ({ value: t.slug, label: t.name }))}
+            value={typedProject}
+            onValueChange={setTypedProject}
           />
           <Button type="submit" disabled={typed.trim() === ''}>
             Link {noun}
@@ -130,9 +130,9 @@ export namespace RepositoryRows {
     workspace: string
     integrationId: string
     spec: Integration.MappingSpec
-    teams: Integration.MappingTeam[]
+    projects: Integration.MappingProject[]
     canManage: boolean
-    /** Moves `ref` from team `from` (cleared) to team `to` (saved); null `to` only clears. */
+    /** Moves `ref` from project `from` (cleared) to project `to` (saved); null `to` only clears. */
     onAssign: (input: { ref: string; from: string | null; to: string | null }) => void
     /** The Reinstall button a broken row shows. */
     reinstall?: ReactNode

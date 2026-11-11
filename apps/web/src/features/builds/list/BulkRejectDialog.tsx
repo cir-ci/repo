@@ -29,7 +29,7 @@ export namespace BulkRejectDialog {
     open: boolean
     count: number
     pending: boolean
-    /** The team asks for a reason (the default until it is known). */
+    /** The project asks for a reason (the default until it is known). */
     reasonRequired?: boolean
     onCancel: () => void
     onReject: (reason: string) => void

@@ -1,8 +1,8 @@
 import { generateKeyPairSync } from 'node:crypto'
 
-import { getTeamLink } from '@circi/db/queries'
+import { getProjectLink } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import { integrationRegistry } from '@circi/integrations'
 import { fakeGithubInstallationsHost } from '@circi/testing/hosts'
 import { Command } from 'commander'
@@ -62,7 +62,7 @@ function fakeGithub() {
   return host
 }
 
-async function link(org: string, team: string, installation: string): Promise<string[]> {
+async function link(org: string, project: string, installation: string): Promise<string[]> {
   const lines: string[] = []
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
     lines.push(a.map(String).join(' '))
@@ -76,8 +76,8 @@ async function link(org: string, team: string, installation: string): Promise<st
       'link',
       '--org',
       org,
-      '--team',
-      team,
+      '--project',
+      project,
       '--repo',
       'acme/web',
       '--installation',
@@ -89,37 +89,39 @@ async function link(org: string, team: string, installation: string): Promise<st
 }
 
 describe('circi admin github link', () => {
-  it('verifies the installation with GitHub, then links the team', async () => {
-    const { workspace, team } = await seedTeam(t.db)
+  it('verifies the installation with GitHub, then links the project', async () => {
+    const { workspace, project } = await seedProject(t.db)
     const github = fakeGithub()
-    const lines = await link(workspace.slug, team.slug, '55')
+    const lines = await link(workspace.slug, project.slug, '55')
     expect(github.asked()).toEqual(['55'])
     expect(lines[0]).toContain('now reports to acme/web')
-    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toEqual({
+    expect(await getProjectLink(t.db, project.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '55',
       repoRef: 'acme/web',
     })
   })
 
   it("stores nothing when GitHub has no such installation, or doesn't answer", async () => {
-    const { workspace, team } = await seedTeam(t.db)
+    const { workspace, project } = await seedProject(t.db)
     fakeGithub()
-    await expect(link(workspace.slug, team.slug, '56')).rejects.toThrow(/isn't installed/)
-    await expect(link(workspace.slug, team.slug, '57')).rejects.toThrow(/didn't answer/)
-    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
+    await expect(link(workspace.slug, project.slug, '56')).rejects.toThrow(/isn't installed/)
+    await expect(link(workspace.slug, project.slug, '57')).rejects.toThrow(/didn't answer/)
+    expect(await getProjectLink(t.db, project.id, integrationRegistry.gitKinds())).toBeUndefined()
     expect(
       (await t.db.select().from(schema.integrations)).filter((i) => i.workspaceId === workspace.id),
     ).toEqual([])
   })
 
   it('refuses an installation another workspace already uses', async () => {
-    const mine = await seedTeam(t.db)
-    const theirs = await seedTeam(t.db)
+    const mine = await seedProject(t.db)
+    const theirs = await seedProject(t.db)
     fakeGithub()
-    await link(theirs.workspace.slug, theirs.team.slug, '58')
-    await expect(link(mine.workspace.slug, mine.team.slug, '58')).rejects.toThrow(
+    await link(theirs.workspace.slug, theirs.project.slug, '58')
+    await expect(link(mine.workspace.slug, mine.project.slug, '58')).rejects.toThrow(
       /already connected to another workspace/,
     )
-    expect(await getTeamLink(t.db, mine.team.id, integrationRegistry.gitKinds())).toBeUndefined()
+    expect(
+      await getProjectLink(t.db, mine.project.id, integrationRegistry.gitKinds()),
+    ).toBeUndefined()
   })
 })

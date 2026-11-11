@@ -16,16 +16,16 @@ const enc = encodeURIComponent
 export interface SettingsSection {
   id: string
   label: string
-  /** Which part of the frame: Account, Workspace, Team or Instance. */
-  area: 'Account' | 'Workspace' | 'Team' | 'Instance'
+  /** Which part of the frame: Account, Workspace, Project or Instance. */
+  area: 'Account' | 'Workspace' | 'Project' | 'Instance'
   path: string
   icon: IconKey
 }
 
 export interface SettingsInput {
   workspace: string | undefined
-  /** The team of the address, for its settings pages. */
-  team?: string | undefined
+  /** The project of the address, for its settings pages. */
+  project?: string | undefined
   canManage: boolean | undefined
   instanceAdmin: boolean | undefined
 }
@@ -97,7 +97,7 @@ const workspaceSection = (
 /** The settings pages the person has: the same as the settings frame's own navigation lists. */
 export function settingsSections({
   workspace,
-  team,
+  project,
   canManage,
   instanceAdmin,
 }: SettingsInput): SettingsSection[] {
@@ -111,7 +111,7 @@ export function settingsSections({
     if (canManage)
       sections.push(workspaceSection('general', 'General', `${base}/general`, 'workspace'))
     sections.push(workspaceSection('members', 'Members', `${base}/members`, 'person'))
-    sections.push(workspaceSection('teams', 'Teams', `${base}/teams`, 'layers'))
+    sections.push(workspaceSection('projects', 'Projects', `${base}/projects`, 'layers'))
     if (canManage) {
       sections.push(workspaceSection('sign-in', 'Sign-in and domains', `${base}/sign-in`, 'check'))
       sections.push(
@@ -121,17 +121,17 @@ export function settingsSections({
         workspaceSection('storage', 'Storage and retention', `${base}/storage`, 'layers'),
       )
     }
-    if (team) {
+    if (project) {
       const t = (id: string, label: string, sub: string, icon: IconKey): SettingsSection => ({
-        id: `team-${id}`,
+        id: `project-${id}`,
         label,
-        area: 'Team',
-        path: `/${enc(workspace)}/${enc(team)}/settings${sub}`,
+        area: 'Project',
+        path: `/${enc(workspace)}/${enc(project)}/settings${sub}`,
         icon,
       })
-      // The team's hub, then its pages (each opens inside settings, under the hub).
-      sections.push(t('hub', 'Team settings', '', 'team'))
-      if (canManage) sections.push(t('general', 'General', '/general', 'team'))
+      // The project's hub, then its pages (each opens inside settings, under the hub).
+      sections.push(t('hub', 'Project settings', '', 'project'))
+      if (canManage) sections.push(t('general', 'General', '/general', 'project'))
       sections.push(t('members', 'Members', '/members', 'person'))
       if (canManage) sections.push(t('reviews', 'Review rules', '/reviews', 'eye'))
       if (canManage) sections.push(t('webhooks', 'Webhooks', '/webhooks', 'sliders'))

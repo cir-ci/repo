@@ -1,8 +1,8 @@
 import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getTeamById, getWorkspaceSettings } from '#src/queries/index.ts'
-import { createTeam, setWorkspaceSettings } from '#src/repositories/index.ts'
+import { getProjectById, getWorkspaceSettings } from '#src/queries/index.ts'
+import { createProject, setWorkspaceSettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -37,9 +37,9 @@ describe('workspace settings', () => {
     })
   })
 
-  it('saves a default retention, refuses less than a day, and gives it to new teams only', async () => {
+  it('saves a default retention, refuses less than a day, and gives it to new projects only', async () => {
     const { workspace } = await seedWorkspace(t.db)
-    const before = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'before' })
+    const before = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'before' })
     expect(await setWorkspaceSettings(t.db, workspace.id, { retentionDays: 90 })).toEqual({
       flakyBlocksMerge: true,
       assignTriageToOnCall: false,
@@ -51,9 +51,9 @@ describe('workspace settings', () => {
     await expect(setWorkspaceSettings(t.db, workspace.id, { retentionDays: 1.5 })).rejects.toThrow(
       /between 1 and 3650 days/,
     )
-    const after = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'after' })
+    const after = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'after' })
     expect(after.retentionDays).toBe(90)
-    expect((await getTeamById(t.db, before.id))?.retentionDays).toBe(30)
+    expect((await getProjectById(t.db, before.id))?.retentionDays).toBe(30)
   })
 
   it('belongs to one workspace', async () => {

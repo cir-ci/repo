@@ -43,7 +43,7 @@ describe('SiteHandoffPage', () => {
     await open('?host=other.sites.test')
     await expect.element(page.getByRole('heading', { name: 'Not found' })).toBeVisible()
     await expect
-      .element(page.getByRole('link', { name: 'Go to teams' }))
+      .element(page.getByRole('link', { name: 'Go to projects' }))
       .toHaveAttribute('href', '/')
   })
 })

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  addTeamMembers,
-  createTeam,
+  addProjectMembers,
+  createProject,
   createUserViaCli,
   extractCode,
   extractLinks,
@@ -247,20 +247,20 @@ describe('email-code sign-in', () => {
     expect(await warnings()).toHaveLength(1)
   })
 
-  it('Acme can turn the password off: password sessions stop seeing its teams, code sessions keep them', async () => {
+  it('Acme can turn the password off: password sessions stop seeing its projects, code sessions keep them', async () => {
     const { stack, setup } = ctx
-    const team = await createTeam(setup.session, workspace(), 'Methods')
+    const project = await createProject(setup.session, workspace(), 'Methods')
     const sam = await member('sam')
     const viaPassword = await signIn(stack, sam.email, sam.password)
     const viaCode = await signInWithCode(stack.url, stack.mail, sam.email)
-    // Teams have their own members: put Sam in this one.
+    // Projects have their own members: put Sam in this one.
     const me = await viaPassword.get<{ user: { id: string } }>('/api/auth/get-session')
-    await addTeamMembers(setup.session, workspace(), team.slug, [me.user.id])
+    await addProjectMembers(setup.session, workspace(), project.slug, [me.user.id])
     const slugs = async (s: typeof viaCode) =>
-      (await s.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
-        (p) => p.team.slug,
+      (await s.get<{ projects: { project: { slug: string } }[] }>('/api/projects')).projects.map(
+        (p) => p.project.slug,
       )
-    expect(await slugs(viaPassword)).toContain(team.slug)
+    expect(await slugs(viaPassword)).toContain(project.slug)
 
     // The owner turns off "Password" on the Sign-in page.
     const adminByCode = await signInWithCode(stack.url, stack.mail, setup.account.email)
@@ -283,15 +283,15 @@ describe('email-code sign-in', () => {
       .toBe(false)
 
     // Sam's password session no longer sees the workspace; the emailed-code one does.
-    expect(await slugs(viaPassword)).not.toContain(team.slug)
+    expect(await slugs(viaPassword)).not.toContain(project.slug)
     expect(
-      (await viaPassword.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status,
+      (await viaPassword.request('GET', `/api/projects/${workspace()}/${project.slug}`)).status,
     ).toBe(404)
     const caps = await viaPassword.get<{
       refusingWorkspaces: { name: string; accepts: string[] }[]
     }>('/api/capabilities')
     expect(caps.refusingWorkspaces).toEqual([{ name: setup.workspace.name, accepts: ['email'] }])
-    expect(await slugs(viaCode)).toContain(team.slug)
+    expect(await slugs(viaCode)).toContain(project.slug)
     // better-auth's own endpoints obey the rule too.
     expect(
       (
@@ -309,7 +309,7 @@ describe('email-code sign-in', () => {
     expect(both.status).toBeGreaterThanOrEqual(400)
     // Back on.
     await adminByCode.patch(`/api/workspaces/${workspace()}/auth`, { passwordLoginEnabled: true })
-    expect(await slugs(viaPassword)).toContain(team.slug)
+    expect(await slugs(viaPassword)).toContain(project.slug)
   })
 })
 
@@ -367,7 +367,7 @@ describe('workspace email domains', () => {
     const session = await signInWithCode(stack.url, stack.mail, joiner)
     const members = (await fullWorkspace(setup.session, workspace())).members
     expect(members.find((m) => m.user.email === joiner)?.role).toBe('member')
-    expect((await session.get<{ teams: unknown[] }>('/api/teams')).teams).toBeDefined()
+    expect((await session.get<{ projects: unknown[] }>('/api/projects')).projects).toBeDefined()
     // No invitation was needed, and none exists for them.
     expect(
       (await fullWorkspace(setup.session, workspace())).invitations.some((i) => i.email === joiner),

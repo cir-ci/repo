@@ -6,7 +6,7 @@ import {
   setTriageRotation,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
+import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -28,20 +28,20 @@ const requestsOf = async (buildId: string) =>
     .where(eq(schema.reviewRequests.buildId, buildId))
     .orderBy(asc(schema.reviewRequests.createdAt), asc(schema.reviewRequests.id))
 
-/** A team with an owner and two teammates, `ann` and `bob`. */
+/** A project with an owner and two teammates, `ann` and `bob`. */
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const ann = await seedUser(t.db)
   const bob = await seedUser(t.db)
   // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
   for (const u of [ann, bob]) await addTestMember(t.db, { workspaceId: workspace.id, userId: u.id })
-  return { team, workspace, owner, ann, bob }
+  return { project, workspace, owner, ann, bob }
 }
 
 let n = 0
 /** Uploads a build the way CI does and finalizes one shard of it. */
 async function upload(
-  teamId: string,
+  projectId: string,
   options: {
     names?: string[]
     name?: string
@@ -56,7 +56,7 @@ async function upload(
   const build =
     options.build ??
     (await createBuild(t.db, {
-      teamId,
+      projectId,
       commitSha: `abc${String(n).padStart(4, '0')}`,
       branch: options.branch ?? 'feature',
       ...(options.name ? { name: options.name } : {}),
@@ -83,21 +83,21 @@ async function upload(
 
 describe('finalizeBuild with review rules', () => {
   it('asks the reviewers of a matching snapshot rule when the last shard arrives', async () => {
-    const { team, ann, bob } = await setup()
+    const { project, ann, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'checkout/**',
       reviewerIds: [ann.id],
     })
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'admin/*',
       reviewerIds: [bob.id],
     })
     const now = new Date('2026-03-11T12:00:00Z')
-    const { build } = await upload(team.id, { names: ['home', 'checkout/pay/card'], now })
+    const { build } = await upload(project.id, { names: ['home', 'checkout/pay/card'], now })
 
     const requests = await requestsOf(build.id)
     expect(requests).toHaveLength(1)
@@ -111,35 +111,35 @@ describe('finalizeBuild with review rules', () => {
   })
 
   it('matches a build-name rule, and asks someone named by two rules once', async () => {
-    const { team, ann, bob } = await setup()
+    const { project, ann, bob } = await setup()
     for (const [kind, pattern, ids] of [
       ['build-name', 'mobile-*', [ann.id, bob.id]],
       ['snapshot-name', 'home', [bob.id]],
     ] as const) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-      await createReviewRule(t.db, { teamId: team.id, kind, pattern, reviewerIds: [...ids] })
+      await createReviewRule(t.db, { projectId: project.id, kind, pattern, reviewerIds: [...ids] })
     }
-    const { build } = await upload(team.id, { name: 'mobile-ios' })
+    const { build } = await upload(project.id, { name: 'mobile-ios' })
     const reviewers = (await requestsOf(build.id)).map((r) => r.reviewerId).toSorted()
     expect(reviewers).toEqual([ann.id, bob.id].toSorted())
   })
 
   it('asks nobody while shards are missing, and everyone once the last one is in', async () => {
-    const { team, ann } = await setup()
+    const { project, ann } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: '*',
       reviewerIds: [ann.id],
     })
-    const first = await upload(team.id, {
+    const first = await upload(project.id, {
       names: ['a'],
       parallel: { total: 2, shard: '0' },
     })
     expect(first.result).toMatchObject({ complete: false })
     expect(await requestsOf(first.build.id)).toHaveLength(0)
 
-    const last = await upload(team.id, {
+    const last = await upload(project.id, {
       names: ['b'],
       parallel: { total: 2, shard: '1' },
       build: first.build,
@@ -149,91 +149,91 @@ describe('finalizeBuild with review rules', () => {
   })
 
   it('skips a reviewer who has left the workspace', async () => {
-    const { team, ann, bob } = await setup()
+    const { project, ann, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [ann.id, bob.id],
     })
     await t.db.delete(schema.member).where(eq(schema.member.userId, ann.id))
-    const { build } = await upload(team.id)
+    const { build } = await upload(project.id)
     expect((await requestsOf(build.id)).map((r) => r.reviewerId)).toEqual([bob.id])
   })
 
   it("falls back to this week's person on triage when no rule matches", async () => {
-    const { team, ann, bob } = await setup()
+    const { project, ann, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'admin/*',
       reviewerIds: [bob.id],
     })
     // 2026-03-09 is a Monday: ann's week; bob has the next one.
     await setTriageRotation(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       memberIds: [ann.id, bob.id],
       startsOn: new Date('2026-03-09T00:00:00Z'),
     })
-    const thisWeek = await upload(team.id, { now: new Date('2026-03-11T12:00:00Z') })
+    const thisWeek = await upload(project.id, { now: new Date('2026-03-11T12:00:00Z') })
     expect((await requestsOf(thisWeek.build.id)).map((r) => r.reviewerId)).toEqual([ann.id])
     // A newer build asks next week's person; the rotation's own request isn't repeated.
-    const nextWeek = await upload(team.id, { now: new Date('2026-03-16T00:00:00Z') })
+    const nextWeek = await upload(project.id, { now: new Date('2026-03-16T00:00:00Z') })
     expect((await requestsOf(nextWeek.build.id)).map((r) => r.reviewerId)).toEqual([bob.id])
   })
 
   it('prefers a matching rule over the rotation', async () => {
-    const { team, ann, bob } = await setup()
+    const { project, ann, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [bob.id],
     })
     await setTriageRotation(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       memberIds: [ann.id],
       startsOn: new Date('2026-03-09T00:00:00Z'),
     })
-    const { build } = await upload(team.id)
+    const { build } = await upload(project.id)
     expect((await requestsOf(build.id)).map((r) => r.reviewerId)).toEqual([bob.id])
   })
 
   it('asks nobody with no matching rule and no rotation', async () => {
-    const { team, bob } = await setup()
+    const { project, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'admin/*',
       reviewerIds: [bob.id],
     })
-    const { build } = await upload(team.id)
+    const { build } = await upload(project.id)
     expect(await requestsOf(build.id)).toHaveLength(0)
   })
 
   it("closes a superseded build's request when a newer build on the branch arrives", async () => {
-    const { team, ann } = await setup()
+    const { project, ann } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [ann.id],
     })
-    const older = await upload(team.id, { branch: 'feature/x' })
-    const newer = await upload(team.id, { branch: 'feature/x' })
+    const older = await upload(project.id, { branch: 'feature/x' })
+    const newer = await upload(project.id, { branch: 'feature/x' })
     expect((await requestsOf(older.build.id)).map((r) => r.state)).toEqual(['superseded'])
     expect((await requestsOf(newer.build.id)).map((r) => r.state)).toEqual(['open'])
   })
 
   it('closes the requests of a build that turns out to have no changes', async () => {
-    const { team, ann } = await setup()
+    const { project, ann } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [ann.id],
     })
-    const { build } = await upload(team.id)
+    const { build } = await upload(project.id)
     const [processing] = await t.db
       .select()
       .from(schema.builds)

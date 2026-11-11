@@ -8,15 +8,15 @@ export const Dashboard = () => (
     sidebar={
       <>
         <div style={{ padding: '6px 8px 10px', fontWeight: 600 }}>acme</div>
-        <NavItem href="#teams" selected>
-          Teams
+        <NavItem href="#projects" selected>
+          Projects
         </NavItem>
         <NavItem href="#members">Members</NavItem>
         <NavItem href="#settings">Settings</NavItem>
       </>
     }
   >
-    <PanelHeader>Teams</PanelHeader>
+    <PanelHeader>Projects</PanelHeader>
     <ListRow
       href="#web"
       leading={<StatusIcon status="needs-review" />}

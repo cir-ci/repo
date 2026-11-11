@@ -5,9 +5,9 @@ import { addDoctorCommand } from '#cli/commands/doctor.ts'
 import { addGithubCommands } from '#cli/commands/github.ts'
 import { addIgnoreCommands } from '#cli/commands/ignore-region.ts'
 import { addMailCommands } from '#cli/commands/mail.ts'
+import { addProjectCommands } from '#cli/commands/project.ts'
 import { addSetupCodeCommand } from '#cli/commands/setup-code.ts'
 import { addStorageCommands } from '#cli/commands/storage.ts'
-import { addTeamCommands } from '#cli/commands/team.ts'
 import { addUserCommands } from '#cli/commands/user.ts'
 import { addWebhookCommands } from '#cli/commands/webhook.ts'
 import { addMemberCommands, addWorkspaceCommands } from '#cli/commands/workspace.ts'
@@ -18,7 +18,7 @@ export function addAdminCommands(program: Command): void {
   addUserCommands(admin)
   addWorkspaceCommands(admin)
   addMemberCommands(admin)
-  addTeamCommands(admin)
+  addProjectCommands(admin)
   addMailCommands(admin)
   addGithubCommands(admin)
   addDoctorCommand(admin)

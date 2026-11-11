@@ -2,9 +2,9 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createUser, setupCode, verifyTeamToken } from '@circi/auth'
+import { createUser, setupCode, verifyProjectToken } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import { teamColorFor } from '@circi/core'
+import { projectColorFor } from '@circi/core'
 import { countUsers } from '@circi/db/queries'
 import { recordPublicUrl } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
@@ -231,7 +231,7 @@ async function claimedInstance(workspaceCreation?: 'admin' | 'anyone', steps = f
   }
 }
 
-describe('creating workspaces and teams', () => {
+describe('creating workspaces and projects', () => {
   it('limits workspace creation to instance admins by default', async () => {
     const { app, admin, plain } = await claimedInstance()
 
@@ -261,58 +261,58 @@ describe('creating workspaces and teams', () => {
     const { app, plain } = await claimedInstance('anyone')
     const res = await post(app, '/api/workspaces', { name: 'Plain Workspace' }, plain)
     expect(res.statusCode).toBe(201)
-    const team = await post(
+    const project = await post(
       app,
-      '/api/workspaces/plain-workspace/teams',
+      '/api/workspaces/plain-workspace/projects',
       { name: 'Web App' },
       plain,
     )
-    expect(team.statusCode).toBe(201)
-    expect(team.json().team).toEqual({
+    expect(project.statusCode).toBe(201)
+    expect(project.json().project).toEqual({
       slug: 'web-app',
       name: 'Web App',
-      color: teamColorFor('Web App'),
+      color: projectColorFor('Web App'),
       icon: null,
     })
-    expect(team.json().token).toMatch(/^circi_/)
+    expect(project.json().token).toMatch(/^circi_/)
     await app.close()
   })
 
-  it('creates teams only for owners and admins, hiding other workspaces', async () => {
+  it('creates projects only for owners and admins, hiding other workspaces', async () => {
     const { app, admin, plain } = await claimedInstance()
     // `plain` is not in acme-inc at all: same answer as for a missing workspace.
     expect(
-      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'X' }, plain)).statusCode,
+      (await post(app, '/api/workspaces/acme-inc/projects', { name: 'X' }, plain)).statusCode,
     ).toBe(404)
-    expect((await post(app, '/api/workspaces/nope/teams', { name: 'X' }, plain)).statusCode).toBe(
-      404,
-    )
     expect(
-      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'Site' }, admin)).statusCode,
+      (await post(app, '/api/workspaces/nope/projects', { name: 'X' }, plain)).statusCode,
+    ).toBe(404)
+    expect(
+      (await post(app, '/api/workspaces/acme-inc/projects', { name: 'Site' }, admin)).statusCode,
     ).toBe(201)
     // Same name twice: a conflict, not a crash.
     expect(
-      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'Site' }, admin)).statusCode,
+      (await post(app, '/api/workspaces/acme-inc/projects', { name: 'Site' }, admin)).statusCode,
     ).toBe(409)
     await app.close()
   })
 
-  it('rotates a team token, and the old one stops working', async () => {
+  it('rotates a project token, and the old one stops working', async () => {
     const { app, admin, plain } = await claimedInstance('anyone')
     expect(
       (await post(app, '/api/workspaces', { name: 'Plain Workspace' }, plain)).statusCode,
     ).toBe(201)
     const created = (
-      await post(app, '/api/workspaces/plain-workspace/teams', { name: 'Rotating' }, plain)
+      await post(app, '/api/workspaces/plain-workspace/projects', { name: 'Rotating' }, plain)
     ).json()
-    const rotated = await post(app, '/api/teams/plain-workspace/rotating/token', {}, plain)
+    const rotated = await post(app, '/api/projects/plain-workspace/rotating/token', {}, plain)
     expect(rotated.statusCode).toBe(200)
     expect(rotated.json().token).toMatch(/^circi_/)
     expect(rotated.json().token).not.toBe(created.token)
-    expect(await verifyTeamToken(auth, t.db, created.token)).toBeUndefined()
-    expect(await verifyTeamToken(auth, t.db, rotated.json().token)).toBeDefined()
+    expect(await verifyProjectToken(auth, t.db, created.token)).toBeUndefined()
+    expect(await verifyProjectToken(auth, t.db, rotated.json().token)).toBeDefined()
     expect(
-      (await post(app, '/api/teams/plain-workspace/rotating/token', {}, admin)).statusCode,
+      (await post(app, '/api/projects/plain-workspace/rotating/token', {}, admin)).statusCode,
     ).toBe(404)
     await app.close()
   })

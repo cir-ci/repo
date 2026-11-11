@@ -1,0 +1,43 @@
+import { RESERVED_SLUGS } from '@circi/core'
+import { createRoute, lazyRouteComponent, notFound, redirect } from '@tanstack/react-router'
+
+import { rootRoute } from '#app/root-route.ts'
+import { parseBuildsSearch } from '#features/builds/list/builds-filters.ts'
+
+// Each page is its own chunk, loaded on first visit (and preloaded when a link is hovered).
+const projectsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: lazyRouteComponent(() => import('./ProjectsPage.tsx'), 'ProjectsPage'),
+})
+
+const projectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace/$project',
+  validateSearch: parseBuildsSearch,
+  // A reserved word can't be a workspace or project (`/acme/insights`, `/workspaces/acme`): that is
+  // an unknown page, shown as one, not a project page saying the project doesn't exist.
+  beforeLoad: ({ params }) => {
+    if (RESERVED_SLUGS.includes(params.workspace) || RESERVED_SLUGS.includes(params.project)) {
+      throw notFound()
+    }
+  },
+  component: lazyRouteComponent(() => import('./ProjectPage.tsx'), 'ProjectPage'),
+})
+
+// `settings` can't be a project's slug (it is reserved), so `/<workspace>/settings` is a person looking
+// for the workspace's settings, not a project called "settings": send them there. A static segment
+// outranks `$project`, so this route wins over the project page.
+const workspaceSettingsShortcut = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace/settings',
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/workspaces/$workspace/settings',
+      params: { workspace: params.workspace },
+      replace: true,
+    })
+  },
+})
+
+export const projectsRoutes = [projectsRoute, projectRoute, workspaceSettingsShortcut]

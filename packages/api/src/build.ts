@@ -1,5 +1,5 @@
 import type { Figma } from './figma.ts'
-import type { Team } from './team.ts'
+import type { Project } from './project.ts'
 
 export type BuildStatus = 'pending' | 'uploading' | 'processing' | 'complete' | 'error' | 'expired'
 export type BuildConclusion = 'no_changes' | 'changes_detected'
@@ -103,7 +103,7 @@ export namespace Build {
   }
 
   export interface Detail {
-    team: Team.Info
+    project: Project.Info
     build: ListItem & {
       baseBranch: string | null
       ancestryStatus: 'ok' | 'missing' | 'truncated'
@@ -117,7 +117,7 @@ export namespace Build {
     diffs: DiffItem[]
     /** Issues created from the build in Linear or Jira, oldest first. */
     issues: { key: string; url: string; title: string }[]
-    /** The team's review target and when the soonest open, unsnoozed request is due (ISO). */
+    /** The project's review target and when the soonest open, unsnoozed request is due (ISO). */
     reviewTarget: { hours: number | null; dueAt: string | null }
     /** The member the build's author is matched to; null when the author is only a git login. */
     authorUserId: string | null
@@ -157,9 +157,9 @@ export namespace Snapshot {
 }
 
 export namespace WorkspaceBuilds {
-  /** A build in the workspace-wide list: the usual item, and the team it belongs to. */
+  /** A build in the workspace-wide list: the usual item, and the project it belongs to. */
   export interface Item extends Build.ListItem {
-    team: { slug: string; name: string }
+    project: { slug: string; name: string }
   }
 
   /** `GET /api/workspaces/:workspace/builds`: a page, newest first. */
@@ -185,7 +185,7 @@ export namespace WorkspaceBuilds {
     lastBuildAt: string
   }
 
-  /** `GET /api/workspaces/:workspace/builds/branches?team=&q=&limit=`, most recently built first. */
+  /** `GET /api/workspaces/:workspace/builds/branches?project=&q=&limit=`, most recently built first. */
   export interface Branches {
     branches: Branch[]
   }

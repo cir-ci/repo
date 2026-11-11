@@ -9,7 +9,7 @@ import { useClientLink } from '#lib/use-client-link.ts'
 import styles from './SettingsListPage.module.css'
 
 /**
- * A settings page that is a list of things (All teams, All workspaces): the page header with the
+ * A settings page that is a list of things (All projects, All workspaces): the page header with the
  * find field and the main action, a way up above the list, then `children` (one or more
  * `SettingsList`s), or what to show when nothing matches what was typed or there is nothing yet.
  */
@@ -43,9 +43,9 @@ export namespace SettingsListPage {
     PageFrame.Props,
     'crumbs' | 'title' | 'actions' | 'loading' | 'error' | 'onRetry' | 'forbidden'
   > {
-    /** Plural, for the find field: "teams". */
+    /** Plural, for the find field: "projects". */
     noun: string
-    /** Singular, for "No team matches ...". */
+    /** Singular, for "No project matches ...". */
     singular: string
     search: string
     onSearch: (value: string) => void

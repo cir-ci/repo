@@ -4,13 +4,13 @@ import { join } from 'node:path'
 
 import { createUser } from '@circi/auth'
 import {
-  getTeamBySlugs,
-  getTeamLink,
+  getProjectBySlugs,
+  getProjectLink,
   getWorkspaceBySlug,
-  listTeamMembers,
-  listTeams,
+  listProjectMembers,
+  listProjects,
 } from '@circi/db/queries'
-import { createTeam } from '@circi/db/repositories'
+import { createProject } from '@circi/db/repositories'
 import { createTestDb, seedGitConnection, seedGitLink } from '@circi/db/testing'
 import { integrationRegistry } from '@circi/integrations'
 import { providerRegistry } from '@circi/integrations/git'
@@ -97,10 +97,10 @@ describe('GET /api/workspaces/:workspace/github-import', () => {
     expect((await call('GET', url, ownerCookie)).statusCode).toBe(404)
   })
 
-  it('lists the installation repositories no team is linked to', async () => {
+  it('lists the installation repositories no project is linked to', async () => {
     const { id } = await installation()
-    const { team } = await seedLinkedTeam('acme/design-system')
-    expect(team).toBeDefined()
+    const { project } = await seedLinkedProject('acme/design-system')
+    expect(project).toBeDefined()
     const res = await call('GET', url, ownerCookie)
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({
@@ -119,15 +119,15 @@ describe('GET /api/workspaces/:workspace/github-import', () => {
   })
 })
 
-/** A team of Acme already linked to a repository of installation 42. */
-async function seedLinkedTeam(repoRef: string) {
-  const team = await createTeam(t.db, { workspaceSlug: acme.workspaceSlug, name: 'Existing' })
-  await seedGitLink(t.db, team.id, { externalId: '42', repoRef })
-  return { team }
+/** A project of Acme already linked to a repository of installation 42. */
+async function seedLinkedProject(repoRef: string) {
+  const project = await createProject(t.db, { workspaceSlug: acme.workspaceSlug, name: 'Existing' })
+  await seedGitLink(t.db, project.id, { externalId: '42', repoRef })
+  return { project }
 }
 
 describe('POST /api/workspaces/:workspace/github-import', () => {
-  it('makes one linked team per repository, with the importer as a member', async () => {
+  it('makes one linked project per repository, with the importer as a member', async () => {
     const { id } = await installation()
     const res = await call('POST', url, ownerCookie, {
       repositories: [
@@ -137,21 +137,21 @@ describe('POST /api/workspaces/:workspace/github-import', () => {
     })
     expect(res.statusCode).toBe(201)
     expect(res.json()).toEqual({
-      teams: [
+      projects: [
         { slug: 'web-app', name: 'web-app', repository: 'acme/web-app' },
         // "api" is a reserved address, so the owner's name goes in front.
         { slug: 'acme-api', name: 'api', repository: 'acme/api' },
       ],
     })
-    const team = await getTeamBySlugs(t.db, {
+    const project = await getProjectBySlugs(t.db, {
       workspaceSlug: acme.workspaceSlug,
-      teamSlug: 'web-app',
+      projectslug: 'web-app',
     })
-    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toEqual({
+    expect(await getProjectLink(t.db, project.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '42',
       repoRef: 'acme/web-app',
     })
-    expect((await listTeamMembers(t.db, team.id)).map((m) => m.id)).toEqual([acme.owner.id])
+    expect((await listProjectMembers(t.db, project.id)).map((m) => m.id)).toEqual([acme.owner.id])
     // What is left to import: the other two repositories.
     const left = await call('GET', url, ownerCookie)
     expect(left.json().repositories.map((r: { ref: string }) => r.ref)).toEqual([
@@ -162,17 +162,19 @@ describe('POST /api/workspaces/:workspace/github-import', () => {
 
   it('puts the owner in front of the address when the name is taken', async () => {
     const { id } = await installation()
-    await createTeam(t.db, { workspaceSlug: acme.workspaceSlug, name: 'docs' })
+    await createProject(t.db, { workspaceSlug: acme.workspaceSlug, name: 'docs' })
     const res = await call('POST', url, ownerCookie, {
       repositories: [{ integration: id, ref: 'acme/docs' }],
     })
     expect(res.statusCode).toBe(201)
-    expect(res.json().teams).toEqual([{ slug: 'acme-docs', name: 'docs', repository: 'acme/docs' }])
+    expect(res.json().projects).toEqual([
+      { slug: 'acme-docs', name: 'docs', repository: 'acme/docs' },
+    ])
   })
 
   it('creates nothing when one repository is not left to import', async () => {
     const { id } = await installation()
-    await seedLinkedTeam('acme/design-system')
+    await seedLinkedProject('acme/design-system')
     for (const repositories of [
       [],
       [{ integration: id, ref: 'acme/not-installed' }],
@@ -184,7 +186,7 @@ describe('POST /api/workspaces/:workspace/github-import', () => {
       // eslint-disable-next-line no-await-in-loop -- in order
       expect((await call('POST', url, ownerCookie, { repositories })).statusCode).toBe(400)
     }
-    expect((await listTeams(t.db, acme.workspaceSlug)).map((x) => x.slug)).toEqual([
+    expect((await listProjects(t.db, acme.workspaceSlug)).map((x) => x.slug)).toEqual([
       'existing',
       'web',
     ])

@@ -66,9 +66,9 @@ beforeAll(async () => {
   acme = await seedTenant(auth, t.db)
   rival = await seedTenant(auth, t.db)
   await t.db
-    .update(schema.teams)
+    .update(schema.projects)
     .set({ staticHostingEnabled: true })
-    .where(eq(schema.teams.id, acme.team.id))
+    .where(eq(schema.projects.id, acme.project.id))
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 })
@@ -144,7 +144,7 @@ async function openSite(label: string, cookie = ownerCookie, path = '/') {
 }
 
 describe('uploading a site', () => {
-  it('needs hosting switched on for the team, and refuses non-archives', async () => {
+  it('needs hosting switched on for the project, and refuses non-archives', async () => {
     const off = await upload(STORYBOOK, { name: 'storybook' }, rival.token)
     expect(off.statusCode).toBe(403)
     const res = await app.inject({
@@ -537,7 +537,7 @@ describe('circi site upload', () => {
   })
 })
 
-describe("the team's Sites page API", () => {
+describe("the project's Sites page API", () => {
   it('lists sites with their branch and commit addresses, only for members', async () => {
     await upload(STORYBOOK, {
       name: 'listed',
@@ -546,7 +546,7 @@ describe("the team's Sites page API", () => {
       branch_tip: '7'.repeat(40),
     })
     const res = await app.inject({
-      url: `/api/teams/${acme.workspaceSlug}/web/sites`,
+      url: `/api/projects/${acme.workspaceSlug}/web/sites`,
       headers: { cookie: ownerCookie },
     })
     expect(res.statusCode).toBe(200)
@@ -562,7 +562,7 @@ describe("the team's Sites page API", () => {
     expect(site.versions[0].address).toMatch(/^https:\/\/777777777777-/)
 
     const outsider = await app.inject({
-      url: `/api/teams/${acme.workspaceSlug}/web/sites`,
+      url: `/api/projects/${acme.workspaceSlug}/web/sites`,
       headers: { cookie: rivalCookie },
     })
     expect(outsider.statusCode).toBe(404)
@@ -572,13 +572,13 @@ describe("the team's Sites page API", () => {
 describe('the flaky screenshots API', () => {
   it('answers for members with a report, and with "not found" for outsiders', async () => {
     const own = await app.inject({
-      url: `/api/teams/${acme.workspaceSlug}/web/flaky`,
+      url: `/api/projects/${acme.workspaceSlug}/web/flaky`,
       headers: { cookie: ownerCookie },
     })
     expect(own.statusCode).toBe(200)
     expect(own.json()).toMatchObject({ flaky: expect.any(Array), builds: expect.any(Number) })
     const outsider = await app.inject({
-      url: `/api/teams/${acme.workspaceSlug}/web/flaky`,
+      url: `/api/projects/${acme.workspaceSlug}/web/flaky`,
       headers: { cookie: rivalCookie },
     })
     expect(outsider.statusCode).toBe(404)

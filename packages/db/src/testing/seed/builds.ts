@@ -9,7 +9,7 @@ import { nextCreatedAt } from '../created-at.ts'
 let n = 0
 
 export namespace seedBuild {
-  export interface Input extends Omit<createBuild.Input, 'teamId' | 'commitSha'> {
+  export interface Input extends Omit<createBuild.Input, 'projectId' | 'commitSha'> {
     commitSha?: string
     /** Set after creation, for builds that should already be past `uploading`. */
     status?: Build['status']
@@ -25,10 +25,10 @@ export namespace seedBuild {
   }
 }
 
-/** A build in `teamId`, created through `createBuild` (so numbering and counters are real). */
+/** A build in `projectId`, created through `createBuild` (so numbering and counters are real). */
 export async function seedBuild(
   db: Database,
-  teamId: string,
+  projectId: string,
   input: seedBuild.Input = {},
 ): Promise<Build> {
   n += 1
@@ -44,7 +44,7 @@ export async function seedBuild(
   } = input
   const build = await createBuild(db, {
     ...rest,
-    teamId,
+    projectId,
     commitSha: commitSha ?? `abc${String(n).padStart(6, '0')}`,
   })
   const set = {

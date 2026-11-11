@@ -9,7 +9,7 @@
 
 export interface Tab {
   id: string
-  /** The page's title, as the strip shows it (the team tile is added from the address). */
+  /** The page's title, as the strip shows it (the project tile is added from the address). */
   title: string
   pinned: boolean
   /** Every address this tab has shown, oldest first, as path + search + hash. */

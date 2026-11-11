@@ -2,7 +2,7 @@ export {
   BUILD_NAME_RE,
   checkBuildInput,
   COMMIT_SHA_RE,
-  DEFAULT_TEAM_RETENTION_DAYS,
+  DEFAULT_PROJECT_RETENTION_DAYS,
   isCommitSha,
   isSha256,
   MAX_ANCESTORS,

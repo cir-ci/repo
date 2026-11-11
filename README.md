@@ -17,19 +17,19 @@ CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screen
 
 ## Webhooks
 
-`circi admin webhook add --org acme --team web-app --url https://hooks.acme.io/circi` prints a signing secret once. Each event is a JSON `POST` with `CirCI-Event`, `CirCI-Delivery` and `CirCI-Signature: t=<unix>,v1=<hex>` headers, where `v1` is HMAC-SHA256 of `<t>.<raw body>` with the secret (`verifyWebhookSignature` in `@circi/core` does this check; reject signatures older than a few minutes). The body has the workspace, team, build (number, conclusion, review status, commit, branch, PR), the dashboard `url`, and for `build.reviewed` the decision and reviewer. Any non-2xx answer is retried with backoff (8 attempts); redirects are not followed.
+`circi admin webhook add --org acme --project web-app --url https://hooks.acme.io/circi` prints a signing secret once. Each event is a JSON `POST` with `CirCI-Event`, `CirCI-Delivery` and `CirCI-Signature: t=<unix>,v1=<hex>` headers, where `v1` is HMAC-SHA256 of `<t>.<raw body>` with the secret (`verifyWebhookSignature` in `@circi/core` does this check; reject signatures older than a few minutes). The body has the workspace, project, build (number, conclusion, review status, commit, branch, PR), the dashboard `url`, and for `build.reviewed` the decision and reviewer. Any non-2xx answer is retried with backoff (8 attempts); redirects are not followed.
 
-Owners and admins can also add and remove webhooks on the team's **Settings** page (the secret is shown once). Addresses must be public: `localhost`, private networks and cloud metadata addresses are refused, and names are re-checked at delivery. Set `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true` if your receivers live on your own network.
+Owners and admins can also add and remove webhooks on the project's **Settings** page (the secret is shown once). Addresses must be public: `localhost`, private networks and cloud metadata addresses are refused, and names are re-checked at delivery. Set `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true` if your receivers live on your own network.
 
 ## GitHub
 
-Create a GitHub App (Settings → Developer settings → GitHub Apps) with webhook URL `PUBLIC_URL/webhooks/github`, a webhook secret, permissions *Checks: write*, *Pull requests: write*, *Metadata: read*, and events *Check run* and *Issue comment*. Install it on your repositories, then set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (the PEM; `\n` escapes are fine) and `GITHUB_APP_WEBHOOK_SECRET`; for GitHub Enterprise Server also `GITHUB_API_URL=https://ghe.example.com/api/v3`. Link a team to its repository on its **Settings** page (or `circi admin github link --org acme --team web --repo acme/web --installation 12345678`; the installation id is the number in the installation's settings address).
+Create a GitHub App (Settings → Developer settings → GitHub Apps) with webhook URL `PUBLIC_URL/webhooks/github`, a webhook secret, permissions *Checks: write*, *Pull requests: write*, *Metadata: read*, and events *Check run* and *Issue comment*. Install it on your repositories, then set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (the PEM; `\n` escapes are fine) and `GITHUB_APP_WEBHOOK_SECRET`; for GitHub Enterprise Server also `GITHUB_API_URL=https://ghe.example.com/api/v3`. Link a project to its repository on its **Settings** page (or `circi admin github link --org acme --project web --repo acme/web --installation 12345678`; the installation id is the number in the installation's settings address).
 
-Each build then shows as a **CirCI / <build name>** check with **Approve** and **Reject** buttons, plus one summary comment on the pull request. Comment `/circi approve`, `/circi reject` or `/circi rerun` to act on the pull request's newest commit. Who may approve from GitHub: people who linked their GitHub login on their CirCI **Account** page (needs a GitHub single-sign-on app, `AUTH_GITHUB_*`) and who belong to the team's workspace. To block merging, mark the check as required in the repository's branch protection. With a team linked to a repository, the check is the merge gate: `circi upload --wait` waits for processing, exits 0 even with unreviewed changes (so a green CI job isn't confused with a visual review), and fails only on processing errors. Approving on GitHub or in the dashboard updates the check within seconds, no re-run needed. Without a linked repository the CI job is the gate (exit 1 until approved, then re-run). The first build of a team has nothing to compare with, so every screenshot is new and waits for review (there is no neutral state); not even on the default branch: automatic approval of default-branch builds needs an approved baseline to compare with, so someone approves every screenshot once, and until then later builds have no baseline either. `--gate status|exit-code` overrides the choice.
+Each build then shows as a **CirCI / <build name>** check with **Approve** and **Reject** buttons, plus one summary comment on the pull request. Comment `/circi approve`, `/circi reject` or `/circi rerun` to act on the pull request's newest commit. Who may approve from GitHub: people who linked their GitHub login on their CirCI **Account** page (needs a GitHub single-sign-on app, `AUTH_GITHUB_*`) and who belong to the project's workspace. To block merging, mark the check as required in the repository's branch protection. With a project linked to a repository, the check is the merge gate: `circi upload --wait` waits for processing, exits 0 even with unreviewed changes (so a green CI job isn't confused with a visual review), and fails only on processing errors. Approving on GitHub or in the dashboard updates the check within seconds, no re-run needed. Without a linked repository the CI job is the gate (exit 1 until approved, then re-run). The first build of a project has nothing to compare with, so every screenshot is new and waits for review (there is no neutral state); not even on the default branch: automatic approval of default-branch builds needs an approved baseline to compare with, so someone approves every screenshot once, and until then later builds have no baseline either. `--gate status|exit-code` overrides the choice.
 
 ## Hosting Storybook and reports
 
-Set `STATIC_SITES_HOST` to a **separate, dedicated domain** and switch on *Host static sites* in a team's settings, then `circi storybook upload ./storybook-static` or `circi site upload ./report --name playwright`. Each upload gets a commit address and a branch address (`<hash>-<site>.<sites domain>`); opening one asks you to sign in, and only members of the team's workspace get in. See [docs/reference/static-sites.md](docs/reference/static-sites.md) for how it works, the **⚠️ domain and cookie rules you must check**, Route53/Caddy setup (`deploy/`), and what isn't built yet. `circi admin doctor` checks what it can.
+Set `STATIC_SITES_HOST` to a **separate, dedicated domain** and switch on *Host static sites* in a project's settings, then `circi storybook upload ./storybook-static` or `circi site upload ./report --name playwright`. Each upload gets a commit address and a branch address (`<hash>-<site>.<sites domain>`); opening one asks you to sign in, and only members of the project's workspace get in. See [docs/reference/static-sites.md](docs/reference/static-sites.md) for how it works, the **⚠️ domain and cookie rules you must check**, Route53/Caddy setup (`deploy/`), and what isn't built yet. `circi admin doctor` checks what it can.
 
 ## CI examples, Vitest and Argos
 
@@ -46,12 +46,12 @@ docker compose up -d --build
 # instance admin) and its workspace. It asks for a setup code, printed in the server log
 # (docker compose logs circi) or by:
 docker compose exec circi circi admin setup-code
-# Then create teams in the dashboard (their CI token is shown once).
+# Then create projects in the dashboard (their CI token is shown once).
 #
 # Everything also works from the command line, e.g.:
 #   circi admin user create --email you@acme.io --name "You"
 #   circi admin workspace create --name "Acme" --owner you@acme.io
-#   circi admin team create --org acme --name "Web app"
+#   circi admin project create --org acme --name "Web app"
 ```
 
 With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
@@ -60,9 +60,9 @@ Code requests are limited per address (5 per 15 minutes, across all IPs, whether
 
 Owners and admins can also invite people by email from the workspace's members page (click the workspace name in the header). Invited people without an account create it by signing in with an emailed code.
 
-Each team's **Settings** page (owners and admins) sets the default branch, a diff threshold, retention, whether builds on the default branch are approved automatically (once there is a baseline), whether unreviewed changes block merging, and whether a change to **flaky screenshots only** blocks merging. A flaky screenshot is one whose image keeps coming back to one it already had on the default branch (3 times in the last 10 commits by default, set per team from 2 to 8), or that came out different on two runs of the same commit; a screenshot that was simply redesigned (A, then B, then C) is not flaky. The workspace's members page (owners and admins) sets the default for all its teams, **Flaky screenshots block merges**, on by default; each team can follow it ("Inherit from workspace") or set its own on or off. With it off, a pull request whose only changes are flaky screenshots that look like their known variation (an image the screenshot already had on the default branch, or no bigger a difference than the biggest one seen there, with the same size) passes the gate (the check is green, `--wait` reports a pass), while the build still lists them as flaky and shows the other changes as usual. A new, removed or unreadable screenshot, a change to a steady one, or a change that breaks a flaky screenshot's layout, still needs review. The gate decides when the build finishes, against the default-branch builds before it, and keeps that decision on the build, so a later default-branch build never flips a pull request that was already gated. The account menu has **Account and sessions**, to see every device signed in as you and sign any of them out.
+Each project's **Settings** page (owners and admins) sets the default branch, a diff threshold, retention, whether builds on the default branch are approved automatically (once there is a baseline), whether unreviewed changes block merging, and whether a change to **flaky screenshots only** blocks merging. A flaky screenshot is one whose image keeps coming back to one it already had on the default branch (3 times in the last 10 commits by default, set per project from 2 to 8), or that came out different on two runs of the same commit; a screenshot that was simply redesigned (A, then B, then C) is not flaky. The workspace's members page (owners and admins) sets the default for all its projects, **Flaky screenshots block merges**, on by default; each project can follow it ("Inherit from workspace") or set its own on or off. With it off, a pull request whose only changes are flaky screenshots that look like their known variation (an image the screenshot already had on the default branch, or no bigger a difference than the biggest one seen there, with the same size) passes the gate (the check is green, `--wait` reports a pass), while the build still lists them as flaky and shows the other changes as usual. A new, removed or unreadable screenshot, a change to a steady one, or a change that breaks a flaky screenshot's layout, still needs review. The gate decides when the build finishes, against the default-branch builds before it, and keeps that decision on the build, so a later default-branch build never flips a pull request that was already gated. The account menu has **Account and sessions**, to see every device signed in as you and sign any of them out.
 
-Owners and admins can restrict which sign-in methods a workspace accepts (password, email code) on the members page. The workspace's teams are then only shown to sessions that signed in with an accepted method, and the page refuses a change that would leave no owner able to sign in. If a setting ever locks everyone out, `circi admin auth enable password --org acme` (or `email`) on the server undoes it.
+Owners and admins can restrict which sign-in methods a workspace accepts (password, email code) on the members page. The workspace's projects are then only shown to sessions that signed in with an accepted method, and the page refuses a change that would leave no owner able to sign in. If a setting ever locks everyone out, `circi admin auth enable password --org acme` (or `email`) on the server undoes it.
 
 Owners and admins can also claim email domains on the members page. After adding a DNS TXT record (`_circi-verify.example.com`) to prove the domain is theirs, anyone who signs in with an emailed code on an address at that domain joins the workspace as a member, with no invitation (people with no account yet get one). A domain can be verified by one workspace only.
 
@@ -72,7 +72,7 @@ Set `AUTH_GITHUB_CLIENT_ID`/`_SECRET`, `AUTH_GOOGLE_CLIENT_ID`/`_SECRET`, or `AU
 
 Owners and admins can also connect the workspace's **own** OpenID Connect provider (Okta, Entra ID, Keycloak…) on the members page. People then use "Sign in through your workspace" on the sign-in page. Such a provider is trusted for its own workspace only: the people it signs in join as members and their session opens that workspace and nothing else, an address that already has an account is refused rather than linked, and its claims about email addresses are never trusted. The issuer must be a public https address (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES` also lifts that for private networks).
 
-Anyone you add to a workspace sees its teams, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
+Anyone you add to a workspace sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.
 - `GET /healthz` is liveness; `GET /readyz` checks the database and storage.
@@ -87,14 +87,14 @@ Anyone you add to a workspace sees its teams, builds and screenshots, and nothin
 | `circi admin user create\|set-password` | Create accounts and reset passwords (generated passwords are printed once) |
 | `circi admin workspace create\|list` | Manage workspaces (`create` needs `--owner <email>`). Commands that act inside a workspace keep the flag name `--org <slug>` for compatibility (from when workspaces were called organisations); it takes the workspace slug |
 | `circi admin member add` | Add an existing account to a workspace (`--role owner\|admin\|member`) |
-| `circi admin team create\|list\|rotate-token` | Manage teams and their CI tokens (`create --member <email>` adds workspace members to the team; a team is visible to its members and to owners and admins) |
+| `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens (`create --member <email>` adds workspace members to the project; a project is visible to its members and to owners and admins) |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change a workspace's accepted sign-in methods (skips the lockout guard: break-glass) |
-| `circi admin github link\|unlink` | Link a team to a GitHub repository (needs the GitHub App) |
+| `circi admin github link\|unlink` | Link a project to a GitHub repository (needs the GitHub App) |
 | `circi admin storage usage\|gc` | What's stored, by kind; run retention now (expire old builds and sites, delete unused files) |
 | `circi admin doctor` | Best-effort check of the domains' cookie scope and the sites domain |
 | `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
-| `circi admin webhook add\|list\|remove` | Send the chosen events of a team to a URL: `--events build.completed,build.reviewed` (at least one is required) |
+| `circi admin webhook add\|list\|remove` | Send the chosen events of a project to a URL: `--events build.completed,build.reviewed` (at least one is required) |
 
 ### Configuration
 
@@ -111,7 +111,7 @@ Anyone you add to a workspace sees its teams, builds and screenshots, and nothin
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
 | `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
-| `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the team's retention (days) |
+| `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `JOB_RETRY_BASE_SECONDS`, `JOB_RETRY_MAX_SECONDS` | `2`, `300` | Wait before a failed job (webhook, git check, email) is retried, doubling each time up to the maximum; mostly for tests |
 | `WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS` | `10`, `15` | How long a webhook receiver, and one GitHub API request, may take to answer |
@@ -145,7 +145,7 @@ pnpm build         # tsdown (ui, cli, vitest, server bundle) and Vite (web) → 
 
 # A local environment for QA (needs Docker): Postgres and Mailpit in containers, the server from
 # source (restarts on changes) and the dashboard in Vite (hot reload), seeded on first run with
-# accounts, a team and builds in every review state. It prints the address and sign-in details.
+# accounts, a project and builds in every review state. It prints the address and sign-in details.
 pnpm dev           # Ctrl+C stops it and keeps the data
 pnpm dev:reset     # delete the dev database and files; the next pnpm dev seeds again
 

@@ -18,7 +18,7 @@ import { BitbucketCloud, serializeBitbucketCredentials } from './client.ts'
 /**
  * Bitbucket Cloud, through a workspace or repository access token (or an app password with its
  * username). A connection is one workspace (its slug is the external id) with the token sealed as
- * JSON; a team maps to one repository (`workspace/repo`). Builds show as a commit status plus one
+ * JSON; a project maps to one repository (`workspace/repo`). Builds show as a commit status plus one
  * pull request comment. The webhook is signed with a secret derived from the instance secret and
  * shown to owners and admins. A created or updated pull request gives its builds their pull
  * request number (matched by commit or source branch).
@@ -38,7 +38,7 @@ const REVOKED =
   'Bitbucket no longer accepts the token (revoked or without access). Connect it again with a new token.'
 
 const LINK_HELP = (origin: string) =>
-  `I couldn't tell who you are in CirCI. Link your Bitbucket account to a CirCI account that belongs to this team's workspace (${origin}), then try again.`
+  `I couldn't tell who you are in CirCI. Link your Bitbucket account to a CirCI account that belongs to this project's workspace (${origin}), then try again.`
 
 /** Where a delivery came from: the workspace and `workspace/repo`. */
 function repoOf(p: Record<string, unknown>): IntegrationDefinition.GitRepo | undefined {
@@ -98,7 +98,7 @@ export const bitbucket = defineIntegration({
   name: 'Bitbucket',
   description: 'Build status on the pull request and one summary comment.',
   logo: 'bitbucket',
-  exclusive: { account: true, team: 'group' },
+  exclusive: { account: true, project: 'group' },
   replaceOnReconnect: true,
   credentials: z.strictObject({
     bitbucketWorkspace: z
@@ -181,7 +181,7 @@ export const bitbucket = defineIntegration({
 
   mapping: {
     description:
-      'Choose the repository each team reports to. Builds show up on the pull request as a commit status and one summary comment.',
+      'Choose the repository each project reports to. Builds show up on the pull request as a commit status and one summary comment.',
     target: {
       label: 'Repository',
       kind: 'repository',

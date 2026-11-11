@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, type CreatedTeam } from '#clients/admin.ts'
+import { createProject, type CreatedProject } from '#clients/admin.ts'
 import { s3Env } from '#clients/s3.ts'
 import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '#clients/storage.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
@@ -55,7 +55,7 @@ const migrated = (out: string) => {
 describe('storage usage and migrate', () => {
   const ctx = useStack({ dedicated: true, setup: true, localstack: true })
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
   const originals = new Map<string, number>() // sha -> size of every screenshot uploaded
 
   const s3 = () => {
@@ -63,11 +63,11 @@ describe('storage usage and migrate', () => {
     if (!bucket) throw new Error('no bucket')
     return bucket
   }
-  const upload = () => uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
+  const upload = () => uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
 
   beforeAll(async () => {
     repo = await Repo.create()
-    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Docs')
+    project = await createProject(ctx.setup.session, ctx.setup.workspace.slug, 'Docs')
   })
   afterAll(async () => {
     await repo.destroy()

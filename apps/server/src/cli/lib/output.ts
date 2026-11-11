@@ -2,8 +2,8 @@ import { createRuntime, type Runtime } from '#composition/runtime.ts'
 
 /** Output and runtime helpers shared by the one-shot commands (`migrate`, `admin …`). */
 
-/** A team as printed by the CLI. (The CI key is better-auth's; only its id is stored here.) */
-export function publicTeam<T>(p: T): T {
+/** A project as printed by the CLI. (The CI key is better-auth's; only its id is stored here.) */
+export function publicProject<T>(p: T): T {
   return p
 }
 

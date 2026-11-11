@@ -8,7 +8,7 @@ import {
   getBuildDetail,
   getWorkspaceBySlug,
   listIntegrations,
-  listTeamLinks,
+  listProjectLinks,
 } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedBuild, seedDiff, seedScreenshot } from '@circi/db/testing'
@@ -121,9 +121,9 @@ beforeEach(async () => {
 
 /** The one Figma integration of the workspace (set by `connected`). */
 let id = ''
-const mappingUrl = () => `${workspaceBase}/${id}/teams/web`
-const storedLinks = () => listTeamLinks(t.db, acme.team.id, 'figma-frame')
-const links = (path = '') => `${workspaceBase}/${id}/teams/web/links${path}`
+const mappingUrl = () => `${workspaceBase}/${id}/projects/web`
+const storedLinks = () => listProjectLinks(t.db, acme.project.id, 'figma-frame')
+const links = (path = '') => `${workspaceBase}/${id}/projects/web/links${path}`
 
 /** Connects Figma for Acme as its owner. */
 async function connected() {
@@ -135,7 +135,7 @@ async function connected() {
   return res
 }
 
-/** Connected, with the `web` team mapped to the file. */
+/** Connected, with the `web` project mapped to the file. */
 async function mapped() {
   await connected()
   expect((await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })).statusCode).toBe(204)
@@ -148,7 +148,7 @@ const addLink = (pattern: string, frame: string) =>
 async function autoLinked() {
   await mapped()
   expect((await addLink('cart*', '1-2')).statusCode).toBe(201)
-  const build = await seedBuild(t.db, acme.team.id)
+  const build = await seedBuild(t.db, acme.project.id)
   await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('a'), name: 'home' })
   await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'cart' })
   await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('c'), name: 'pricing' })
@@ -203,7 +203,7 @@ describe('connecting Figma', () => {
       links: { kind: 'figma-frame', autoLink: true, subject: 'pattern' },
     })
     expect(JSON.stringify(list.json())).not.toContain('figd_michael')
-    expect(list.json().integrations).toMatchObject([{ kind: 'figma', teamCount: 0 }])
+    expect(list.json().integrations).toMatchObject([{ kind: 'figma', projectCount: 0 }])
   })
 
   it('answers 409 for the same account again', async () => {
@@ -215,14 +215,14 @@ describe('connecting Figma', () => {
   })
 })
 
-describe("a team's Figma file", () => {
-  it('lists every team with no file first', async () => {
+describe("a project's Figma file", () => {
+  it('lists every project with no file first', async () => {
     await connected()
-    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
+    const page = (await call('GET', `${workspaceBase}/${id}/projects`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
       integration: { name: 'michael', needsAttention: false },
-      teams: [{ slug: 'web', mapping: null }],
+      projects: [{ slug: 'web', mapping: null }],
     })
   })
 
@@ -240,15 +240,18 @@ describe("a team's Figma file", () => {
     expect(bad.statusCode).toBe(400)
     expect(bad.json().error).toBe("That isn't a Figma file address")
     expect((await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })).statusCode).toBe(204)
-    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
-    expect(page.teams[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })
+    const page = (await call('GET', `${workspaceBase}/${id}/projects`, louCookie)).json()
+    expect(page.projects[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })
   })
 
-  it("404s for a team that isn't in the workspace", async () => {
+  it("404s for a project that isn't in the workspace", async () => {
     await connected()
     expect(
-      (await call('PUT', `${workspaceBase}/${id}/teams/nope`, ownerCookie, { ref: 'FileKey12345' }))
-        .statusCode,
+      (
+        await call('PUT', `${workspaceBase}/${id}/projects/nope`, ownerCookie, {
+          ref: 'FileKey12345',
+        })
+      ).statusCode,
     ).toBe(404)
   })
 
@@ -321,7 +324,7 @@ describe('links', () => {
 
   it("puts the frame on the build detail's snapshots", async () => {
     await autoLinked()
-    const detail = await call('GET', `/api/teams/${acme.workspaceSlug}/web/builds/1`, louCookie)
+    const detail = await call('GET', `/api/projects/${acme.workspaceSlug}/web/builds/1`, louCookie)
     expect(detail.statusCode).toBe(200)
     expect(
       detail
@@ -334,7 +337,9 @@ describe('links', () => {
       ['cart', '1:2'],
       ['home', '1:1'],
     ])
-    expect((await getBuildDetail(t.db, acme.team.id, 1))?.diffs[0]?.figma?.frameName).toBe('Cart')
+    expect((await getBuildDetail(t.db, acme.project.id, 1))?.diffs[0]?.figma?.frameName).toBe(
+      'Cart',
+    )
   })
 
   it('links only what the signed-in workspace can see', async () => {
@@ -372,8 +377,8 @@ describe('links', () => {
       ['cart*', 'manual'],
       ['manual-one', 'manual'],
     ])
-    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
-    expect(page.teams[0].mapping).toBeNull()
+    const page = (await call('GET', `${workspaceBase}/${id}/projects`, louCookie)).json()
+    expect(page.projects[0].mapping).toBeNull()
   })
 
   it('wants a mapped file to link automatically', async () => {

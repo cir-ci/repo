@@ -2,7 +2,7 @@ import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm
 
 import { createdAt, id, inList } from './_columns.ts'
 import { user } from './auth.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /**
  * What a dashboard action did to its subject, kept just long enough for its person to take it back
@@ -32,8 +32,8 @@ export const undoActions = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    /** The team the route is scoped to; null for the person's own inbox. */
-    teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
+    /** The project the route is scoped to; null for the person's own inbox. */
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
     kind: text('kind').$type<UndoKind>().notNull(),
     data: jsonb('data').$type<Record<string, unknown>>().notNull(),
     createdAt: createdAt(),

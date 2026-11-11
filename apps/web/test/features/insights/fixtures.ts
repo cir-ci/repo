@@ -1,7 +1,7 @@
 import type { Insights } from '@circi/api'
 
-export const web: Insights.TeamRef = { slug: 'web', name: 'Web', colour: 'slate', icon: null }
-export const docs: Insights.TeamRef = { slug: 'docs', name: 'Docs', colour: 'moss', icon: null }
+export const web: Insights.ProjectRef = { slug: 'web', name: 'Web', colour: 'slate', icon: null }
+export const docs: Insights.ProjectRef = { slug: 'docs', name: 'Docs', colour: 'moss', icon: null }
 
 export const summary = (over: Partial<Insights.Summary> = {}): Insights.Summary => ({
   medianReviewHours: 3.4,
@@ -50,10 +50,10 @@ export const emptyWeek = (weekStart: string): Insights.Week =>
     p90ProcessingMinutes: null,
   })
 
-/** A report with data in every section: two teams, so every card shows. */
+/** A report with data in every section: two projects, so every card shows. */
 export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report => ({
   workspace: { slug: 'acme', name: 'Acme' },
-  team: null,
+  project: null,
   range: { from: '2026-10-09T00:00:00.000Z', to: '2026-11-08T00:00:00.000Z' },
   summary: summary(),
   previous: summary({
@@ -72,7 +72,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
   ],
   storage: {
     totalBytes: 3 * 1024 ** 3,
-    teams: [
+    projects: [
       { ...web, bytes: 2 * 1024 ** 3 },
       { ...docs, bytes: 1024 ** 3 },
     ],
@@ -100,7 +100,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
     {
       buildId: 'b418',
       number: 418,
-      team: web,
+      project: web,
       branch: 'feature/checkout-redesign',
       author: 'Omer Katz',
       readyAt: '2026-11-05T14:00:00.000Z',
@@ -109,7 +109,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
     {
       buildId: 'b420',
       number: 420,
-      team: docs,
+      project: docs,
       branch: 'main',
       author: null,
       readyAt: '2026-11-07T23:00:00.000Z',
@@ -118,7 +118,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
   ],
   mostChanged: [
     {
-      team: web,
+      project: web,
       name: 'checkout/summary',
       changedBuilds: 14,
       builds: 62,
@@ -127,7 +127,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
   ],
   flakiest: [
     {
-      team: docs,
+      project: docs,
       name: 'home/hero',
       flipFlops: 4,
       reason: {
@@ -144,7 +144,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
       {
         buildId: 'b418',
         number: 418,
-        team: web,
+        project: web,
         reviewer: 'Omer Katz',
         reason: 'The button moved 4px, please restore the spacing.',
         at: '2026-11-06T10:00:00.000Z',
@@ -152,12 +152,12 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
     ],
   },
   mostRejected: [
-    { team: web, name: 'checkout/summary', rejections: 5 },
-    { team: docs, name: 'home/hero', rejections: 1 },
+    { project: web, name: 'checkout/summary', rejections: 5 },
+    { project: docs, name: 'home/hero', rejections: 1 },
   ],
-  teamsComparison: [
+  projectsComparison: [
     {
-      team: web,
+      project: web,
       builds: 700,
       buildsWithChanges: 182,
       medianReviewHours: 5,
@@ -166,7 +166,7 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
       failed: 20,
     },
     {
-      team: docs,
+      project: docs,
       builds: 300,
       buildsWithChanges: 30,
       medianReviewHours: 2,
@@ -182,8 +182,8 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
   ignoreRegions: {
     suppressedDiffs: 142,
     top: [
-      { team: web, region: 'header/clock', diffs: 90 },
-      { team: docs, region: 'footer/year', diffs: 52 },
+      { project: web, region: 'header/clock', diffs: 90 },
+      { project: docs, region: 'footer/year', diffs: 52 },
     ],
   },
   ...over,

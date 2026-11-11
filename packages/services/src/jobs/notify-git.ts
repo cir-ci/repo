@@ -69,20 +69,20 @@ export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyG
   if (!buildId) return { status: 'skipped', reason: 'malformed job' }
   const kinds = integrationRegistry.gitKinds()
   const first = await getGitTarget(deps.db, buildId, kinds)
-  if (!first) return { status: 'skipped', reason: 'team is not linked to a repository' }
+  if (!first) return { status: 'skipped', reason: 'project is not linked to a repository' }
   const definition = integrationRegistry.get(first.kind)
   const provider = definition?.capabilities.git?.provider(contextOf(deps))
   if (!definition || !provider) {
     return { status: 'skipped', reason: `no ${first.kind} provider configured` }
   }
 
-  // Jobs for one team run one at a time (lanes and worker processes both): two at once would
+  // Jobs for one project run one at a time (lanes and worker processes both): two at once would
   // each create the build's check run and the pull request's comment, because neither has seen
   // the other's id yet. State is read inside the lock, so a job that waited writes the latest.
   try {
-    return await withAdvisoryLock(deps.db, `git-notify:${first.build.teamId}`, async (db) => {
+    return await withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
       const target = await getGitTarget(db, buildId, kinds)
-      if (!target) return { status: 'skipped', reason: 'team is not linked to a repository' }
+      if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
       let credentials: string | undefined
       if (target.encryptedCredentials !== null) {
         credentials = deps.authSecret
@@ -157,7 +157,7 @@ async function notifyLocked(
       ...(b.status === 'complete' && b.conclusion === 'changes_detected'
         ? { review: await getBuildReviewSummary(deps.db, b.id) }
         : {}),
-      url: `${deps.publicOrigin}/${target.workspaceSlug}/${target.teamSlug}/builds/${b.number}`,
+      url: `${deps.publicOrigin}/${target.workspaceSlug}/${target.projectslug}/builds/${b.number}`,
     }
   }
 
@@ -166,11 +166,11 @@ async function notifyLocked(
   await setCheck(deps, target, mine, flakyBlocksMerge)
 
   if (target.build.prNumber !== null && target.commentsEnabled) {
-    const builds = await buildsForPrSummary(deps.db, target.build.teamId, target.build.prNumber)
+    const builds = await buildsForPrSummary(deps.db, target.build.projectId, target.build.prNumber)
     const body = prCommentBody(await Promise.all(builds.map(reported)), {
       sites: await hostedSites(deps, target, builds[0]?.commitSha),
     })
-    const existing = await getPrCommentId(deps.db, target.build.teamId, target.build.prNumber)
+    const existing = await getPrCommentId(deps.db, target.build.projectId, target.build.prNumber)
     const commentId = await deps.provider.upsertComment(
       target.installationId,
       target.repoRef,
@@ -180,7 +180,7 @@ async function notifyLocked(
       deps.credentials,
     )
     if (commentId !== existing) {
-      await setPrCommentId(deps.db, target.build.teamId, target.build.prNumber, commentId)
+      await setPrCommentId(deps.db, target.build.projectId, target.build.prNumber, commentId)
     }
   }
   return { status: 'notified' }
@@ -212,7 +212,7 @@ async function setCheck(
 
 /**
  * The sites uploaded for the pull request's newest commit, as the comment lists them: only when
- * the instance hosts sites and the team has it switched on. Commit addresses only: they name
+ * the instance hosts sites and the project has it switched on. Commit addresses only: they name
  * exactly what this commit built.
  */
 async function hostedSites(
@@ -222,7 +222,7 @@ async function hostedSites(
 ): Promise<ReportedSite[]> {
   const sites = deps.sites
   if (!sites || !target.staticHostingEnabled || !commitSha) return []
-  const rows = await sitesForCommit(deps.db, target.build.teamId, commitSha)
+  const rows = await sitesForCommit(deps.db, target.build.projectId, commitSha)
   return rows.flatMap((row) =>
     row.commitLabel
       ? [

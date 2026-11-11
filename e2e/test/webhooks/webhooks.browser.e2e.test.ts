@@ -3,7 +3,7 @@ import { verifyWebhookSignature } from '@circi/core/node'
 import type { Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, type CreatedTeam, type Session } from '#clients/admin.ts'
+import { createProject, type CreatedProject, type Session } from '#clients/admin.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
 import { hookJobs } from '#clients/webhook-jobs.ts'
 import { listen } from '#fakes/http.ts'
@@ -13,7 +13,7 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
 
 /**
  * Outgoing webhooks on the real stack (private addresses allowed, as the harness sets): added in
- * the team settings, signed deliveries to a receiver on the host, event filters, retries with
+ * the project settings, signed deliveries to a receiver on the host, event filters, retries with
  * backoff and giving up, redirects not followed, removal. The receiver is a fake at the edge;
  * the worker, the job queue and the signing are CirCI's own.
  */
@@ -24,8 +24,9 @@ interface HookView {
   events: string[]
   enabled: boolean
 }
-const hooksOf = async (session: Session, workspace: string, team: string) =>
-  (await session.get<{ webhooks: HookView[] }>(`/api/teams/${workspace}/${team}/settings`)).webhooks
+const hooksOf = async (session: Session, workspace: string, project: string) =>
+  (await session.get<{ webhooks: HookView[] }>(`/api/projects/${workspace}/${project}/settings`))
+    .webhooks
 
 /** The page's Add webhook button opens the dialog with the form. */
 async function openAddDialog(page: Page) {
@@ -41,7 +42,7 @@ describe('webhooks (private addresses allowed)', () => {
   let completedOnly: WebhookReceiver
   let reviewedOnly: WebhookReceiver
   let repo: Repo
-  let team: CreatedTeam
+  let project: CreatedProject
   let completedHookId = ''
   let reviewedHookId = ''
   let prBuildNumber = 0
@@ -61,11 +62,11 @@ describe('webhooks (private addresses allowed)', () => {
   })
 
   const settingsUrl = () =>
-    `${ctx.stack.url}/${ctx.setup.workspace.slug}/${team.slug}/settings/webhooks`
-  const hooks = () => hooksOf(ctx.setup.session, ctx.setup.workspace.slug, team.slug)
+    `${ctx.stack.url}/${ctx.setup.workspace.slug}/${project.slug}/settings/webhooks`
+  const hooks = () => hooksOf(ctx.setup.session, ctx.setup.workspace.slug, project.slug)
   const apiAdd = (url: string, events: string[]) =>
     ctx.setup.session.post<{ webhook: HookView; secret: string }>(
-      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/webhooks`,
+      `/api/projects/${ctx.setup.workspace.slug}/${project.slug}/webhooks`,
       { url, events },
     )
 
@@ -84,7 +85,7 @@ describe('webhooks (private addresses allowed)', () => {
 
   it('adds a webhook in the settings page: the signing secret is shown once, never again', async () => {
     const { setup } = ctx
-    team = await createTeam(setup.session, setup.workspace.slug, 'Hooked')
+    project = await createProject(setup.session, setup.workspace.slug, 'Hooked')
     const page = await browser.as(setup.session)
 
     const secret = await addThroughUi(page, `${completedOnly.url}/hooks/completed`, [
@@ -124,7 +125,7 @@ describe('webhooks (private addresses allowed)', () => {
     const workspace = setup.workspace.slug
     await repo.writeShots({ home: {}, login: { dot: { x: 40, y: 40 } } })
     const sha = await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
 
     const d = await completedOnly.waitFor((x) => x.event === 'build.completed')
     expect(d.path).toBe('/hooks/completed')
@@ -135,9 +136,9 @@ describe('webhooks (private addresses allowed)', () => {
     expect(body).toMatchObject({
       id: d.deliveryId,
       event: 'build.completed',
-      url: `${stack.url}/${workspace}/${team.slug}/builds/${up.build.number}`,
+      url: `${stack.url}/${workspace}/${project.slug}/builds/${up.build.number}`,
       workspace: { slug: workspace },
-      team: { slug: team.slug, name: 'Hooked' },
+      project: { slug: project.slug, name: 'Hooked' },
       build: {
         id: up.build.id,
         number: up.build.number,
@@ -150,7 +151,7 @@ describe('webhooks (private addresses allowed)', () => {
     })
     expect(d.deliveryId).toMatch(/^[0-9a-f-]{36}$/)
     expect(Number.isNaN(Date.parse(String(body['createdAt'])))).toBe(false)
-    expect((body['team'] as { id: string }).id).toMatch(/^[0-9a-f-]{36}$/)
+    expect((body['project'] as { id: string }).id).toMatch(/^[0-9a-f-]{36}$/)
     expect(body).not.toHaveProperty('review')
     // A forged or tampered request would not verify.
     const header = String(d.headers['circi-signature'])
@@ -173,7 +174,7 @@ describe('webhooks (private addresses allowed)', () => {
     await repo.commit('move the button')
     const up = await uploadOrThrow({
       stack,
-      token: team.token,
+      token: project.token,
       repo,
       wait: true,
       pr: { number: 12 },
@@ -195,7 +196,7 @@ describe('webhooks (private addresses allowed)', () => {
 
     // Approve in the browser.
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${workspace}/${team.slug}/builds/${prBuildNumber}`)
+    await page.goto(`${stack.url}/${workspace}/${project.slug}/builds/${prBuildNumber}`)
     await page.getByRole('button', { name: 'Approve all' }).click()
 
     const reviewed = await reviewedOnly.waitFor((x) => x.event === 'build.reviewed')
@@ -209,13 +210,13 @@ describe('webhooks (private addresses allowed)', () => {
 
     // Deciding the same thing again changes nothing, so nothing is sent. Changing the decision is.
     await setup.session.post(
-      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}/review`,
+      `/api/projects/${workspace}/${project.slug}/builds/${prBuildNumber}/review`,
       {
         state: 'approved',
       },
     )
     await setup.session.post(
-      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}/review`,
+      `/api/projects/${workspace}/${project.slug}/builds/${prBuildNumber}/review`,
       {
         state: 'rejected',
       },
@@ -243,7 +244,7 @@ describe('webhooks (private addresses allowed)', () => {
       )[0]?.[0],
     ).toBe('0')
     const detail = await setup.session.get<Build.Detail>(
-      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}`,
+      `/api/projects/${workspace}/${project.slug}/builds/${prBuildNumber}`,
     )
     expect(detail.build.reviewStatus).toBe('rejected')
   })
@@ -251,7 +252,7 @@ describe('webhooks (private addresses allowed)', () => {
   it('a webhook needs at least one event: empty or missing is refused, in the API and in the form', async () => {
     const { setup } = ctx
     const workspace = setup.workspace.slug
-    const url = `/api/teams/${workspace}/${team.slug}/webhooks`
+    const url = `/api/projects/${workspace}/${project.slug}/webhooks`
     for (const body of [
       { url: 'https://example.com/none' },
       { url: 'https://example.com/none', events: [] },
@@ -302,7 +303,7 @@ describe('webhooks (private addresses allowed)', () => {
 
     await repo.writeShots({ home: { dot: { x: 50, y: 50 } } })
     await repo.commit('main for redirect')
-    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
 
     await expect
       .poll(async () => (await hookJobs(stack, created.webhook.id))[0], { timeout: 30_000 })
@@ -345,7 +346,7 @@ describe('webhooks (private addresses allowed)', () => {
     expect(before).toBe(jobsBefore)
     await repo.writeShots({ home: { dot: { x: 70, y: 70 } } })
     await repo.commit('main after removal')
-    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
     expect(up.status?.build.status).toBe('complete')
     // Nothing was queued for it and nothing arrived.
     expect((await hookJobs(stack, completedHookId)).length).toBe(jobsBefore)
@@ -353,7 +354,7 @@ describe('webhooks (private addresses allowed)', () => {
     // Removing it again, or one that never existed, is a 404.
     const again = await setup.session.request(
       'DELETE',
-      `/api/teams/${setup.workspace.slug}/${team.slug}/webhooks/${completedHookId}`,
+      `/api/projects/${setup.workspace.slug}/${project.slug}/webhooks/${completedHookId}`,
     )
     expect(again.status).toBe(404)
   })

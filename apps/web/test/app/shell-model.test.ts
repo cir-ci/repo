@@ -1,4 +1,4 @@
-import type { Team, Sidebar, View } from '@circi/api'
+import type { Project, Sidebar, View } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -8,26 +8,26 @@ import {
   isOutsideFrame,
   isSettingsSection,
   listWorkspaces,
-  orderTeams,
+  orderProjects,
   pickWorkspace,
   pinnedViews,
   sectionLabel,
-  sidebarTeams,
-  TEAM_SETTINGS_PAGES,
-  teamPageOf,
-  teamSections,
-  teamSettingsKey,
-  teamsTabLabel,
+  sidebarProjects,
+  PROJECT_SETTINGS_PAGES,
+  projectPageOf,
+  projectsections,
+  projectsettingsKey,
+  projectsTabLabel,
   switchWorkspacePath,
   workspaceSettingsPath,
-  yourTeams,
+  yourProjects,
 } from '#app/shell-model.ts'
 
-const overview = (workspace: string, team: string): Team.Overview => ({
+const overview = (workspace: string, project: string): Project.Overview => ({
   workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null, role: 'owner' },
-  team: {
-    slug: team,
-    name: team,
+  project: {
+    slug: project,
+    name: project,
     defaultBranch: 'main',
     color: 'slate',
     icon: null,
@@ -39,7 +39,7 @@ const overview = (workspace: string, team: string): Team.Overview => ({
 })
 
 describe('listWorkspaces', () => {
-  it('collects the workspaces of the teams, the manageable ones and the one in the address', () => {
+  it('collects the workspaces of the projects, the manageable ones and the one in the address', () => {
     const workspaces = listWorkspaces(
       [overview('beta', 'x'), overview('beta', 'y'), overview('alpha', 'z')],
       [{ slug: 'gamma', name: 'Gamma', picture: null }],
@@ -49,7 +49,7 @@ describe('listWorkspaces', () => {
     expect(workspaces.find((o) => o.slug === 'delta')?.name).toBe('delta')
   })
 
-  it('carries the role in each workspace, from its teams or from the manageable list', () => {
+  it('carries the role in each workspace, from its projects or from the manageable list', () => {
     const member = overview('alpha', 'z')
     member.workspace.role = 'member'
     const workspaces = listWorkspaces(
@@ -85,7 +85,7 @@ describe('pickWorkspace', () => {
   })
 })
 
-const sidebarTeam = (slug: string, over: Partial<Sidebar.Team> = {}): Sidebar.Team => ({
+const sidebarProject = (slug: string, over: Partial<Sidebar.Project> = {}): Sidebar.Project => ({
   slug,
   name: slug,
   color: 'slate',
@@ -99,36 +99,38 @@ const sidebarTeam = (slug: string, over: Partial<Sidebar.Team> = {}): Sidebar.Te
   ...over,
 })
 
-describe('orderTeams', () => {
-  it('puts pinned teams first, in the order given, then the rest A to Z', () => {
-    const ordered = orderTeams([
-      sidebarTeam('zeta', { pinned: true }),
-      sidebarTeam('beta'),
-      sidebarTeam('alpha', { pinned: true }),
-      sidebarTeam('Gamma'),
+describe('orderProjects', () => {
+  it('puts pinned projects first, in the order given, then the rest A to Z', () => {
+    const ordered = orderProjects([
+      sidebarProject('zeta', { pinned: true }),
+      sidebarProject('beta'),
+      sidebarProject('alpha', { pinned: true }),
+      sidebarProject('Gamma'),
     ])
     expect(ordered.map((p) => p.slug)).toEqual(['zeta', 'alpha', 'beta', 'Gamma'])
   })
 })
 
-describe('sidebarTeams', () => {
-  it('lists teams pinned first then alphabetical, capped, with the total', () => {
-    const teams = ['m', 'c', 'a', 'k', 'b', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((p) =>
-      sidebarTeam(p, { pinned: p === 'm' }),
+describe('sidebarProjects', () => {
+  it('lists projects pinned first then alphabetical, capped, with the total', () => {
+    const projects = ['m', 'c', 'a', 'k', 'b', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((p) =>
+      sidebarProject(p, { pinned: p === 'm' }),
     )
-    const { shown, total } = sidebarTeams(teams)
+    const { shown, total } = sidebarProjects(projects)
     expect(shown.map((p) => p.slug)).toEqual(['m', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'])
     expect(total).toBe(12)
   })
 
-  it('keeps the open team listed even past the cap', () => {
-    const teams = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'z'].map((p) => sidebarTeam(p))
-    expect(sidebarTeams(teams, 10, 'z').shown.map((p) => p.slug)).toContain('z')
-    expect(sidebarTeams(teams).shown.map((p) => p.slug)).not.toContain('z')
+  it('keeps the open project listed even past the cap', () => {
+    const projects = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'z'].map((p) =>
+      sidebarProject(p),
+    )
+    expect(sidebarProjects(projects, 10, 'z').shown.map((p) => p.slug)).toContain('z')
+    expect(sidebarProjects(projects).shown.map((p) => p.slug)).not.toContain('z')
   })
 
   it('is empty before the sidebar has loaded', () => {
-    expect(sidebarTeams(undefined)).toEqual({ shown: [], total: 0 })
+    expect(sidebarProjects(undefined)).toEqual({ shown: [], total: 0 })
   })
 })
 
@@ -146,7 +148,7 @@ const view = (id: string, pinned: boolean, position: number): View.Item => ({
   filters: {},
   pinned,
   position,
-  team: null,
+  project: null,
   createdAt: '2026-01-01T00:00:00.000Z',
 })
 
@@ -174,14 +176,14 @@ describe('workspaceSettingsPath', () => {
 })
 
 describe('goPath', () => {
-  const teams = [
-    sidebarTeam('web', { triage: 0 }),
-    sidebarTeam('api', { triage: 4 }),
-    sidebarTeam('docs', { pinned: true }),
+  const projects = [
+    sidebarProject('web', { triage: 0 }),
+    sidebarProject('api', { triage: 4 }),
+    sidebarProject('docs', { pinned: true }),
   ]
   it('opens the global pages', () => {
     expect(goPath('inbox', {})).toBe('/inbox')
-    expect(goPath('teams', { workspace: 'acme' })).toBe('/')
+    expect(goPath('projects', { workspace: 'acme' })).toBe('/')
   })
   it('opens workspace pages only with a workspace', () => {
     expect(goPath('reviews', { workspace: 'acme' })).toBe('/workspaces/acme/reviews')
@@ -204,11 +206,15 @@ describe('goPath', () => {
       )
     }
   })
-  it('opens triage of the open team, else the first team with work waiting, else the first', () => {
-    expect(goPath('triage', { workspace: 'acme', team: 'web', teams })).toBe('/acme/web/triage')
-    expect(goPath('triage', { workspace: 'acme', teams })).toBe('/acme/api/triage')
-    expect(goPath('triage', { workspace: 'acme', teams: teams.slice(2) })).toBe('/acme/docs/triage')
-    expect(goPath('triage', { workspace: 'acme', teams: [] })).toBeUndefined()
+  it('opens triage of the open project, else the first project with work waiting, else the first', () => {
+    expect(goPath('triage', { workspace: 'acme', project: 'web', projects })).toBe(
+      '/acme/web/triage',
+    )
+    expect(goPath('triage', { workspace: 'acme', projects })).toBe('/acme/api/triage')
+    expect(goPath('triage', { workspace: 'acme', projects: projects.slice(2) })).toBe(
+      '/acme/docs/triage',
+    )
+    expect(goPath('triage', { workspace: 'acme', projects: [] })).toBeUndefined()
   })
 })
 
@@ -216,7 +222,7 @@ const inLayout = (path: string) => isSettingsSection(currentSection(path))
 
 describe('currentSection', () => {
   it.each([
-    ['/', 'teams'],
+    ['/', 'projects'],
     ['/inbox', 'inbox'],
     ['/account', 'account'],
     ['/account/appearance', 'account'],
@@ -233,8 +239,8 @@ describe('currentSection', () => {
     ['/acme/web/sites', 'sites'],
     ['/acme/web/triage', 'triage'],
     ['/acme/web/baselines', 'baselines'],
-    ['/acme/web/settings', 'team-settings'],
-    ['/acme/web/settings/reviews', 'team-settings'],
+    ['/acme/web/settings', 'project-settings'],
+    ['/acme/web/settings/reviews', 'project-settings'],
     ['/_sso/site', undefined],
     ['/acme/web/other', undefined],
   ] as const)('%s is %s', (path, section) => {
@@ -263,9 +269,9 @@ describe('isOutsideFrame', () => {
   })
 })
 
-describe('team settings pages', () => {
+describe('project settings pages', () => {
   it('lists the pages in order', () => {
-    expect(TEAM_SETTINGS_PAGES.map((p) => p.key)).toEqual([
+    expect(PROJECT_SETTINGS_PAGES.map((p) => p.key)).toEqual([
       'general',
       'members',
       'token',
@@ -292,13 +298,13 @@ describe('team settings pages', () => {
     ['/account/appearance', undefined],
     ['/instance/settings', undefined],
   ] as const)('%s is %s', (path, key) => {
-    expect(teamSettingsKey(path)).toBe(key)
+    expect(projectsettingsKey(path)).toBe(key)
   })
 })
 
-const teamOf = (ws: string) => (ws === 'globex' ? 'portal' : undefined)
+const projectOf = (ws: string) => (ws === 'globex' ? 'portal' : undefined)
 
-const go = (path: string, to = 'globex') => switchWorkspacePath(path, to, teamOf)
+const go = (path: string, to = 'globex') => switchWorkspacePath(path, to, projectOf)
 
 describe('switchWorkspacePath', () => {
   it('keeps workspace pages and settings pages, with the new slug', () => {
@@ -313,7 +319,7 @@ describe('switchWorkspacePath', () => {
     expect(go('/workspaces/acme/views/v1')).toBe('/')
   })
 
-  it("keeps the section of a team page, on the new workspace's team, dropping what is specific", () => {
+  it("keeps the section of a project page, on the new workspace's project, dropping what is specific", () => {
     expect(go('/acme/web')).toBe('/globex/portal')
     expect(go('/acme/web/builds/12')).toBe('/globex/portal')
     expect(go('/acme/web/triage')).toBe('/globex/portal/triage')
@@ -323,11 +329,11 @@ describe('switchWorkspacePath', () => {
     expect(go('/acme/web/settings/token')).toBe('/globex/portal/settings/token')
   })
 
-  it('goes to the Teams page when the new workspace has no team', () => {
+  it('goes to the Projects page when the new workspace has no project', () => {
     expect(go('/acme/web/triage', 'empty')).toBe('/')
   })
 
-  it('stays put on the Teams page and the global pages', () => {
+  it('stays put on the Projects page and the global pages', () => {
     expect(go('/')).toBe('/')
     expect(go('/inbox')).toBeUndefined()
     expect(go('/account/profile')).toBeUndefined()
@@ -337,7 +343,7 @@ describe('switchWorkspacePath', () => {
 })
 
 const sidebar = (pinned: string[], triage: Record<string, number> = {}): Sidebar.Model => ({
-  teams: ['web', 'api', 'portal'].map((slug) => ({
+  projects: ['web', 'api', 'portal'].map((slug) => ({
     slug,
     name: slug,
     color: 'slate',
@@ -356,57 +362,61 @@ const sidebar = (pinned: string[], triage: Record<string, number> = {}): Sidebar
   canManage: true,
 })
 
-describe('yourTeams, teamSections and teamsTabLabel', () => {
+describe('yourProjects, projectsections and projectsTabLabel', () => {
   const items = [overview('globex', 'portal'), overview('acme', 'web'), overview('acme', 'api')]
 
-  it('puts pinned teams first, then the rest A to Z, with the sidebar counts', () => {
-    const teams = yourTeams(items, {
+  it('puts pinned projects first, then the rest A to Z, with the sidebar counts', () => {
+    const projects = yourProjects(items, {
       acme: sidebar(['web'], { web: 4 }),
       globex: sidebar([]),
     })
-    expect(teams.map((t) => [t.slug, t.pinned, t.triage])).toEqual([
+    expect(projects.map((t) => [t.slug, t.pinned, t.triage])).toEqual([
       ['web', true, 4],
       ['api', false, 0],
       ['portal', false, 0],
     ])
   })
 
-  it('lists the teams before any sidebar model has loaded', () => {
-    expect(yourTeams(items, {}).map((t) => t.slug)).toEqual(['api', 'portal', 'web'])
-    expect(yourTeams(undefined, {})).toEqual([])
+  it('lists the projects before any sidebar model has loaded', () => {
+    expect(yourProjects(items, {}).map((t) => t.slug)).toEqual(['api', 'portal', 'web'])
+    expect(yourProjects(undefined, {})).toEqual([])
   })
 
   it('is one run for one workspace, and Pinned plus one run per workspace for several', () => {
-    const several = yourTeams(items, { acme: sidebar(['web']), globex: sidebar([]) })
+    const several = yourProjects(items, { acme: sidebar(['web']), globex: sidebar([]) })
     expect(
-      teamSections(several).map((s) => [s.label, s.showWorkspace, s.teams.map((t) => t.slug)]),
+      projectsections(several).map((s) => [
+        s.label,
+        s.showWorkspace,
+        s.projects.map((t) => t.slug),
+      ]),
     ).toEqual([
       ['Pinned', true, ['web']],
       ['ACME', false, ['api']],
       ['GLOBEX', false, ['portal']],
     ])
-    const one = yourTeams([overview('acme', 'web'), overview('acme', 'api')], {})
-    expect(teamSections(one).map((s) => [s.label, s.teams.map((t) => t.slug)])).toEqual([
+    const one = yourProjects([overview('acme', 'web'), overview('acme', 'api')], {})
+    expect(projectsections(one).map((s) => [s.label, s.projects.map((t) => t.slug)])).toEqual([
       [undefined, ['api', 'web']],
     ])
-    expect(teamSections([])).toEqual([])
+    expect(projectsections([])).toEqual([])
   })
 
-  it('labels the tab with the team when there is exactly one, else Teams', () => {
-    expect(teamsTabLabel(yourTeams([overview('acme', 'web')], {}))).toBe('web')
-    expect(teamsTabLabel(yourTeams(items, {}))).toBe('Teams')
-    expect(teamsTabLabel([])).toBe('Teams')
+  it('labels the tab with the project when there is exactly one, else Projects', () => {
+    expect(projectsTabLabel(yourProjects([overview('acme', 'web')], {}))).toBe('web')
+    expect(projectsTabLabel(yourProjects(items, {}))).toBe('Projects')
+    expect(projectsTabLabel([])).toBe('Projects')
   })
 })
 
-describe('teamPageOf', () => {
+describe('projectPageOf', () => {
   it.each([
     ['/acme/web', 'builds'],
     ['/acme/web/triage', 'triage'],
     ['/acme/web/baselines', 'baselines'],
     ['/acme/web/sites', 'sites'],
-  ])('%s is the team’s %s page', (path, page) => {
-    expect(teamPageOf(path)).toBe(page)
+  ])('%s is the project’s %s page', (path, page) => {
+    expect(projectPageOf(path)).toBe(page)
   })
 
   it.each([
@@ -421,6 +431,6 @@ describe('teamPageOf', () => {
     '/acme/web/baselines/home',
     '/_sso/site',
   ])('%s is not one of the four', (path) => {
-    expect(teamPageOf(path)).toBeUndefined()
+    expect(projectPageOf(path)).toBeUndefined()
   })
 })

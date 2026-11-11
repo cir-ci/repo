@@ -11,7 +11,7 @@ import { workspace } from './fixtures.ts'
 
 const workspaces = [
   workspace(),
-  workspace({ id: 'w2', name: 'Globex', slug: 'globex', memberCount: 1, teamCount: 1 }),
+  workspace({ id: 'w2', name: 'Globex', slug: 'globex', memberCount: 1, projectCount: 1 }),
   workspace({
     id: 'w3',
     name: 'Old Co',
@@ -43,8 +43,8 @@ describe('Settings, Workspaces', () => {
     await expect.element(list.getByText('Globex', { exact: true })).toBeVisible()
     expect(list.getByRole('listitem').elements()).toHaveLength(2)
     await expect.element(list.getByText('acme', { exact: true })).toBeVisible()
-    await expect.element(list.getByText('6 members · 3 teams')).toBeVisible()
-    await expect.element(list.getByText('1 member · 1 team')).toBeVisible()
+    await expect.element(list.getByText('6 members · 3 projects')).toBeVisible()
+    await expect.element(list.getByText('1 member · 1 project')).toBeVisible()
     await expect.element(list.getByText('1.5 MB').first()).toBeVisible()
   })
 

@@ -17,7 +17,7 @@ import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
 
-const BASE = '/api/teams/acme/web'
+const BASE = '/api/projects/acme/web'
 
 const TWO_DAYS_AGO = new Date(Date.now() - 2 * 24 * 3600_000).toISOString()
 
@@ -28,7 +28,7 @@ const item = (key: string, over: Record<string, unknown> = {}) => ({
   kind: 'flaky',
   key,
   snapshotName: key,
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   build: {
     number: 12,
     branch: 'main',
@@ -87,9 +87,9 @@ const history = {
 
 const show = () =>
   renderPage(<TriagePage />, {
-    route: '/$workspace/$team/triage',
+    route: '/$workspace/$project/triage',
     url: '/acme/web/triage',
-    otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+    otherRoutes: ['/$workspace/$project/builds/$number', '/$workspace/$project/settings/reviews'],
     announcer: true,
   })
 
@@ -231,7 +231,7 @@ describe('TriagePage', () => {
     })
     await show()
     await expect.element(page.getByLabelText('On triage: Grace Hopper until Mon')).toBeVisible()
-    // Settings is a closed area: no link from the triage page into the team's settings.
+    // Settings is a closed area: no link from the triage page into the project's settings.
     expect(page.getByRole('link', { name: 'Rules' }).elements()).toHaveLength(0)
   })
 
@@ -279,9 +279,9 @@ describe('TriagePage', () => {
   it('opens with the item of the address selected', async () => {
     server()
     await renderPage(<TriagePage />, {
-      route: '/$workspace/$team/triage',
+      route: '/$workspace/$project/triage',
       url: '/acme/web/triage?item=no_baseline%3Apricing',
-      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      otherRoutes: ['/$workspace/$project/builds/$number', '/$workspace/$project/settings/reviews'],
       announcer: true,
     })
     await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
@@ -528,7 +528,7 @@ describe('TriagePage', () => {
       await expect
         .element(
           pane().getByText(
-            "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the team's limit is 2, and one disagreement is enough.",
+            "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the project's limit is 2, and one disagreement is enough.",
           ),
         )
         .toBeVisible()
@@ -575,7 +575,7 @@ describe('TriagePage', () => {
       await expect
         .element(
           pane().getByText(
-            "Came back to an earlier image once in the last 10 commits; the team's limit is 2.",
+            "Came back to an earlier image once in the last 10 commits; the project's limit is 2.",
           ),
         )
         .toBeVisible()
@@ -594,9 +594,9 @@ describe('resizing the details pane', () => {
   it('has a handle that resizes the pane and keeps the width', async () => {
     server()
     await renderPage(<TriagePage />, {
-      route: '/$workspace/$team/triage',
+      route: '/$workspace/$project/triage',
       url: '/acme/web/triage?item=no_baseline%3Apricing',
-      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      otherRoutes: ['/$workspace/$project/builds/$number', '/$workspace/$project/settings/reviews'],
       announcer: true,
       viewport: [1400, 900],
     })
@@ -614,9 +614,9 @@ describe('the details pane in a narrow window', () => {
   it('leaves the list its space, whatever width is stored', async () => {
     server()
     await renderPage(<TriagePage />, {
-      route: '/$workspace/$team/triage',
+      route: '/$workspace/$project/triage',
       url: '/acme/web/triage?item=no_baseline%3Apricing',
-      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      otherRoutes: ['/$workspace/$project/builds/$number', '/$workspace/$project/settings/reviews'],
       announcer: true,
       viewport: [1000, 800],
     })

@@ -13,12 +13,12 @@ import { renderPage } from '#test/support/render.tsx'
 
 const overview = (workspace: string, name: string) => ({
   workspace: { slug: workspace, name },
-  team: { slug: 'web', name: 'web', defaultBranch: 'main' },
+  project: { slug: 'web', name: 'web', defaultBranch: 'main' },
   latestBuild: null,
 })
 
-const api = (teams: unknown[], lastWorkspace: string | null = null) => ({
-  'GET /api/teams': { body: { teams } },
+const api = (projects: unknown[], lastWorkspace: string | null = null) => ({
+  'GET /api/projects': { body: { projects } },
   'GET /api/capabilities': {
     body: {
       manageableWorkspaces: [],
@@ -33,14 +33,14 @@ const api = (teams: unknown[], lastWorkspace: string | null = null) => ({
 
 async function open(
   url: string,
-  teams: unknown[],
+  projects: unknown[],
   beforeRender?: () => void,
   lastWorkspace: string | null = null,
 ) {
   const router = createAppRouter({ history: createMemoryHistory({ initialEntries: [url] }) })
   const { calls } = await renderPage(null, {
     router,
-    api: api(teams, lastWorkspace),
+    api: api(projects, lastWorkspace),
     ...(beforeRender ? { beforeRender } : {}),
   })
   return { router, calls }

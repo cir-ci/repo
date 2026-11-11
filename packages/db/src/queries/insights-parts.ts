@@ -14,10 +14,10 @@ import type { Database } from '#src/client.ts'
 /**
  * The loaders behind Insights that are not the headline numbers: what is waiting, which
  * screenshots change or get rejected, why builds fail, what ignore regions hid. Each takes the
- * ids of the teams the person may see, so a hidden team is never counted.
+ * ids of the projects the person may see, so a hidden project is never counted.
  */
 
-export interface TeamInfo {
+export interface ProjectInfo {
   id: string
   slug: string
   name: string
@@ -25,14 +25,14 @@ export interface TeamInfo {
   icon: string | null
 }
 
-export interface TeamRefOut {
+export interface ProjectRefOut {
   slug: string
   name: string
   colour: string
   icon: string | null
 }
 
-export const teamRef = (t: TeamInfo): TeamRefOut => ({
+export const projectRef = (t: ProjectInfo): ProjectRefOut => ({
   slug: t.slug,
   name: t.name,
   colour: t.color,
@@ -44,7 +44,7 @@ const at = (d: Date) => sql`${d.toISOString()}::timestamptz`
 
 export interface WaitCandidate {
   id: string
-  teamId: string
+  projectId: string
   number: number
   branch: string | null
   author: string | null
@@ -60,7 +60,7 @@ export interface WaitCandidate {
  */
 export async function waitCandidates(
   db: Database,
-  teamIds: string[],
+  projectIds: string[],
   from: Date,
   to: Date,
 ): Promise<WaitCandidate[]> {
@@ -69,7 +69,7 @@ export async function waitCandidates(
   const rows = await db
     .select({
       id: builds.id,
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       number: builds.number,
       branch: builds.branch,
       authorLogin: builds.authorLogin,
@@ -81,7 +81,7 @@ export async function waitCandidates(
     .leftJoin(user, eq(user.id, builds.authorUserId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(builds.status, 'complete'),
         eq(builds.conclusion, 'changes_detected'),
         sql`${ready} < ${at(to)}`,
@@ -118,7 +118,7 @@ export async function waitCandidates(
   for (const r of [...wholeBuild, ...perShot]) note(r.buildId, r.at)
   return rows.map((r) => ({
     id: r.id,
-    teamId: r.teamId,
+    projectId: r.projectId,
     number: r.number,
     branch: r.branch,
     author: r.authorName ?? r.authorLogin,
@@ -157,7 +157,7 @@ export function failureReasons(messages: readonly (string | null)[]) {
 /** Screenshots that changed most among finished builds in `[from, to)`. */
 export async function mostChangedScreenshots(
   db: Database,
-  teamIds: string[],
+  projectIds: string[],
   from: Date,
   to: Date,
   limit = 5,
@@ -165,7 +165,7 @@ export async function mostChangedScreenshots(
   const changed = sql<string>`count(*) filter (where ${screenshotDiffs.status} = 'changed')`
   const rows = await db
     .select({
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       name: screenshotDiffs.name,
       changed,
       total: sql<string>`count(*)`,
@@ -174,18 +174,18 @@ export async function mostChangedScreenshots(
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(builds.status, 'complete'),
         sql`${ready} >= ${at(from)}`,
         sql`${ready} < ${at(to)}`,
       ),
     )
-    .groupBy(builds.teamId, screenshotDiffs.name)
+    .groupBy(builds.projectId, screenshotDiffs.name)
     .having(sql`count(*) filter (where ${screenshotDiffs.status} = 'changed') > 0`)
     .orderBy(desc(changed), screenshotDiffs.name)
     .limit(limit)
   return rows.map((r) => ({
-    teamId: r.teamId,
+    projectId: r.projectId,
     name: r.name,
     changedBuilds: Number(r.changed),
     builds: Number(r.total),
@@ -195,33 +195,37 @@ export async function mostChangedScreenshots(
 /** Screenshots rejected most often by a person, counting every rejection event, even replaced ones. */
 export async function mostRejectedScreenshots(
   db: Database,
-  teamIds: string[],
+  projectIds: string[],
   from: Date,
   to: Date,
   limit = 5,
 ) {
   const count = sql<string>`count(*)`
   const rows = await db
-    .select({ teamId: builds.teamId, name: snapshotReviews.snapshotName, rejections: count })
+    .select({ projectId: builds.projectId, name: snapshotReviews.snapshotName, rejections: count })
     .from(snapshotReviews)
     .innerJoin(builds, eq(builds.id, snapshotReviews.buildId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(snapshotReviews.decision, 'rejected'),
         gte(snapshotReviews.createdAt, from),
         lt(snapshotReviews.createdAt, to),
       ),
     )
-    .groupBy(builds.teamId, snapshotReviews.snapshotName)
+    .groupBy(builds.projectId, snapshotReviews.snapshotName)
     .orderBy(desc(count), snapshotReviews.snapshotName)
     .limit(limit)
-  return rows.map((r) => ({ teamId: r.teamId, name: r.name, rejections: Number(r.rejections) }))
+  return rows.map((r) => ({
+    projectId: r.projectId,
+    name: r.name,
+    rejections: Number(r.rejections),
+  }))
 }
 
 export interface RejectionEvent {
   buildId: string
-  teamId: string
+  projectId: string
   number: number
   reviewer: string | null
   reason: string | null
@@ -231,14 +235,14 @@ export interface RejectionEvent {
 /** Every rejection in `[from, to)`, whole-build and per-screenshot, newest first. */
 export async function rejectionEvents(
   db: Database,
-  teamIds: string[],
+  projectIds: string[],
   from: Date,
   to: Date,
 ): Promise<RejectionEvent[]> {
   const whole = await db
     .select({
       buildId: builds.id,
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       number: builds.number,
       reviewer: user.name,
       reason: reviews.reason,
@@ -249,7 +253,7 @@ export async function rejectionEvents(
     .leftJoin(user, eq(user.id, reviews.userId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(reviews.state, 'rejected'),
         gte(reviews.createdAt, from),
         lt(reviews.createdAt, to),
@@ -258,7 +262,7 @@ export async function rejectionEvents(
   const single = await db
     .select({
       buildId: builds.id,
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       number: builds.number,
       reviewer: user.name,
       reason: snapshotReviews.reason,
@@ -269,7 +273,7 @@ export async function rejectionEvents(
     .leftJoin(user, eq(user.id, snapshotReviews.userId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(snapshotReviews.decision, 'rejected'),
         gte(snapshotReviews.createdAt, from),
         lt(snapshotReviews.createdAt, to),
@@ -279,14 +283,14 @@ export async function rejectionEvents(
 }
 
 /** Diffs that were `unchanged` only because an ignore region hid pixels, with the regions. */
-export async function suppressedDiffs(db: Database, teamIds: string[], from: Date, to: Date) {
+export async function suppressedDiffs(db: Database, projectIds: string[], from: Date, to: Date) {
   return db
-    .select({ teamId: builds.teamId, regions: screenshotDiffs.ignoredRegions })
+    .select({ projectId: builds.projectId, regions: screenshotDiffs.ignoredRegions })
     .from(screenshotDiffs)
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
     .where(
       and(
-        inArray(builds.teamId, teamIds),
+        inArray(builds.projectId, projectIds),
         eq(screenshotDiffs.status, 'unchanged'),
         sql`${screenshotDiffs.ignoredChangedPixels} > 0`,
         sql`${ready} >= ${at(from)}`,
@@ -295,24 +299,27 @@ export async function suppressedDiffs(db: Database, teamIds: string[], from: Dat
     )
 }
 
-/** Teams (of those given) that have at least one ignore region. */
-export async function teamsWithIgnoreRegions(db: Database, teamIds: string[]): Promise<number> {
+/** Projects (of those given) that have at least one ignore region. */
+export async function projectsWithIgnoreRegions(
+  db: Database,
+  projectIds: string[],
+): Promise<number> {
   const rows = await db
-    .selectDistinct({ teamId: ignoreRegions.teamId })
+    .selectDistinct({ projectId: ignoreRegions.projectId })
     .from(ignoreRegions)
-    .where(inArray(ignoreRegions.teamId, teamIds))
+    .where(inArray(ignoreRegions.projectId, projectIds))
   return rows.length
 }
 
 /** Builds in `[from, to)` whose person decisions exist (whole build or single screenshot). */
 export async function personDecidedBuilds(
   db: Database,
-  teamIds: string[],
+  projectIds: string[],
   from: Date,
   to: Date,
 ): Promise<Set<string>> {
   const range = and(
-    inArray(builds.teamId, teamIds),
+    inArray(builds.projectId, projectIds),
     sql`${ready} >= ${at(from)}`,
     sql`${ready} < ${at(to)}`,
   )
@@ -333,13 +340,13 @@ export async function personDecidedBuilds(
  * Builds whose last decision by a person (approved or rejected) falls in `[from, to)`, with the
  * wait from ready to it. A build with no decision yet is not counted.
  */
-export async function lastDecisions(db: Database, teamIds: string[], from: Date, to: Date) {
+export async function lastDecisions(db: Database, projectIds: string[], from: Date, to: Date) {
   const lastAt = sql<Date>`max(${reviews.createdAt}) filter (where ${reviews.userId} is not null and ${reviews.source} <> 'auto')`
   const rows = await db
-    .select({ teamId: builds.teamId, readyAt: sql<Date>`${ready}`, decidedAt: lastAt })
+    .select({ projectId: builds.projectId, readyAt: sql<Date>`${ready}`, decidedAt: lastAt })
     .from(reviews)
     .innerJoin(builds, eq(builds.id, reviews.buildId))
-    .where(and(inArray(builds.teamId, teamIds), lt(reviews.createdAt, to)))
+    .where(and(inArray(builds.projectId, projectIds), lt(reviews.createdAt, to)))
     .groupBy(builds.id)
     .having(sql`${lastAt} >= ${at(from)} and ${lastAt} < ${at(to)}`)
   return rows.flatMap((r) => {
@@ -348,7 +355,7 @@ export async function lastDecisions(db: Database, teamIds: string[], from: Date,
     const decidedAt = new Date(r.decidedAt)
     return [
       {
-        teamId: r.teamId,
+        projectId: r.projectId,
         readyAt,
         decidedAt,
         hours: Math.max(0, decidedAt.getTime() - readyAt.getTime()) / HOUR_MS,

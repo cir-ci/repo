@@ -7,12 +7,12 @@ import {
   reviews,
   screenshots,
   snapshotReviews,
-  teamMembers,
-  teams,
+  projectMembers,
+  projects,
   user,
 } from '#schema/index.ts'
 import { containsPattern, prefixPattern } from '#shared/like.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -23,7 +23,7 @@ import type { Database } from '#src/client.ts'
 
 export namespace searchExtras {
   export interface Shot {
-    teamId: string
+    projectId: string
     buildNumber: number
     name: string
   }
@@ -33,14 +33,14 @@ export namespace searchExtras {
     name: string
     email: string
     image: string | null
-    /** The teams they belong to that the person searching can see. */
-    teams: { slug: string; name: string }[]
-    /** Open review requests asked of them, in teams the person searching can see. */
+    /** The projects they belong to that the person searching can see. */
+    projects: { slug: string; name: string }[]
+    /** Open review requests asked of them, in projects the person searching can see. */
     openReviews: number
   }
 }
 
-export const shotKey = (s: searchExtras.Shot) => `${s.teamId}:${s.buildNumber}:${s.name}`
+export const shotKey = (s: searchExtras.Shot) => `${s.projectId}:${s.buildNumber}:${s.name}`
 
 /** The thumbnail file (the full image when there is no thumbnail) and build of each named screenshot. */
 export async function shotThumbnails(
@@ -51,7 +51,7 @@ export async function shotThumbnails(
   if (shots.length === 0) return out
   const rows = await db
     .select({
-      teamId: builds.teamId,
+      projectId: builds.projectId,
       buildId: builds.id,
       buildNumber: builds.number,
       name: screenshots.name,
@@ -64,7 +64,7 @@ export async function shotThumbnails(
       or(
         ...shots.map((s) =>
           and(
-            eq(builds.teamId, s.teamId),
+            eq(builds.projectId, s.projectId),
             eq(builds.number, s.buildNumber),
             eq(screenshots.name, s.name),
           ),
@@ -72,7 +72,7 @@ export async function shotThumbnails(
       ),
     )
   for (const r of rows) {
-    out.set(shotKey({ teamId: r.teamId, buildNumber: r.buildNumber, name: r.name }), {
+    out.set(shotKey({ projectId: r.projectId, buildNumber: r.buildNumber, name: r.name }), {
       sha256: r.thumbnail ?? r.sha256,
       buildId: r.buildId,
     })
@@ -133,15 +133,15 @@ export async function baselineApprovers(
   return out
 }
 
-/** `inArray` of team IDs (UUIDs) with an empty list matches nothing: an ID no team has stands in for it. */
-const NO_TEAM = '00000000-0000-0000-0000-000000000000'
-const anyOf = (list: readonly string[]) => (list.length > 0 ? [...list] : [NO_TEAM])
+/** `inArray` of project IDs (UUIDs) with an empty list matches nothing: an ID no project has stands in for it. */
+const NO_PROJECT = '00000000-0000-0000-0000-000000000000'
+const anyOf = (list: readonly string[]) => (list.length > 0 ? [...list] : [NO_PROJECT])
 
 /**
  * The workspace's people matching a name or an email, name and email prefixes first. A person is
- * listed when the searcher is them, is an owner or admin, or shares a team they can see; with a
- * team, only that team's members (and nobody when the team is hidden from the searcher). Their
- * teams and open review requests count only teams the searcher can see.
+ * listed when the searcher is them, is an owner or admin, or shares a project they can see; with a
+ * project, only that project's members (and nobody when the project is hidden from the searcher). Their
+ * projects and open review requests count only projects the searcher can see.
  */
 export async function searchPeople(
   db: Database,
@@ -150,36 +150,39 @@ export async function searchPeople(
     workspaceId: string
     q: string
     limit: number
-    /** A team's slug. */
-    team?: string | undefined
+    /** A project's slug. */
+    project?: string | undefined
   },
 ): Promise<{ people: searchExtras.Person[]; total: number }> {
   const none = { people: [], total: 0 }
   const visible = await db
-    .select({ id: teams.id, slug: teams.slug, name: teams.name })
-    .from(teams)
-    .where(and(eq(teams.workspaceId, input.workspaceId), teamVisibleTo(input.userId, teams)))
+    .select({ id: projects.id, slug: projects.slug, name: projects.name })
+    .from(projects)
+    .where(
+      and(eq(projects.workspaceId, input.workspaceId), projectVisibleTo(input.userId, projects)),
+    )
   const visibleIds = visible.map((t) => t.id)
-  const scoped = input.team === undefined ? undefined : visible.find((t) => t.slug === input.team)
-  if (input.team !== undefined && !scoped) return none
+  const scoped =
+    input.project === undefined ? undefined : visible.find((t) => t.slug === input.project)
+  if (input.project !== undefined && !scoped) return none
   const [me] = await db
     .select({ role: member.role })
     .from(member)
     .where(and(eq(member.workspaceId, input.workspaceId), eq(member.userId, input.userId)))
-  const inTeams = (teamIds: string[]) =>
+  const inProjects = (projectIds: string[]) =>
     inArray(
       user.id,
       db
-        .select({ id: teamMembers.userId })
-        .from(teamMembers)
-        .where(inArray(teamMembers.teamId, anyOf(teamIds))),
+        .select({ id: projectMembers.userId })
+        .from(projectMembers)
+        .where(inArray(projectMembers.projectId, anyOf(projectIds))),
     )
   const reach = scoped
-    ? inTeams([scoped.id])
+    ? inProjects([scoped.id])
     : or(
         eq(user.id, input.userId),
         me?.role === 'owner' || me?.role === 'admin' ? sql`true` : undefined,
-        inTeams(visibleIds),
+        inProjects(visibleIds),
       )
   const like = containsPattern(input.q)
   const rank = sql`least(case when lower(${user.name}) = lower(${input.q}) then 0 when ${user.name} ilike ${prefixPattern(input.q)} then 1 else 3 end, case when ${user.email} ilike ${prefixPattern(input.q)} then 1 else 3 end)`
@@ -205,9 +208,14 @@ export async function searchPeople(
   if (rows.length === 0) return none
   const ids = rows.map((r) => r.id)
   const belongs = await db
-    .select({ userId: teamMembers.userId, teamId: teamMembers.teamId })
-    .from(teamMembers)
-    .where(and(inArray(teamMembers.userId, ids), inArray(teamMembers.teamId, anyOf(visibleIds))))
+    .select({ userId: projectMembers.userId, projectId: projectMembers.projectId })
+    .from(projectMembers)
+    .where(
+      and(
+        inArray(projectMembers.userId, ids),
+        inArray(projectMembers.projectId, anyOf(visibleIds)),
+      ),
+    )
   const open =
     visibleIds.length === 0
       ? []
@@ -219,7 +227,7 @@ export async function searchPeople(
             and(
               eq(reviewRequests.state, 'open'),
               inArray(reviewRequests.reviewerId, ids),
-              inArray(builds.teamId, visibleIds),
+              inArray(builds.projectId, visibleIds),
             ),
           )
           .groupBy(reviewRequests.reviewerId)
@@ -232,8 +240,8 @@ export async function searchPeople(
       name: r.name,
       email: r.email,
       image: r.image,
-      teams: byName
-        .filter((t) => belongs.some((b) => b.userId === r.id && b.teamId === t.id))
+      projects: byName
+        .filter((t) => belongs.some((b) => b.userId === r.id && b.projectId === t.id))
         .map(({ slug, name }) => ({ slug, name })),
       openReviews: openBy.get(r.id) ?? 0,
     })),

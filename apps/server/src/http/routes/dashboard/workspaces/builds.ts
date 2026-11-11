@@ -26,17 +26,17 @@ const suggestQuery = z.object({
 })
 
 const branchQuery = z.object({
-  team: z.string().optional(),
+  project: z.string().optional(),
   q: z.string().max(255).default(''),
   limit: z.coerce.number().int().min(1).max(100).default(BRANCH_LIMIT),
 })
 
-/** Page size of the workspace-wide builds list; the same as a team's. */
+/** Page size of the workspace-wide builds list; the same as a project's. */
 const PAGE_SIZE = 50
 
 /**
- * The builds of every team of a workspace in one list (a saved view with no team), with the
- * filters and paging of a team's list, and the suggestions for the author and reviewer chips.
+ * The builds of every project of a workspace in one list (a saved view with no project), with the
+ * filters and paging of a project's list, and the suggestions for the author and reviewer chips.
  * Members only; everyone else gets "not found".
  */
 export const dashboardWorkspaceBuildsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
@@ -97,11 +97,11 @@ export const dashboardWorkspaceBuildsRoutes: FastifyPluginAsync<Deps.Dashboard> 
         userId: user.id,
         workspaceSlug: p.workspace,
         method: user.method,
-        teamSlug: q.team,
+        projectslug: q.project,
         query: q.q,
         limit: q.limit,
       })
-      if (!found) return reply.code(404).send({ error: 'Workspace or team not found' })
+      if (!found) return reply.code(404).send({ error: 'Workspace or project not found' })
       return {
         branches: found.map((b) => ({ name: b.name, lastBuildAt: b.lastBuildAt.toISOString() })),
       }

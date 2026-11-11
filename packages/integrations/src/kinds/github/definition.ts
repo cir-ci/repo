@@ -13,7 +13,7 @@ import { GithubApp } from './client.ts'
 /**
  * GitHub, through the instance's GitHub App. A connection is one installation of the App on an
  * account or organisation (its id is the external id); the App's own credentials are instance
- * configuration (`GITHUB_APP_*`), so a connection keeps no secret (`secretless`). A team maps
+ * configuration (`GITHUB_APP_*`), so a connection keeps no secret (`secretless`). A project maps
  * to one repository of the installation. Builds show as a check run with Approve and Reject
  * buttons plus one summary comment; the App's webhook (`/webhooks/github`) brings pull requests,
  * `/circi` commands and the buttons.
@@ -47,7 +47,7 @@ const REVOKED =
 const REPO_RE = /^[\w.-]+\/[\w.-]+$/
 
 const LINK_HELP = (origin: string) =>
-  `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitHub (Account and sessions → link GitHub) using a member of this team's workspace, then try again.`
+  `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitHub (Account and sessions → link GitHub) using a member of this project's workspace, then try again.`
 
 const repoOf = (p: Record<string, unknown>): IntegrationDefinition.GitRepo | undefined => {
   const installation = str(asRecord(p.installation).id)
@@ -129,7 +129,7 @@ export const github = defineIntegration({
   logo: 'github',
   secretless: true,
   replaceOnReconnect: true,
-  exclusive: { account: true, team: 'group' },
+  exclusive: { account: true, project: 'group' },
   credentials: z.strictObject({
     installationId: z
       .string()
@@ -203,7 +203,7 @@ export const github = defineIntegration({
 
   mapping: {
     description:
-      'Choose the repository each team reports to. Builds show up on the pull request as a check with Approve and Reject buttons, and as one summary comment.',
+      'Choose the repository each project reports to. Builds show up on the pull request as a check with Approve and Reject buttons, and as one summary comment.',
     target: {
       label: 'Repository',
       kind: 'repository',

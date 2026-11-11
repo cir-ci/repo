@@ -14,10 +14,10 @@ import {
 import { createdAt, id, inList } from './_columns.ts'
 import { session, user } from './auth.ts'
 import { files } from './files.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /**
- * Hosted static sites (PLAN §7.6). A *site* belongs to a team and has a name, a kind (from the
+ * Hosted static sites (PLAN §7.6). A *site* belongs to a project and has a name, a kind (from the
  * registry in `@circi/sites`) and a slug that is part of its addresses. Each upload is a
  * *version* tied to a commit; addresses (hostnames) point at versions.
  */
@@ -31,13 +31,13 @@ const SITE_KINDS = [
   'generic',
 ]
 
-export const teamSites = pgTable(
-  'team_sites',
+export const projectsites = pgTable(
+  'project_sites',
   {
     id: id(),
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     kind: text('kind').notNull(),
     /** Part of every address of this site; unique across the instance. */
@@ -45,7 +45,7 @@ export const teamSites = pgTable(
     /** Unknown paths get the entry page. */
     spa: boolean('spa').notNull().default(false),
     /**
-     * One custom domain (lowercase, e.g. `storybook.acme.com`) that serves the team's default
+     * One custom domain (lowercase, e.g. `storybook.acme.com`) that serves the project's default
      * branch version of this site. Unique across the instance; only a verified one is served.
      */
     customDomain: text('custom_domain'),
@@ -54,10 +54,10 @@ export const teamSites = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex('team_sites_team_name_key').on(t.teamId, t.name),
-    uniqueIndex('team_sites_slug_key').on(t.slug),
-    uniqueIndex('team_sites_custom_domain_key').on(t.customDomain),
-    check('team_sites_kind_check', inList(t.kind.name, SITE_KINDS)),
+    uniqueIndex('project_sites_project_name_key').on(t.projectId, t.name),
+    uniqueIndex('project_sites_slug_key').on(t.slug),
+    uniqueIndex('project_sites_custom_domain_key').on(t.customDomain),
+    check('project_sites_kind_check', inList(t.kind.name, SITE_KINDS)),
   ],
 )
 
@@ -65,9 +65,9 @@ export const staticSites = pgTable(
   'static_sites',
   {
     id: id(),
-    teamSiteId: uuid('team_site_id')
+    projectsiteId: uuid('project_site_id')
       .notNull()
-      .references(() => teamSites.id, { onDelete: 'cascade' }),
+      .references(() => projectsites.id, { onDelete: 'cascade' }),
     commitSha: text('commit_sha').notNull(),
     branch: text('branch'),
     /** The page served at the root. */
@@ -76,7 +76,7 @@ export const staticSites = pgTable(
     fileCount: integer('file_count').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('static_sites_commit_key').on(t.teamSiteId, t.commitSha)],
+  (t) => [uniqueIndex('static_sites_commit_key').on(t.projectsiteId, t.commitSha)],
 )
 
 export const staticSiteFiles = pgTable(
@@ -103,9 +103,9 @@ export const siteHostnames = pgTable(
   'site_hostnames',
   {
     label: text('label').primaryKey(),
-    teamSiteId: uuid('team_site_id')
+    projectsiteId: uuid('project_site_id')
       .notNull()
-      .references(() => teamSites.id, { onDelete: 'cascade' }),
+      .references(() => projectsites.id, { onDelete: 'cascade' }),
     /** `commit` addresses serve one version for good; `branch` ones move with the branch. */
     linkKind: text('link_kind').notNull(),
     /** For `branch`: the branch name, so a later upload can find its address again. */
@@ -116,7 +116,7 @@ export const siteHostnames = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('site_hostnames_site_idx').on(t.teamSiteId),
+    index('site_hostnames_site_idx').on(t.projectsiteId),
     check('site_hostnames_kind_check', inList(t.linkKind.name, ['commit', 'branch'])),
   ],
 )

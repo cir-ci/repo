@@ -29,7 +29,7 @@ What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm buil
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
 `pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from
 source under `node --watch`, Vite for the dashboard on :5173 (PUBLIC_URL; it proxies every server path to :3000), and a
-first-run seed (owner@example.com / member@example.com, password `circi-dev-password`, workspace `acme`, team `web-app`,
+first-run seed (owner@example.com / member@example.com, password `circi-dev-password`, workspace `acme`, project `web-app`,
 four builds in different review states); `pnpm dev:reset` deletes its data.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
@@ -40,7 +40,7 @@ transport    apps/server (http/, cli/), apps/worker (handlers/, jobs/), apps/web
    v         parse the request, check who is asking, call a service or a read model, shape the reply
 services     packages/services/src/<area>/   use cases: open the transaction, call repositories, queue
    v         the jobs and notices that follow (a transactional outbox); the worker's job bodies live here too
-core         packages/core                   rules with no I/O, by area (baselines/, builds/, reviews/, integrations/, team/); `@circi/core` is
+core         packages/core                   rules with no I/O, by area (baselines/, builds/, reviews/, integrations/, project/); `@circi/core` is
              browser-safe, `@circi/core/node` (src/node/) holds the Node-only secrets, tokens and signing
 db           packages/db   queries/ (read models for the dashboard), repositories/ (stores and lookups),
              queue/ (jobs, webhook rows, git notices), schema/ (Drizzle), shared/ (helpers they share)
@@ -108,7 +108,7 @@ Type-only namespaces (erasable, so they work with `erasableSyntaxOnly` and Node'
 - A function's input/result types are merged into it: `createBuild.Input`, `finalizeBuild.Result`,
   `planUploads.File`. Use `import type { createBuild }` when only the types are needed.
 - A component's props: `export namespace Row { export interface Props { … } }` next to `Row`.
-- The API's wire types, one namespace per resource: `Build.Detail`, `Team.Settings`, `Workspace.Domain`
+- The API's wire types, one namespace per resource: `Build.Detail`, `Project.Settings`, `Workspace.Domain`
   (`@circi/api`). Dates are ISO strings there.
 
 A namespace must contain only types. Never put a value in one.
@@ -136,7 +136,7 @@ A namespace must contain only types. Never put a value in one.
   page calls `expectOnePrimaryPerArea()` (`apps/web/test/support/primary-buttons.ts`).
 - **Copy:** contractions ("Couldn't", "can't") with the straight apostrophe everywhere (dashboard, server,
   emails), never the curly one; "ID", not "id"; "Delete" for something gone for good
-  (comments, rules, teams, workspaces), "Remove" for taking it out of a list (members, webhooks,
+  (comments, rules, projects, workspaces), "Remove" for taking it out of a list (members, webhooks,
   ignore regions, links: no "Unlink"; "Revoke" only for invitations); "screenshot", never "snapshot", in UI text. No text that states the
   obvious ("saved with Save changes", "Only owners can do this" beside a hidden control), no
   explanatory lead under a page title unless it warns about a consequence, and no helper line that
@@ -153,15 +153,15 @@ A namespace must contain only types. Never put a value in one.
   is risky (remove a member, a domain or a provider; delete anything) asks first in a `ConfirmDialog`.
   A reason dialog (rejecting) is an input, not a confirmation.
 - **Settings is a closed area:** no link or redirect moves someone between settings and the rest
-  of the dashboard. A settings page that needs another page (a team's Sites, a baseline's ignore
+  of the dashboard. A settings page that needs another page (a project's Sites, a baseline's ignore
   regions) shows it inside settings, in its tab and frame; an app page never links into a settings
   page. The only ways in and out are the settings entry points (the workspace and account menus,
-  ⌘K, the team page's Settings button, and right-click context menus, e.g. a team's "Team
+  ⌘K, the project page's Settings button, and right-click context menus, e.g. a project's "Project
   settings") and settings' own way back to the app. A context menu shows its settings item only to
   those who can open those settings; the file is a named entry point in
   `apps/web/test/app/closed-settings.test.ts`.
 - **Saving settings:** a change that doesn't affect anyone's workflow saves as soon as it is made,
-  with no Save button: a display name, a team's colour or icon, a workspace picture, the theme,
+  with no Save button: a display name, a project's colour or icon, a workspace picture, the theme,
   personal notification preferences. A change that does (merge gate, thresholds, retention, review
   rules and targets, sign-in methods, members and roles, tokens, webhooks, and slugs, which break
   links) waits for an explicit Save (or a confirmation), with Discard to revert. Don't mix the two in

@@ -9,12 +9,12 @@ import { rootRoute } from '#app/root-route.ts'
  */
 const baselinesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$workspace/$team/baselines',
+  path: '$workspace/$project/baselines',
   component: Outlet,
 })
 
-export const ROUTE = '/$workspace/$team/baselines/'
-export const BASELINE_ROUTE = '/$workspace/$team/baselines/$'
+export const ROUTE = '/$workspace/$project/baselines/'
+export const BASELINE_ROUTE = '/$workspace/$project/baselines/$'
 
 const listRoute = createRoute({
   getParentRoute: () => baselinesRoute,

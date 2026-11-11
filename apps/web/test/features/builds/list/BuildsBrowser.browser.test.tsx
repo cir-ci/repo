@@ -7,23 +7,23 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { parseBuildsSearch } from '#features/builds/list/builds-filters.ts'
-import { TeamPage } from '#features/teams/TeamPage.tsx'
+import { ProjectPage } from '#features/projects/ProjectPage.tsx'
 import { ViewPage } from '#features/views/ViewPage.tsx'
 import { PANES } from '#lib/panes.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
-import { build } from '#test/features/teams/support.tsx'
+import { build } from '#test/features/projects/support.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch } from '#test/support/fetch.ts'
-import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
+import { sidebarModel, sidebarProject, projectInfo } from '#test/support/fixtures.ts'
 import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
 const auth = mockAuthClient().organization
 
-const info = teamInfo()
+const info = projectInfo()
 
 /** A promise settled from outside: holds a fake answer back until the test lets it go. */
 function deferred<T = void>() {
@@ -34,13 +34,13 @@ function deferred<T = void>() {
   return { promise, resolve: (value: T) => held.resolve(value) }
 }
 
-const sidebar = (pinned = false) => sidebarModel({ teams: [sidebarTeam({ pinned })] })
+const sidebar = (pinned = false) => sidebarModel({ projects: [sidebarProject({ pinned })] })
 
 /** The faked API, plus every URL requested (the fake keeps only paths, and filters live in the query). */
 function api(builds: unknown[], extra: Parameters<typeof fakeApi>[0] = {}) {
   const fake = fakeApi({
-    'GET /api/teams/acme/web': { body: { team: info, builds, gitAttention: null } },
-    'GET /api/teams/acme/web/flaky': { body: { builds: 10, flaky: [] } },
+    'GET /api/projects/acme/web': { body: { project: info, builds, gitAttention: null } },
+    'GET /api/projects/acme/web/flaky': { body: { builds: 10, flaky: [] } },
     'GET /api/workspaces/acme/sidebar': { body: sidebar() },
     ...extra,
   })
@@ -54,9 +54,9 @@ function api(builds: unknown[], extra: Parameters<typeof fakeApi>[0] = {}) {
 }
 
 const show = (url = '/acme/web', beforeRender?: () => Promise<void>) =>
-  renderPage(<TeamPage />, {
+  renderPage(<ProjectPage />, {
     beforeRender,
-    route: '/$workspace/$team',
+    route: '/$workspace/$project',
     url,
     announcer: true,
     validateSearch: parseBuildsSearch,
@@ -73,7 +73,7 @@ describe('filters', () => {
     await expect
       .element(page.getByRole('button', { name: 'Author' }))
       .toHaveAttribute('aria-pressed', 'false')
-    expect(fake.urls).toContain('/api/teams/acme/web?review=pending&branch=feature%2Fx')
+    expect(fake.urls).toContain('/api/projects/acme/web?review=pending&branch=feature%2Fx')
   })
 
   it('applying a filter updates the URL and the request; clearing removes them', async () => {
@@ -82,7 +82,7 @@ describe('filters', () => {
     await page.getByRole('button', { name: 'Status' }).click()
     await page.getByRole('button', { name: 'Approved' }).click()
     expect(router.state.location.search).toEqual({ review: 'approved' })
-    await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?review=approved')
+    await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?review=approved')
     await expect
       .element(page.getByRole('button', { name: 'Status: Approved' }))
       .toHaveAttribute('aria-pressed', 'true')
@@ -93,7 +93,7 @@ describe('filters', () => {
     expect(router.state.location.search).toEqual({ review: 'approved', branchContains: 'main' })
     await expect
       .poll(() => fake.urls)
-      .toContain('/api/teams/acme/web?review=approved&branchContains=main')
+      .toContain('/api/projects/acme/web?review=approved&branchContains=main')
 
     await page.getByRole('button', { name: 'Clear filters' }).click()
     expect(router.state.location.search).toEqual({})
@@ -112,7 +112,7 @@ describe('filters', () => {
       },
     }
 
-    it("lists the team's branches in the order given, and asks the server as you type", async () => {
+    it("lists the project's branches in the order given, and asks the server as you type", async () => {
       const fake = api([build(3)], branches)
       await show()
       await page.getByRole('button', { name: 'Branch' }).click()
@@ -123,11 +123,11 @@ describe('filters', () => {
         'qa/pr20',
         'feature/login',
       ])
-      expect(fake.urls).toContain('/api/workspaces/acme/builds/branches?q=&team=web')
+      expect(fake.urls).toContain('/api/workspaces/acme/builds/branches?q=&project=web')
       await page.getByRole('combobox', { name: 'Branch' }).fill('QA')
       await expect
         .poll(() => fake.urls)
-        .toContain('/api/workspaces/acme/builds/branches?q=QA&team=web')
+        .toContain('/api/workspaces/acme/builds/branches?q=QA&project=web')
     })
 
     it('filters to exactly the branch picked, with the mouse', async () => {
@@ -136,7 +136,7 @@ describe('filters', () => {
       await page.getByRole('button', { name: 'Branch' }).click()
       await page.getByRole('option', { name: 'qa/pr20' }).click()
       expect(router.state.location.search).toEqual({ branch: 'qa/pr20' })
-      await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?branch=qa%2Fpr20')
+      await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?branch=qa%2Fpr20')
       await expect.element(page.getByRole('button', { name: 'Branch: qa/pr20' })).toBeVisible()
     })
 
@@ -157,7 +157,7 @@ describe('filters', () => {
       await page.getByRole('combobox', { name: 'Branch' }).fill('pr2')
       await userEvent.keyboard('{Enter}')
       expect(router.state.location.search).toEqual({ branchContains: 'pr2' })
-      await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?branchContains=pr2')
+      await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?branchContains=pr2')
       await expect.element(page.getByRole('button', { name: 'Branch: contains pr2' })).toBeVisible()
     })
 
@@ -204,13 +204,13 @@ describe('filters', () => {
     const gate = deferred()
     let requests = 0
     fakeFetch({
-      'GET /api/teams/acme/web': async () => {
+      'GET /api/projects/acme/web': async () => {
         requests += 1
         // The first answer (no filter) is immediate; the filtered one waits.
         if (requests > 1) await gate.promise
-        return { team: info, builds: [build(3)], gitAttention: null }
+        return { project: info, builds: [build(3)], gitAttention: null }
       },
-      'GET /api/teams/acme/web/flaky': { builds: 10, flaky: [] },
+      'GET /api/projects/acme/web/flaky': { builds: 10, flaky: [] },
       'GET /api/workspaces/acme/sidebar': sidebar(),
     })
     // Wide enough that the chips of an applied filter (Clear filters, Save view) don't wrap.
@@ -351,7 +351,7 @@ describe('display options', () => {
 describe('selecting and peeking', () => {
   it('X selects builds and the bulk bar approves them all in one request', async () => {
     const fake = api([build(8), build(7), build(6)], {
-      'POST /api/teams/acme/web/builds/review': { body: { builds: [] } },
+      'POST /api/projects/acme/web/builds/review': { body: { builds: [] } },
     })
     await show()
     await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
@@ -366,7 +366,7 @@ describe('selecting and peeking', () => {
     await bar.getByRole('button', { name: 'Approve' }).click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]).toMatchObject({
-      path: '/api/teams/acme/web/builds/review',
+      path: '/api/projects/acme/web/builds/review',
       body: { buildIds: ['b8', 'b6'], decision: 'approved' },
     })
     await expect.element(bar).not.toBeInTheDocument()
@@ -374,7 +374,7 @@ describe('selecting and peeking', () => {
 
   it('requests a review of the selection with one request', async () => {
     const fake = api([build(8), build(7), build(6)], {
-      'GET /api/teams/acme/web/members': {
+      'GET /api/projects/acme/web/members': {
         body: {
           members: [
             {
@@ -397,7 +397,7 @@ describe('selecting and peeking', () => {
           canManage: false,
         },
       },
-      'POST /api/teams/acme/web/builds/request-review': { body: { requests: [] } },
+      'POST /api/projects/acme/web/builds/request-review': { body: { requests: [] } },
     })
     await show()
     await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
@@ -410,14 +410,14 @@ describe('selecting and peeking', () => {
     await page.getByRole('dialog').getByText('Grace Hopper').click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]).toMatchObject({
-      path: '/api/teams/acme/web/builds/request-review',
+      path: '/api/projects/acme/web/builds/request-review',
       body: { buildIds: ['b8', 'b6'], reviewerIds: ['u2'] },
     })
   })
 
   it('rejects the selection with a required reason', async () => {
     const fake = api([build(8), build(7)], {
-      'POST /api/teams/acme/web/builds/review': { body: { builds: [] } },
+      'POST /api/projects/acme/web/builds/review': { body: { builds: [] } },
     })
     await show()
     await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
@@ -472,7 +472,7 @@ describe('saving a view and pinning', () => {
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]?.body).toEqual({
       name: 'Waiting on me',
-      team: 'web',
+      project: 'web',
       filters: { review: 'pending' },
       pinned: true,
     })
@@ -488,7 +488,7 @@ describe('saving a view and pinning', () => {
       filters: { review: 'rejected' },
       pinned: true,
       position: 0,
-      team: { slug: 'web', name: 'Web App' },
+      project: { slug: 'web', name: 'Web App' },
       createdAt: '2026-11-08T10:00:00.000Z',
     }
     let created = false
@@ -510,7 +510,7 @@ describe('saving a view and pinning', () => {
     expect(page.getByRole('button', { name: 'Save view' }).elements()).toHaveLength(0)
   })
 
-  it("still offers Save view when only a different team's view has the same filters", async () => {
+  it("still offers Save view when only a different project's view has the same filters", async () => {
     api([build(3)], {
       'GET /api/workspaces/acme/views': {
         body: {
@@ -521,7 +521,7 @@ describe('saving a view and pinning', () => {
               filters: { review: 'rejected' },
               pinned: true,
               position: 0,
-              team: { slug: 'docs', name: 'Docs' },
+              project: { slug: 'docs', name: 'Docs' },
               createdAt: '2026-11-08T10:00:00.000Z',
             },
           ],
@@ -532,12 +532,12 @@ describe('saving a view and pinning', () => {
     await expect.element(page.getByRole('button', { name: 'Save view' })).toBeVisible()
   })
 
-  it('pins and unpins the team', async () => {
+  it('pins and unpins the project', async () => {
     const fake = api([build(3)], {
-      'PUT /api/workspaces/acme/pinned-teams/web': { body: { pinned: true, changed: true } },
+      'PUT /api/workspaces/acme/pinned-projects/web': { body: { pinned: true, changed: true } },
     })
     await show()
-    await page.getByRole('button', { name: 'Pin team' }).click()
+    await page.getByRole('button', { name: 'Pin project' }).click()
     await expect.poll(() => fake.of('PUT')).toHaveLength(1)
     await expect
       .poll(() => fake.of('GET').filter((c) => c.path === '/api/workspaces/acme/sidebar'))
@@ -545,10 +545,10 @@ describe('saving a view and pinning', () => {
   })
 })
 
-/** A build of the workspace-wide list: the usual item and its team. */
-const row = (n: number, team: string) => ({
+/** A build of the workspace-wide list: the usual item and its project. */
+const row = (n: number, project: string) => ({
   ...build(n),
-  team: { slug: team, name: team.toUpperCase() },
+  project: { slug: project, name: project.toUpperCase() },
 })
 
 const showView = (id = 'v1') =>
@@ -565,21 +565,21 @@ describe('ViewPage', () => {
     filters: { review: 'pending', branch: 'main' },
     pinned: true,
     position: 0,
-    team: { slug: 'web', name: 'Web App' },
+    project: { slug: 'web', name: 'Web App' },
     createdAt: '2026-11-08T10:00:00.000Z',
   }
-  it("lists the team's builds with the view's filters applied", async () => {
+  it("lists the project's builds with the view's filters applied", async () => {
     const fake = api([build(3)], { 'GET /api/workspaces/acme/views': { body: { views: [view] } } })
     await showView()
     await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
-    expect(fake.urls).toContain('/api/teams/acme/web?review=pending&branch=main')
+    expect(fake.urls).toContain('/api/projects/acme/web?review=pending&branch=main')
     await expect.element(page.getByRole('button', { name: 'Status: Needs review' })).toBeVisible()
     expect(page.getByRole('button', { name: 'Save view' }).elements()).toHaveLength(0)
     expect(document.title).toBe('Waiting on me · CirCI')
   })
 
-  it('says builds appear from every team when a view with no team has none', async () => {
-    const everything = { ...view, filters: {}, team: null }
+  it('says builds appear from every project when a view with no project has none', async () => {
+    const everything = { ...view, filters: {}, project: null }
     fakeApi({
       'GET /api/workspaces/acme/views': { body: { views: [everything] } },
       'GET /api/workspaces/acme/builds': {
@@ -589,12 +589,12 @@ describe('ViewPage', () => {
     })
     await showView()
     await expectEmptyState('No builds yet', {
-      body: 'Builds from every team in acme appear here.',
+      body: 'Builds from every project in acme appear here.',
     })
   })
 
-  it("lists every team's builds for a view with no team, and pages with a cursor", async () => {
-    const wide = { ...view, filters: { review: 'pending' }, team: null }
+  it("lists every project's builds for a view with no project, and pages with a cursor", async () => {
+    const wide = { ...view, filters: { review: 'pending' }, project: null }
     const urls: string[] = []
     const fake = fakeApi({
       'GET /api/workspaces/acme/views': { body: { views: [wide] } },
@@ -628,7 +628,7 @@ describe('ViewPage', () => {
     await expect
       .poll(() => urls)
       .toContain('/api/workspaces/acme/builds?review=pending&before=cursor-1')
-    // Bulk selection belongs to one team, so X selects nothing here.
+    // Bulk selection belongs to one project, so X selects nothing here.
     await userEvent.keyboard('x')
     expect(page.getByRole('region', { name: 'Bulk actions' }).elements()).toHaveLength(0)
     expect(fake.of('POST')).toHaveLength(0)
@@ -652,14 +652,14 @@ describe('ViewPage', () => {
       },
       error: null,
     })
-    const wide = { ...view, filters: {}, team: null }
+    const wide = { ...view, filters: {}, project: null }
     const asked: string[] = []
     fakeApi({
       'GET /api/workspaces/acme/views': { body: { views: [wide] } },
       'GET /api/workspaces/acme/builds': {
         body: {
           workspace: { slug: 'acme', name: 'Acme Inc' },
-          builds: [{ ...build(9), team: { slug: 'docs', name: 'Docs' } }],
+          builds: [{ ...build(9), project: { slug: 'docs', name: 'Docs' } }],
           next: null,
         },
       },
@@ -728,7 +728,7 @@ describe('the find field', () => {
     await expect.element(find).toHaveFocus()
     await userEvent.type(find, 'octo')
     await vi.waitFor(() => expect(router.state.location.search).toEqual({ q: 'octo' }))
-    await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?q=octo')
+    await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?q=octo')
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await vi.waitFor(() => expect(router.state.location.search).toEqual({}))
@@ -739,7 +739,7 @@ describe('the find field', () => {
     await show('/acme/web?q=main&review=pending')
     const find = page.getByRole('textbox', { name: 'Find builds' })
     await expect.element(find).toHaveValue('main')
-    expect(fake.urls).toContain('/api/teams/acme/web?review=pending&q=main')
+    expect(fake.urls).toContain('/api/projects/acme/web?review=pending&q=main')
     await page.getByRole('button', { name: 'Clear filters' }).click()
     await expect.element(find).toHaveValue('')
   })
@@ -798,7 +798,7 @@ describe('preview pane in a narrow window', () => {
 const rowOf = (n: number) => page.getByRole('link', { name: new RegExp(`Build #${n}`) })
 
 describe('right-click menu on a build row', () => {
-  const review = { 'POST /api/teams/acme/web/builds/review': { body: { builds: [] } } }
+  const review = { 'POST /api/projects/acme/web/builds/review': { body: { builds: [] } } }
 
   it('offers the quick actions of one build', async () => {
     api([build(8), build(7)])

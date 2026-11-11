@@ -4,7 +4,7 @@ import { ignoreRegions, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 
-/** Rectangles ignored when comparing a team's screenshots by name (PLAN M4). */
+/** Rectangles ignored when comparing a project's screenshots by name (PLAN M4). */
 
 export interface Region {
   x: number
@@ -56,27 +56,30 @@ export function present(r: {
   }
 }
 
-/** One of the team's regions; `NotFoundError` when it has no such region. */
+/** One of the project's regions; `NotFoundError` when it has no such region. */
 export async function getIgnoreRegion(
   db: Database,
-  teamId: string,
+  projectId: string,
   id: string,
 ): Promise<IgnoreRegionRow> {
   const [row] = await db
     .select(columns)
     .from(ignoreRegions)
     .leftJoin(user, eq(user.id, ignoreRegions.createdBy))
-    .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
+    .where(and(eq(ignoreRegions.projectId, projectId), eq(ignoreRegions.id, id)))
   assertFound(row, 'Ignore region not found')
   return present(row)
 }
 
-export async function listIgnoreRegions(db: Database, teamId: string): Promise<IgnoreRegionRow[]> {
+export async function listIgnoreRegions(
+  db: Database,
+  projectId: string,
+): Promise<IgnoreRegionRow[]> {
   const rows = await db
     .select(columns)
     .from(ignoreRegions)
     .leftJoin(user, eq(user.id, ignoreRegions.createdBy))
-    .where(eq(ignoreRegions.teamId, teamId))
+    .where(eq(ignoreRegions.projectId, projectId))
     .orderBy(asc(ignoreRegions.name), asc(ignoreRegions.createdAt), asc(ignoreRegions.id))
   return rows.map(present)
 }

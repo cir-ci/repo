@@ -10,7 +10,7 @@ import {
   setNotificationPreferences,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
+import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
 import { fakeMailer } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -96,11 +96,15 @@ const jobFor = (notificationId: string): Job => ({
 })
 
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
-  const build = await createBuild(t.db, { teamId: team.id, commitSha: 'abc1234', branch: 'feat' })
-  return { team, workspace, owner, reviewer, build }
+  const build = await createBuild(t.db, {
+    projectId: project.id,
+    commitSha: 'abc1234',
+    branch: 'feat',
+  })
+  return { project, workspace, owner, reviewer, build }
 }
 
 async function subscribed(userId: string, endpoint: string) {
@@ -151,7 +155,7 @@ describe('queueing a push', () => {
 
 describe('deliverPush', () => {
   it('sends the title, body and path, encrypted for the device, signed with the instance key', async () => {
-    const { owner, reviewer, build, team, workspace } = await setup()
+    const { owner, reviewer, build, project, workspace } = await setup()
     const b = await subscribed(reviewer.id, 'https://push.example.com/send')
     const n = await notify(t.db, {
       userId: reviewer.id,
@@ -181,10 +185,10 @@ describe('deliverPush', () => {
     )
     expect(open(request?.body ?? Buffer.alloc(0), b)).toEqual({
       title: 'Rejected',
-      body: `${owner.name} rejected #${build.number} (feat), ${team.name}: Spacing off on mobile`,
-      url: `/${workspace.slug}/${team.slug}/builds/${build.number}`,
+      body: `${owner.name} rejected #${build.number} (feat), ${project.name}: Spacing off on mobile`,
+      url: `/${workspace.slug}/${project.slug}/builds/${build.number}`,
       tag: n?.id,
-      team: team.name,
+      project: project.name,
     })
     const [row] = await listPushSubscriptions(t.db, reviewer.id)
     expect(row?.lastUsedAt).toBeInstanceOf(Date)

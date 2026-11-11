@@ -24,7 +24,7 @@ import {
   formatBytes,
   kindRows,
   storageQuery,
-  teamRows,
+  projectRows,
   workspaceGeneralQuery,
 } from './api.ts'
 import { Frame } from './Frame.tsx'
@@ -33,7 +33,7 @@ import { retentionDirty, retentionProblem } from './model.ts'
 
 import styles from './Settings.module.css'
 
-/** What the workspace's builds and sites take up, by kind and by team, and its default retention. */
+/** What the workspace's builds and sites take up, by kind and by project, and its default retention. */
 export function WorkspaceStoragePage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/storage' })
   useDocumentTitle('Storage and retention', workspace)
@@ -58,7 +58,7 @@ export function WorkspaceStoragePage() {
                 Storage used <Text tone="secondary">{formatBytes(data.totalBytes)}</Text>
               </>
             }
-            description={`${fileCount(data.totalFiles)}. Identical files are stored once, across builds and teams, so these add up to more than the total.`}
+            description={`${fileCount(data.totalFiles)}. Identical files are stored once, across builds and projects, so these add up to more than the total.`}
           >
             {kindRows(data).map((k) => (
               <SettingsRow
@@ -83,22 +83,22 @@ export function WorkspaceStoragePage() {
             ))}
           </SettingsSection>
 
-          <SettingsSection title="By team" bare={data.teams.length === 0}>
-            {data.teams.length === 0 ? (
+          <SettingsSection title="By project" bare={data.projects.length === 0}>
+            {data.projects.length === 0 ? (
               <EmptyState icon={<HardDriveIcon />} size="section" title="Nothing stored yet">
                 Upload a build to see its size here.
               </EmptyState>
             ) : (
-              teamRows(data).map((t) => (
+              projectRows(data).map((t) => (
                 <SettingsRow key={t.slug}>
                   <Link
-                    to="/$workspace/$team/settings/general"
-                    params={{ workspace, team: t.slug }}
+                    to="/$workspace/$project/settings/general"
+                    params={{ workspace, project: t.slug }}
                     hash="retention"
-                    className={styles.teamLink}
+                    className={styles.projectLink}
                   >
                     <Avatar
-                      type="team"
+                      type="project"
                       aria-hidden
                       slug={t.slug}
                       name={t.name}
@@ -155,9 +155,12 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
     <form onSubmit={submit} noValidate aria-labelledby="retention" className={styles.form}>
       <SettingsSection
         title={<span id="retention">Retention</span>}
-        description="Builds and hosted site versions expire after their team's retention. Each team can set its own in its settings."
+        description="Builds and hosted site versions expire after their project's retention. Each project can set its own in its settings."
       >
-        <SettingsRow label="Default for new teams" detail="Existing teams keep their own setting.">
+        <SettingsRow
+          label="Default for new projects"
+          detail="Existing projects keep their own setting."
+        >
           <NumberField
             className={styles.daysField}
             label="Default retention in days"

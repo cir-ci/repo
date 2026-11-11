@@ -61,8 +61,8 @@ const dark = {
     failedText: '#ff3b4c',
     rejectedText: '#ff5fa8',
   },
-  /** Team identity colours (never state): a team's tile background, with `tile-text` on top. */
-  team: {
+  /** Project identity colours (never state): a project's tile background, with `tile-text` on top. */
+  project: {
     slate: '#5d80a8',
     olive: '#768441',
     plum: '#a369a3',
@@ -77,7 +77,7 @@ const dark = {
     annotation: '#8b46ff',
     annotationText: '#ffffff',
     avatarText: '#e4b1a7',
-    /** Letter or icon on a team tile. */
+    /** Letter or icon on a project tile. */
     tileText: '#0c0a09',
     glow: 'color-mix(in srgb, var(--circi-brand-maroon) 55%, transparent)',
     scrim: 'rgba(0, 0, 0, 0.5)',
@@ -120,7 +120,7 @@ const light: typeof dark = {
     failedText: '#8f0026',
     rejectedText: '#b00f66',
   },
-  team: {
+  project: {
     slate: '#4a6d96',
     olive: '#66733a',
     plum: '#8f5490',

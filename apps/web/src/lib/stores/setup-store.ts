@@ -1,25 +1,25 @@
 import { create } from 'zustand'
 
-import type { CreatedTeam } from '#features/teams/api/new-team.ts'
+import type { CreatedProject } from '#features/projects/api/new-project.ts'
 
 /**
- * First-run setup's last step shows the first team's CI token once. The server ends the setup
- * the moment the team exists, so without this the app would replace the page (and the token)
- * before it is copied. While a team is held here the setup page stays; "Done" releases it.
+ * First-run setup's last step shows the first project's CI token once. The server ends the setup
+ * the moment the project exists, so without this the app would replace the page (and the token)
+ * before it is copied. While a project is held here the setup page stays; "Done" releases it.
  */
 export const useSetupStore = create<SetupStore.State & SetupStore.Actions>()((set) => ({
-  team: undefined,
+  project: undefined,
   arriving: false,
   arrive: () => set({ arriving: true }),
-  hold: (team) => set({ team }),
-  release: () => set({ team: undefined }),
-  reset: () => set({ team: undefined, arriving: false }),
+  hold: (project) => set({ project }),
+  release: () => set({ project: undefined }),
+  reset: () => set({ project: undefined, arriving: false }),
 }))
 
 export namespace SetupStore {
   export interface State {
-    /** The team made in the last step, while its token is on screen. */
-    team: CreatedTeam | undefined
+    /** The project made in the last step, while its token is on screen. */
+    project: CreatedProject | undefined
     /**
      * The account was just made on this page: the next steps are certain to follow, so the app
      * waits for the server's word instead of flashing its frame first.
@@ -28,7 +28,7 @@ export namespace SetupStore {
   }
   export interface Actions {
     arrive: () => void
-    hold: (team: CreatedTeam) => void
+    hold: (project: CreatedProject) => void
     release: () => void
     reset: () => void
   }

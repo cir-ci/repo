@@ -1,6 +1,6 @@
 import { buildOutcome } from '@circi/core'
 import { type Build, type Database } from '@circi/db'
-import { getTeamBuild, getTeamLink } from '@circi/db/queries'
+import { getProjectBuild, getProjectLink } from '@circi/db/queries'
 import { getBuildCounts } from '@circi/db/repositories'
 import { integrationRegistry } from '@circi/integrations'
 
@@ -8,17 +8,18 @@ import { gateInputs } from '#src/builds/gate.ts'
 
 /**
  * What CI polls (PLAN §7.4): the build's outcome and who blocks the merge: the check on the git
- * host when this team reports to one, otherwise this CI job. `gate` overrides the choice (the
- * CLI's `--gate`). `undefined` when the team has no such build.
+ * host when this project reports to one, otherwise this CI job. `gate` overrides the choice (the
+ * CLI's `--gate`). `undefined` when the project has no such build.
  */
 export async function getBuildStatus(
   db: Database,
   input: getBuildStatus.Input,
 ): Promise<getBuildStatus.Result | undefined> {
-  const build = await getTeamBuild(db, input.teamId, input.buildId)
+  const build = await getProjectBuild(db, input.projectId, input.buildId)
   if (!build) return undefined
   const linked =
-    input.gitHostReports && (await getTeamLink(db, input.teamId, integrationRegistry.gitKinds()))
+    input.gitHostReports &&
+    (await getProjectLink(db, input.projectId, integrationRegistry.gitKinds()))
   return {
     build,
     counts: await getBuildCounts(db, build.id),
@@ -31,10 +32,10 @@ export namespace getBuildStatus {
   export type Gate = 'status' | 'exit-code'
 
   export interface Input {
-    teamId: string
+    projectId: string
     buildId: string
     gate?: Gate | undefined
-    /** The git host app is installed on this server, so a linked team gets its check there. */
+    /** The git host app is installed on this server, so a linked project gets its check there. */
     gitHostReports: boolean
   }
 

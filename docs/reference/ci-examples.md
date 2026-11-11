@@ -1,6 +1,6 @@
 # CI examples
 
-Every example uploads a directory of PNG screenshots with `circi upload`. Put the team's token in your CI's secret store as `CIRCI_TOKEN` and your CirCI address in `CIRCI_API_URL`.
+Every example uploads a directory of PNG screenshots with `circi upload`. Put the project's token in your CI's secret store as `CIRCI_TOKEN` and your CirCI address in `CIRCI_API_URL`.
 
 The CLI reads the commit, branch and pull request from the CI's environment. It needs enough git history to find the right baseline: it fetches the base branch and a little more itself, so shallow checkouts work, but a full fetch is faster for large repositories.
 
@@ -20,7 +20,7 @@ The dashboard's component tests run in headless Chromium (Vitest browser mode), 
     CIRCI_API_URL: https://ci.acme.io
 ```
 
-With the GitHub App linked to the repository, `--wait` exits 0 even when changes need review and the **CirCI** check is the merge gate (mark it required). Without it, the job fails until the changes are approved, then re-run it. A team's first build has no baseline, so all its screenshots are new and need review before the gate opens (even on the default branch: auto-approve applies only once there is an approved baseline, so someone approves every screenshot once). Pull requests that change only flaky screenshots (see the team's settings) can pass without review when the workspace or team says flaky changes don't block.
+With the GitHub App linked to the repository, `--wait` exits 0 even when changes need review and the **CirCI** check is the merge gate (mark it required). Without it, the job fails until the changes are approved, then re-run it. A project's first build has no baseline, so all its screenshots are new and need review before the gate opens (even on the default branch: auto-approve applies only once there is an approved baseline, so someone approves every screenshot once). Pull requests that change only flaky screenshots (see the project's settings) can pass without review when the workspace or project says flaky changes don't block.
 
 ### Sharded runs
 

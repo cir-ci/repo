@@ -13,7 +13,7 @@ import { fullReport } from './fixtures.ts'
 const show = (report: Insights.Report, url = '/workspaces/acme/insights?range=90') => {
   fakeFetch({
     'GET /api/workspaces/acme/insights': report,
-    'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    'GET /api/workspaces/acme/sidebar': sidebarModel({ projects: [] }),
   })
   return renderPage(<InsightsPage />, {
     route: '/workspaces/$workspace/insights',
@@ -34,23 +34,23 @@ const firstColumn = async (name: string) => {
 }
 
 describe('sortable tables on Insights', () => {
-  it('sorts Teams by a column, and keeps the sort in the address', async () => {
+  it('sorts Projects by a column, and keeps the sort in the address', async () => {
     const { router } = await show(fullReport())
     const sortParam = () => router.state.location.search.sort
-    const teams = card('Teams')
-    await expect.element(teams.getByRole('columnheader', { name: 'Builds' })).toBeVisible()
-    expect(await firstColumn('Teams')).toEqual(['Web', 'Docs'])
+    const projects = card('Projects')
+    await expect.element(projects.getByRole('columnheader', { name: 'Builds' })).toBeVisible()
+    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
 
-    const builds = teams.getByRole('columnheader', { name: 'Builds' })
+    const builds = projects.getByRole('columnheader', { name: 'Builds' })
     await userEvent.click(builds.getByRole('button'))
     await expect.element(builds).toHaveAttribute('aria-sort', 'ascending')
-    expect(await firstColumn('Teams')).toEqual(['Docs', 'Web'])
-    await expect.poll(sortParam).toBe('teams:builds')
+    expect(await firstColumn('Projects')).toEqual(['Docs', 'Web'])
+    await expect.poll(sortParam).toBe('projects:builds')
 
     await userEvent.click(builds.getByRole('button'))
     await expect.element(builds).toHaveAttribute('aria-sort', 'descending')
-    expect(await firstColumn('Teams')).toEqual(['Web', 'Docs'])
-    await expect.poll(sortParam).toBe('teams:-builds')
+    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    await expect.poll(sortParam).toBe('projects:-builds')
 
     await userEvent.click(builds.getByRole('button'))
     await expect.element(builds).toHaveAttribute('aria-sort', 'none')
@@ -59,12 +59,12 @@ describe('sortable tables on Insights', () => {
 
   it('sorts by text, and puts a missing value last either way', async () => {
     await show(fullReport())
-    const teams = card('Teams')
-    const team = teams.getByRole('columnheader', { name: 'Team' })
-    await userEvent.click(team.getByRole('button'))
-    expect(await firstColumn('Teams')).toEqual(['Docs', 'Web'])
-    await userEvent.click(team.getByRole('button'))
-    expect(await firstColumn('Teams')).toEqual(['Web', 'Docs'])
+    const projects = card('Projects')
+    const project = projects.getByRole('columnheader', { name: 'Project' })
+    await userEvent.click(project.getByRole('button'))
+    expect(await firstColumn('Projects')).toEqual(['Docs', 'Web'])
+    await userEvent.click(project.getByRole('button'))
+    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
 
     // The oldest-waiting list: the second build has no author.
     const waiting = card('Oldest waiting builds')
@@ -83,8 +83,8 @@ describe('sortable tables on Insights', () => {
       rejected.getByRole('columnheader', { name: 'Rejected' }).getByRole('button'),
     )
     expect(await firstColumn('Rejected most often')).toEqual(['home/hero', 'checkout/summary'])
-    // The Teams table keeps its own order.
-    expect(await firstColumn('Teams')).toEqual(['Web', 'Docs'])
+    // The Projects table keeps its own order.
+    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
   })
 
   it('sorts Reviewer load by a duration', async () => {

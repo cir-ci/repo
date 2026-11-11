@@ -497,7 +497,7 @@ export function useRestoreWorkspace() {
       invalidateAll(
         queryClient,
         keys.instanceWorkspaces(),
-        keys.teams(),
+        keys.projects(),
         keys.sidebar(),
         keys.capabilities(),
       ),

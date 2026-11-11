@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import type { Auth } from '@circi/auth'
-import { rotateTeamToken } from '@circi/auth'
+import { rotateProjectToken } from '@circi/auth'
 import { getBuild, getFile } from '@circi/db/queries'
 import { createTestDb, seedAccount } from '@circi/db/testing'
 import { FsStorage, type StorageDriver } from '@circi/storage'
@@ -94,37 +94,37 @@ describe('build author', () => {
 })
 
 describe('authentication', () => {
-  it('requires a valid team token', async () => {
-    const none = await app.inject({ method: 'GET', url: '/v1/team' })
+  it('requires a valid project token', async () => {
+    const none = await app.inject({ method: 'GET', url: '/v1/project' })
     expect(none.statusCode).toBe(401)
     expect(none.headers['www-authenticate']).toBe('Bearer')
     const wrong = await app.inject({
       method: 'GET',
-      url: '/v1/team',
+      url: '/v1/project',
       headers: auth(`circi_${'x'.repeat(43)}`),
     })
     expect(wrong.statusCode).toBe(401)
   })
 
-  it("describes the token's team", async () => {
-    const { team, token } = await seedTenant(betterAuth, t.db, { defaultBranch: 'trunk' })
-    const res = await app.inject({ method: 'GET', url: '/v1/team', headers: auth(token) })
+  it("describes the token's project", async () => {
+    const { project, token } = await seedTenant(betterAuth, t.db, { defaultBranch: 'trunk' })
+    const res = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(token) })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toMatchObject({ slug: team.slug, defaultBranch: 'trunk' })
+    expect(res.json()).toMatchObject({ slug: project.slug, defaultBranch: 'trunk' })
     expect(res.json().dashboardUrl).toMatch(new RegExp(`^${ORIGIN}/workspace-\\d+/web$`))
   })
 
   it('stops accepting a token as soon as it is rotated', async () => {
     const tenant = await seedTenant(betterAuth, t.db)
-    const ok = await app.inject({ method: 'GET', url: '/v1/team', headers: auth(tenant.token) })
+    const ok = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(tenant.token) })
     expect(ok.statusCode).toBe(200)
-    const { token: fresh } = await rotateTeamToken(betterAuth, t.db, {
+    const { token: fresh } = await rotateProjectToken(betterAuth, t.db, {
       workspaceSlug: tenant.workspaceSlug,
-      teamSlug: 'web',
+      projectslug: 'web',
     })
-    const old = await app.inject({ method: 'GET', url: '/v1/team', headers: auth(tenant.token) })
+    const old = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(tenant.token) })
     expect(old.statusCode).toBe(401)
-    const now = await app.inject({ method: 'GET', url: '/v1/team', headers: auth(fresh) })
+    const now = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(fresh) })
     expect(now.statusCode).toBe(200)
   })
 
@@ -132,7 +132,7 @@ describe('authentication', () => {
     const tenant = await seedTenant(betterAuth, t.db)
     const res = await app.inject({
       method: 'GET',
-      url: '/v1/team',
+      url: '/v1/project',
       headers: { authorization: `Bearer ${tenant.owner.password}` },
     })
     expect(res.statusCode).toBe(401)
@@ -246,7 +246,7 @@ describe('upload flow (local-disk storage)', () => {
     expect(badSha.statusCode).toBe(400)
   })
 
-  it("hides other teams' builds", async () => {
+  it("hides other projects' builds", async () => {
     const owner = await seedTenant(betterAuth, t.db)
     const other = await seedTenant(betterAuth, t.db)
     const build = (await createBuild(owner.token, [])).json().build

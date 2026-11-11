@@ -28,10 +28,10 @@ import { useRemoveIntegration } from './api/index.ts'
 import { ConnectForm } from './ConnectForm.tsx'
 import { IntegrationFrame } from './IntegrationFrame.tsx'
 import { IntegrationHead } from './IntegrationHead.tsx'
+import { ProjectLinks } from './ProjectLinks.tsx'
+import { useProjectMark } from './ProjectMark.tsx'
+import { ProjectRow } from './ProjectRows.tsx'
 import { RepositoryRows } from './RepositoryRows.tsx'
-import { TeamLinks } from './TeamLinks.tsx'
-import { useTeamMark } from './TeamMark.tsx'
-import { TeamRow } from './TeamRows.tsx'
 import { TrackerPreview } from './TrackerPreview.tsx'
 
 import styles from './Integrations.module.css'
@@ -39,10 +39,10 @@ import styles from './Integrations.module.css'
 /**
  * The one page for every integration, laid out as the canvas's boards: the provider's mark and
  * connection state with Reconnect and Remove, then, from the definition's mapping spec, either
- * the host's repositories each with its team (a git host) or one row per
- * team with a picker and its settings (a chat channel, a tracker team or project, a design file);
+ * the host's repositories each with its project (a git host) or one row per
+ * project with a picker and its settings (a chat channel, a tracker project or project, a design file);
  * a few lines of what CirCI posts or sends close the page. Nothing here knows an integration:
- * it renders the definition from the API. A team without a target uses nothing.
+ * it renders the definition from the API. A project without a target uses nothing.
  */
 export function GenericIntegrationPage() {
   const { workspace, id } = useParams({
@@ -56,18 +56,18 @@ export function GenericIntegrationPage() {
   const install = useInstall(workspace)
   const remove = useRemoveIntegration(workspace)
   const navigate = useNavigate()
-  const mark = useTeamMark(workspace)
+  const mark = useProjectMark(workspace)
   const [removing, setRemoving] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
   const note = connectNote(search.connect, name)
   const spec = data?.definition.mapping ?? null
   const links = data?.definition.links ?? null
 
-  // Moves a repository to another team: the old team lets go of it first.
+  // Moves a repository to another project: the old project lets go of it first.
   async function assign(input: { ref: string; from: string | null; to: string | null }) {
     try {
       if (input.from) await mapping.clear.mutateAsync(input.from)
-      if (input.to) await mapping.save.mutateAsync({ team: input.to, ref: input.ref })
+      if (input.to) await mapping.save.mutateAsync({ project: input.to, ref: input.ref })
       toast(input.to ? 'Mapping saved' : 'Mapping removed')
     } catch {
       // Shown by the banners below, from the mutations' own errors.
@@ -101,7 +101,7 @@ export function GenericIntegrationPage() {
           <IntegrationHead
             logo={data.definition.logo}
             name={data.definition.name}
-            line={connectionLine(data.definition.name, data.integration.name, data.teams)}
+            line={connectionLine(data.definition.name, data.integration.name, data.projects)}
             needsAttention={data.integration.needsAttention}
             actions={
               data.canManage ? (
@@ -149,13 +149,13 @@ export function GenericIntegrationPage() {
 
           {spec === null ? (
             <EmptyState icon={<Settings2Icon />} size="section" title="Nothing to set up">
-              {data.definition.name} has no per-team settings.
+              {data.definition.name} has no per-project settings.
             </EmptyState>
           ) : (
             <section className={styles.section} aria-labelledby="mapping-title">
               <div>
                 <Heading level="title" as="h2" id="mapping-title">
-                  {data.definition.group === 'git' ? 'Repositories' : 'Teams'}
+                  {data.definition.group === 'git' ? 'Repositories' : 'Projects'}
                 </Heading>
                 <Text as="p" variant="small" tone="secondary">
                   {spec.description ?? data.definition.description}
@@ -166,43 +166,43 @@ export function GenericIntegrationPage() {
                   workspace={workspace}
                   integrationId={id}
                   spec={spec}
-                  teams={data.teams}
+                  projects={data.projects}
                   canManage={data.canManage}
                   onAssign={(input) => void assign(input)}
                   reinstall={reinstall('Reinstall')}
                 />
               ) : (
-                <ul className={styles.box} aria-label={`${spec.targetLabel} by team`}>
-                  {data.teams.map((team) => (
-                    <li key={team.slug}>
-                      <TeamRow
+                <ul className={styles.box} aria-label={`${spec.targetLabel} by project`}>
+                  {data.projects.map((project) => (
+                    <li key={project.slug}>
+                      <ProjectRow
                         // Start over when the saved mapping changes (after saving, or removing it).
-                        key={`${team.mapping?.ref ?? ''}:${JSON.stringify(team.mapping?.extra ?? {})}`}
+                        key={`${project.mapping?.ref ?? ''}:${JSON.stringify(project.mapping?.extra ?? {})}`}
                         workspace={workspace}
                         integrationId={id}
                         spec={spec}
-                        team={team}
-                        mark={mark(team.slug, team.name)}
+                        project={project}
+                        mark={mark(project.slug, project.name)}
                         canManage={data.canManage}
                         saving={mapping.save.isPending}
                         onSave={(input) =>
                           mapping.save.mutate(
-                            { team: team.slug, ...input },
-                            { onSuccess: () => toast(`Mapping saved for ${team.name}`) },
+                            { project: project.slug, ...input },
+                            { onSuccess: () => toast(`Mapping saved for ${project.name}`) },
                           )
                         }
                         onClear={() =>
-                          mapping.clear.mutate(team.slug, {
-                            onSuccess: () => toast(`Mapping removed for ${team.name}`),
+                          mapping.clear.mutate(project.slug, {
+                            onSuccess: () => toast(`Mapping removed for ${project.name}`),
                           })
                         }
                       />
-                      {links && (team.mapping || data.canManage) ? (
-                        <TeamLinks
+                      {links && (project.mapping || data.canManage) ? (
+                        <ProjectLinks
                           workspace={workspace}
                           integrationId={id}
                           spec={links}
-                          team={team}
+                          project={project}
                           canManage={data.canManage}
                         />
                       ) : null}
@@ -225,8 +225,8 @@ export function GenericIntegrationPage() {
             title={`Remove ${data.integration.name}?`}
             description={
               data.definition.group === 'git'
-                ? 'The teams that report to it stop showing build status on pull requests. You can connect it again later.'
-                : 'Teams stop using it. You can connect it again later.'
+                ? 'The projects that report to it stop showing build status on pull requests. You can connect it again later.'
+                : 'Projects stop using it. You can connect it again later.'
             }
             confirmLabel="Remove"
             loading={remove.isPending}
@@ -250,7 +250,7 @@ export function GenericIntegrationPage() {
             open={reconnecting}
             onOpenChange={setReconnecting}
             title={`Reconnect ${data.definition.name}`}
-            description="Enter the credentials again; the teams' settings stay as they are."
+            description="Enter the credentials again; the projects' settings stay as they are."
             actions={<Button onClick={() => setReconnecting(false)}>Cancel</Button>}
           >
             <ConnectForm

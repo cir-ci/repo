@@ -44,7 +44,7 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
     conclusion: 'changes_detected',
     reviewStatus: 'pending',
   },
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
   largestChanges: [
@@ -61,7 +61,7 @@ const show = (url = '/workspaces/acme/reviews', viewport: [number, number] = [12
     route: '/workspaces/$workspace/reviews',
     url,
     announcer: true,
-    otherRoutes: ['/$workspace/$team/builds/$number'],
+    otherRoutes: ['/$workspace/$project/builds/$number'],
     validateSearch: validateReviewsSearch,
   })
 
@@ -122,7 +122,7 @@ describe('ReviewsPage list header', () => {
 })
 
 describe('ReviewsPage', () => {
-  it('lists the requests with status, team, branch, requester and the overdue chip', async () => {
+  it('lists the requests with status, project, branch, requester and the overdue chip', async () => {
     fakeApi({
       'GET /api/reviews': {
         body: {
@@ -343,7 +343,7 @@ describe('ReviewsPage', () => {
           requests: approved ? [request('r2', 13)] : [request('r1', 12), request('r2', 13)],
         },
       }),
-      'POST /api/teams/acme/web/builds/12/review': () => {
+      'POST /api/projects/acme/web/builds/12/review': () => {
         approved = true
         return { body: { build: { number: 12, reviewStatus: 'approved' } } }
       },
@@ -353,7 +353,7 @@ describe('ReviewsPage', () => {
     await queryClient.prefetchQuery({ queryKey: ['inbox', 'for-you'], queryFn: () => ({}) })
     await queryClient.prefetchQuery({
       queryKey: ['sidebar', 'acme'],
-      queryFn: () => ({ teams: [] }),
+      queryFn: () => ({ projects: [] }),
     })
     await page.getByRole('button', { name: 'Approve all' }).click()
 
@@ -370,7 +370,7 @@ describe('ReviewsPage', () => {
   it('opens the snooze menu with H and sends the choice', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/teams/acme/web/review-requests/r1/snooze': {
+      'POST /api/projects/acme/web/review-requests/r1/snooze': {
         body: { id: 'r1', snoozeKind: 'tomorrow', snoozedUntil: '2026-11-09T09:00:00.000Z' },
       },
     })
@@ -387,7 +387,7 @@ describe('ReviewsPage', () => {
   it('asks a member for a review with shift+R', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'GET /api/teams/acme/web/members': {
+      'GET /api/projects/acme/web/members': {
         body: {
           members: [
             {
@@ -410,10 +410,10 @@ describe('ReviewsPage', () => {
           canManage: false,
         },
       },
-      'GET /api/teams/acme/web/builds/12': {
+      'GET /api/projects/acme/web/builds/12': {
         body: { build: { id: 'b12', number: 12, status: 'complete' } },
       },
-      'POST /api/teams/acme/web/builds/request-review': {
+      'POST /api/projects/acme/web/builds/request-review': {
         body: {
           requests: [
             {
@@ -444,7 +444,7 @@ describe('ReviewsPage', () => {
   it('dismisses a request', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/teams/acme/web/review-requests/r1/dismiss': {
+      'POST /api/projects/acme/web/review-requests/r1/dismiss': {
         body: { id: 'r1', state: 'dismissed' },
       },
     })
@@ -481,7 +481,7 @@ describe('ReviewsPage requests you made', () => {
   it('says who it waits on and offers Nudge, not Approve all, Request review or Dismiss', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'created', requests: [made()] } },
-      'POST /api/teams/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
+      'POST /api/projects/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
     })
     await show('/workspaces/acme/reviews?tab=created&review=r1')
     await expect.element(page.getByText(/Waiting on Dana Levi · requested/)).toBeVisible()
@@ -533,7 +533,7 @@ const two = () =>
           request('r1', 12),
           request('r2', 13, {
             requestedBy: { id: 'u3', name: 'Grace Hopper' },
-            team: { slug: 'docs', name: 'Docs' },
+            project: { slug: 'docs', name: 'Docs' },
           }),
         ],
       },
@@ -541,7 +541,7 @@ const two = () =>
   })
 
 describe('ReviewsPage find field', () => {
-  it('finds by build, branch, team or person, keeps the text in the address and clears it with Esc', async () => {
+  it('finds by build, branch, project or person, keeps the text in the address and clears it with Esc', async () => {
     two()
     const { router } = await show()
     const find = page.getByRole('textbox', { name: 'Find reviews' })
@@ -639,7 +639,7 @@ describe('right-click menu on a review', () => {
   it('approves that review without selecting it, and Undo is offered', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/teams/acme/web/builds/12/review': {
+      'POST /api/projects/acme/web/builds/12/review': {
         body: {
           build: { number: 12, reviewStatus: 'approved' },
           undo: { id: 'ru2', expiresAt: '2099-01-01T00:00:00.000Z' },
@@ -656,7 +656,7 @@ describe('right-click menu on a review', () => {
   it('offers Nudge, not Approve, on a request you made', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'created', requests: [made()] } },
-      'POST /api/teams/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
+      'POST /api/projects/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
     })
     await show('/workspaces/acme/reviews?tab=created')
     await page.getByRole('link').filter({ hasText: /Build/ }).first().click({ button: 'right' })

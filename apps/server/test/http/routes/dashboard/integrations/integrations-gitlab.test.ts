@@ -173,7 +173,7 @@ const connections = async () =>
     .filter((i) => i.workspaceId === workspace.id && i.kind === 'gitlab')
     .toSorted((a, b) => a.externalId.localeCompare(b.externalId))
 
-describe('GitLab mapping page and team mapping', () => {
+describe('GitLab mapping page and project mapping', () => {
   // Two connections: the token of one principal and the token of another on the same instance.
   beforeEach(async () => {
     await connectAcme()
@@ -182,7 +182,7 @@ describe('GitLab mapping page and team mapping', () => {
 
   it('shows members the page without the webhook secret, managers with it', async () => {
     const [first] = await connections()
-    const url = `${base}/${first?.id}/teams`
+    const url = `${base}/${first?.id}/projects`
     const manager = (await call('GET', url, ownerCookie)).json()
     expect(manager).toMatchObject({
       canManage: true,
@@ -192,7 +192,7 @@ describe('GitLab mapping page and team mapping', () => {
         url: `${ORIGIN}/webhooks/gitlab`,
         secret: derivedWebhookSecret(AUTH_SECRET, 'gitlab'),
       },
-      teams: [{ slug: 'web', mapping: null }],
+      projects: [{ slug: 'web', mapping: null }],
     })
     const member = (await call('GET', url, louCookie)).json()
     expect(member).toMatchObject({ canManage: false, webhook: { secret: null } })
@@ -201,7 +201,7 @@ describe('GitLab mapping page and team mapping', () => {
     expect((await call('GET', url, '')).statusCode).toBe(401)
   })
 
-  it('lists teams through the connection own token', async () => {
+  it('lists projects through the connection own token', async () => {
     const [first] = await connections()
     const res = await call('GET', `${base}/${first?.id}/targets`, ownerCookie)
     expect(res.json()).toEqual({
@@ -212,60 +212,61 @@ describe('GitLab mapping page and team mapping', () => {
     })
   })
 
-  it('maps a team to a GitLab project with a namespace path, and unmaps it', async () => {
+  it('maps a project to a GitLab project with a namespace path, and unmaps it', async () => {
     const [first] = await connections()
-    const url = `${base}/${first?.id}/teams/web`
+    const url = `${base}/${first?.id}/projects/web`
     const body = { ref: 'acme/tools/oss' }
     expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
     expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
     expect((await call('PUT', url, ownerCookie, { ref: 'nonsense' })).statusCode).toBe(400)
     expect(
-      (await call('PUT', `${base}/${crypto.randomUUID()}/teams/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${crypto.randomUUID()}/projects/web`, ownerCookie, body))
+        .statusCode,
     ).toBe(404)
     expect(
-      (await call('PUT', `${base}/${first?.id}/teams/nope`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${first?.id}/projects/nope`, ownerCookie, body)).statusCode,
     ).toBe(404)
     expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
-    const page = (await call('GET', `${base}/${first?.id}/teams`, ownerCookie)).json()
-    expect(page.teams).toMatchObject([
+    const page = (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json()
+    expect(page.projects).toMatchObject([
       { slug: 'web', mapping: { ref: 'acme/tools/oss', name: 'acme/tools/oss' } },
     ])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
     expect(
-      (await call('GET', `${base}/${first?.id}/teams`, ownerCookie)).json().teams[0].mapping,
+      (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json().projects[0].mapping,
     ).toBeNull()
   })
 
-  it('moves a team from one GitLab connection to the other instead of keeping both', async () => {
+  it('moves a project from one GitLab connection to the other instead of keeping both', async () => {
     const [first, second] = await connections()
     const body = { ref: 'acme/web' }
     expect(
-      (await call('PUT', `${base}/${first?.id}/teams/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, body)).statusCode,
     ).toBe(204)
     expect(
-      (await call('PUT', `${base}/${second?.id}/teams/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${second?.id}/projects/web`, ownerCookie, body)).statusCode,
     ).toBe(204)
     const mapped = async (id: string | undefined) =>
-      (await call('GET', `${base}/${id}/teams`, ownerCookie)).json().teams[0].mapping
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects[0].mapping
     expect(await mapped(first?.id)).toBeNull()
     expect(await mapped(second?.id)).toMatchObject({ ref: 'acme/web' })
   })
 
-  it('moves a team from a GitHub installation to GitLab: one git host per team', async () => {
-    const github = await seedGitLink(t.db, acme.team.id, {
+  it('moves a project from a GitHub installation to GitLab: one git host per project', async () => {
+    const github = await seedGitLink(t.db, acme.project.id, {
       externalId: '4242',
       repoRef: 'acme/web',
     })
     const [first] = await connections()
     expect(
-      (await call('PUT', `${base}/${first?.id}/teams/web`, ownerCookie, { ref: 'acme/web' }))
+      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, { ref: 'acme/web' }))
         .statusCode,
     ).toBe(204)
     const [row] = await t.db
       .select()
-      .from(schema.integrationTeams)
-      .where(eq(schema.integrationTeams.integrationId, github.integrationId))
+      .from(schema.integrationProjects)
+      .where(eq(schema.integrationProjects.integrationId, github.integrationId))
     expect(row).toBeUndefined()
   })
 

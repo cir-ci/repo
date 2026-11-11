@@ -1,9 +1,9 @@
-import { finalizeTeamBuild, getBuildStatus, startBuildUpload } from '@circi/services'
+import { finalizeProjectBuild, getBuildStatus, startBuildUpload } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentTeam } from '#http/hooks/team-token.ts'
+import { currentProject } from '#http/hooks/project-token.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
@@ -18,11 +18,11 @@ const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() 
  */
 export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
-    const ctx = currentTeam(req)
+    const ctx = currentProject(req)
     const body = parse(createBuildBody, req.body)
     const { build, planned } = await startBuildUpload(deps.db, {
       build: {
-        teamId: ctx.team.id,
+        projectId: ctx.project.id,
         commitSha: body.commitSha,
         ...(body.name ? { name: body.name } : {}),
         branch: body.branch ?? null,
@@ -42,11 +42,11 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   })
 
   app.post('/builds/:id/finalize', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
-    const ctx = currentTeam(req)
+    const ctx = currentProject(req)
     const { id } = parse(buildIdParams, req.params)
     const body = parse(finalizeBody, req.body)
-    const result = await finalizeTeamBuild(deps.db, {
-      teamId: ctx.team.id,
+    const result = await finalizeProjectBuild(deps.db, {
+      projectId: ctx.project.id,
       buildId: id,
       shard: {
         ...(body.shardIndex ? { shardIndex: body.shardIndex } : {}),
@@ -71,11 +71,11 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   })
 
   app.get('/builds/:id/status', async (req, reply) => {
-    const ctx = currentTeam(req)
+    const ctx = currentProject(req)
     const { id } = parse(buildIdParams, req.params)
     const { gate: requested } = parse(statusQuery, req.query)
     const status = await getBuildStatus(deps.db, {
-      teamId: ctx.team.id,
+      projectId: ctx.project.id,
       buildId: id,
       gate: requested,
       gitHostReports: deps.githubApp === true || deps.githubAppNow?.() === true,
@@ -93,7 +93,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
 
 /**
  * How the CLI should send one file: a checksum-bound presigned URL with S3, or a PUT through
- * this API (with the team token) for local-disk storage.
+ * this API (with the project token) for local-disk storage.
  */
 async function uploadInstruction(
   deps: Deps.V1,

@@ -5,7 +5,7 @@ export namespace Search {
   export type Kind =
     | 'builds'
     | 'branches'
-    | 'teams'
+    | 'projects'
     | 'snapshots'
     | 'baselines'
     | 'triage'
@@ -15,8 +15,8 @@ export namespace Search {
     | 'people'
 
   export interface Build {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     number: number
     name: string
     branch: string | null
@@ -30,30 +30,30 @@ export namespace Search {
   }
 
   export interface Branch {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     branch: string
     latestBuildNumber: number
   }
 
-  export interface Team {
+  export interface Project {
     slug: string
     name: string
   }
 
   export interface Snapshot {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     name: string
     latestBuildNumber: number
     /** The newest screenshot's thumbnail file. */
     thumbnail: string | null
   }
 
-  /** A screenshot that is a baseline (on the team's default branch), opening its baseline page. */
+  /** A screenshot that is a baseline (on the project's default branch), opening its baseline page. */
   export interface Baseline {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     name: string
     /** The default-branch build the baseline comes from. */
     buildNumber: number
@@ -62,10 +62,10 @@ export namespace Search {
     approvedBy: string | null
   }
 
-  /** A triage item of a team (the page's `kind:key` identifies it). */
+  /** A triage item of a project (the page's `kind:key` identifies it). */
   export interface Triage {
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     kind: 'flaky' | 'no_baseline' | 'failed'
     key: string
     /** The screenshot it is about; null for a failed build. */
@@ -85,7 +85,7 @@ export namespace Search {
     createdAt: string
     actor: { name: string } | null
     build: { number: number; name: string } | null
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
     /** The words kept with the notification that the row shows. */
     payload: { snippet?: string; reason?: string; cc?: boolean }
   }
@@ -95,8 +95,8 @@ export namespace Search {
     id: string
     /** The Reviews tab that lists it for them. */
     tab: 'for-you' | 'created' | 'snoozed'
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }
     requestedBy: { name: string } | null
@@ -110,9 +110,9 @@ export namespace Search {
     name: string
     email: string
     image: string | null
-    /** The teams they belong to that the signed-in person can see. */
-    teams: { slug: string; name: string }[]
-    /** Open review requests asked of them, in those teams. */
+    /** The projects they belong to that the signed-in person can see. */
+    projects: { slug: string; name: string }[]
+    /** Open review requests asked of them, in those projects. */
     openReviews: number
   }
 
@@ -120,19 +120,19 @@ export namespace Search {
   export interface View {
     id: string
     name: string
-    team: { slug: string; name: string } | null
+    project: { slug: string; name: string } | null
   }
 
   /**
-   * `GET /api/workspaces/:workspace/search?q=&team=&kinds=&limit=`: matches grouped, each group
-   * limited (`limit`, 5 by default, 50 at most). `team` (a slug) keeps to that team; `kinds` (comma
+   * `GET /api/workspaces/:workspace/search?q=&project=&kinds=&limit=`: matches grouped, each group
+   * limited (`limit`, 5 by default, 50 at most). `project` (a slug) keeps to that project; `kinds` (comma
    * separated keys of this type) asks for those kinds only, the others come back empty.
    */
   export interface Results {
     query: string
     builds: Build[]
     branches: Branch[]
-    teams: Team[]
+    projects: Project[]
     snapshots: Snapshot[]
     baselines: Baseline[]
     triage: Triage[]

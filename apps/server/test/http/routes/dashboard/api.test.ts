@@ -7,8 +7,8 @@ const { app, acme, acmeCookie, get, buildDetail } = fx
 afterAll(() => fx.close())
 
 describe('API', () => {
-  it('lists teams with their latest build', async () => {
-    const p = (await get('/api/teams')).json().teams[0]
+  it('lists projects with their latest build', async () => {
+    const p = (await get('/api/projects')).json().projects[0]
     expect(p.latestBuild).toMatchObject({
       number: 2,
       status: 'complete',
@@ -16,10 +16,10 @@ describe('API', () => {
     })
   })
 
-  it("lists a team's builds, newest first", async () => {
-    const res = await get(`/api/teams/${acme.workspaceSlug}/web`)
+  it("lists a project's builds, newest first", async () => {
+    const res = await get(`/api/projects/${acme.workspaceSlug}/web`)
     expect(res.json().builds.map((b: { number: number }) => b.number)).toEqual([2, 1])
-    expect((await get(`/api/teams/${acme.workspaceSlug}/nope`)).statusCode).toBe(404)
+    expect((await get(`/api/projects/${acme.workspaceSlug}/nope`)).statusCode).toBe(404)
   })
 
   it('returns a build with its baseline and image references', async () => {
@@ -38,7 +38,7 @@ describe('API', () => {
       base: { width: 60, height: 40 },
       diff: { width: 60, height: 40 },
     })
-    expect((await get(`/api/teams/${acme.workspaceSlug}/web/builds/99`)).statusCode).toBe(404)
+    expect((await get(`/api/projects/${acme.workspaceSlug}/web/builds/99`)).statusCode).toBe(404)
   })
 
   it('serves files by hash with permanent caching', async () => {

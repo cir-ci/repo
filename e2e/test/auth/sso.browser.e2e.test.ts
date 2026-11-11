@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   createWorkspace,
   type Session,
-  createTeam,
+  createProject,
   createUserViaCli,
   fullWorkspace,
   newAccount,
@@ -154,8 +154,8 @@ describe("a workspace's own single sign-on", () => {
     const setup = await freshWorkspace()
     const workspace = setup.workspace
     const other = await createWorkspace(setup.session, 'Other Workspace')
-    await createTeam(setup.session, other.slug, 'Hidden')
-    await createTeam(setup.session, workspace, 'Visible')
+    await createProject(setup.session, other.slug, 'Hidden')
+    await createProject(setup.session, workspace, 'Visible')
 
     const page = await browser.as(setup.session)
     await page.goto(signInUrl(workspace))
@@ -185,16 +185,16 @@ describe("a workspace's own single sign-on", () => {
           const r = await fetch(u)
           return { status: r.status, body: await r.text() }
         }, path)
-      const teams = JSON.parse((await get('/api/teams')).body) as {
-        teams: { workspace: { slug: string }; team: { slug: string } }[]
+      const projects = JSON.parse((await get('/api/projects')).body) as {
+        projects: { workspace: { slug: string }; project: { slug: string } }[]
       }
-      // A new member is in no team yet, so no team is listed (or reachable) for her...
-      expect(teams.teams).toEqual([])
-      expect((await get(`/api/teams/${workspace}/visible`)).status).toBe(404)
+      // A new member is in no project yet, so no project is listed (or reachable) for her...
+      expect(projects.projects).toEqual([])
+      expect((await get(`/api/projects/${workspace}/visible`)).status).toBe(404)
       // ...but the workspace itself is hers, and the other one is not.
       expect((await get(`/api/workspaces/${workspace}/sidebar`)).status).toBe(200)
       expect((await get(`/api/workspaces/${other.slug}/sidebar`)).status).toBe(404)
-      expect((await get(`/api/teams/${other.slug}/hidden`)).status).toBe(404)
+      expect((await get(`/api/projects/${other.slug}/hidden`)).status).toBe(404)
       expect(JSON.parse((await get('/api/capabilities')).body)).toMatchObject({
         canCreateWorkspace: false,
       })

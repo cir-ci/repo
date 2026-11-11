@@ -16,7 +16,7 @@ import { fakeSlack } from '#test/support/fakes.ts'
 const slack = integrationRegistry.get('slack')
 if (!slack) throw new Error('slack is registered')
 
-const build = { teamName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' }
+const build = { projectName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' }
 const message = (
   type: IntegrationEvent.Type,
   over: Partial<IntegrationEvent.Payload> = {},

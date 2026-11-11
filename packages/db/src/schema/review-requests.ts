@@ -30,7 +30,7 @@ export const reviewRequests = pgTable(
     /** Null when the person who asked has since been deleted. */
     requestedById: text('requested_by_id').references(() => user.id, { onDelete: 'set null' }),
     state: text('state').$type<ReviewRequestState>().notNull().default('open'),
-    /** When the team's review target runs out; null when it had none. Fixed at request time. */
+    /** When the project's review target runs out; null when it had none. Fixed at request time. */
     dueAt: timestamp('due_at', { withTimezone: true }),
     /** End of a timed snooze; null for "until next push", or when not snoozed. */
     snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),

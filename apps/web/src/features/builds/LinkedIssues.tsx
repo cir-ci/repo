@@ -46,8 +46,8 @@ const TRACKER_NAMES: Record<string, string> = { linear: 'Linear', jira: 'Jira' }
  * tracker's mark, `KEY · Linear`, who and when). It appears the moment the issue is created, with
  * no toast: the result shows where the action happened. Nothing when the snapshot has none.
  */
-export function SnapshotIssues({ workspace, team, number, snapshotName }: SnapshotIssues.Props) {
-  const { data } = useQuery(issuesQuery(workspace, team, number))
+export function SnapshotIssues({ workspace, project, number, snapshotName }: SnapshotIssues.Props) {
+  const { data } = useQuery(issuesQuery(workspace, project, number))
   const issues = (data?.issues ?? []).filter((i) => i.snapshotName === snapshotName)
   if (issues.length === 0) return null
   return (
@@ -71,7 +71,7 @@ export function SnapshotIssues({ workspace, team, number, snapshotName }: Snapsh
 export namespace SnapshotIssues {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     number: number
     /** The selected snapshot; null for issues about the whole build. */
     snapshotName: string | null

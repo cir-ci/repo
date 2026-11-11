@@ -2,7 +2,7 @@ export {
   connectIntegration,
   flagFailedIntegration,
   removeIntegration,
-  removeTeamLink,
+  removeProjectLink,
 } from './integrations.ts'
 export {
   GITHUB_APP_TTL_MS,
@@ -15,4 +15,10 @@ export {
 } from './github-app.ts'
 export { claimWebhookDelivery } from './webhook-delivery.ts'
 export { queueIntegrationEvent } from './events.ts'
-export { addTeamLink, autoLinkTeam, type LinkedIntegration, mapTeam, unmapTeam } from './links.ts'
+export {
+  addProjectLink,
+  autoLinkProject,
+  type LinkedIntegration,
+  mapProject,
+  unmapProject,
+} from './links.ts'

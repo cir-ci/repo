@@ -1,0 +1,39 @@
+/* Project General: the form is a stack of sections; a section's fields sit in one row. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.footer {
+  composes: saveBar from '@circi/ui/utilities.module.css';
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The form inside a dialog. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A number with its unit, right-aligned in a row's control: about four digits, the unit and the steppers. */
+.number {
+  width: 136px;
+}
+
+/* A phone: Discard and Save changes share the pinned bar's width. */
+@media (max-width: 819.98px) {
+  .footer > * {
+    flex: 1 1 0;
+  }
+}

@@ -1,12 +1,12 @@
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { type WorkspaceIntegration } from '#queries/workspace-integrations.ts'
-import { integrationTeams, integrations, teams } from '#schema/index.ts'
+import { integrationProjects, integrations, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 /**
- * A workspace's integrations (git hosts, Slack, Linear, Jira, Figma) and the teams that use
+ * A workspace's integrations (git hosts, Slack, Linear, Jira, Figma) and the projects that use
  * them. Credentials arrive and leave sealed (`sealSecret` in `@circi/core`); nothing here reads
  * them. The git-specific lookups are in `git.ts`.
  */
@@ -48,7 +48,7 @@ export async function createIntegration(
   }
 }
 
-/** Removes an integration and, with it, every team mapping. False when it isn't the workspace's. */
+/** Removes an integration and, with it, every project mapping. False when it isn't the workspace's. */
 export async function deleteIntegration(
   db: Database,
   workspaceId: string,
@@ -79,26 +79,26 @@ export async function setIntegrationAttention(
     .where(eq(integrations.id, integrationId))
 }
 
-/** Points a team at something in the integration (a channel, team, file); replaces any earlier mapping. */
-export async function setIntegrationTeam(
+/** Points a project at something in the integration (a channel, project, file); replaces any earlier mapping. */
+export async function setIntegrationProject(
   db: Database,
   input: {
     integrationId: string
-    teamId: string
+    projectId: string
     externalRef: string
     extra?: Record<string, unknown>
   },
-): Promise<WorkspaceIntegration.Team> {
+): Promise<WorkspaceIntegration.Project> {
   const [row] = await db
-    .insert(integrationTeams)
+    .insert(integrationProjects)
     .values({
       integrationId: input.integrationId,
-      teamId: input.teamId,
+      projectId: input.projectId,
       externalRef: input.externalRef,
       extra: input.extra ?? {},
     })
     .onConflictDoUpdate({
-      target: [integrationTeams.integrationId, integrationTeams.teamId],
+      target: [integrationProjects.integrationId, integrationProjects.projectId],
       set: { externalRef: input.externalRef, extra: input.extra ?? {} },
     })
     .returning()
@@ -106,25 +106,28 @@ export async function setIntegrationTeam(
   return row
 }
 
-export async function removeIntegrationTeam(
+export async function removeIntegrationProject(
   db: Database,
   integrationId: string,
-  teamId: string,
+  projectId: string,
 ): Promise<void> {
   await db
-    .delete(integrationTeams)
+    .delete(integrationProjects)
     .where(
-      and(eq(integrationTeams.integrationId, integrationId), eq(integrationTeams.teamId, teamId)),
+      and(
+        eq(integrationProjects.integrationId, integrationId),
+        eq(integrationProjects.projectId, projectId),
+      ),
     )
 }
 
-/** The teams mapped to an integration, by team name. */
-export async function listIntegrationTeams(
+/** The projects mapped to an integration, by project name. */
+export async function listIntegrationProjects(
   db: Database,
   integrationId: string,
 ): Promise<
   {
-    teamId: string
+    projectId: string
     slug: string
     name: string
     externalRef: string
@@ -133,16 +136,16 @@ export async function listIntegrationTeams(
 > {
   return db
     .select({
-      teamId: teams.id,
-      slug: teams.slug,
-      name: teams.name,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
+      projectId: projects.id,
+      slug: projects.slug,
+      name: projects.name,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
     })
-    .from(integrationTeams)
-    .innerJoin(teams, eq(teams.id, integrationTeams.teamId))
-    .where(eq(integrationTeams.integrationId, integrationId))
-    .orderBy(asc(teams.name), asc(teams.slug))
+    .from(integrationProjects)
+    .innerJoin(projects, eq(projects.id, integrationProjects.projectId))
+    .where(eq(integrationProjects.integrationId, integrationId))
+    .orderBy(asc(projects.name), asc(projects.slug))
 }
 
 /** The workspace's integration of a kind for an external account, if it connected that one already. */
@@ -205,23 +208,23 @@ export async function isAccountClaimedElsewhere(
 }
 
 /**
- * Drops the team's mappings on integrations of the given kinds other than `keepIntegrationId`:
- * what "a team maps to one connection" means (mapping to a second moves it). Returns the
+ * Drops the project's mappings on integrations of the given kinds other than `keepIntegrationId`:
+ * what "a project maps to one connection" means (mapping to a second moves it). Returns the
  * integrations it stopped using.
  */
-export async function removeOtherTeamMappings(
+export async function removeOtherProjectMappings(
   db: Database,
-  input: { teamId: string; keepIntegrationId: string; kinds: readonly string[] },
+  input: { projectId: string; keepIntegrationId: string; kinds: readonly string[] },
 ): Promise<string[]> {
   if (input.kinds.length === 0) return []
   const rows = await db
-    .delete(integrationTeams)
+    .delete(integrationProjects)
     .where(
       and(
-        eq(integrationTeams.teamId, input.teamId),
-        ne(integrationTeams.integrationId, input.keepIntegrationId),
+        eq(integrationProjects.projectId, input.projectId),
+        ne(integrationProjects.integrationId, input.keepIntegrationId),
         inArray(
-          integrationTeams.integrationId,
+          integrationProjects.integrationId,
           db
             .select({ id: integrations.id })
             .from(integrations)
@@ -229,14 +232,14 @@ export async function removeOtherTeamMappings(
         ),
       ),
     )
-    .returning({ integrationId: integrationTeams.integrationId })
+    .returning({ integrationId: integrationProjects.integrationId })
   return rows.map((r) => r.integrationId)
 }
 
-/** An integration with the team's mapping, sealed credentials included; undefined if the team is not mapped to it. */
-export async function getTeamIntegration(
+/** An integration with the project's mapping, sealed credentials included; undefined if the project is not mapped to it. */
+export async function getProjectIntegration(
   db: Database,
-  teamId: string,
+  projectId: string,
   integrationId: string,
 ): Promise<
   | {
@@ -249,13 +252,16 @@ export async function getTeamIntegration(
   const [row] = await db
     .select({
       integration: integrations,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
     })
-    .from(integrationTeams)
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
+    .from(integrationProjects)
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
     .where(
-      and(eq(integrationTeams.teamId, teamId), eq(integrationTeams.integrationId, integrationId)),
+      and(
+        eq(integrationProjects.projectId, projectId),
+        eq(integrationProjects.integrationId, integrationId),
+      ),
     )
   return row
 }

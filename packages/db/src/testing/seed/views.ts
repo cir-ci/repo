@@ -5,7 +5,7 @@ export namespace seedSavedView {
   export interface Input {
     userId: string
     workspaceId: string
-    teamId?: string | null
+    projectId?: string | null
     name?: string
     filters?: typeof schema.savedViews.$inferInsert.filters
     pinned?: boolean
@@ -23,7 +23,7 @@ export async function seedSavedView(db: Database, input: seedSavedView.Input) {
     .values({
       userId: input.userId,
       workspaceId: input.workspaceId,
-      teamId: input.teamId ?? null,
+      projectId: input.projectId ?? null,
       name: input.name ?? `View ${n}`,
       filters: input.filters ?? {},
       pinned: input.pinned ?? false,
@@ -34,10 +34,10 @@ export async function seedSavedView(db: Database, input: seedSavedView.Input) {
   return row
 }
 
-/** Pins a team for a user at a position. */
-export async function seedPinnedTeam(
+/** Pins a project for a user at a position. */
+export async function seedPinnedProject(
   db: Database,
-  input: { userId: string; teamId: string; position?: number },
+  input: { userId: string; projectId: string; position?: number },
 ): Promise<void> {
-  await db.insert(schema.userPinnedTeams).values({ ...input, position: input.position ?? 0 })
+  await db.insert(schema.userPinnedProjects).values({ ...input, position: input.position ?? 0 })
 }

@@ -9,7 +9,7 @@ const PATH = '/api/workspaces/acme/settings'
 const answer = (flakyBlocksMerge: boolean, canManage = true, assignTriageToOnCall = false) => ({
   canManage,
   settings: { flakyBlocksMerge, assignTriageToOnCall },
-  teams: [],
+  projects: [],
 })
 const assignControl = () =>
   page.getByRole('checkbox', { name: /^Assign new triage items to whoever is on triage/ })

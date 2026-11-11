@@ -5,10 +5,10 @@ import {
   fileCount,
   formatBytes,
   kindRows,
-  teamRows,
+  projectRows,
 } from '#features/workspace-settings/api.ts'
 
-const team = (slug: string, bytes: number) => ({
+const project = (slug: string, bytes: number) => ({
   slug,
   name: slug.toUpperCase(),
   color: 'slate' as const,
@@ -49,14 +49,14 @@ describe('storage', () => {
     expect(kindRows({ totalBytes: 0, kinds: [] }).every((r) => r.share === 0)).toBe(true)
   })
 
-  it('sorts teams by size, the biggest with a full bar', () => {
-    const rows = teamRows({ teams: [team('a', 100), team('b', 400), team('c', 0)] })
+  it('sorts projects by size, the biggest with a full bar', () => {
+    const rows = projectRows({ projects: [project('a', 100), project('b', 400), project('c', 0)] })
     expect(rows.map((r) => [r.slug, r.share])).toEqual([
       ['b', 1],
       ['a', 0.25],
       ['c', 0],
     ])
-    expect(teamRows({ teams: [team('a', 0)] })[0]?.share).toBe(0)
+    expect(projectRows({ projects: [project('a', 0)] })[0]?.share).toBe(0)
   })
 
   it('counts files and days', () => {

@@ -26,7 +26,7 @@ const post = (
 ) => postAs('POST', url, options)
 
 const requestUrl = (workspace = acme.workspaceSlug, build = 2) =>
-  `/api/teams/${workspace}/web/builds/${build}/review-requests`
+  `/api/projects/${workspace}/web/builds/${build}/review-requests`
 const list = async (tab: string, cookie = acmeCookie) =>
   (await get(`/api/reviews?tab=${tab}`, cookie)).json()
 const ids = (body: { requests: { id: string }[] }) => body.requests.map((r) => r.id)
@@ -46,7 +46,7 @@ describe('review requests', () => {
     const first = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(first.statusCode).toBe(201)
     expect(first.json()).toMatchObject({ state: 'open', created: true })
-    // The team has the default 24 hour review target.
+    // The project has the default 24 hour review target.
     expect(Date.parse(first.json().dueAt) - Date.now()).toBeGreaterThan(23 * 3_600_000)
     const requestId = first.json().id
 
@@ -67,7 +67,7 @@ describe('review requests', () => {
         reviewer: { id: lou.id, name: 'Lou' },
         requestedBy: { id: acme.owner.id },
         build: { number: 2, branch: 'main' },
-        team: { slug: 'web' },
+        project: { slug: 'web' },
         workspace: { slug: acme.workspaceSlug },
         changes: { changed: expect.any(Number), added: expect.any(Number) },
         largestChanges: expect.any(Array),
@@ -87,7 +87,7 @@ describe('review requests', () => {
     expect((await list('all-open', rivalCookie)).requests).toEqual([])
     expect((await list('reviewed', louCookie)).requests).toEqual([])
 
-    const review = await post(`/api/teams/${acme.workspaceSlug}/web/builds/2/review`, {
+    const review = await post(`/api/projects/${acme.workspaceSlug}/web/builds/2/review`, {
       cookie: louCookie,
       payload: { state: 'rejected', reason: 'No' },
     })
@@ -115,7 +115,7 @@ describe('review requests', () => {
     expect(asked.json()).toEqual(missing.json())
 
     const dismissed = await post(
-      `/api/teams/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`,
+      `/api/projects/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`,
       { cookie: rivalCookie },
     )
     expect(dismissed.statusCode).toBe(404)
@@ -125,7 +125,7 @@ describe('review requests', () => {
   it('refuses a reviewer from another workspace', async () => {
     const res = await post(requestUrl(), { payload: { reviewerId: rival.owner.id } })
     expect(res.statusCode).toBe(400)
-    expect(res.json().error).toMatch(/must be a member of this team/)
+    expect(res.json().error).toMatch(/must be a member of this project/)
   })
 
   it('refuses a request from yourself with a 400 and stores nothing', async () => {
@@ -133,7 +133,7 @@ describe('review requests', () => {
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toBe("You can't request a review from yourself.")
     expect(await list('created')).toMatchObject({ requests: [] })
-    const bulk = await post(`/api/teams/${acme.workspaceSlug}/web/builds/request-review`, {
+    const bulk = await post(`/api/projects/${acme.workspaceSlug}/web/builds/request-review`, {
       payload: { buildIds: ['00000000-0000-4000-8000-000000000000'], reviewerIds: [acme.owner.id] },
     })
     expect(bulk.statusCode).toBe(400)
@@ -156,7 +156,7 @@ describe('review requests', () => {
 
   it('lets the reviewer dismiss it, once', async () => {
     const requestId = await ask()
-    const url = `/api/teams/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`
+    const url = `/api/projects/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`
     const res = await post(url, { cookie: louCookie })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ id: requestId, state: 'dismissed' })
@@ -168,7 +168,7 @@ describe('review requests', () => {
     const made = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(made.statusCode).toBe(201)
     expect(ids(await list('for-you', louCookie))).toEqual([made.json().id])
-    const reviewed = await post(`/api/teams/${acme.workspaceSlug}/web/builds/2/review`, {
+    const reviewed = await post(`/api/projects/${acme.workspaceSlug}/web/builds/2/review`, {
       cookie: louCookie,
       payload: { state: 'rejected' },
     })
@@ -179,7 +179,7 @@ describe('review requests', () => {
   it('lets only the reviewer snooze and unsnooze a request', async () => {
     const made = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     const id = made.json().id
-    const base = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}`
+    const base = `/api/projects/${acme.workspaceSlug}/web/review-requests/${id}`
 
     expect((await post(`${base}/snooze`, { payload: { kind: 'tomorrow' } })).statusCode).toBe(404)
     expect(
@@ -211,7 +211,7 @@ describe('review requests', () => {
 
   it('lets only whoever asked nudge, and only once a day', async () => {
     const id = await ask()
-    const url = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}/nudge`
+    const url = `/api/projects/${acme.workspaceSlug}/web/review-requests/${id}/nudge`
     // Not the asker: the reviewer, an outsider.
     expect((await post(url, { cookie: louCookie })).statusCode).toBe(403)
     expect((await post(url, { cookie: rivalCookie })).statusCode).toBe(404)
@@ -240,7 +240,7 @@ describe('review requests', () => {
 
   it('refuses a nudge for a request that was closed or made by a rule', async () => {
     const id = await ask()
-    const base = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}`
+    const base = `/api/projects/${acme.workspaceSlug}/web/review-requests/${id}`
     await post(`${base}/dismiss`)
     expect((await post(`${base}/nudge`)).statusCode).toBe(404)
   })

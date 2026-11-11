@@ -1,11 +1,11 @@
 export namespace Site {
-  /** A hosted site of a team, with the addresses that open it. */
+  /** A hosted site of a project, with the addresses that open it. */
   export interface Listing {
     name: string
     kind: string
     kindLabel: string
     slug: string
-    /** The one custom domain that serves the team's default branch version, if one is set. */
+    /** The one custom domain that serves the project's default branch version, if one is set. */
     customDomain: CustomDomain | null
     /** Branches that have an address: the newest first, each serving the version it names. */
     branches: { branch: string; address: string; commitSha: string; updatedAt: string }[]

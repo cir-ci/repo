@@ -13,7 +13,7 @@ export namespace uploadSite {
     dir: string
     apiUrl: string
     token: string
-    /** Which site of the team this is (`storybook`, `coverage`…). Default `site`. */
+    /** Which site of the project this is (`storybook`, `coverage`…). Default `site`. */
     name?: string
     /** `auto` looks at the files. Default `auto`. */
     kind?: string

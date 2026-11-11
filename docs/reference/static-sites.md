@@ -1,6 +1,6 @@
 # Hosting Storybook and reports
 
-CirCI can host the built Storybook, Playwright/Vitest report, coverage report or docs of a commit, so reviewers open the real thing next to the screenshots. It is off until you set `STATIC_SITES_HOST` and switch it on per team (team settings → **Host static sites**).
+CirCI can host the built Storybook, Playwright/Vitest report, coverage report or docs of a commit, so reviewers open the real thing next to the screenshots. It is off until you set `STATIC_SITES_HOST` and switch it on per project (project settings → **Host static sites**).
 
 ```sh
 circi storybook upload ./storybook-static           # a Storybook
@@ -17,13 +17,13 @@ Every upload belongs to a commit and gets two addresses on the sites domain:
 
 A branch address only moves when the upload is the branch's tip (`git ls-remote`, or a local check that the commit descends from what the address serves) and never for a fork's pull request. A CI re-run of a commit replaces that commit's files and keeps its address.
 
-Every request to a site needs sign-in: opening one sends you to the dashboard, which hands the site a one-minute single-use token if you belong to the team's workspace. The site then sets its own cookie (host-only, `HttpOnly`) and checks it against your dashboard session at least once a minute, so signing out or leaving the workspace ends access within a minute. An address that doesn't exist, has expired or isn't yours gets the same answer.
+Every request to a site needs sign-in: opening one sends you to the dashboard, which hands the site a one-minute single-use token if you belong to the project's workspace. The site then sets its own cookie (host-only, `HttpOnly`) and checks it against your dashboard session at least once a minute, so signing out or leaving the workspace ends access within a minute. An address that doesn't exist, has expired or isn't yours gets the same answer.
 
 ## A custom domain for the default branch
 
-A site can have **one custom domain**, such as `storybook.acme.com`, that always serves the team's **default branch** (the team's *Default branch* setting, `main` unless changed): the newest upload that moved that branch's address. Until the default branch has an upload, the domain answers like an address that doesn't exist. Commit and branch addresses stay as they are.
+A site can have **one custom domain**, such as `storybook.acme.com`, that always serves the project's **default branch** (the project's *Default branch* setting, `main` unless changed): the newest upload that moved that branch's address. Until the default branch has an upload, the domain answers like an address that doesn't exist. Commit and branch addresses stay as they are.
 
-Set it in the dashboard (team → **Sites**, owners and admins), or with the API (`PUT`, `POST …/verify` and `DELETE` on `/api/teams/:workspace/:team/sites/:site/domain`, `:site` being the site's slug):
+Set it in the dashboard (project → **Sites**, owners and admins), or with the API (`PUT`, `POST …/verify` and `DELETE` on `/api/projects/:workspace/:project/sites/:site/domain`, `:site` being the site's slug):
 
 1. Enter the domain. It must be a plain host name; CirCI refuses the dashboard host, anything related to it by the cookie rules below (the same rule as `STATIC_SITES_HOST`), the sites domain and everything under or above it, and a domain another site already holds.
 2. Add the DNS record it shows: a **CNAME** to `custom.<sites domain>` (any name under the sites domain reaches the server through the wildcard record). A domain that can't be a CNAME (an apex) can instead get `A`/`AAAA` records with the server's addresses.
@@ -99,7 +99,7 @@ Other DNS providers: swap `caddy-dns/route53` in `deploy/caddy/Dockerfile` and t
 
 ## The pull request comment
 
-For a team with hosting on, the summary comment on a pull request (GitHub, GitLab and Bitbucket alike) also lists the sites uploaded for the pull request's newest commit, each linked to its **commit address**, under **Hosted sites for this commit**. The section is left out when there are none. A site uploaded after the comment was written queues the same `git-notify` job as a build change, so the comment is rewritten. The same comment shows each build's review status (pending, or approved or rejected with who decided, and per-snapshot counts when decisions are mixed) and is rewritten whenever it changes, whether from the dashboard, a check's Approve or Reject button, or `/circi approve` and `/circi reject`.
+For a project with hosting on, the summary comment on a pull request (GitHub, GitLab and Bitbucket alike) also lists the sites uploaded for the pull request's newest commit, each linked to its **commit address**, under **Hosted sites for this commit**. The section is left out when there are none. A site uploaded after the comment was written queues the same `git-notify` job as a build change, so the comment is rewritten. The same comment shows each build's review status (pending, or approved or rejected with who decided, and per-snapshot counts when decisions are mixed) and is rewritten whenever it changes, whether from the dashboard, a check's Approve or Reject button, or `/circi approve` and `/circi reject`.
 
 ## What is not built yet
 

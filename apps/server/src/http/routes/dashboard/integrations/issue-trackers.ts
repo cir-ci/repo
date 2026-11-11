@@ -5,7 +5,7 @@ import {
   getIntegration,
   getWorkspaceBySlug,
   listBuildLinks,
-  listTeamIntegrations,
+  listProjectIntegrations,
 } from '@circi/db/queries'
 import {
   type IntegrationDefinition,
@@ -23,7 +23,7 @@ import { z } from 'zod'
 
 import { integrationContext } from '#composition/integration-context.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { loadBuild } from '#http/lib/team-access.ts'
+import { loadBuild } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const createBody = z.strictObject({
@@ -72,12 +72,12 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     throw new IntegrationUnreachableError(`${name} didn't accept the request: ${err.message}`)
   }
 
-  /** The issues created from a build, and the trackers its team files issues in. */
-  app.get('/teams/:workspace/:team/builds/:number/issues', async (req) => {
+  /** The issues created from a build, and the trackers its project files issues in. */
+  app.get('/projects/:workspace/:project/builds/:number/issues', async (req) => {
     const found = await loadBuild(deps, req)
     const [links, mapped] = await Promise.all([
       listBuildLinks(deps.db, found.build.id, ISSUE_LINK_KIND),
-      listTeamIntegrations(deps.db, found.team.id, trackerKinds),
+      listProjectIntegrations(deps.db, found.project.id, trackerKinds),
     ])
     const payload: Issue.List = {
       issues: links.map((l) => {
@@ -105,7 +105,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     return payload
   })
 
-  app.post('/teams/:workspace/:team/builds/:number/issues', async (req, reply) => {
+  app.post('/projects/:workspace/:project/builds/:number/issues', async (req, reply) => {
     const found = await loadBuild(deps, req)
     const input = parse(createBody, req.body)
     try {
@@ -126,7 +126,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
       return reply.code(201).send(issue)
     } catch (err) {
       if (!(err instanceof ProviderApiError)) throw err
-      const workspace = await getWorkspaceBySlug(deps.db, found.team.workspaceSlug)
+      const workspace = await getWorkspaceBySlug(deps.db, found.project.workspaceSlug)
       const integration = await getIntegration(deps.db, workspace.id, input.integrationId)
       if (integration) {
         return trackerFailed(req, integration, registry.get(integration.kind), err)

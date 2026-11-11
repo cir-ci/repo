@@ -117,13 +117,14 @@ describe('per-workspace login methods', () => {
     )
     expect(off.statusCode).toBe(200)
 
-    // The password session can no longer see it: teams, builds, settings, members, auth.
-    const teams = (await caller(withEmail)('GET', '/api/teams', passwordCookie)).json().teams
-    expect(teams).toEqual([])
+    // The password session can no longer see it: projects, builds, settings, members, auth.
+    const projects = (await caller(withEmail)('GET', '/api/projects', passwordCookie)).json()
+      .projects
+    expect(projects).toEqual([])
     const hidden = await Promise.all(
       [
-        `/api/teams/${acme.workspaceSlug}/web`,
-        `/api/teams/${acme.workspaceSlug}/web/settings`,
+        `/api/projects/${acme.workspaceSlug}/web`,
+        `/api/projects/${acme.workspaceSlug}/web/settings`,
         `/api/workspaces/${acme.workspaceSlug}/auth`,
         `/api/auth/organization/get-full-organization?organizationSlug=${acme.workspaceSlug}`,
       ].map(async (url) => (await caller(withEmail)('GET', url, passwordCookie)).statusCode),
@@ -134,7 +135,9 @@ describe('per-workspace login methods', () => {
     expect(caps.manageableWorkspaces).toEqual([])
 
     // The email session still sees everything.
-    expect((await caller(withEmail)('GET', '/api/teams', emailCookie)).json().teams).toHaveLength(1)
+    expect(
+      (await caller(withEmail)('GET', '/api/projects', emailCookie)).json().projects,
+    ).toHaveLength(1)
     expect(
       (
         await caller(withEmail)(

@@ -11,7 +11,7 @@ import {
   seedBuild,
   seedGitLink,
   seedSession,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
@@ -53,9 +53,9 @@ const addressingFor = (commitSha: string) => ({
 })
 const files = [{ path: 'index.html', sha256: fakeSha('a'), size: 3, contentType: 'text/html' }]
 
-function publish(teamId: string, over: Partial<publishSite.Input> = {}) {
+function publish(projectId: string, over: Partial<publishSite.Input> = {}) {
   return publishSite(t.db, {
-    teamId,
+    projectId,
     name: 'storybook',
     kind: 'storybook',
     spa: false,
@@ -80,29 +80,29 @@ const dns = (zone: { cname?: Record<string, string>; a?: Record<string, string[]
 }
 
 async function siteWithDomain(domain = 'storybook.acme.com') {
-  const { team, owner } = await seedTeam(t.db)
-  const first = await publish(team.id, { branch: 'main', branchTip: COMMIT })
-  await setCustomDomain(t.db, { teamId: team.id, slug: first.site.slug, domain, hosts })
-  return { team, owner, slug: first.site.slug, domain, first }
+  const { project, owner } = await seedProject(t.db)
+  const first = await publish(project.id, { branch: 'main', branchTip: COMMIT })
+  await setCustomDomain(t.db, { projectId: project.id, slug: first.site.slug, domain, hosts })
+  return { project, owner, slug: first.site.slug, domain, first }
 }
 
 describe('setCustomDomain', () => {
-  it('normalizes the domain, starts it unverified and keeps it unique across teams', async () => {
-    const { team } = await seedTeam(t.db)
-    const { site } = await publish(team.id)
+  it('normalizes the domain, starts it unverified and keeps it unique across projects', async () => {
+    const { project } = await seedProject(t.db)
+    const { site } = await publish(project.id)
     const set = await setCustomDomain(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       slug: site.slug,
       domain: ' Storybook.ACME.com ',
       hosts,
     })
     expect(set).toEqual({ domain: 'storybook.acme.com', verifiedAt: null })
 
-    const other = await seedTeam(t.db)
-    const theirs = await publish(other.team.id, { name: 'docs', kind: 'generic' })
+    const other = await seedProject(t.db)
+    const theirs = await publish(other.project.id, { name: 'docs', kind: 'generic' })
     await expect(
       setCustomDomain(t.db, {
-        teamId: other.team.id,
+        projectId: other.project.id,
         slug: theirs.site.slug,
         domain: 'storybook.acme.com',
         hosts,
@@ -111,23 +111,23 @@ describe('setCustomDomain', () => {
   })
 
   it('refuses the dashboard host, the sites domain and bad names, with the reason', async () => {
-    const { team } = await seedTeam(t.db)
-    const { site } = await publish(team.id)
+    const { project } = await seedProject(t.db)
+    const { site } = await publish(project.id)
     const set = (domain: string) =>
-      setCustomDomain(t.db, { teamId: team.id, slug: site.slug, domain, hosts })
+      setCustomDomain(t.db, { projectId: project.id, slug: site.slug, domain, hosts })
     await expect(set('ci.acme.io')).rejects.toThrow(/dashboard host/)
     await expect(set('storybook.acme.io')).rejects.toThrow(/parent domain/)
     await expect(set('x.acme-sites.com')).rejects.toThrow(/sites domain/)
     await expect(set('https://a.example.com')).rejects.toBeInstanceOf(ValidationError)
   })
 
-  it("is not found for another team's site", async () => {
-    const { team } = await seedTeam(t.db)
-    const other = await seedTeam(t.db)
-    const { site } = await publish(team.id)
+  it("is not found for another project's site", async () => {
+    const { project } = await seedProject(t.db)
+    const other = await seedProject(t.db)
+    const { site } = await publish(project.id)
     await expect(
       setCustomDomain(t.db, {
-        teamId: other.team.id,
+        projectId: other.project.id,
         slug: site.slug,
         domain: 'a.example.com',
         hosts,
@@ -136,22 +136,22 @@ describe('setCustomDomain', () => {
   })
 
   it('keeps the verification when the same domain is saved again, and loses it for a new one', async () => {
-    const { team, slug } = await siteWithDomain()
+    const { project, slug } = await siteWithDomain()
     await verifyCustomDomain(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       slug,
       hosts,
       resolver: dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }),
     })
     const again = await setCustomDomain(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       slug,
       domain: 'STORYBOOK.acme.com',
       hosts,
     })
     expect(again.verifiedAt).not.toBeNull()
     const changed = await setCustomDomain(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       slug,
       domain: 'stories.acme.com',
       hosts,
@@ -161,37 +161,41 @@ describe('setCustomDomain', () => {
   })
 
   it('clearing releases the domain for another site', async () => {
-    const { team, slug } = await siteWithDomain()
-    await clearCustomDomain(t.db, { teamId: team.id, slug })
-    const other = await seedTeam(t.db)
-    const theirs = await publish(other.team.id, { name: 'docs', kind: 'generic' })
+    const { project, slug } = await siteWithDomain()
+    await clearCustomDomain(t.db, { projectId: project.id, slug })
+    const other = await seedProject(t.db)
+    const theirs = await publish(other.project.id, { name: 'docs', kind: 'generic' })
     await expect(
       setCustomDomain(t.db, {
-        teamId: other.team.id,
+        projectId: other.project.id,
         slug: theirs.site.slug,
         domain: 'storybook.acme.com',
         hosts,
       }),
     ).resolves.toBeDefined()
-    await expect(clearCustomDomain(t.db, { teamId: team.id, slug: 'nope' })).rejects.toBeInstanceOf(
-      NotFoundError,
-    )
+    await expect(
+      clearCustomDomain(t.db, { projectId: project.id, slug: 'nope' }),
+    ).rejects.toBeInstanceOf(NotFoundError)
   })
 })
 
-const check = (teamId: string, slug: string, resolver: SiteDnsResolver) =>
-  verifyCustomDomain(t.db, { teamId, slug, hosts, resolver })
+const check = (projectId: string, slug: string, resolver: SiteDnsResolver) =>
+  verifyCustomDomain(t.db, { projectId, slug, hosts, resolver })
 
 describe('verifyCustomDomain', () => {
   it('verifies a CNAME to the sites domain (also through a chain) or to the dashboard host', async () => {
-    const { team, slug } = await siteWithDomain()
+    const { project, slug } = await siteWithDomain()
     expect(
-      await check(team.id, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } })),
+      await check(
+        project.id,
+        slug,
+        dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }),
+      ),
     ).toMatchObject({ verified: true })
     expect(await isVerifiedCustomDomain(t.db, 'storybook.acme.com')).toBe(true)
     expect(
       await check(
-        team.id,
+        project.id,
         slug,
         dns({ cname: { 'storybook.acme.com': 'proxy.cdn.net', 'proxy.cdn.net': 'ci.acme.io' } }),
       ),
@@ -199,9 +203,9 @@ describe('verifyCustomDomain', () => {
   })
 
   it('verifies address records that match the server', async () => {
-    const { team, slug } = await siteWithDomain()
+    const { project, slug } = await siteWithDomain()
     const res = await check(
-      team.id,
+      project.id,
       slug,
       dns({
         a: { 'storybook.acme.com': ['203.0.113.7'], 'custom.acme-sites.com': ['203.0.113.7'] },
@@ -211,18 +215,18 @@ describe('verifyCustomDomain', () => {
   })
 
   it('says what is wrong, and un-verifies a domain that stopped pointing here', async () => {
-    const { team, slug } = await siteWithDomain()
-    const none = await check(team.id, slug, dns({}))
+    const { project, slug } = await siteWithDomain()
+    const none = await check(project.id, slug, dns({}))
     expect(none).toMatchObject({ verified: false })
     expect(none.error).toMatch(/CNAME to custom\.acme-sites\.com/)
     const elsewhere = await check(
-      team.id,
+      project.id,
       slug,
       dns({ cname: { 'storybook.acme.com': 'example.herokudns.com' } }),
     )
     expect(elsewhere.error).toMatch(/points at example\.herokudns\.com, not at this server/)
     const wrongIp = await check(
-      team.id,
+      project.id,
       slug,
       dns({
         a: { 'storybook.acme.com': ['198.51.100.1'], 'custom.acme-sites.com': ['203.0.113.7'] },
@@ -230,22 +234,22 @@ describe('verifyCustomDomain', () => {
     )
     expect(wrongIp.error).toMatch(/resolves to 198\.51\.100\.1/)
 
-    await check(team.id, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
+    await check(project.id, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
     expect(await isVerifiedCustomDomain(t.db, 'storybook.acme.com')).toBe(true)
-    await check(team.id, slug, dns({}))
+    await check(project.id, slug, dns({}))
     expect(await isVerifiedCustomDomain(t.db, 'storybook.acme.com')).toBe(false)
   })
 
   it('reports a failed lookup and leaves the recorded state alone', async () => {
-    const { team, slug } = await siteWithDomain()
-    await check(team.id, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
+    const { project, slug } = await siteWithDomain()
+    await check(project.id, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
     const broken: SiteDnsResolver = {
       cname: async () => {
         throw new Error('timeout')
       },
       address: async () => [],
     }
-    const res = await check(team.id, slug, broken)
+    const res = await check(project.id, slug, broken)
     expect(res).toMatchObject({
       verified: true,
       error: expect.stringContaining('DNS lookup failed'),
@@ -254,29 +258,29 @@ describe('verifyCustomDomain', () => {
   })
 
   it('needs a domain to check', async () => {
-    const { team } = await seedTeam(t.db)
-    const { site } = await publish(team.id)
-    await expect(check(team.id, site.slug, dns({}))).rejects.toBeInstanceOf(ValidationError)
+    const { project } = await seedProject(t.db)
+    const { site } = await publish(project.id)
+    await expect(check(project.id, site.slug, dns({}))).rejects.toBeInstanceOf(ValidationError)
   })
 })
 
-const verified = (teamId: string, slug: string) =>
-  check(teamId, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
+const verified = (projectId: string, slug: string) =>
+  check(projectId, slug, dns({ cname: { 'storybook.acme.com': 'custom.acme-sites.com' } }))
 
 describe('serving a custom domain', () => {
   it("resolves to the default branch's version, and follows it when the branch moves", async () => {
-    const { team, slug, first } = await siteWithDomain()
+    const { project, slug, first } = await siteWithDomain()
     expect(await findSiteByCustomDomain(t.db, 'storybook.acme.com')).toBeUndefined() // unverified
-    await verified(team.id, slug)
+    await verified(project.id, slug)
     const found = await findSiteByCustomDomain(t.db, 'storybook.acme.com')
     expect(found).toMatchObject({
       label: 'storybook.acme.com',
       linkKind: 'branch',
       versionId: first.version.id,
       site: { slug },
-      team: { id: team.id },
+      project: { id: project.id },
     })
-    const second = await publish(team.id, {
+    const second = await publish(project.id, {
       commitSha: 'b'.repeat(12),
       branch: 'main',
       branchTip: 'b'.repeat(12),
@@ -285,7 +289,7 @@ describe('serving a custom domain', () => {
       second.version.id,
     )
     // A feature branch upload does not move it.
-    await publish(team.id, {
+    await publish(project.id, {
       commitSha: 'c'.repeat(12),
       branch: 'feature',
       branchTip: 'c'.repeat(12),
@@ -295,17 +299,17 @@ describe('serving a custom domain', () => {
     )
   })
 
-  it("uses the team's default branch setting, and has nothing before that branch has an upload", async () => {
-    const { team, slug } = await siteWithDomain()
-    await verified(team.id, slug)
+  it("uses the project's default branch setting, and has nothing before that branch has an upload", async () => {
+    const { project, slug } = await siteWithDomain()
+    await verified(project.id, slug)
     await t.db
-      .update(schema.teams)
+      .update(schema.projects)
       .set({ defaultBranch: 'develop' })
-      .where(eq(schema.teams.id, team.id))
+      .where(eq(schema.projects.id, project.id))
     expect(await findSiteByCustomDomain(t.db, 'storybook.acme.com')).toBeUndefined()
     // It is still a verified domain (a certificate may be issued), it just serves nothing yet.
     expect(await isVerifiedCustomDomain(t.db, 'storybook.acme.com')).toBe(true)
-    await publish(team.id, {
+    await publish(project.id, {
       commitSha: 'd'.repeat(12),
       branch: 'develop',
       branchTip: 'd'.repeat(12),
@@ -314,16 +318,16 @@ describe('serving a custom domain', () => {
   })
 
   it('finds an address by label or by domain', async () => {
-    const { team, slug, first } = await siteWithDomain()
-    await verified(team.id, slug)
+    const { project, slug, first } = await siteWithDomain()
+    await verified(project.id, slug)
     expect((await findSiteByAddress(t.db, first.commitLabel))?.versionId).toBe(first.version.id)
     expect((await findSiteByAddress(t.db, 'Storybook.acme.com'))?.versionId).toBe(first.version.id)
     expect(await findSiteByAddress(t.db, 'other.example.com')).toBeUndefined()
   })
 
   it('hands a member a token bound to the domain, which opens a session for that domain only', async () => {
-    const { team, owner, slug } = await siteWithDomain()
-    await verified(team.id, slug)
+    const { project, owner, slug } = await siteWithDomain()
+    await verified(project.id, slug)
     const session = await seedSession(t.db, owner.id)
     const domain = 'storybook.acme.com'
     const token = await handOffToSite(t.db, {
@@ -355,14 +359,14 @@ describe('serving a custom domain', () => {
       await confirmSiteSession(t.db, {
         id: opened ?? '',
         label: domain,
-        workspaceId: team.workspaceId,
+        workspaceId: project.workspaceId,
       }),
     ).toBe(true)
     expect(
       await confirmSiteSession(t.db, {
         id: opened ?? '',
         label: 'other.example.com',
-        workspaceId: team.workspaceId,
+        workspaceId: project.workspaceId,
       }),
     ).toBe(false)
 
@@ -374,9 +378,9 @@ describe('serving a custom domain', () => {
     expect(await ask(domain)).toBeUndefined()
     expect(await ask('nothing.example.com', owner.id, session.id)).toBeUndefined()
     await t.db
-      .update(schema.teamSites)
+      .update(schema.projectsites)
       .set({ customDomainVerifiedAt: null })
-      .where(eq(schema.teamSites.slug, slug))
+      .where(eq(schema.projectsites.slug, slug))
     expect(await ask(domain, owner.id, session.id)).toBeUndefined()
   })
 })
@@ -386,51 +390,55 @@ const notices = () => t.db.select().from(schema.jobs).where(eq(schema.jobs.queue
 
 describe('refreshing pull request comments when a site is uploaded', () => {
   it('queues one git-notify per pull request of the commit, in the same flow as builds', async () => {
-    const { team } = await seedTeam(t.db)
-    await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
-    const pr5 = await seedBuild(t.db, team.id, {
+    const { project } = await seedProject(t.db)
+    await seedGitLink(t.db, project.id, { externalId: '99', repoRef: 'acme/web' })
+    const pr5 = await seedBuild(t.db, project.id, {
       commitSha: COMMIT,
       prNumber: 5,
       status: 'complete',
     })
-    const pr5again = await seedBuild(t.db, team.id, {
+    const pr5again = await seedBuild(t.db, project.id, {
       commitSha: COMMIT,
       prNumber: 5,
       name: 'second',
       status: 'complete',
     })
-    const pr6 = await seedBuild(t.db, team.id, {
+    const pr6 = await seedBuild(t.db, project.id, {
       commitSha: COMMIT,
       prNumber: 6,
       status: 'complete',
     })
-    await seedBuild(t.db, team.id, { commitSha: 'f'.repeat(12), prNumber: 7, status: 'complete' })
-    await seedBuild(t.db, team.id, { commitSha: COMMIT, status: 'complete' }) // no pull request
+    await seedBuild(t.db, project.id, {
+      commitSha: 'f'.repeat(12),
+      prNumber: 7,
+      status: 'complete',
+    })
+    await seedBuild(t.db, project.id, { commitSha: COMMIT, status: 'complete' }) // no pull request
     await t.db.delete(schema.jobs)
 
-    await publish(team.id)
+    await publish(project.id)
     const ids = (await notices()).map((j) => j.payload.buildId).toSorted(byText)
     expect(ids).toEqual([pr5again.id, pr6.id].toSorted(byText))
     expect(ids).not.toContain(pr5.id)
 
     // A second upload (a CI re-run) while the first notice is still pending is one notice.
-    await publish(team.id)
+    await publish(project.id)
     expect((await notices()).length).toBeGreaterThanOrEqual(2)
   })
 
-  it('matches a build with an abbreviated SHA, and does nothing for a team without a git link', async () => {
-    const { team } = await seedTeam(t.db)
-    await seedBuild(t.db, team.id, {
+  it('matches a build with an abbreviated SHA, and does nothing for a project without a git link', async () => {
+    const { project } = await seedProject(t.db)
+    await seedBuild(t.db, project.id, {
       commitSha: COMMIT.slice(0, 7),
       prNumber: 3,
       status: 'complete',
     })
     await t.db.delete(schema.jobs)
-    await publish(team.id)
+    await publish(project.id)
     expect(await notices()).toHaveLength(0) // not linked to a repository
 
-    await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
-    await publish(team.id)
+    await seedGitLink(t.db, project.id, { externalId: '99', repoRef: 'acme/web' })
+    await publish(project.id)
     expect(await notices()).toHaveLength(1)
   })
 })

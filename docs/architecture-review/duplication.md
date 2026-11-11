@@ -21,7 +21,7 @@ effort there:
 - **The integration SDK already shares connect/verify/classify code**: `git-support.ts`
   (`connectFailure`, `derivedWebhookSecret`, `stubbed`) and `tracker-support.ts`
   (`identifyAccount`, `trackerTargets`, `trackerAttention`). Remaining repetition is small (C6).
-- **Cursors: there are only two**, not five. `listBuildsForTeam` pages by `beforeNumber`
+- **Cursors: there are only two**, not five. `listBuildsForProject` pages by `beforeNumber`
   (`queries/builds.ts:100`) and `listBuildsForWorkspace` by `before` build id with a
   `(createdAt, id)` row comparison (`queries/workspace-builds.ts:45-88`). Reviews, inbox, activity,
   comments and triage are unpaginated lists. No shared cursor helper is justified (trap T1).
@@ -32,11 +32,11 @@ The real duplication is concentrated in six places, in order of lines saved:
 
 | # | Cluster | Evidence (count) | Est. lines saved | Size |
 |---|---------|------------------|------------------|------|
-| C1 | Route access boilerplate (load team/workspace/build, 404/403, `if (!found) return reply`) | 50 `if (!found) return reply`, 79 inline 404/403 replies, 11 local `load*` helpers, 16 owner-or-admin checks | ~350 | M |
+| C1 | Route access boilerplate (load project/workspace/build, 404/403, `if (!found) return reply`) | 50 `if (!found) return reply`, 79 inline 404/403 replies, 11 local `load*` helpers, 16 owner-or-admin checks | ~350 | M |
 | C2 | Web CSS: repeated blocks and four near-identical settings page stylesheets | 47 identical blocks (82 redundant copies), 110 `flex-direction: column` rules vs 5 `<Stack>` uses | ~450 CSS | M |
 | C3 | Web page scaffolding: loading/error ternary, four Frame components, query-state | 20 `<ListSkeleton>` + 24 `<ErrorState>`; 4 Frames | ~200 | M |
 | C4 | Provider HTTP clients (`#call` in 7 adapters) + `record/str/isRecord` helpers (9 copies) | 7 hand-written fetch wrappers | ~150 | M |
-| C5 | Web api.ts: URL builders, `refresh` after mutate | 53 `/api/(teams|workspaces)/${seg(..)}` literals in 17 files; 97 `useMutation`, 64 `invalidateQueries` | ~150 | S-M |
+| C5 | Web api.ts: URL builders, `refresh` after mutate | 53 `/api/(projects|workspaces)/${seg(..)}` literals in 17 files; 97 `useMutation`, 64 `invalidateQueries` | ~150 | S-M |
 | C6 | Worker `run*Job` try/complete/catch/fail blocks | 5 copies of 20-25 lines | ~80 | S |
 | C7 | Web list pages (Inbox, Reviews, Triage) selection/peek/settle logic | 3 pages x ~45 lines | ~100 | M |
 | C8 | api vs db/queries hand-mirrored types | ~12 interface pairs, 42 `Fits<>` assertions | up to ~500 | L |
@@ -49,23 +49,23 @@ Everything else is S-sized (dialogs, secrets, role checks, not-found throws).
 
 ### Evidence
 
-`http/lib/team-access.ts` (`loadTeam`) and `workspace-access.ts` (`loadWorkspace`) exist and are
+`http/lib/project-access.ts` (`loadProject`) and `workspace-access.ts` (`loadWorkspace`) exist and are
 the right idea, but they **reply and return `undefined`**, so every caller must write
 `if (!found) return reply`. Counts under `apps/server/src/http/routes`:
 
 - `if (!found) return reply`: 50 (`rules.ts` has 7, `views.ts` 11, `reviews.ts` 8).
-- `await loadTeam(` 17 calls, `await loadWorkspace(` 12 calls.
-- Inline `reply.code(404).send({ error: '… not found' })`: 79 (404s for Team 8x, Workspace 6x,
+- `await loadProject(` 17 calls, `await loadWorkspace(` 12 calls.
+- Inline `reply.code(404).send({ error: '… not found' })`: 79 (404s for Project 8x, Workspace 6x,
   Build 7x, Integration 4x, Webhook 3x, Rule 2x).
 - 11 route-local helpers re-implement loading with a slightly different shape:
   `integrations.ts:25 load` + `:35 loadForManager`, `settings.ts:146 load` + `:164 loadForManager`,
   `integrations-generic.ts:149 loadForManager`, `workspace-settings.ts:38 load`,
   `workspace-auth.ts:36 load`, `domains.ts:45 managed`, `workspace-sso.ts:35 managed`,
   `comments.ts:39 loadBuild`, `issue-trackers.ts:71 loadBuild`.
-- Raw `findTeamForMember(...)` blocks that bypass `loadTeam`: `baselines.ts:17-24`,
-  `reviews.ts:38`, `:84`, `:182`, `:213`, `team-sites.ts:18`, `:56`, `views.ts:60-68`,
+- Raw `findProjectForMember(...)` blocks that bypass `loadProject`: `baselines.ts:17-24`,
+  `reviews.ts:38`, `:84`, `:182`, `:213`, `project-sites.ts:18`, `:56`, `views.ts:60-68`,
   `:122-128` (9 blocks of ~7 lines). The detector found the 7-line `const p = parse(...); const
-  user = currentUser(req); const team = await findTeamForMember(deps.db, {...})` cluster x10.
+  user = currentUser(req); const project = await findProjectForMember(deps.db, {...})` cluster x10.
 - `workspaceAcceptsSession + getMemberRole + getWorkspaceBySlug` re-done by hand in
   `domains.ts:45`, `workspace-sso.ts:35`, `workspace-settings.ts:38`, `workspace-auth.ts:36` (x4
   identical per the detector) instead of calling `loadWorkspace`.
@@ -74,10 +74,10 @@ the right idea, but they **reply and return `undefined`**, so every caller must 
   `workspace-auth.ts:54`, `workspace-settings.ts:56` ...) and `canManage` is derived the same way
   in 84 web places. No helper in `@circi/core`.
 - The same params schema declared 25 times: `z.object({ workspace: z.string() })` x9,
-  `z.object({ workspace, team })` x8, `{ workspace, team, number }` x5 (`activity.ts:10`,
-  `comments.ts:17`, `issue-trackers.ts:22`, `reviews.ts:22`, `teams.ts:21`).
+  `z.object({ workspace, project })` x8, `{ workspace, project, number }` x5 (`activity.ts:10`,
+  `comments.ts:17`, `issue-trackers.ts:22`, `reviews.ts:22`, `projects.ts:21`).
 - Build-by-number parsing (`Number(...)`, `Number.isInteger`, `getBuildByNumber`, 404) repeated in
-  `comments.ts:45`, `activity.ts:20`, `reviews.ts:48,192`, `issue-trackers.ts:76`, `teams.ts:89`.
+  `comments.ts:45`, `activity.ts:20`, `reviews.ts:48,192`, `issue-trackers.ts:76`, `projects.ts:89`.
 - `jsonErrorHandler` (`http/lib/errors.ts`) **already maps** `NotFoundError` to 404 `{ error }`,
   `ForbiddenError` to 403 and `ValidationError` to 400 for every dashboard scope. The loaders
   ignore that and hand-roll the identical replies.
@@ -88,15 +88,15 @@ Make the loaders **throw** the domain errors the handler already maps, return th
 the missing loaders. All of it in `apps/server/src/http/lib/` (same layer as today).
 
 ```ts
-// http/lib/team-access.ts (changed)
-export async function loadTeam(deps, req, options?: { manage?: boolean }):
-  Promise<{ team: Team.Visible; user: SessionUser; canManage: boolean }>   // throws NotFoundError / ForbiddenError
+// http/lib/project-access.ts (changed)
+export async function loadProject(deps, req, options?: { manage?: boolean }):
+  Promise<{ project: Project.Visible; user: SessionUser; canManage: boolean }>   // throws NotFoundError / ForbiddenError
 
-// http/lib/team-access.ts (new)
-export const teamParams = z.object({ workspace: z.string(), team: z.string() })
-export const buildParams = teamParams.extend({ number: z.string() })
-export async function loadBuild(deps, req, options?):    // team + build by :number, throws NotFoundError('Build not found')
-  Promise<{ team; user; build; canManage }>
+// http/lib/project-access.ts (new)
+export const projectParams = z.object({ workspace: z.string(), project: z.string() })
+export const buildParams = projectParams.extend({ number: z.string() })
+export async function loadBuild(deps, req, options?):    // project + build by :number, throws NotFoundError('Build not found')
+  Promise<{ project; user; build; canManage }>
 
 // http/lib/workspace-access.ts (changed + new)
 export async function loadWorkspace(deps, req, options?: { manage?: boolean }):
@@ -107,7 +107,7 @@ export const workspaceParams = z.object({ workspace: z.string() })
 export const canManage = (role: string | undefined): boolean => role === 'owner' || role === 'admin'
 ```
 
-Call sites become `const { team, user } = await loadTeam(deps, req, { manage: true })` with no
+Call sites become `const { project, user } = await loadProject(deps, req, { manage: true })` with no
 reply handling. The 11 local helpers collapse into `loadWorkspace(..., { manage: true })`
 (integration routes keep a 403 message through an option `forbidden?: string`, because
 `integrations-generic.ts:158` says "Only owners and admins can manage integrations" and tests may
@@ -116,11 +116,11 @@ Route-specific lookups (`getIntegration`, `getWebhook`, rule by id) throw `NotFo
 found')` from a handler-local `orNotFound(value, 'Webhook')` helper (see C10) instead of 79 reply
 blocks.
 
-Replaces: all 50 `if (!found) return reply`, the 9 raw `findTeamForMember` blocks, the 4 hand
+Replaces: all 50 `if (!found) return reply`, the 9 raw `findProjectForMember` blocks, the 4 hand
 copies of workspace loading, 11 local helpers, 25 params schemas, ~35 of the 79 inline 404s, 16
 owner/admin checks (plus `canManage` in web through `@circi/core`).
 Estimated: ~350 lines removed. Risk: low-medium. Behaviour must stay identical: a non-member
-gets 404 not 403 (keep that ordering in `loadTeam`), and `loadTeam` is used by `/v1`
+gets 404 not 403 (keep that ordering in `loadProject`), and `loadProject` is used by `/v1`
 (`routes/v1/index.ts`, `argos/index.ts`)? Those use their own token auth: leave them out. Tests
 (`apps/server/test/http/routes/**`) assert statuses and bodies, so they cover this. Size M.
 
@@ -136,8 +136,8 @@ Do first: change the two loaders, then migrate route files in batches (they are 
 - **Route registration list** (`dashboard/index.ts:84-117`, 34 `await api.register(x, deps)`):
   replace with `for (const plugin of [..]) await api.register(plugin, deps)`: saves ~25 lines but
   loses nothing; reviewers lose grep-ability of "where is X registered". Optional (S).
-- **Route path strings**: `'/teams/:workspace/:team` appears 45 times and `'/workspaces/:workspace`
-  40. Constants (`const TEAM = '/teams/:workspace/:team'`) or `app.register(plugin, { prefix })`
+- **Route path strings**: `'/projects/:workspace/:project` appears 45 times and `'/workspaces/:workspace`
+  40. Constants (`const PROJECT = '/projects/:workspace/:project'`) or `app.register(plugin, { prefix })`
   per file would shorten lines; the wrapper-plugin rule in CLAUDE.md for prefixes makes this a
   readability change, not a deduplication win. Skip unless C1 is done in the same file (S).
 - **Filter parsing** is already shared (`lib/build-filters.ts`, one `buildFilterShape` for list
@@ -159,7 +159,7 @@ Do first: change the two loaders, then migrate route files in batches (they are 
   `Stack` exists (`packages/ui/src/Stack.tsx`, gap steps 4px) but is used in **5** places while
   web has **110** `flex-direction: column` rules.
 - Truncate (`flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap`) x5 +
-  x2 variants: `SettingsNav.module.css:1`, `TeamSwitcher.module.css:88`,
+  x2 variants: `SettingsNav.module.css:1`, `Projectswitcher.module.css:88`,
   `WorkspaceSwitcher.module.css:32`, `UserMenu.module.css:27`, `NavItem.module.css:55`,
   `BuildReview.module.css:36`, `Menu.module.css:69`. 7 in ui, 11 in web use the ellipsis trio.
 - Visually hidden text in **six** hand-written variants (two flavours: `clip-path: inset(50%)`
@@ -168,18 +168,18 @@ Do first: change the two loaders, then migrate route files in batches (they are 
   `NavItem.module.css:43`.
 - Bordered list/box surface (`border:1px solid var(--circi-line-subtle); border-radius:8px
   (sometimes 10px); overflow:hidden`) x7 across `MembersPage`, `EmailDomains`, `WorkspaceSso`,
-  `TeamSitesPage`, `TeamPage`, `TeamsPage`, `WebhooksPage`, `Settings.module.css:63 .box`,
-  `TeamSettings.module.css:17 .box`, `IgnoreRegionsPage.module.css:17`, `ListPage.module.css:37`,
+  `ProjectsitesPage`, `ProjectPage`, `ProjectsPage`, `WebhooksPage`, `Settings.module.css:63 .box`,
+  `Projectsettings.module.css:17 .box`, `IgnoreRegionsPage.module.css:17`, `ListPage.module.css:37`,
   `BuildsBrowser.module.css:6`. Radius is 8px in some and 10px in others for the same thing.
 - Dialog backdrop and viewport identical in `ConfirmDialog.module.css:1,17` and
   `Dialog.module.css:1,17` (13 declarations each).
 - The four feature stylesheets for "settings style" pages define the same vocabulary:
-  `Settings.module.css`, `Admin.module.css`, `Integrations.module.css`, `TeamSettings.module.css`
+  `Settings.module.css`, `Admin.module.css`, `Integrations.module.css`, `Projectsettings.module.css`
   all contain `.content .section .fields .box .boxRow .boxDanger .row .rowText .footer .list
   .intro` with the same bodies (`.boxRow` x2 identical 7-declaration block, `.box` x3).
 - Smaller: `.groupHeader` x2 (`BaselinesPage`, `TriagePage`), `.textarea` x2 (`Discussion`,
   `BulkRejectDialog`), title typography (15px/600/1.4) x3 in `ConfirmDialog`, `Dialog`,
-  `TeamSettings`, `EmptyState` + `TeamsEmpty`, the 9-declaration annotation tag in
+  `Projectsettings`, `EmptyState` + `ProjectsEmpty`, the 9-declaration annotation tag in
   `RegionLayer.module.css:30` and `RegionStage.module.css:31`.
 - Counts of repeated rule kinds: `:focus-visible` 21 ui + 13 web, `outline:` 27 + 15,
   `prefers-reduced-motion` 17 in ui (each transition guarded separately), `border-radius` 47 + 71.
@@ -223,13 +223,13 @@ Total ~450 lines of CSS, plus the clarity of one settings vocabulary.
 
 - The ternary `error ? <ErrorState .../> : !data ? <Delayed><ListSkeleton/></Delayed> : ...` appears
   in 20 files (`<ListSkeleton` x20, `<ErrorState` x24): `InboxPage.tsx:169`, `ReviewsPage.tsx:157`,
-  `ViewPage.tsx:27`, `SessionsSection.tsx:69`, `MemberPicker.tsx:14`, `TeamsPage.tsx:63`,
+  `ViewPage.tsx:27`, `SessionsSection.tsx:69`, `MemberPicker.tsx:14`, `ProjectsPage.tsx:63`,
   `BaselinesPage.tsx:62`, `TriagePage.tsx:180` (detector hits x3, x3, x2, x2).
 - Four frames with the same body:
   `settings/Frame.tsx` (51 lines), `integrations/IntegrationFrame.tsx` (68), `instance/AdminFrame.tsx`
-  (65), `teams/TeamSettingsFrame.tsx` (82). `Frame` and `IntegrationFrame` have the **same 18
+  (65), `projects/ProjectsettingsFrame.tsx` (82). `Frame` and `IntegrationFrame` have the **same 18
   lines** (error / loading / read-only Banner / children) and the same prop list
-  (`loading, error, onRetry, notFound, readOnlyNote`); `AdminFrame` and `TeamSettingsFrame`
+  (`loading, error, onRetry, notFound, readOnlyNote`); `AdminFrame` and `ProjectsettingsFrame`
   repeat the error/skeleton ternary again. Only the breadcrumb, the CSS module and one extra
   state (403 for admin) differ.
 - `useLoadingAnnouncement(!data && !error, 'Loading ...')` repeated in 17 pages next to it.
@@ -241,7 +241,7 @@ Total ~450 lines of CSS, plus the clarity of one settings vocabulary.
 `apps/web/src/lib/QueryBoundary.tsx` (next to `ErrorState.tsx`, `PageHeading.tsx`):
 
 ```tsx
-<QueryBoundary query={q} announce="Loading your inbox" notFound="This team doesn't exist">
+<QueryBoundary query={q} announce="Loading your inbox" notFound="This project doesn't exist">
   {(data) => <InboxList data={data} />}
 </QueryBoundary>
 // QueryBoundary.Props<T> { query: UseQueryResult<T>; announce?: string; notFound?: string;
@@ -258,7 +258,7 @@ compute crumbs (and AdminFrame passes `forbidden`). Replaces 20 ternaries (~6 li
 refetching currently decide inline; the render-prop handles `data` only once present, which is
 what all 20 do (`!data`).
 
-Not a trap but keep separate: `TeamSettingsFrame` also loads settings and sets the document
+Not a trap but keep separate: `ProjectsettingsFrame` also loads settings and sets the document
 title; keep that inside the wrapper, not in the shared frame.
 
 ---
@@ -320,25 +320,25 @@ PR). Size M. Do the helper (2) first: S, no behaviour risk.
 
 ### Evidence
 
-- `` `/api/teams/${seg(workspace)}/${seg(team)}` `` appears 31 times and
+- `` `/api/projects/${seg(workspace)}/${seg(project)}` `` appears 31 times and
   `` `/api/workspaces/${seg(workspace)}` `` 22 times across 17 files. Local `base` helpers are
   re-declared in `settings/api.ts:113`, `triage/api.ts:247`, `builds/discussion-api.ts:6`,
   `builds/issues-api.ts:9`, `integrations/api.ts:54`, `integrations/generic-api.ts:220`,
   `members/api.ts:126,153`.
-- Query keys are bare string tuples (`['rules', workspace, team]`, 93 `queryKey: [` sites); only
+- Query keys are bare string tuples (`['rules', workspace, project]`, 93 `queryKey: [` sites); only
   `triage/api.ts:21 triageKey` and `account/api.ts:7-8` have a key helper. Cross-feature
   invalidation copies the tuple (`settings/api.ts:115-117` invalidates `['triage', workspace,
-  team]` by hand, so a key rename would silently break it).
+  project]` by hand, so a key rename would silently break it).
 - 97 `useMutation` and 64 `invalidateQueries`; 102 `onSuccess: refresh | () =>` sites. The shape
   `const refresh = () => Promise.all([invalidate(a), invalidate(b)])` is repeated per feature.
 - `lib/http.ts` has `getJson/post/send` already; that part is fine.
 
 ### Proposal
 
-`apps/web/src/lib/api-paths.ts`: `teamPath(workspace, team, ...rest)` and
+`apps/web/src/lib/api-paths.ts`: `projectPath(workspace, project, ...rest)` and
 `workspacePath(workspace, ...rest)` returning the `/api/...` string with `seg()` applied, and
-`apps/web/src/lib/query-keys.ts` with one function per resource (`keys.rules(ws, team)`,
-`keys.triage(ws, team)`, ...) so the key tuple exists once. Optionally
+`apps/web/src/lib/query-keys.ts` with one function per resource (`keys.rules(ws, project)`,
+`keys.triage(ws, project)`, ...) so the key tuple exists once. Optionally
 `useInvalidate(...keys)` in `lib/` returning the `refresh` callback. Replaces ~53 URL literals
 (shorter, and `seg` can no longer be forgotten), ~93 key tuples, ~25 `refresh` definitions.
 Estimated ~150 lines but the main win is correctness of keys. Risk: low; compile errors guide the
@@ -419,7 +419,7 @@ interface exists on both sides, field for field: `api/review.ts:20-45` vs `db/qu
 `api/build.ts:40` vs `db/queries/builds.ts:31`, `api/baseline.ts:7` vs `db/queries/baselines.ts:13`,
 `api/notification.ts:23` vs `db/queries/inbox.ts:33`, `api/triage.ts:9` vs `db/queries/triage.ts:34`,
 `api/search.ts:13` vs `db/queries/search.ts:35`, `api/storage.ts:4` vs `db/queries/storage.ts:45`,
-`api/insights.ts:3` vs `db/queries/insights.ts:44`, `api/team.ts:49` vs `db/repositories/teams.ts:211`.
+`api/insights.ts:3` vs `db/queries/insights.ts:44`, `api/project.ts:49` vs `db/repositories/projects.ts:211`.
 `packages/api/src` is 1405 lines; roughly a third mirrors a db shape.
 Literal unions are also stated twice: `SnoozeKind` (`api/review.ts:4`),
 `TriageKind`/`ReviewRuleKind` (`api/triage.ts:4-5`) vs the db enums (`db/src/schema/enums.ts`) and
@@ -490,16 +490,16 @@ Size S.
 - **NotFound after update/delete**: 24 `throw new NotFoundError('X not found')` in repositories and
   16 in services, usually `if (rows.length === 0) throw ...` after `.returning()`
   (`views.ts:156,218`, `webhooks.ts:64`, `domains.ts:71`, `ignore-regions.ts:143`,
-  `review-rules.ts:168,189`) or `if (!row) throw ...` after a select (`teams.ts:80,112,292,303`).
+  `review-rules.ts:168,189`) or `if (!row) throw ...` after a select (`projects.ts:80,112,292,303`).
   Add `packages/db/src/errors.ts`: `export function orNotFound<T>(row: T | undefined, what: string): T`
   and `firstOrNotFound(rows, what)`. ~30 lines of 2-line blocks to 1 line: ~35 saved. Size S.
-  Messages are asserted in route tests ("Team not found"), so keep them verbatim.
+  Messages are asserted in route tests ("Project not found"), so keep them verbatim.
 - **Service pass-throughs**: `services/src/views.ts` is 85 lines of
   `return db.transaction((tx) => repo(tx, input))` (9 functions); `triage.ts:26,57,94,99`,
-  `teams.ts:9` the same. CLAUDE.md says repositories are called directly for "plain reads and
+  `projects.ts:9` the same. CLAUDE.md says repositories are called directly for "plain reads and
   simple writes that trigger nothing", and these trigger nothing. A transaction around one
   statement adds nothing. Either delete the wrappers and have the routes call the repositories
-  (`views.ts` ~85 lines, triage/teams ~30), or keep them *because* a future notice is expected;
+  (`views.ts` ~85 lines, triage/projects ~30), or keep them *because* a future notice is expected;
   that is a decision for the owner. Check each repo function is single-statement (`updateSavedView`,
   `reorderSavedViews` may be several: keep a transaction inside the repository then). Size S,
   risk low. Also fixes `layers.test.ts` intent.
@@ -507,19 +507,19 @@ Size S.
   build change: `builds.ts:137-139`, `reviews.ts:62-73`, `:232`, `:362`. A
   `queueBuildChanged(tx, build, { webhook?, integration? })` helper in `services/src/` would cut ~12
   lines and ensure no caller forgets one. Only 2 calls have all three: marginal (S, optional).
-- **Build + team load in a service**: `reviews.ts:97-100`, `issues.ts:28-30`, `reviews.ts:33`,
-  `git-links.ts:46`, `gate.ts:22`: `getBuild`, `getTeamById`, `throw NotFoundError('Build not found')`.
-  `loadBuildWithTeam(tx, id)` in `services/src/lib.ts`: ~20 lines saved (S).
-- **Joins**: `innerJoin(teams, eq(teams.id, builds.teamId))` appears 15 times in
+- **Build + project load in a service**: `reviews.ts:97-100`, `issues.ts:28-30`, `reviews.ts:33`,
+  `git-links.ts:46`, `gate.ts:22`: `getBuild`, `getProjectById`, `throw NotFoundError('Build not found')`.
+  `loadBuildWithProject(tx, id)` in `services/src/lib.ts`: ~20 lines saved (S).
+- **Joins**: `innerJoin(projects, eq(projects.id, builds.projectId))` appears 15 times in
   `db/src` (search, inbox, instance-admin, workspace-builds x3, files, ignore-regions, reviews,
-  comments, notifications, integration-events, triage, review-requests). `eq(teams.workspaceId, id)`
+  comments, notifications, integration-events, triage, review-requests). `eq(projects.workspaceId, id)`
   13 times. Drizzle builders are heavily generic: a shared `buildsInWorkspace(db, workspaceId)`
   helper returning a partial query is awkward to type. Recommend only the *predicate* helpers:
-  `inWorkspace = (id) => eq(teams.workspaceId, id)` (already local in `queries/search.ts:104`)
-  and `buildTeamJoin = eq(teams.id, builds.teamId)` as exported constants in `db/src/queries/lib.ts`.
+  `inWorkspace = (id) => eq(projects.workspaceId, id)` (already local in `queries/search.ts:104`)
+  and `buildProjectJoin = eq(projects.id, builds.projectId)` as exported constants in `db/src/queries/lib.ts`.
   ~0 lines saved, removes the chance of a wrong join column. Optional (S).
 - **Ordering tie-breaks**: 60 `orderBy` sites; the `(createdAt desc, id desc)` /
-  `(name asc, slug asc)` pairs are repeated 13 times (`asc(teams.name), asc(teams.slug)` x3,
+  `(name asc, slug asc)` pairs are repeated 13 times (`asc(projects.name), asc(projects.slug)` x3,
   `desc(createdAt), desc(id)` x5). Constants like `byNewest(table)` save nothing and hide the
   order from the reader; skip (trap T2).
 - **Row to wire mappers** in queries/repositories: 37 `Date | null` conversions in server+db
@@ -533,20 +533,20 @@ Size S.
 
 ## C11. Web dialogs, forms and small shared pieces
 
-- **SecretBox x2 + OnceSecret**: `features/teams/SecretBox.tsx` (22 lines) and an identical
-  exported `SecretBox` in `features/teams/CreateDialogs.tsx:14-31` (used by `NewTeamDialog.tsx:7`);
+- **SecretBox x2 + OnceSecret**: `features/projects/SecretBox.tsx` (22 lines) and an identical
+  exported `SecretBox` in `features/projects/CreateDialogs.tsx:14-31` (used by `NewProjectDialog.tsx:7`);
   `features/instance/OnceSecret.tsx` (52 lines) re-implements copy state on a button.
-  Clipboard writes appear 3 times (`ShortcutLayer.tsx:42`, `NewTeamDialog.tsx:185`,
+  Clipboard writes appear 3 times (`ShortcutLayer.tsx:42`, `NewProjectDialog.tsx:185`,
   `instance/admin-api.ts:237`). `@circi/ui` already has `Ref` (copyable value). Move one
   `SecretBox` into `@circi/ui` (it is 10 lines over `Ref` + `Text`), delete the second, add
   `useCopy(text) -> { copy, state: 'idle'|'copied'|'failed' }` in `@circi/ui` or `lib/` and use it
   in `OnceSecret` and the snippet copy. ~60 lines saved, S.
-- **Confirmed-input dialogs**: `builds/RejectDialog.tsx` (103) and `teams/BulkRejectDialog.tsx` (94)
+- **Confirmed-input dialogs**: `builds/RejectDialog.tsx` (103) and `projects/BulkRejectDialog.tsx` (94)
   differ only in title, description, error text and one `aria-describedby`; the detector found the
   `trimmed/touched/invalid/submit` block x2. Combine as `ReasonDialog` (props `title`, `description`,
   `confirmLabel`, `invalidMessage`, `pending`, `onSubmit(reason)`) in `features/builds/`.
   ~70 lines saved. `RequestReviewDialog`, `CreateIssueDialog`, `SaveViewDialog`,
-  `AddIntegrationDialog`, `NewTeamDialog` (1042 lines across 9 dialog files) share a skeleton
+  `AddIntegrationDialog`, `NewProjectDialog` (1042 lines across 9 dialog files) share a skeleton
   (`useId`, `form id`, `Dialog actions={Cancel, Submit form=…}`, reset on close): extract a
   `FormDialog` wrapper in `@circi/ui` (`<FormDialog title open onClose onSubmit pending submitLabel>`)
   that does the `form={id}` wiring. ~10-12 lines per dialog x 8 = ~90 lines. Medium size
@@ -554,7 +554,7 @@ Size S.
   29 files import `FormEvent`: the `submit(e) { e.preventDefault(); ... }` pattern is
   everywhere; a `useFormSubmit` is not worth it (just move `preventDefault` into `FormDialog`).
 - **Dirty/saving/error for forms**: `ruleDirty`, `rotationDirty`, `targetDirty`, `flaky-setting`,
-  `settings-patch.ts`, `delete-team.ts` follow the same "saved vs draft -> patch only what
+  `settings-patch.ts`, `delete-project.ts` follow the same "saved vs draft -> patch only what
   changed" idea (`appearance.ts appearancePatch`). They are small, typed pure functions that
   are individually tested; a generic `diffPatch(saved, draft)` would work for flat objects only
   and remove ~25 lines. Skip (trap T3).
@@ -565,16 +565,16 @@ Size S.
 
 ## C12. Constants and enums duplicated across packages
 
-- **Team icon list**: `TEAM_ICON_NAMES` (about 40 names, `core/src/team-appearance.ts`) and a second list
-  with a `Record<name, LucideIcon>` in `ui/src/team-icons.ts`; `TEAM_COLORS` also defined in
-  both (`core/team-appearance.ts:9`, `ui/team-icons.ts:74`). The comment says it is mirrored and
-  `apps/web/test/lib/team-appearance.test.ts` checks equality. This is deliberate: `@circi/ui`
+- **Project icon list**: `PROJECT_ICON_NAMES` (about 40 names, `core/src/project-appearance.ts`) and a second list
+  with a `Record<name, LucideIcon>` in `ui/src/project-icons.ts`; `PROJECT_COLORS` also defined in
+  both (`core/project-appearance.ts:9`, `ui/project-icons.ts:74`). The comment says it is mirrored and
+  `apps/web/test/lib/project-appearance.test.ts` checks equality. This is deliberate: `@circi/ui`
   has no dependency on core. If you want one list: make ui define
-  `const TEAM_ICONS = { 'layout-grid': LayoutGrid, ... } as const` and derive the names from
+  `const PROJECT_ICONS = { 'layout-grid': LayoutGrid, ... } as const` and derive the names from
   `Object.keys`, and have core import nothing (server only needs to *validate* names: it could
   take the list from ui at the app boundary, but ui is a browser package: do not). Keep both and the test (trap T5).
-- **Webhook events**: `core/src/events.ts`, `db/schema/webhooks.ts`/`enums.ts`, `api/team.ts`,
-  `web/teams/webhook-events.ts` (descriptions only, keyed by string): one real source (core), others
+- **Webhook events**: `core/src/events.ts`, `db/schema/webhooks.ts`/`enums.ts`, `api/project.ts`,
+  `web/projects/webhook-events.ts` (descriptions only, keyed by string): one real source (core), others
   derive. No action.
 - **Status/conclusion literals** (`'approved'`, `'rejected'`, `'no_changes'`, `'action_required'`)
   appear in 20 files, mostly checks in services and web; they come from db enums
@@ -626,12 +626,12 @@ call. Not pursued further.
   Keeping `@circi/ui` independent matters more than 40 lines.
 - **T6. `contract-check.ts`** is a guard that makes duplication of types safe; do not delete it
   before C8 is actually done.
-- **T7. `TeamSettingsFrame` vs the other Frames**: it fetches and manages titles; keep as a
+- **T7. `ProjectsettingsFrame` vs the other Frames**: it fetches and manages titles; keep as a
   wrapper around the shared frame rather than forcing the shared one to fetch.
 - **T8. `integrations-generic.ts` (723 lines)** is long because it is the one generic CRUD +
   mapping + links route set for all definitions; splitting it by concern is fine, merging it with
   `integrations.ts` is not.
-- **T9. `loadTeam` for `/v1` token routes**: they authenticate by CI token, not session; do not
+- **T9. `loadProject` for `/v1` token routes**: they authenticate by CI token, not session; do not
   push them through the session loaders.
 - **T10. Instance admin guard** is already a hook (`hooks/instance-admin.ts`); do not add another.
 
@@ -639,13 +639,13 @@ call. Not pursued further.
 
 1. `@circi/core/src/roles.ts` `canManage(role)`; replace 16 server uses. (~25 lines)
 2. `core/src/json.ts` helpers; replace the 9 copies in providers, integrations, server, worker.
-3. Delete the second `SecretBox` in `teams/CreateDialogs.tsx` and import `./SecretBox.tsx`
-   (then `NewTeamDialog.tsx:7`). (~20 lines)
+3. Delete the second `SecretBox` in `projects/CreateDialogs.tsx` and import `./SecretBox.tsx`
+   (then `NewProjectDialog.tsx:7`). (~20 lines)
 4. `revokedAttention(message)` in `integrations/git-support.ts` for the 3 git definitions.
 5. `orNotFound`/`firstOrNotFound` in `db/src/errors.ts`; migrate repositories file by file.
 6. `iso()`/`isoOrNull()` in `server/http/lib/presenters.ts`; replace in 8 route files.
 7. `packages/ui` `VisuallyHidden` + one `.srOnly`; replace the 6 variants.
-8. `teamParams`/`workspaceParams`/`buildParams` exported once from `lib/*-access.ts`; delete 25
+8. `projectParams`/`workspaceParams`/`buildParams` exported once from `lib/*-access.ts`; delete 25
    copies (mechanical, compile-checked).
 9. `ConfirmDialog` reuses `Dialog.module.css` backdrop/viewport (~30 CSS lines).
 10. Remove the pass-through wrappers in `services/src/views.ts` after confirming single-statement
@@ -662,7 +662,7 @@ sites yet.
 
 **Wave 1 (parallel; file sets are disjoint)**
 
-- **A. Server routes (C1)**: `apps/server/src/http/**` only. Rewrite `loadTeam`/`loadWorkspace`
+- **A. Server routes (C1)**: `apps/server/src/http/**` only. Rewrite `loadProject`/`loadWorkspace`
   to throw, add `loadBuild`, export params schemas, migrate all `routes/dashboard/*.ts`, add
   `iso`/`isoOrNull`. Do not touch `routes/v1`, `routes/argos`, `hooks/`. Tests in
   `apps/server/test/http/**` must pass unchanged (message strings preserved). ~350 lines.
@@ -671,7 +671,7 @@ sites yet.
   Fakes-at-the-edge only: note that in the commit. ~150 lines.
 - **C. Worker (C9)**: `apps/worker/src` only. ~80 lines.
 - **D. DB and services (C10)**: `packages/db/src/errors.ts` + repositories, `packages/services/src`
-  (`orNotFound`, wrapper decision for `views/triage/teams`, `loadBuildWithTeam`,
+  (`orNotFound`, wrapper decision for `views/triage/projects`, `loadBuildWithProject`,
   `queueBuildChanged`). Must not edit `apps/server`. If wrappers are removed, coordinate with A:
   do that part after A merges (one-line import changes in routes). ~120 lines.
 - **E. Web data layer (C5)**: `apps/web/src/lib/{api-paths,query-keys}.ts` and every
@@ -685,7 +685,7 @@ sites yet.
   stay stable). ~300 lines.
 - **G. Dialogs and secrets (C11)**: `SecretBox` into `packages/ui`, `useCopy`, `ReasonDialog`,
   `FormDialog` + the 8 dialog files, `OnceSecret`. Files: `packages/ui/src/{SecretBox,FormDialog}*`,
-  `apps/web/src/features/{builds,teams,instance,integrations,views}/*Dialog*.tsx`,
+  `apps/web/src/features/{builds,projects,instance,integrations,views}/*Dialog*.tsx`,
   `OnceSecret.tsx`, `ShortcutLayer.tsx`. Disjoint from F if F skips dialog files. ~220 lines.
 
 **Wave 3 (after F and G; CSS follows the tsx)**

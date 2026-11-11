@@ -79,7 +79,7 @@ describe('workspace picture', () => {
     const { picture } = res.json<Workspace.Picture>()
     expect(picture).toMatch(new RegExp(`^/api/workspaces/${slug}/picture\\?v=[0-9a-f]{12}$`))
 
-    // The workspace page, the capabilities and the teams overview all carry the address.
+    // The workspace page, the capabilities and the projects overview all carry the address.
     expect(
       (await call('GET', `/api/workspaces/${slug}`, memberCookie)).json<Workspace.General>()
         .picture,

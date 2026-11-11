@@ -3,15 +3,15 @@ import { Button, SettingsSection } from '@circi/ui'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 /** Where review news goes: set in the workspace's integrations, or sent on through webhooks. */
-export function NotifySection({ workspace, team }: NotifySection.Props) {
+export function NotifySection({ workspace, project }: NotifySection.Props) {
   const clientLink = useClientLink()
   const integrations = clientLink({
     to: '/workspaces/$workspace/settings/integrations',
     params: { workspace },
   })
   const webhooks = clientLink({
-    to: '/$workspace/$team/settings/webhooks',
-    params: { workspace, team },
+    to: '/$workspace/$project/settings/webhooks',
+    params: { workspace, project },
   })
   return (
     <SettingsSection
@@ -19,7 +19,7 @@ export function NotifySection({ workspace, team }: NotifySection.Props) {
       description={
         <>
           Review requests, overdue reviews and rejections post to the chat channels you connect.
-          Channels, issue trackers and Figma are set per team in{' '}
+          Channels, issue trackers and Figma are set per project in{' '}
           <Button variant="link" size="sm" {...integrations}>
             workspace integrations
           </Button>
@@ -38,6 +38,6 @@ export function NotifySection({ workspace, team }: NotifySection.Props) {
 export namespace NotifySection {
   export interface Props {
     workspace: string
-    team: string
+    project: string
   }
 }

@@ -20,7 +20,7 @@ import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentTeam } from '#http/hooks/team-token.ts'
+import { currentProject } from '#http/hooks/project-token.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -53,13 +53,13 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     '/sites',
     { bodyLimit: (deps.sites?.maxBytes ?? 0) + 1024 * 1024 },
     async (req, reply) => {
-      const ctx = currentTeam(req)
+      const ctx = currentProject(req)
       const sites = deps.sites
       if (!sites)
         return reply.code(404).send({ error: "Static site hosting isn't set up on this server" })
-      if (!ctx.team.staticHostingEnabled) {
+      if (!ctx.project.staticHostingEnabled) {
         return reply.code(403).send({
-          error: 'Static site hosting is off for this team: turn it on in the team settings',
+          error: 'Static site hosting is off for this project: turn it on in the project settings',
         })
       }
       const q = parse(uploadQuery, req.query)
@@ -104,7 +104,7 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
       }
 
       const published = await publishSite(deps.db, {
-        teamId: ctx.team.id,
+        projectId: ctx.project.id,
         name: q.name,
         kind: kind.id,
         spa: q.spa ?? kind.spaFallback,
@@ -117,10 +117,13 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         files,
         storageKeys: keys,
         fallbackKey: (sha256) => contentKey(sha256),
-        slugPrefix: siteSlug(`${ctx.team.slug}-${q.name}`).slice(0, 10),
+        slugPrefix: siteSlug(`${ctx.project.slug}-${q.name}`).slice(0, 10),
         addressing: {
           chooseSlug: (taken) =>
-            chooseSlug({ team: ctx.team.slug, name: q.name, workspace: ctx.workspaceSlug }, taken),
+            chooseSlug(
+              { project: ctx.project.slug, name: q.name, workspace: ctx.workspaceSlug },
+              taken,
+            ),
           commitLabel: (slug, exists) =>
             pickLabel(commitHash(q.commit.toLowerCase(), 16), slug, exists),
           branchLabel: (branch, slug, exists) => pickLabel(branchHash(branch, 16), slug, exists),
@@ -141,10 +144,10 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
 
   /** Which commit a branch address serves now, for a CLI deciding whether it may move it. */
   app.get('/sites/served', async (req) => {
-    const ctx = currentTeam(req)
+    const ctx = currentProject(req)
     const q = parse(z.object({ name: z.string().default('site'), branch: z.string() }), req.query)
     return {
-      commit: (await servedCommitForBranch(deps.db, ctx.team.id, q.name, q.branch)) ?? null,
+      commit: (await servedCommitForBranch(deps.db, ctx.project.id, q.name, q.branch)) ?? null,
     }
   })
 }

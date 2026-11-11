@@ -32,7 +32,7 @@ export namespace IssueTracker {
   }
 
   export interface Target {
-    /** Linear team id or Jira project key: what `integration_teams.external_ref` holds. */
+    /** Linear team id or Jira project key: what `integration_projects.external_ref` holds. */
     ref: string
     name: string
   }

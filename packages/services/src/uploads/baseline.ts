@@ -9,10 +9,10 @@ import { findBaselineByCommits } from '@circi/db/repositories'
  */
 export async function findBaseline(
   db: Database,
-  input: { teamId: string; name: string; commits: string[] },
+  input: { projectId: string; name: string; commits: string[] },
 ) {
   return findBaselineByCommits(db, {
-    teamId: input.teamId,
+    projectId: input.projectId,
     name: input.name,
     commits: input.commits
       .slice(1)

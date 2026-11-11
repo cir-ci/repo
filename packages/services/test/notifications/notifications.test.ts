@@ -12,7 +12,7 @@ import {
   addTestMember,
   createTestDb,
   seedNotification,
-  seedTeam,
+  seedProject,
   seedUser,
   seedChangedSnapshots,
 } from '@circi/db/testing'
@@ -54,9 +54,9 @@ const noticesOf = async (userId: string, buildId?: string) =>
 const emailJobs = async () =>
   t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, QUEUES.notificationEmail))
 
-/** A team with an owner, a teammate (`ann`, who wrote the build) and `bob`; a reviewable build. */
+/** A project with an owner, a teammate (`ann`, who wrote the build) and `bob`; a reviewable build. */
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const ann = await seedUser(t.db)
   const bob = await seedUser(t.db)
   for (const u of [ann, bob]) {
@@ -64,7 +64,7 @@ async function setup() {
     await addTestMember(t.db, { workspaceId: workspace.id, userId: u.id })
   }
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'feature',
     author: { login: 'ann', userId: ann.id },
@@ -74,15 +74,15 @@ async function setup() {
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
   await seedChangedSnapshots(t.db, build.id)
-  return { team, workspace, owner, ann, bob, build }
+  return { project, workspace, owner, ann, bob, build }
 }
 
 let n = 0
-async function upload(db: Database, teamId: string, branch: string) {
+async function upload(db: Database, projectId: string, branch: string) {
   n += 1
   const hash = fakeSha(n.toString(16).padStart(2, '0'))
   const build = await createBuild(db, {
-    teamId,
+    projectId,
     commitSha: `def${String(n).padStart(4, '0')}`,
     branch,
   })
@@ -156,7 +156,7 @@ describe('review requested', () => {
     const stranger = await seedUser(t.db)
     await expect(
       requestReview(t.db, { buildId: build.id, reviewerId: stranger.id, requestedById: owner.id }),
-    ).rejects.toThrow(/must be a member of this team/)
+    ).rejects.toThrow(/must be a member of this project/)
     expect(await noticesOf(stranger.id)).toEqual([])
   })
 
@@ -172,29 +172,29 @@ describe('review requested', () => {
 
 describe('review rules and the rotation', () => {
   it('notifies the rule reviewer when the build is finalized, with no actor', async () => {
-    const { team, bob } = await setup()
+    const { project, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [bob.id],
     })
-    const build = await upload(t.db, team.id, 'rules-branch')
+    const build = await upload(t.db, project.id, 'rules-branch')
     const [notice, ...rest] = await noticesOf(bob.id, build.id)
     expect(rest).toEqual([])
     expect(notice).toMatchObject({ kind: 'review_requested', actorId: null })
   })
 
   it('clears the request notice when a newer build supersedes the request', async () => {
-    const { team, bob } = await setup()
+    const { project, bob } = await setup()
     await createReviewRule(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       kind: 'snapshot-name',
       pattern: 'home',
       reviewerIds: [bob.id],
     })
-    const first = await upload(t.db, team.id, 'super-branch')
-    await upload(t.db, team.id, 'super-branch')
+    const first = await upload(t.db, project.id, 'super-branch')
+    await upload(t.db, project.id, 'super-branch')
     const [old] = await noticesOf(bob.id, first.id)
     expect(old?.readAt).not.toBeNull()
   })
@@ -229,9 +229,9 @@ describe('build approved or rejected', () => {
   })
 
   it('has nobody to tell when the build has no known author', async () => {
-    const { team, owner } = await seedTeam(t.db)
+    const { project, owner } = await seedProject(t.db)
     const build = await createBuild(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       commitSha: 'abc9999',
       branch: 'x',
     })
@@ -252,7 +252,7 @@ describe('build approved or rejected', () => {
   it('writes no notification when the review fails', async () => {
     const { owner, ann } = await setup()
     const pending = await createBuild(t.db, {
-      teamId: (await seedTeam(t.db)).team.id,
+      projectId: (await seedProject(t.db)).project.id,
       commitSha: 'abc8888',
       author: { userId: ann.id },
     })
@@ -284,14 +284,14 @@ describe('cross-clearing', () => {
   })
 
   it('clears the notice when the request is dismissed', async () => {
-    const { team, owner, bob, build } = await setup()
+    const { project, owner, bob, build } = await setup()
     const { request } = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: bob.id,
       requestedById: owner.id,
     })
     await dismissReviewRequest(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       requestId: request.id,
       userId: bob.id,
     })

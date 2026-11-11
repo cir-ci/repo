@@ -1,0 +1,319 @@
+import { describe, expect, it } from 'vitest'
+import { page } from 'vitest/browser'
+
+import { ProjectPage } from '#features/projects/ProjectPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
+import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
+import { sidebarModel, sidebarProject, projectInfo } from '#test/support/fixtures.ts'
+import { renderPage } from '#test/support/render.tsx'
+
+import { build } from './support.tsx'
+
+const info = projectInfo()
+
+function api(
+  builds: unknown[],
+  flaky: unknown = { builds: 10, flaky: [] },
+  gitAttention: unknown = null,
+  canManage = false,
+  siteCount = 1,
+) {
+  return fakeApi({
+    'GET /api/workspaces/acme/sidebar': {
+      body: sidebarModel({ projects: [sidebarProject({ slug: 'web', siteCount })] }),
+    },
+    'GET /api/projects/acme/web/settings': { body: { canManage } },
+    'GET /api/projects/acme/web': { body: { project: info, builds, gitAttention } },
+    'GET /api/projects/acme/web/flaky': { body: flaky },
+  })
+}
+
+const show = (url = '/acme/web') =>
+  renderPage(<ProjectPage />, {
+    route: '/$workspace/$project',
+    url: url,
+    announcer: true,
+    otherRoutes: ['/$workspace/$project/baselines/$'],
+  })
+
+describe('ProjectPage', () => {
+  it('shows the breadcrumb at once from the URL and no list while loading', async () => {
+    hangingFetch()
+    await show()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect.poll(() => crumbs.element().textContent).toBe('acmeweb')
+    await expect.element(page.getByText('web', { exact: true })).toBeVisible()
+    expect(page.getByRole('list', { name: 'Builds' }).elements()).toHaveLength(0)
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading builds')
+  })
+
+  it('names the project and its workspace once loaded', async () => {
+    api([build(3)])
+    await show()
+    await expect
+      .element(page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Web App'))
+      .toBeVisible()
+    await expect.element(page.getByText('Acme Inc')).toBeVisible()
+    await expect
+      .element(
+        page
+          .getByRole('navigation', { name: 'Breadcrumb' })
+          .getByRole('link', { name: 'Acme Inc' }),
+      )
+      .toHaveAttribute('href', '/inbox')
+    expect(document.title).toBe('Builds · Web App · CirCI')
+  })
+
+  it("warns when GitHub no longer accepts the project's installation, and says nothing otherwise", async () => {
+    api([build(3)])
+    await show()
+    await expect.element(page.getByText('Web App', { exact: true }).first()).toBeVisible()
+    expect(page.getByText(/can't reach GitHub/).elements()).toHaveLength(0)
+
+    api([build(3)], undefined, { reason: 'installation_revoked', since: new Date().toISOString() })
+    await show()
+    const banner = page.getByRole('alert')
+    await expect.element(banner.getByText(/reach GitHub for this project/)).toBeVisible()
+    await expect.element(banner.getByText(/GitHub App was removed or suspended/)).toBeVisible()
+    await expect.element(banner.getByText(/Reinstall/)).toBeVisible()
+  })
+
+  it('lists builds as rows linking to each build, with status, name, meta and counts', async () => {
+    api([
+      build(8, {
+        name: 'mobile',
+        prNumber: 4,
+        branch: 'feature/y',
+        counts: { added: 1, removed: 0, changed: 0, unchanged: 0, failed: 2, total: 3 },
+      }),
+      build(7, { reviewStatus: 'approved' }),
+      build(6, {
+        conclusion: 'no_changes',
+        counts: { added: 0, removed: 0, changed: 0, unchanged: 5, failed: 0, total: 5 },
+      }),
+      build(5, { status: 'error' }),
+    ])
+    await show()
+    const list = page.getByRole('list', { name: 'Builds' })
+    await expect.element(list).toBeVisible()
+    expect(page.getByRole('listitem').elements().length).toBeGreaterThanOrEqual(4)
+    const link = page.getByRole('link', { name: /Build #8/ })
+    await expect.element(link).toHaveAttribute('href', '/acme/web/builds/8')
+    expect(link.element().textContent).toContain('Build #8 · mobile')
+    await expect.element(page.getByText('PR #4')).toBeVisible()
+    await expect.element(page.getByText('feature/y')).toBeVisible()
+    await expect.element(page.getByText('2 failed')).toBeVisible()
+    await expect.element(page.getByText('1 added')).toBeVisible()
+    // The default build name isn't repeated.
+    await expect.element(page.getByRole('link', { name: /Build #7/ })).toBeVisible()
+    // Each build's state is a named glyph.
+    await expect.element(page.getByRole('img', { name: 'Needs review' }).first()).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Approved' }).first()).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'No changes' }).first()).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Failed' }).first()).toBeVisible()
+    await expect.element(page.getByText('No screenshots')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['pending', 'needs-review'],
+    ['approved', 'approved'],
+    ['rejected', 'rejected'],
+  ] as const)("a %s build's count chips show the %s glyph", async (reviewStatus, glyph) => {
+    api([
+      build(4, {
+        reviewStatus,
+        counts: { added: 1, removed: 1, changed: 2, unchanged: 3, failed: 1, total: 8 },
+      }),
+    ])
+    await show()
+    await expect.element(page.getByText('2 changed')).toBeVisible()
+    for (const text of ['2 changed', '1 added', '1 removed']) {
+      const chip = page.getByText(text).element()
+      expect(chip.textContent).toBe(text)
+      expect(chip.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+      // Pending added and removed have their own glyphs; decided ones follow the review.
+      const own =
+        reviewStatus === 'pending'
+          ? { '1 added': 'added', '1 removed': 'removed' }[text]
+          : undefined
+      expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(own ?? glyph)
+    }
+    expect(
+      page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
+    ).toBe('failed')
+  })
+
+  it('says a build has no screenshots', async () => {
+    api([
+      build(1, { counts: { added: 0, removed: 0, changed: 0, unchanged: 0, failed: 0, total: 0 } }),
+    ])
+    await show()
+    await expect.element(page.getByText('No screenshots')).toBeVisible()
+  })
+
+  it('goes to a build when its row is clicked', async () => {
+    api([build(8)])
+    const { router } = await show()
+    await page.getByRole('link', { name: /Build #8/ }).click()
+    expect(router.state.location.pathname).toBe('/acme/web/builds/8')
+  })
+
+  it('leaves Settings out of the header for members', async () => {
+    api([build(8)])
+    await show()
+    await expect.element(page.getByRole('link', { name: 'Sites' })).toBeVisible()
+    expect(page.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
+  })
+
+  it('leaves Sites out of the header when the project has no sites', async () => {
+    api([build(8)], undefined, undefined, true, 0)
+    await show()
+    await expect.element(page.getByRole('link', { name: 'Settings' })).toBeVisible()
+    expect(page.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
+  })
+
+  it('opens Sites and Settings from the header', async () => {
+    api([build(8)], undefined, undefined, true)
+    const { router } = await show()
+    // They go somewhere, so they are links (with real addresses), not buttons.
+    await expect
+      .element(page.getByRole('link', { name: 'Sites' }))
+      .toHaveAttribute('href', '/acme/web/sites')
+    await page.getByRole('link', { name: 'Settings' }).click()
+    expect(router.state.location.pathname).toBe('/acme/web/settings')
+  })
+
+  it('guides the first upload when there are no builds', async () => {
+    api([])
+    await show()
+    await expectEmptyState('No builds yet', {
+      body: 'Builds appear here once your CI uploads screenshots.',
+      action: 'Copy',
+      centred: true,
+    })
+    await expect.element(page.getByText(/npx circi upload \.\/screenshots --wait/)).toBeVisible()
+    await expect.element(page.getByText(/CIRCI_TOKEN=…/)).toBeVisible()
+  })
+
+  const flakyReport = {
+    builds: 10,
+    flaky: [
+      {
+        name: 'clock',
+        changedIn: 6,
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: { count: 3, threshold: 3, window: 10, returns: [] },
+        },
+      },
+      {
+        name: 'nav/ticker',
+        changedIn: 4,
+        reason: {
+          kind: 'reruns_disagree',
+          reruns: { build: 8, runs: 2, differing: 1, commits: 1 },
+        },
+      },
+    ],
+  }
+
+  it('warns about flaky screenshots on the default branch and asks an owner or admin to ignore them (members)', async () => {
+    api([build(8)], flakyReport)
+    await show()
+    const banner = page.getByRole('status').filter({ hasText: 'are flaky on' })
+    await expect.element(banner).toBeVisible()
+    // Drawn in the flaky colour, with the flaky glyph.
+    await expect.element(banner).toHaveAttribute('data-tone', 'flaky')
+    expect(banner.element().querySelector('[data-status="flaky"]')).not.toBeNull()
+    await expect
+      .poll(() => banner.element().textContent)
+      .toMatch(
+        /clock \(came back to an earlier image 3 times\), nav\/ticker \(differed across 2 runs of one commit\)/,
+      )
+    await expect
+      .poll(() => banner.element().textContent)
+      .toMatch(/Ask an owner or admin of this project to ignore the part that changes\./)
+    expect(banner.element().textContent).not.toMatch(/circi admin/)
+    expect(banner.getByRole('link').elements()).toHaveLength(0)
+  })
+
+  it('links each flaky screenshot to its baseline page, where its ignore regions are, for owners and admins', async () => {
+    api([build(8)], flakyReport, null, true)
+    await show()
+    const banner = page.getByRole('status').filter({ hasText: 'are flaky on' })
+    await expect
+      .element(banner.getByRole('link', { name: 'nav/ticker' }))
+      .toHaveAttribute('href', '/acme/web/baselines/nav/ticker')
+    await expect
+      .element(banner.getByRole('link', { name: 'clock' }))
+      .toHaveAttribute('href', '/acme/web/baselines/clock')
+    await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to ignore/)
+    expect(banner.element().textContent).not.toMatch(/circi admin/)
+  })
+
+  it('pages back through older builds and returns to the newest', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => build(100 - i))
+    const fake = api(full)
+    const { router } = await show()
+    await page.getByRole('link', { name: 'Older builds' }).click()
+    expect(router.state.location.search).toEqual({ before: 51 })
+    await expect.element(page.getByRole('heading', { name: 'Older builds' })).toBeVisible()
+    expect(fake.of('GET').some((c) => c.path === '/api/projects/acme/web')).toBe(true)
+    await expect.element(page.getByRole('link', { name: 'Newest builds' })).toBeVisible()
+    await page.getByRole('link', { name: 'Newest builds' }).click()
+    expect(router.state.location.search).toEqual({})
+  })
+
+  it('shows no pager for a short list', async () => {
+    api([build(2), build(1)])
+    await show()
+    await expect.element(page.getByRole('link', { name: /Build #2/ })).toBeVisible()
+    expect(page.getByRole('button', { name: /builds$/ }).elements()).toHaveLength(0)
+  })
+
+  it('says "No older builds" past the end', async () => {
+    api([])
+    await renderPage(<ProjectPage />, {
+      route: '/$workspace/$project',
+      url: '/acme/web?before=3',
+      announcer: true,
+    })
+    await expectEmptyState('No older builds')
+    expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
+  })
+
+  it("says the project doesn't exist for a 404", async () => {
+    fakeApi({
+      'GET /api/projects/acme/web': { status: 404, body: { error: 'Project not found' } },
+      'GET /api/projects/acme/web/flaky': { status: 404, body: { error: 'Project not found' } },
+    })
+    await show()
+    await expect
+      .element(page.getByRole('heading', { name: "This project doesn't exist" }))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Try again' }).elements()).toHaveLength(0)
+  })
+
+  it('shows other errors and retries', async () => {
+    const fake = api([build(1)])
+    fake.set('GET /api/projects/acme/web', { status: 500, body: { error: 'database is down' } })
+    await show()
+    await expect.element(page.getByText('database is down')).toBeVisible()
+    fake.set('GET /api/projects/acme/web', { body: { project: info, builds: [build(1)] } })
+    await page.getByRole('button', { name: 'Try again' }).click()
+    await expect.element(page.getByRole('link', { name: /Build #1/ })).toBeVisible()
+  })
+})
+
+describe('ProjectPage route search', () => {
+  it('reads the page cursor from the URL', async () => {
+    const fake = api([build(2)])
+    await renderPage(<ProjectPage />, {
+      route: '/$workspace/$project',
+      url: '/acme/web?before=40',
+      announcer: true,
+    })
+    await expect.element(page.getByRole('heading', { name: 'Older builds' })).toBeVisible()
+    expect(fake.calls.some((c) => c.path === '/api/projects/acme/web')).toBe(true)
+  })
+})

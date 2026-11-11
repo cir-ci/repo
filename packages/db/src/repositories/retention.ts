@@ -4,7 +4,7 @@ import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
 import {
   builds,
   files,
-  teams,
+  projects,
   screenshotDiffs,
   screenshots,
   siteHostnames,
@@ -19,7 +19,7 @@ import { isForeignKeyViolation } from '#src/errors.ts'
  * Retention and garbage collection (PLAN §8). Old data goes in three separate steps, so a
  * mistake in one can't lose files that something still needs:
  *
- *  1. **Expire**: builds and site versions past their team's `retention_days` lose their
+ *  1. **Expire**: builds and site versions past their project's `retention_days` lose their
  *     rows that point at files (screenshots, diffs, site files). Builds stay, as `expired`.
  *  2. **Mark**: files nothing points at any more get `gc_marked_at`.
  *  3. **Collect**: files marked for longer than a grace period are re-checked, and only then
@@ -45,7 +45,7 @@ const isReferenced = (sha: typeof files.sha256) => sql`(
 )`
 
 /**
- * Expires finished builds older than their team's retention. The newest build that can serve
+ * Expires finished builds older than their project's retention. The newest build that can serve
  * as a baseline on the default branch, per build name, is never expired: later builds compare
  * against it. Returns how many builds were expired.
  */
@@ -53,18 +53,18 @@ export async function expireBuilds(db: Database, now: Date): Promise<number> {
   return db.transaction(async (tx) => {
     const expired = await tx.execute(sql`
       with keep as (
-        select distinct on (b.team_id, b.name) b.id
+        select distinct on (b.project_id, b.name) b.id
         from ${builds} b
-        join ${teams} p on p.id = b.team_id
+        join ${projects} p on p.id = b.project_id
         where b.status = 'complete'
           and b.branch = p.default_branch
           and (b.review_status = 'approved' or (b.conclusion = 'no_changes' and b.review_status <> 'rejected'))
-        order by b.team_id, b.name, b.created_at desc
+        order by b.project_id, b.name, b.created_at desc
       )
       update ${builds} b
       set status = 'expired'
-      from ${teams} p
-      where p.id = b.team_id
+      from ${projects} p
+      where p.id = b.project_id
         and b.status in ('complete', 'error')
         and b.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
         and b.id not in (select id from keep)
@@ -80,7 +80,7 @@ export async function expireBuilds(db: Database, now: Date): Promise<number> {
 }
 
 /**
- * Expires hosted sites: a branch address nobody uploaded to for the team's retention period
+ * Expires hosted sites: a branch address nobody uploaded to for the project's retention period
  * goes away (the default branch's never does), then versions older than retention that no live
  * branch address serves are deleted with their files list and commit address.
  */
@@ -91,8 +91,8 @@ export async function expireSites(
   return db.transaction(async (tx) => {
     const addresses = await tx.execute(sql`
       delete from ${siteHostnames} h
-      using team_sites s, ${teams} p
-      where h.team_site_id = s.id and p.id = s.team_id
+      using project_sites s, ${projects} p
+      where h.project_site_id = s.id and p.id = s.project_id
         and h.link_kind = 'branch'
         and h.branch is distinct from p.default_branch
         and h.updated_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
@@ -100,8 +100,8 @@ export async function expireSites(
     `)
     const versions = await tx.execute(sql`
       delete from ${staticSites} v
-      using team_sites s, ${teams} p
-      where s.id = v.team_site_id and p.id = s.team_id
+      using project_sites s, ${projects} p
+      where s.id = v.project_site_id and p.id = s.project_id
         and v.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
         and not exists (
           select 1 from ${siteHostnames} h where h.static_site_id = v.id and h.link_kind = 'branch'

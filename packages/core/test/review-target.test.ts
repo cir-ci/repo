@@ -37,7 +37,7 @@ describe('reviewDueAt', () => {
     )
   })
 
-  it('is null when the team has no review target', () => {
+  it('is null when the project has no review target', () => {
     expect(reviewDueAt(new Date(), null)).toBeNull()
   })
 })

@@ -48,7 +48,7 @@ const baseUiDeps = [
 ].map((part) => `@base-ui/react/${part}`)
 // Base UI and lucide are installed under @circi/ui; projects rooted elsewhere go through it.
 const viaUi = (ids: string[]) => ids.map((id) => `@circi/ui > ${id}`)
-// The team icons load from `lucide-react/dynamic.mjs` on demand: listed so a first run doesn't
+// The project icons load from `lucide-react/dynamic.mjs` on demand: listed so a first run doesn't
 // discover it mid-test and reload the page.
 const iconDeps = ['boring-avatars', 'lucide-react', 'lucide-react/dynamic.mjs']
 const uiOptimizeDeps = [...baseUiDeps, ...iconDeps, ...reactDeps]

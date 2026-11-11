@@ -19,7 +19,7 @@ import {
   builds,
   member,
   workspace,
-  teams,
+  projects,
   type ReviewRequestState,
   reviewRequests,
   reviews,
@@ -28,8 +28,8 @@ import {
   type SnoozeKind,
   user,
 } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
@@ -55,7 +55,7 @@ export namespace listReviewRequests {
     id: string
     state: ReviewRequestState
     createdAt: Date
-    /** When the team's review target runs out; null when the team has none. */
+    /** When the project's review target runs out; null when the project has none. */
     dueAt: Date | null
     /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
     overdueByMs: number
@@ -82,7 +82,7 @@ export namespace listReviewRequests {
       conclusion: Build['conclusion']
       reviewStatus: Build['reviewStatus']
     }
-    team: { slug: string; name: string }
+    project: { slug: string; name: string }
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: Changes
@@ -153,13 +153,13 @@ export async function listReviewRequests(
         conclusion: builds.conclusion,
         reviewStatus: builds.reviewStatus,
       },
-      team: { id: teams.id, slug: teams.slug, name: teams.name },
+      project: { id: projects.id, slug: projects.slug, name: projects.name },
       workspace: { slug: workspace.slug, name: workspace.name },
     })
     .from(reviewRequests)
     .innerJoin(builds, eq(builds.id, reviewRequests.buildId))
-    .innerJoin(teams, eq(teams.id, builds.teamId))
-    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .innerJoin(projects, eq(projects.id, builds.projectId))
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .innerJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .innerJoin(user, eq(user.id, reviewRequests.reviewerId))
     .where(
@@ -167,7 +167,7 @@ export async function listReviewRequests(
         eq(reviewRequests.state, reviewed ? 'done' : 'open'),
         scope,
         workspaceAccepts(workspace.id, input.method),
-        teamVisibleTo(input.userId, teams),
+        projectVisibleTo(input.userId, projects),
       ),
     )
     .orderBy(
@@ -201,7 +201,7 @@ export async function listReviewRequests(
   const baselines = await loadBaselines(db, buildIds)
   const history = await loadHistory(
     db,
-    rows.map((r) => ({ ...r.request, ...r.build, teamId: r.team.id })),
+    rows.map((r) => ({ ...r.request, ...r.build, projectId: r.project.id })),
     reviewed,
   )
 
@@ -222,7 +222,7 @@ export async function listReviewRequests(
       reviewer: r.reviewer,
       requestedBy: askerOf(r.request.requestedById, askers),
       build: r.build,
-      team: { slug: r.team.slug, name: r.team.name },
+      project: { slug: r.project.slug, name: r.project.name },
       workspace: r.workspace,
       changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
       largestChanges: largest.get(r.request.buildId) ?? [],
@@ -305,7 +305,7 @@ interface HistoryRow {
   buildId: string
   reviewerId: string
   createdAt: Date
-  teamId: string
+  projectId: string
   number: number
   branch: string | null
 }
@@ -346,7 +346,7 @@ async function loadHistory(db: Database, rows: HistoryRow[], withDecisions: bool
       .select({
         userId: reviews.userId,
         state: reviews.state,
-        teamId: builds.teamId,
+        projectId: builds.projectId,
         branch: builds.branch,
         number: builds.number,
         createdAt: reviews.createdAt,
@@ -356,7 +356,7 @@ async function loadHistory(db: Database, rows: HistoryRow[], withDecisions: bool
       .where(
         and(
           inArray(reviews.userId, reviewerIds),
-          inArray(builds.teamId, [...new Set(branched.map((r) => r.teamId))]),
+          inArray(builds.projectId, [...new Set(branched.map((r) => r.projectId))]),
           inArray(builds.branch, [...new Set(branched.flatMap((r) => r.branch ?? []))]),
           lt(builds.number, Math.max(...branched.map((r) => r.number))),
         ),
@@ -367,7 +367,7 @@ async function loadHistory(db: Database, rows: HistoryRow[], withDecisions: bool
       const last = earlier.findLast(
         (e) =>
           e.userId === r.reviewerId &&
-          e.teamId === r.teamId &&
+          e.projectId === r.projectId &&
           e.branch === r.branch &&
           e.number < r.number,
       )

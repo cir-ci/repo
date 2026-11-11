@@ -9,11 +9,11 @@ import { type Database, NotFoundError } from '@circi/db'
 import {
   getBuild,
   getBuildDetail,
-  getTeamContext,
+  getProjectContext,
   type IntegrationLink,
   listBuildReviews,
 } from '@circi/db/queries'
-import { createIntegrationLink, getTeamIntegration } from '@circi/db/repositories'
+import { createIntegrationLink, getProjectIntegration } from '@circi/db/repositories'
 
 /**
  * Creates an issue in a tracker (Linear, Jira) from a build or one of its snapshots and records
@@ -30,23 +30,23 @@ export async function createIssueFromBuild(
 ): Promise<IntegrationLink.Row> {
   const build = await getBuild(db, input.buildId)
   assertFound(build, 'Build not found')
-  const context = await getTeamContext(db, build.teamId)
+  const context = await getProjectContext(db, build.projectId)
   assertFound(context, 'Build not found')
-  const mapped = await getTeamIntegration(db, build.teamId, input.integrationId)
-  assertFound(mapped, "This team doesn't file issues in that tracker")
+  const mapped = await getProjectIntegration(db, build.projectId, input.integrationId)
+  assertFound(mapped, "This project doesn't file issues in that tracker")
   const tracker = input.openTracker(mapped.integration)
   if (!tracker) {
     throw new ValidationError("That tracker connection can't be used; connect it again")
   }
 
   const snapshotName = input.snapshotName ?? null
-  const detail = await getBuildDetail(db, build.teamId, build.number)
+  const detail = await getBuildDetail(db, build.projectId, build.number)
   const shot = snapshotName ? detail?.diffs.find((d) => d.name === snapshotName) : undefined
   if (snapshotName && !shot) throw new NotFoundError('Screenshot not found')
   const imageSha = shot?.diff?.sha256 ?? shot?.head?.sha256 ?? null
 
   const rejection = (await listBuildReviews(db, build.id)).find((r) => r.state === 'rejected')
-  const buildUrl = `${input.publicOrigin}/${context.workspaceSlug}/${context.team.slug}/builds/${build.number}`
+  const buildUrl = `${input.publicOrigin}/${context.workspaceSlug}/${context.project.slug}/builds/${build.number}`
   const title = input.title?.trim() || defaultIssueTitle(snapshotName, build.number)
   if (title.length > MAX_ISSUE_TITLE_LENGTH) {
     throw new ValidationError(`The title can have at most ${MAX_ISSUE_TITLE_LENGTH} characters`)
@@ -57,7 +57,7 @@ export async function createIssueFromBuild(
     title,
     description: issueDescription({
       number: build.number,
-      team: `${context.workspaceSlug}/${context.team.slug}`,
+      project: `${context.workspaceSlug}/${context.project.slug}`,
       branch: build.branch,
       prNumber: build.prNumber,
       commitSha: build.commitSha,
@@ -68,7 +68,7 @@ export async function createIssueFromBuild(
       imageUrl: imageUrl ?? null,
     }),
     ...(imageUrl ? { imageUrl } : {}),
-    // The team's mapping settings: Jira's issue type.
+    // The project's mapping settings: Jira's issue type.
     ...(typeof mapped.extra.issueType === 'string' && mapped.extra.issueType
       ? { issueType: mapped.extra.issueType }
       : {}),
@@ -103,7 +103,7 @@ export namespace createIssueFromBuild {
     buildId: string
     /** The screenshot the issue is about; the whole build when absent. */
     snapshotName?: string | undefined
-    /** The tracker integration; the team must be mapped to it. */
+    /** The tracker integration; the project must be mapped to it. */
     integrationId: string
     /** Default: `Visual regression: <snapshot> in build #N`. */
     title?: string | undefined

@@ -281,7 +281,7 @@ describe('workspaces', () => {
     const before = (
       await asAdmin('GET', '/api/instance/workspaces')
     ).json<InstanceAdmin.WorkspaceList>()
-    expect(before.workspaces[0]).toMatchObject({ memberCount: 1, teamCount: 1, storageBytes: 0 })
+    expect(before.workspaces[0]).toMatchObject({ memberCount: 1, projectCount: 1, storageBytes: 0 })
     // The seeded workspace belongs to someone else: the admin may see it but is not in it.
     expect(before.workspaces[0]).toMatchObject({ youAreMember: false })
     expect(before.workspaces[0]?.ownerName).toEqual(expect.any(String))
@@ -295,7 +295,7 @@ describe('workspaces', () => {
       name: 'Globex Inc',
       slug: 'globex-inc',
       memberCount: 1,
-      teamCount: 0,
+      projectCount: 0,
     })
     expect((await accountByEmail(member.email)).workspaceCount).toBe(1)
     expect(
@@ -325,7 +325,7 @@ describe('settings and mail', () => {
       },
       auth: { password: true },
       githubApp: { source: 'none', appId: null },
-      retention: { defaultTeamRetentionDays: 30, gcGraceHours: 24 },
+      retention: { defaultProjectRetentionDays: 30, gcGraceHours: 24 },
     })
     expect(res.body).not.toContain('smtp-secret-do-not-leak')
     expect(res.body).not.toContain('mailer-login')

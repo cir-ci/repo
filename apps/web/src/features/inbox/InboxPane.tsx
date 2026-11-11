@@ -47,7 +47,7 @@ export function InboxPane({
   const target = notificationTarget(item)
   const link = target ? clientLink(target) : undefined
   const canApprove = awaitsYourReview(item)
-  const context = [item.team?.name, item.build ? `#${item.build.number}` : undefined]
+  const context = [item.project?.name, item.build ? `#${item.build.number}` : undefined]
     .filter(Boolean)
     .join(' · ')
 
@@ -165,7 +165,7 @@ function BuildDetails({
       'Build',
       <span key="build" className={styles.value}>
         <StatusIcon status={status} size={12} decorative />
-        {item.team?.name} #{build.number}
+        {item.project?.name} #{build.number}
         {build.name === 'default' ? '' : ` · ${build.name}`} · {label}
       </span>,
     ],

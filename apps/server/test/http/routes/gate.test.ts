@@ -38,9 +38,10 @@ beforeAll(async () => {
   await app.ready()
   linked = await seedTenant(auth, t.db)
   plain = await seedTenant(auth, t.db)
-  await seedGitLink(t.db, linked.team.id, { externalId: '1', repoRef: 'acme/web' })
-  linkedBuildId = (await createBuild(t.db, { teamId: linked.team.id, commitSha: 'abc1234' })).id
-  plainBuildId = (await createBuild(t.db, { teamId: plain.team.id, commitSha: 'abc1234' })).id
+  await seedGitLink(t.db, linked.project.id, { externalId: '1', repoRef: 'acme/web' })
+  linkedBuildId = (await createBuild(t.db, { projectId: linked.project.id, commitSha: 'abc1234' }))
+    .id
+  plainBuildId = (await createBuild(t.db, { projectId: plain.project.id, commitSha: 'abc1234' })).id
 })
 afterAll(async () => {
   await app.close()
@@ -58,7 +59,7 @@ const gateOf = async (tenant: Tenant, buildId: string, query = '') => {
 }
 
 describe('who blocks the merge', () => {
-  it('is the check on GitHub for a linked team, and the CI job otherwise', async () => {
+  it('is the check on GitHub for a linked project, and the CI job otherwise', async () => {
     expect(await gateOf(linked, linkedBuildId)).toEqual({ status: 200, gate: 'status' })
     expect(await gateOf(plain, plainBuildId)).toEqual({ status: 200, gate: 'exit-code' })
   })

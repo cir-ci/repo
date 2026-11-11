@@ -1,4 +1,4 @@
-import { createTestDb, seedSsoProvider, seedTeam, seedUser } from '@circi/db/testing'
+import { createTestDb, seedSsoProvider, seedProject, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { findSsoProviderWorkspaceId, listWorkspaceSsoProviders } from '#src/index.ts'
@@ -13,8 +13,8 @@ afterAll(async () => {
 
 describe('workspace SSO lookups', () => {
   it("lists only the workspace's own providers and finds a provider's workspace", async () => {
-    const a = await seedTeam(t.db)
-    const b = await seedTeam(t.db)
+    const a = await seedProject(t.db)
+    const b = await seedProject(t.db)
     const user = await seedUser(t.db)
     const mine = await seedSsoProvider(t.db, {
       workspaceId: a.workspace.id,

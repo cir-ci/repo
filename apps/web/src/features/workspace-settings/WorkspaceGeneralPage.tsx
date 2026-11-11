@@ -15,7 +15,7 @@ import { MembersRedirect } from './MembersRedirect.tsx'
 import { generalProblems } from './model.ts'
 import { PicturePanel } from './PicturePanel.tsx'
 
-/** The workspace's name and address, the defaults its teams start from, and the danger zone. */
+/** The workspace's name and address, the defaults its projects start from, and the danger zone. */
 export function WorkspaceGeneralPage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/general' })
   useDocumentTitle('General', workspace)

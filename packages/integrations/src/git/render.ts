@@ -20,7 +20,7 @@ export interface ReportedBuild {
   }
   /** Every change is a flaky screenshot (only looked up while flaky ones don't block). */
   flakyOnly?: boolean
-  /** A build with no changes that its team approves by hand and nobody has approved yet. */
+  /** A build with no changes that its project approves by hand and nobody has approved yet. */
   awaitsApproval?: boolean
   /** How far the review has come, once the build has changes to review. */
   review?: ReportedReview
@@ -121,7 +121,7 @@ export function checkReport(
       status: 'completed',
       conclusion: options.blockMergeOnChanges ? 'action_required' : 'success',
       title: 'No visual changes: approval required',
-      summary: `${plural(build.counts.total, 'screenshot')} compared, none differ. This team approves builds by hand.\n\n${link}`,
+      summary: `${plural(build.counts.total, 'screenshot')} compared, none differ. This project approves builds by hand.\n\n${link}`,
     }
   }
   if (build.conclusion !== 'changes_detected') {
@@ -182,7 +182,7 @@ export function checkReport(
       status: 'completed',
       conclusion: 'success',
       title: `Only flaky screenshots changed (${counts})`,
-      summary: `${counts}. These screenshots keep changing on the default branch, and this team doesn't hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
+      summary: `${counts}. These screenshots keep changing on the default branch, and this project doesn't hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
     }
   }
   return {

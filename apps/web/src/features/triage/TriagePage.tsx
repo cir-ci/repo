@@ -20,7 +20,7 @@ import { type NavigateOptions, useNavigate, useParams, useRouter } from '@tansta
 import { type MouseEventHandler, type ReactNode, useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { PaneSlot } from '#lib/DetailSheet.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -79,24 +79,24 @@ import styles from './TriagePage.module.css'
 /** The build page, with the item's screenshot selected (`?shot=`) when it has one. */
 export const openInBuild = (
   workspace: string,
-  team: string,
+  project: string,
   item: { build: { number: number }; snapshotName: string | null },
 ): NavigateOptions => ({
-  to: '/$workspace/$team/builds/$number',
-  params: { workspace, team, number: String(item.build.number) },
+  to: '/$workspace/$project/builds/$number',
+  params: { workspace, project, number: String(item.build.number) },
   ...(item.snapshotName ? { search: { shot: item.snapshotName } } : {}),
 })
 
 export function TriagePage() {
-  const { workspace, team } = useParams({ from: ROUTE })
-  const names = useCrumbNames(workspace, team)
-  useDocumentTitle('Triage', team)
+  const { workspace, project } = useParams({ from: ROUTE })
+  const names = useCrumbNames(workspace, project)
+  useDocumentTitle('Triage', project)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const router = useRouter()
   const clientLink = useClientLink()
   const paneWidth = usePaneWidth('triage-pane')
-  const query = useQuery(triageQuery(workspace, team))
+  const query = useQuery(triageQuery(workspace, project))
   const { data } = query
   const { data: session } = authClient.useSession()
   const me = session?.user
@@ -108,10 +108,10 @@ export function TriagePage() {
   /** Items dealt with since the page opened (snoozed, dismissed, compared again). */
   const [handled, setHandled] = useState(0)
 
-  const assign = useAssignTriage(workspace, team)
-  const snooze = useSnoozeTriage(workspace, team)
-  const dismiss = useDismissTriage(workspace, team)
-  const rerun = useRerunTriage(workspace, team)
+  const assign = useAssignTriage(workspace, project)
+  const snooze = useSnoozeTriage(workspace, project)
+  const dismiss = useDismissTriage(workspace, project)
+  const rerun = useRerunTriage(workspace, project)
 
   const [find, setFind] = useFindParam()
   const awake = groupItems(data?.items ?? [])
@@ -124,7 +124,7 @@ export function TriagePage() {
     peekable: false,
   })
   useSelectFromParam(setSelectedId)
-  const { image, loading: imageLoading } = useItemImage(workspace, team, selected)
+  const { image, loading: imageLoading } = useItemImage(workspace, project, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
   const leave = (item: Triage.Item, input: ToastInput) => {
@@ -137,7 +137,7 @@ export function TriagePage() {
 
   // Each change acts at once and its toast offers Undo (the server takes it back).
   const undoable = (message: string, undo: Undo.Token | null) =>
-    withUndo(message, undo, { workspace, team }, refreshAll(queryClient))
+    withUndo(message, undo, { workspace, project }, refreshAll(queryClient))
 
   const doSnooze = (item: Triage.Item, choice: SnoozeChoice) =>
     snooze.mutate(
@@ -169,11 +169,11 @@ export function TriagePage() {
       },
     )
   }
-  const open = (item: Triage.Item) => void navigate(openInBuild(workspace, team, item))
+  const open = (item: Triage.Item) => void navigate(openInBuild(workspace, project, item))
 
   /** A row's right-click menu: what the pane's buttons and the keys do, for that item. */
   const rowMenu = (item: Triage.Item) => {
-    const href = router.buildLocation(openInBuild(workspace, team, item)).href
+    const href = router.buildLocation(openInBuild(workspace, project, item)).href
     const mine = me !== undefined && item.assignee?.id === me.id
     return menuEntries([
       { label: 'Open in build', onSelect: () => open(item) },
@@ -245,7 +245,12 @@ export function TriagePage() {
       />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
-          <QueryBoundary query={query} announce="Loading triage" notFound="Team not found" rows={4}>
+          <QueryBoundary
+            query={query}
+            announce="Loading triage"
+            notFound="Project not found"
+            rows={4}
+          >
             {() =>
               total.length === 0 ? (
                 <div className={styles.empty}>
@@ -404,7 +409,7 @@ export function TriagePage() {
                                       name={selected.snapshotName ?? undefined}
                                       linkOf={(number) =>
                                         clientLink(
-                                          openInBuild(workspace, team, {
+                                          openInBuild(workspace, project, {
                                             snapshotName: selected.snapshotName,
                                             build: { number },
                                           }),
@@ -417,7 +422,7 @@ export function TriagePage() {
                                   item={selected}
                                   linkOf={(number) =>
                                     clientLink(
-                                      openInBuild(workspace, team, {
+                                      openInBuild(workspace, project, {
                                         snapshotName: selected.snapshotName,
                                         build: { number },
                                       }),
@@ -430,7 +435,7 @@ export function TriagePage() {
                                     number={selected.build.number}
                                     sha256={image?.sha256}
                                     loading={imageLoading}
-                                    link={clientLink(openInBuild(workspace, team, selected))}
+                                    link={clientLink(openInBuild(workspace, project, selected))}
                                   />
                                 </Section>
                               </>
@@ -446,7 +451,7 @@ export function TriagePage() {
                                     number={selected.build.number}
                                     sha256={image?.sha256}
                                     loading={imageLoading}
-                                    link={clientLink(openInBuild(workspace, team, selected))}
+                                    link={clientLink(openInBuild(workspace, project, selected))}
                                   />
                                 </Section>
                               </div>

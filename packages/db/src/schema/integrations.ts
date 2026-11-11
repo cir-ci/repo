@@ -2,12 +2,12 @@ import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-
 
 import { createdAt, id } from './_columns.ts'
 import { workspace, user } from './auth.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /**
  * A connection of a workspace to an external account: a git host installation, workspace or
  * token (GitHub, GitLab, Bitbucket), a Slack workspace, a Linear or Jira site, a Figma account.
- * Integrations belong to the workspace; teams only use them through `integration_teams`.
+ * Integrations belong to the workspace; projects only use them through `integration_projects`.
  */
 export const integrations = pgTable(
   'integrations',
@@ -23,7 +23,7 @@ export const integrations = pgTable(
     kind: text('kind').notNull(),
     /** What a person calls it: the workspace or site name. */
     displayName: text('display_name').notNull(),
-    /** The provider's id for the account (Slack team id, Jira cloud id, GitHub installation id…). */
+    /** The provider's id for the account (Slack project id, Jira cloud id, GitHub installation id…). */
     externalId: text('external_id').notNull(),
     /** Sealed with `sealSecret` (`@circi/core`); never sent to the dashboard. */
     encryptedCredentials: text('encrypted_credentials'),
@@ -40,23 +40,23 @@ export const integrations = pgTable(
 )
 
 /**
- * What a team uses an integration for: its repository-like target (a repository, a Slack
+ * What a project uses an integration for: its repository-like target (a repository, a Slack
  * channel, a Linear team, a Jira project, a Figma file) in `external_ref`, anything more in `extra`. At most one per
- * team and integration.
+ * project and integration.
  */
-export const integrationTeams = pgTable(
-  'integration_teams',
+export const integrationProjects = pgTable(
+  'integration_projects',
   {
     id: id(),
     integrationId: uuid('integration_id')
       .notNull()
       .references(() => integrations.id, { onDelete: 'cascade' }),
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     externalRef: text('external_ref').notNull(),
     extra: jsonb('extra').$type<Record<string, unknown>>().notNull().default({}),
     createdAt: createdAt(),
   },
-  (t) => [unique('integration_teams_key').on(t.integrationId, t.teamId)],
+  (t) => [unique('integration_projects_key').on(t.integrationId, t.projectId)],
 )

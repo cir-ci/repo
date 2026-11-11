@@ -146,7 +146,7 @@
   padding: 4px 8px;
 }
 
-/* A row of icon-only items at the top of a menu (a team's pages). */
+/* A row of icon-only items at the top of a menu (a project's pages). */
 .iconRow {
   display: flex;
   gap: 2px;

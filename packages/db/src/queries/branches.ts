@@ -1,9 +1,9 @@
 import { and, desc, eq, ilike, isNotNull, max } from 'drizzle-orm'
 
-import { builds, teams } from '#schema/index.ts'
+import { builds, projects } from '#schema/index.ts'
 import { containsPattern } from '#shared/like.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { visibleWorkspace } from './workspace-builds.ts'
@@ -20,16 +20,16 @@ export const BRANCH_LIMIT = 20
 
 /**
  * The branches builds were made on, for the builds list's branch picker: each name once, the
- * most recently built first, those containing `query` (any case) when it is given. One team's, or
- * every team of the workspace's. Builds with no branch are not listed. Undefined when the
- * workspace (or the named team) is not visible to the person.
+ * most recently built first, those containing `query` (any case) when it is given. One project's, or
+ * every project of the workspace's. Builds with no branch are not listed. Undefined when the
+ * workspace (or the named project) is not visible to the person.
  */
 export async function listBranches(
   db: Database,
   input: {
     userId: string
     workspaceSlug: string
-    teamSlug?: string | undefined
+    projectslug?: string | undefined
     method?: SessionMethod | undefined
     query?: string | undefined
     limit?: number | undefined
@@ -37,30 +37,30 @@ export async function listBranches(
 ): Promise<listBranches.Item[] | undefined> {
   const ws = await visibleWorkspace(db, input)
   if (!ws) return undefined
-  const [team] = input.teamSlug
+  const [project] = input.projectslug
     ? await db
-        .select({ id: teams.id })
-        .from(teams)
+        .select({ id: projects.id })
+        .from(projects)
         .where(
           and(
-            eq(teams.workspaceId, ws.id),
-            eq(teams.slug, input.teamSlug),
-            teamVisibleTo(input.userId, teams),
+            eq(projects.workspaceId, ws.id),
+            eq(projects.slug, input.projectslug),
+            projectVisibleTo(input.userId, projects),
           ),
         )
     : []
-  if (input.teamSlug && !team) return undefined
+  if (input.projectslug && !project) return undefined
   const q = input.query?.trim()
   const lastBuildAt = max(builds.createdAt)
   const rows = await db
     .select({ name: builds.branch, lastBuildAt })
     .from(builds)
-    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .innerJoin(projects, eq(projects.id, builds.projectId))
     .where(
       and(
-        eq(teams.workspaceId, ws.id),
-        teamVisibleTo(input.userId, teams),
-        team ? eq(builds.teamId, team.id) : undefined,
+        eq(projects.workspaceId, ws.id),
+        projectVisibleTo(input.userId, projects),
+        project ? eq(builds.projectId, project.id) : undefined,
         isNotNull(builds.branch),
         q ? ilike(builds.branch, containsPattern(q)) : undefined,
       ),

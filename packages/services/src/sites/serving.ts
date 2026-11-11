@@ -29,7 +29,7 @@ export async function openSiteSession(
  */
 export async function confirmSiteSession(
   db: Database,
-  input: { id: string; label: string; workspaceId: string; teamId?: string },
+  input: { id: string; label: string; workspaceId: string; projectId?: string },
 ): Promise<boolean> {
   if (!(await siteSessionValid(db, input))) return false
   await db.transaction((tx) => touchSiteSession(tx, input.id))

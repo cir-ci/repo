@@ -21,12 +21,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
+import { ProjectContextMenu } from '#features/projects/ProjectContextMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useSwitchWorkspace } from '#features/sidebar/use-switch-workspace.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
-import { TeamContextMenu } from '#features/teams/TeamContextMenu.tsx'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
@@ -36,19 +36,19 @@ import {
   countOrUndefined,
   currentSection,
   pinnedViews,
-  SIDEBAR_TEAM_LIMIT,
-  sidebarTeams,
+  SIDEBAR_PROJECT_LIMIT,
+  sidebarProjects,
 } from './shell-model.ts'
 
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom: Inbox (with the search button, ⌘K, and the hide button at its right) and Teams,
+ * Top to bottom: Inbox (with the search button, ⌘K, and the hide button at its right) and Projects,
  * which span every workspace; then the workspace's own part: the switcher, Reviews, Insights, the
- * workspace's teams (Pinned, then Teams; the open one expands to Builds, Triage, Baselines and
- * Sites), "Your views", and the account button. With no teams the Teams section says "No teams
- * yet"; creating a team lives on the Teams page. No settings links: workspace settings (and from
- * there each team's) open from the workspace menu, account settings from the account menu.
+ * workspace's projects (Pinned, then Projects; the open one expands to Builds, Triage, Baselines and
+ * Sites), "Your views", and the account button. With no projects the Projects section says "No projects
+ * yet"; creating a project lives on the Projects page. No settings links: workspace settings (and from
+ * there each project's) open from the workspace menu, account settings from the account menu.
  * `AppFrame` wraps this in the Main navigation; below 820px it is not rendered (the bottom tabs
  * and the More sheet are the phone's navigation).
  */
@@ -63,20 +63,20 @@ export function Sidebar({ user }: Sidebar.Props) {
   const { workspaces, workspace } = useWorkspaces(chosen)
   const { data: model } = useSidebarModel(workspace?.slug)
   const { data: caps } = useQuery(capabilitiesQuery())
-  const { shown, total } = sidebarTeams(model?.teams, SIDEBAR_TEAM_LIMIT, params.team)
-  const pinned = shown.filter((team) => team.pinned)
-  const others = shown.filter((team) => !team.pinned)
+  const { shown, total } = sidebarProjects(model?.projects, SIDEBAR_PROJECT_LIMIT, params.project)
+  const pinned = shown.filter((project) => project.pinned)
+  const others = shown.filter((project) => !project.pinned)
   const views = pinnedViews(model?.views)
-  const openTeam = params.workspace === workspace?.slug ? params.team : undefined
+  const openProject = params.workspace === workspace?.slug ? params.project : undefined
 
-  const teamEntries = (list: SidebarModel.Team[]) =>
+  const projectEntries = (list: SidebarModel.Project[]) =>
     workspace
-      ? list.map((team) => (
-          <TeamEntry
-            key={team.slug}
+      ? list.map((project) => (
+          <ProjectEntry
+            key={project.slug}
             workspace={workspace.slug}
-            team={team}
-            open={openTeam === team.slug}
+            project={project}
+            open={openProject === project.slug}
             section={section}
           />
         ))
@@ -112,8 +112,8 @@ export function Sidebar({ user }: Sidebar.Props) {
           </IconButton>
         </Tooltip>
       </div>
-      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'teams'}>
-        Teams
+      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'projects'}>
+        Projects
       </NavLink>
       <div className={styles.workspace}>
         <WorkspaceSwitcher
@@ -147,16 +147,16 @@ export function Sidebar({ user }: Sidebar.Props) {
         </NavLink>
       ) : null}
       {workspace && model && shown.length === 0 ? (
-        <NavSection label="Teams">
-          <p className={styles.none}>No teams yet</p>
+        <NavSection label="Projects">
+          <p className={styles.none}>No projects yet</p>
         </NavSection>
       ) : null}
-      {pinned.length > 0 ? <NavSection label="Pinned">{teamEntries(pinned)}</NavSection> : null}
+      {pinned.length > 0 ? <NavSection label="Pinned">{projectEntries(pinned)}</NavSection> : null}
       {others.length > 0 ? (
-        <NavSection label="Teams">
-          {teamEntries(others)}
-          {total > SIDEBAR_TEAM_LIMIT ? (
-            <NavLink to="/" more>{`All teams (${total})`}</NavLink>
+        <NavSection label="Projects">
+          {projectEntries(others)}
+          {total > SIDEBAR_PROJECT_LIMIT ? (
+            <NavLink to="/" more>{`All projects (${total})`}</NavLink>
           ) : null}
         </NavSection>
       ) : null}
@@ -195,40 +195,40 @@ const counted = (n: number | undefined, nouns: readonly [string, string]) => {
     : { count, countTone: 'accent' as const, countLabel: noun(count, nouns) }
 }
 
-/** A team: its tile and name; the open one expands to its pages. A pinned team shows a pin. */
-function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
-  const params = { workspace, team: team.slug }
-  const triage = countOrUndefined(team.triage)
+/** A project: its tile and name; the open one expands to its pages. A pinned project shows a pin. */
+function ProjectEntry({ workspace, project, open, section }: ProjectEntry.Props) {
+  const params = { workspace, project: project.slug }
+  const triage = countOrUndefined(project.triage)
   const triageProps =
     triage === undefined
       ? {}
       : { count: triage, countTone: 'neutral' as const, countLabel: noun(triage, TRIAGE_NOUN) }
   return (
-    <TeamContextMenu workspace={workspace} team={team.slug}>
+    <ProjectContextMenu workspace={workspace} project={project.slug}>
       <NavLink
-        to="/$workspace/$team"
+        to="/$workspace/$project"
         params={params}
         selected={false}
         icon={
           <Avatar
-            type="team"
+            type="project"
             aria-hidden
-            slug={team.slug}
-            name={team.name}
-            color={team.color}
-            icon={team.icon}
+            slug={project.slug}
+            name={project.name}
+            color={project.color}
+            icon={project.icon}
             size={18}
           />
         }
-        trailing={team.pinned ? <PinIcon size={12} className={styles.pin} /> : undefined}
+        trailing={project.pinned ? <PinIcon size={12} className={styles.pin} /> : undefined}
         {...(open ? {} : triageProps)}
       >
-        {team.name}
+        {project.name}
       </NavLink>
       {open ? (
         <>
           <NavLink
-            to="/$workspace/$team"
+            to="/$workspace/$project"
             params={params}
             sub
             icon={<HammerIcon />}
@@ -237,7 +237,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             Builds
           </NavLink>
           <NavLink
-            to="/$workspace/$team/triage"
+            to="/$workspace/$project/triage"
             params={params}
             sub
             icon={<ListChecksIcon />}
@@ -253,7 +253,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             Triage
           </NavLink>
           <NavLink
-            to="/$workspace/$team/baselines"
+            to="/$workspace/$project/baselines"
             params={params}
             sub
             icon={<ImageIcon />}
@@ -261,9 +261,9 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
           >
             Baselines
           </NavLink>
-          {team.siteCount > 0 ? (
+          {project.siteCount > 0 ? (
             <NavLink
-              to="/$workspace/$team/sites"
+              to="/$workspace/$project/sites"
               params={params}
               sub
               icon={<GlobeIcon />}
@@ -274,14 +274,14 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
           ) : null}
         </>
       ) : null}
-    </TeamContextMenu>
+    </ProjectContextMenu>
   )
 }
 
-namespace TeamEntry {
+namespace ProjectEntry {
   export interface Props {
     workspace: string
-    team: SidebarModel.Team
+    project: SidebarModel.Project
     open: boolean
     section: ReturnType<typeof currentSection>
   }

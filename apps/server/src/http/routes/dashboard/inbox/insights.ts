@@ -15,13 +15,13 @@ const iso = (d: Date) => d.toISOString()
 
 const params = z.object({ workspace: z.string() })
 const query = z.object({
-  team: z.string().optional(),
+  project: z.string().optional(),
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
 })
 
 /**
- * Insights for one workspace (or one of its teams) over a date range, default the last 30
+ * Insights for one workspace (or one of its projects) over a date range, default the last 30
  * days. Everyone outside the workspace gets "not found".
  */
 export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
@@ -41,7 +41,7 @@ export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       const report = await getInsights(deps.db, {
         userId: user.id,
         workspaceSlug: p.workspace,
-        ...(q.team === undefined ? {} : { teamSlug: q.team }),
+        ...(q.project === undefined ? {} : { projectslug: q.project }),
         from,
         to,
         method: user.method,

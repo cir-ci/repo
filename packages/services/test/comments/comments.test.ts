@@ -3,7 +3,7 @@ import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedUser,
   seedChangedSnapshots,
 } from '@circi/db/testing'
@@ -31,7 +31,7 @@ const handle = (u: { email: string }) => u.email.split('@')[0] ?? ''
 
 /** Handles are the email's local part: `ann@…` is `@ann`. */
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const ann = await seedUser(t.db, `ann${Math.random().toString(36).slice(2, 8)}@example.com`)
   const bob = await seedUser(t.db, `bob${Math.random().toString(36).slice(2, 8)}@example.com`)
   const outsider = await seedUser(t.db, `zed${Math.random().toString(36).slice(2, 8)}@example.com`)
@@ -39,8 +39,8 @@ async function setup() {
     // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
     await addTestMember(t.db, { workspaceId: workspace.id, userId: u.id })
   }
-  const build = await createBuild(t.db, { teamId: team.id, commitSha: 'abc1234' })
-  return { team, workspace, owner, ann, bob, outsider, build }
+  const build = await createBuild(t.db, { projectId: project.id, commitSha: 'abc1234' })
+  return { project, workspace, owner, ann, bob, outsider, build }
 }
 
 describe('addComment mentions', () => {
@@ -199,9 +199,9 @@ describe('comment structure and permissions', () => {
 
 describe('reject reason', () => {
   it('is stored on the review and sent to the author', async () => {
-    const { team, ann, owner } = await setup()
+    const { project, ann, owner } = await setup()
     const build = await createBuild(t.db, {
-      teamId: team.id,
+      projectId: project.id,
       commitSha: 'def5678',
       author: { login: 'ann', userId: ann.id },
     })

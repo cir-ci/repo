@@ -1,8 +1,8 @@
 import { and, eq, exists, or, sql } from 'drizzle-orm'
 
-import { builds, files, member, teams, screenshotDiffs, screenshots } from '#schema/index.ts'
+import { builds, files, member, projects, screenshotDiffs, screenshots } from '#schema/index.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import type { FileRow } from '#src/types.ts'
 
@@ -22,16 +22,16 @@ export async function canUserAccessFile(
       db
         .select({ one: sql`1` })
         .from(builds)
-        .innerJoin(teams, eq(teams.id, builds.teamId))
+        .innerJoin(projects, eq(projects.id, builds.projectId))
         .innerJoin(
           member,
-          and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, userId)),
+          and(eq(member.workspaceId, projects.workspaceId), eq(member.userId, userId)),
         )
         .where(
           and(
             eq(builds.id, buildId),
-            workspaceAccepts(teams.workspaceId, method),
-            teamVisibleTo(userId, teams),
+            workspaceAccepts(projects.workspaceId, method),
+            projectVisibleTo(userId, projects),
           ),
         ),
     )

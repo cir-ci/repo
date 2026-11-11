@@ -195,7 +195,7 @@ describe('circi upload → server → worker → --wait', () => {
     await git(repo, 'add', '.')
     await git(repo, 'commit', '-q', '-m', 'sharded')
 
-    // The team already has an approved main build to compare with, so the sharded run is
+    // The project already has an approved main build to compare with, so the sharded run is
     // approved automatically (a first build never is).
     const baseline = await upload({
       apiUrl,

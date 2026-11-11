@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { SettingsBackLink } from '#features/team-settings/SettingsBackLink.tsx'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { SettingsBackLink } from '#features/project-settings/SettingsBackLink.tsx'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 
 import styles from './WorkspaceBackLink.module.css'
 

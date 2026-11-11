@@ -12,7 +12,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { buildParams, loadBuild } from '#http/lib/team-access.ts'
+import { buildParams, loadBuild } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const commentParams = buildParams.extend({ id: z.uuid() })
@@ -44,12 +44,12 @@ function present(c: CommentItem, userId: string, admin: boolean): Comment.Item {
 }
 
 /**
- * Comments on a build. Any member of the team's workspace may read and write them;
+ * Comments on a build. Any member of the project's workspace may read and write them;
  * everyone else gets "not found". You edit only your own, and only you move or resize its region;
  * you delete your own, and owners and admins may delete anyone's.
  */
 export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/teams/:workspace/:team/builds/:number/comments', async (req) => {
+  app.get('/projects/:workspace/:project/builds/:number/comments', async (req) => {
     const found = await loadBuild(deps, req)
     const user = currentUser(req)
     const items = await listBuildComments(deps.db, found.build.id)
@@ -59,7 +59,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return payload
   })
 
-  app.post('/teams/:workspace/:team/builds/:number/comments', async (req, reply) => {
+  app.post('/projects/:workspace/:project/builds/:number/comments', async (req, reply) => {
     const found = await loadBuild(deps, req)
     const input = parse(createBody, req.body)
     const user = currentUser(req)
@@ -75,7 +75,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return reply.code(201).send({ id: created.id })
   })
 
-  app.patch('/teams/:workspace/:team/builds/:number/comments/:id', async (req) => {
+  app.patch('/projects/:workspace/:project/builds/:number/comments/:id', async (req) => {
     const found = await loadBuild(deps, req)
     const { id } = parse(commentParams, req.params)
     const { body } = parse(editBody, req.body)
@@ -88,7 +88,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return { id: updated.id, body: updated.body, editedAt: updated.editedAt?.toISOString() ?? null }
   })
 
-  app.patch('/teams/:workspace/:team/builds/:number/comments/:id/region', async (req) => {
+  app.patch('/projects/:workspace/:project/builds/:number/comments/:id/region', async (req) => {
     const found = await loadBuild(deps, req)
     const { id } = parse(commentParams, req.params)
     const region: Comment.SetRegion = parse(regionBody, req.body)
@@ -105,7 +105,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return payload
   })
 
-  app.delete('/teams/:workspace/:team/builds/:number/comments/:id', async (req, reply) => {
+  app.delete('/projects/:workspace/:project/builds/:number/comments/:id', async (req, reply) => {
     const found = await loadBuild(deps, req)
     const { id } = parse(commentParams, req.params)
     const user = currentUser(req)

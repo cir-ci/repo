@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Navigate, useParams } from '@tanstack/react-router'
 
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 
 import { WorkspaceSettingsHubPage } from './WorkspaceSettingsHubPage.tsx'

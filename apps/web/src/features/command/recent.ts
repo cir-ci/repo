@@ -3,7 +3,7 @@ import type { Sidebar, View } from '@circi/api'
 import type { RecentEntry } from '#lib/stores/recent-store.ts'
 
 /**
- * What counts as a visit for Recent: a build, a team, a baseline, a triage item (an address with
+ * What counts as a visit for Recent: a build, a project, a baseline, a triage item (an address with
  * `?item=`) or a saved view. Every other page leaves nothing. Works from the address alone, so it
  * needs no data of the page.
  */
@@ -22,7 +22,7 @@ const decode = (segment: string): string => {
 export function classifyVisit(
   pathname: string,
   searchStr: string,
-  teams: readonly Pick<Sidebar.Team, 'slug' | 'name'>[] | undefined,
+  projects: readonly Pick<Sidebar.Project, 'slug' | 'name'>[] | undefined,
   views: readonly Pick<View.Item, 'id' | 'name'>[] | undefined,
   now: number,
 ): { workspace: string; entry: RecentEntry } | undefined {
@@ -42,12 +42,18 @@ export function classifyVisit(
   if (NOT_A_WORKSPACE.has(first) || parts[1] === undefined) return undefined
   const workspace = decode(first)
   const slug = decode(parts[1])
-  const teamName = teams?.find((t) => t.slug === slug)?.name ?? slug
+  const projectName = projects?.find((t) => t.slug === slug)?.name ?? slug
   const section = parts[2]
   if (section === undefined) {
     return {
       workspace,
-      entry: { kind: 'team', id: `team:${slug}`, label: teamName, path: pathname, at: now },
+      entry: {
+        kind: 'project',
+        id: `project:${slug}`,
+        label: projectName,
+        path: pathname,
+        at: now,
+      },
     }
   }
   if (section === 'builds' && parts[3] !== undefined && parts.length === 4) {
@@ -57,7 +63,7 @@ export function classifyVisit(
         kind: 'build',
         id: `build:${slug}:${parts[3]}`,
         label: `Build #${parts[3]}`,
-        detail: teamName,
+        detail: projectName,
         path: pathname,
         at: now,
       },
@@ -71,7 +77,7 @@ export function classifyVisit(
         kind: 'baseline',
         id: `baseline:${slug}:${name}`,
         label: name,
-        detail: teamName,
+        detail: projectName,
         path: pathname,
         at: now,
       },
@@ -90,7 +96,7 @@ export function classifyVisit(
         kind: 'triage',
         id: `triage:${slug}:${item}`,
         label,
-        detail: teamName,
+        detail: projectName,
         path: `${pathname}?item=${encodeURIComponent(item)}`,
         at: now,
       },

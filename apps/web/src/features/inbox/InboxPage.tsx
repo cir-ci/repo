@@ -147,8 +147,8 @@ export function InboxPage() {
             undoable(
               `Approved build #${item.build?.number ?? ''}`.trim(),
               answer.undo,
-              item.workspace && item.team
-                ? { workspace: item.workspace.slug, team: item.team.slug }
+              item.workspace && item.project
+                ? { workspace: item.workspace.slug, project: item.project.slug }
                 : null,
             ),
           ),
@@ -419,7 +419,7 @@ function Row({
       subtitle={
         <span className={styles.rowMeta}>
           {detail ? <span>{detail}</span> : null}
-          {item.team ? <span>{item.team.name}</span> : null}
+          {item.project ? <span>{item.project.name}</span> : null}
         </span>
       }
     />

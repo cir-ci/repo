@@ -7,7 +7,7 @@ import {
   updateReviewRule,
 } from '@circi/db/repositories'
 
-/** Adds a rule at the end of the team's list; reviewers must belong to the team's workspace. */
+/** Adds a rule at the end of the project's list; reviewers must belong to the project's workspace. */
 export async function addReviewRule(
   db: Database,
   input: createReviewRule.Input,
@@ -23,16 +23,16 @@ export async function editReviewRule(
   return db.transaction((tx) => updateReviewRule(tx, input))
 }
 
-/** Removes one of the team's rules. */
-export async function removeReviewRule(db: Database, teamId: string, id: string): Promise<void> {
-  await db.transaction((tx) => deleteReviewRule(tx, teamId, id))
+/** Removes one of the project's rules. */
+export async function removeReviewRule(db: Database, projectId: string, id: string): Promise<void> {
+  await db.transaction((tx) => deleteReviewRule(tx, projectId, id))
 }
 
-/** Puts the team's rules in the given order (every rule exactly once); the first match wins. */
+/** Puts the project's rules in the given order (every rule exactly once); the first match wins. */
 export async function orderReviewRules(
   db: Database,
-  teamId: string,
+  projectId: string,
   ruleIds: readonly string[],
 ): Promise<ReviewRuleRow[]> {
-  return db.transaction((tx) => reorderReviewRules(tx, teamId, ruleIds))
+  return db.transaction((tx) => reorderReviewRules(tx, projectId, ruleIds))
 }

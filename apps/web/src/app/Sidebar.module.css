@@ -9,7 +9,7 @@
   min-width: 0;
 }
 
-/* The workspace's own part starts here: Inbox and Teams above it span every workspace. */
+/* The workspace's own part starts here: Inbox and Projects above it span every workspace. */
 .workspace {
   margin: 8px 0;
   padding-top: 8px;

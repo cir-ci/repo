@@ -1,1 +1,0 @@
-ALTER TABLE "comments" ADD COLUMN "region_side" text DEFAULT 'current' NOT NULL;

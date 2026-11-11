@@ -93,7 +93,7 @@ describe('settings form layout', () => {
           <SettingsSection title="Danger zone" tone="danger">
             <SettingsRow
               label="Delete workspace"
-              detail="Hides it for everyone at once: its teams, builds, hosted sites and CI tokens stop working, and everything is deleted for good after 30 days."
+              detail="Hides it for everyone at once: its projects, builds, hosted sites and CI tokens stop working, and everything is deleted for good after 30 days."
             >
               <button type="button">Delete workspace</button>
             </SettingsRow>

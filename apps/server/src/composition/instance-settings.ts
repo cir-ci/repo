@@ -1,6 +1,6 @@
 import type { InstanceAdmin } from '@circi/api'
 import { callbackUrl } from '@circi/auth'
-import { DEFAULT_TEAM_RETENTION_DAYS } from '@circi/core'
+import { DEFAULT_PROJECT_RETENTION_DAYS } from '@circi/core'
 
 import type { Deps } from '#http/lib/deps.ts'
 
@@ -31,7 +31,7 @@ export function describeSettings(instance: Instance, scope: Scope): InstanceAdmi
     },
     workspaceCreation: config.workspaceCreation,
     retention: {
-      defaultTeamRetentionDays: DEFAULT_TEAM_RETENTION_DAYS,
+      defaultProjectRetentionDays: DEFAULT_PROJECT_RETENTION_DAYS,
       gcGraceHours: config.gcGraceHours,
       uploadTimeoutMinutes: config.uploadTimeoutMinutes,
     },

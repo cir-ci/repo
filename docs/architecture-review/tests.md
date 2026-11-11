@@ -13,7 +13,7 @@ exercised through a parent (noted where I checked).
 ## 0. Headline findings
 
 1. **The permission matrix exists once.** There are 141 registered routes (60 GET, 48 POST, 10 PUT,
-   9 PATCH, 14 DELETE); 53 writes sit under `/teams/…` or `/workspaces/…`. Only
+   9 PATCH, 14 DELETE); 53 writes sit under `/projects/…` or `/workspaces/…`. Only
    `instance-admin.test.ts` has an `it.each(routes)` "401 signed out, 403 member" matrix. The rest
    hand-write a few 403/404 cases per file (`rules-triage`, `settings`, `figma`, `comments`,
    `domains`), so for most write routes no test says "non-member gets 404, non-admin gets 403".
@@ -44,8 +44,8 @@ the repo). "Indirect" means I confirmed a parent's test renders or calls it.
 
 | Package | Modules / total | Untested modules |
 |---|---|---|
-| apps/server | 23 / 78 | `http/routes/dashboard/{instance-accounts,instance-health,instance-settings,instance-workspaces}.ts` (the first, third and fourth are covered by `instance-admin.test.ts` through URLs, so name-matching misses them: indirect); `http/lib/{validation,build-filters,pages,presenters,instance-settings,install-state,integration-context,team-access,workspace-access,streams}.ts` (indirect through routes, but `team-access.ts` and `workspace-access.ts` hold the 404/403 rule and deserve a direct table test); `cli/output.ts`, `cli/index.ts`, `lifecycle/integration-config.ts`, `contract-check.ts` (type-level, fine) |
-| apps/web | 75 / 204 | Pages and sections with no own browser test (mostly indirect): `features/instance/GithubSetupPage.tsx` (the only `*Page.tsx` not named in any browser test), `GithubAddPanel`, `GithubAppSection`, `OnceSecret`, `AdminFrame`; `features/builds/{BuildReview,DiffViewer,RegionLayer,ReviewActions,ReviewSidebar,RejectDialog,RequestReviewDialog,CreateIssueDialog,Composer,CommentsTab,ActivityTab,CountsSummary,BuildMeta,BuildStateLabel}.tsx` (rendered only through `BuildPage`/`BuildDiscussion`; `RejectDialog`, `RequestReviewDialog`, `DiffViewer` interactions have no focused test); `features/settings/{RulesSection,RotationSection,ReviewTargetSection}.tsx` (the rules UI: no browser test at all, and `RulesSection.tsx` is being edited now); `features/auth/{EmailForm,PasswordForm,SsoButtons,UserMenu,WorkspaceSsoSignIn}.tsx`; `features/account/{SessionsSection,YouSection,PasswordSection,LinkedAccounts}.tsx` (inside ProfilePage test); `features/teams/{BuildFilterBar,BulkRejectDialog,CreateDialogs,SecretBox,RegionStage,DeleteTeamSection,GitAttentionBanner,AppearanceSection}.tsx`; `features/integrations/{RepositoryRows,TeamRows,TeamLinks,TrackerPreview,IntegrationFrame,IntegrationHead}.tsx`; `app/{TeamSwitcher,WorkspaceSwitcher,ShortcutsDialog,SettingsNav,NotFound,NavLink}.tsx`; `lib/{TabList,RelativeTime,SnoozeMenu,document-title,use-client-link,router-link}.ts(x)`; `features/insights/Charts.tsx`; `features/builds/{build-title.ts,discussion-api.ts}`, `features/teams/{new-team-api,loading}.ts`; `features/views/SaveViewDialog.tsx`; `features/reviews/MemberPicker.tsx`; `features/sidebar/api.ts`, `features/views/api.ts`, `features/views/routes.ts` (no `test/features/sidebar` or `views` folder at all) |
+| apps/server | 23 / 78 | `http/routes/dashboard/{instance-accounts,instance-health,instance-settings,instance-workspaces}.ts` (the first, third and fourth are covered by `instance-admin.test.ts` through URLs, so name-matching misses them: indirect); `http/lib/{validation,build-filters,pages,presenters,instance-settings,install-state,integration-context,project-access,workspace-access,streams}.ts` (indirect through routes, but `project-access.ts` and `workspace-access.ts` hold the 404/403 rule and deserve a direct table test); `cli/output.ts`, `cli/index.ts`, `lifecycle/integration-config.ts`, `contract-check.ts` (type-level, fine) |
+| apps/web | 75 / 204 | Pages and sections with no own browser test (mostly indirect): `features/instance/GithubSetupPage.tsx` (the only `*Page.tsx` not named in any browser test), `GithubAddPanel`, `GithubAppSection`, `OnceSecret`, `AdminFrame`; `features/builds/{BuildReview,DiffViewer,RegionLayer,ReviewActions,ReviewSidebar,RejectDialog,RequestReviewDialog,CreateIssueDialog,Composer,CommentsTab,ActivityTab,CountsSummary,BuildMeta,BuildStateLabel}.tsx` (rendered only through `BuildPage`/`BuildDiscussion`; `RejectDialog`, `RequestReviewDialog`, `DiffViewer` interactions have no focused test); `features/settings/{RulesSection,RotationSection,ReviewTargetSection}.tsx` (the rules UI: no browser test at all, and `RulesSection.tsx` is being edited now); `features/auth/{EmailForm,PasswordForm,SsoButtons,UserMenu,WorkspaceSsoSignIn}.tsx`; `features/account/{SessionsSection,YouSection,PasswordSection,LinkedAccounts}.tsx` (inside ProfilePage test); `features/projects/{BuildFilterBar,BulkRejectDialog,CreateDialogs,SecretBox,RegionStage,DeleteProjectsection,GitAttentionBanner,AppearanceSection}.tsx`; `features/integrations/{RepositoryRows,ProjectRows,ProjectLinks,TrackerPreview,IntegrationFrame,IntegrationHead}.tsx`; `app/{Projectswitcher,WorkspaceSwitcher,ShortcutsDialog,SettingsNav,NotFound,NavLink}.tsx`; `lib/{TabList,RelativeTime,SnoozeMenu,document-title,use-client-link,router-link}.ts(x)`; `features/insights/Charts.tsx`; `features/builds/{build-title.ts,discussion-api.ts}`, `features/projects/{new-project-api,loading}.ts`; `features/views/SaveViewDialog.tsx`; `features/reviews/MemberPicker.tsx`; `features/sidebar/api.ts`, `features/views/api.ts`, `features/views/routes.ts` (no `test/features/sidebar` or `views` folder at all) |
 | packages/auth | 6 / 20 | `hooks/{request-guard,session-created}.ts`, `plugins/index.ts`, `options.ts`, `schema-config.ts`, `constants.ts` (hooks are indirect through server tests, but a package-level test of `request-guard` is absent) |
 | packages/db | 5 / 78 | `repositories/build-authors.ts` (indirect through services/authors.test.ts), schema barrels, `types.ts` |
 | packages/integrations | 6 / 17 | `mapping.ts`, `definition.ts`, `define.ts`, `resolve.ts`, `git-support.ts`, `tracker-support.ts` (registry.test.ts imports them through `#src/index.ts`: indirect) |
@@ -59,8 +59,8 @@ the repo). "Indirect" means I confirmed a parent's test renders or calls it.
 
 Real gaps worth a test (not just heuristic noise): the rules UI sections (`RulesSection`,
 `RotationSection`, `ReviewTargetSection`), `RejectDialog`/`RequestReviewDialog`/`BulkRejectDialog`,
-`TeamSwitcher`/`WorkspaceSwitcher`, `SettingsNav`, `GithubSetupPage`, `CommandDialog`,
-`request-guard` and `session-created` auth hooks, `team-access.ts`/`workspace-access.ts`.
+`Projectswitcher`/`WorkspaceSwitcher`, `SettingsNav`, `GithubSetupPage`, `CommandDialog`,
+`request-guard` and `session-created` auth hooks, `project-access.ts`/`workspace-access.ts`.
 
 ### 1.2 Routes versus route tests
 
@@ -72,21 +72,21 @@ false negatives because tests build URLs from a `base()` helper:
 (2), `review-requests/:id/{snooze,unsnooze}`, `domains/:id` (verify, delete), `integrations/:id/targets`
 and `…/links` (tested in `figma.test.ts` via `url()`/`mappingUrl()`), `PATCH …/appearance`,
 `POST …/webhooks/:id/test`, `activity`. I verified by hand that each is exercised
-(`rules-triage.test.ts`, `comments.test.ts`, `figma.test.ts`, `workspace-team-pages.test.ts`,
+(`rules-triage.test.ts`, `comments.test.ts`, `figma.test.ts`, `workspace-project-pages.test.ts`,
 `instance-admin.test.ts`). **So route coverage is complete by existence; the gap is the permission
 and isolation matrix**:
 
 | Behaviour | Where it is tested | Gap |
 |---|---|---|
-| signed-out 401 / non-member 404 / member 403 for every write | `instance-admin.test.ts:124` (one `it.each`) for `/instance/*` only | none for the 53 team/workspace writes; each file asserts a handful. `isolation.test.ts` covers GET team/build/file only |
+| signed-out 401 / non-member 404 / member 403 for every write | `instance-admin.test.ts:124` (one `it.each`) for `/instance/*` only | none for the 53 project/workspace writes; each file asserts a handful. `isolation.test.ts` covers GET project/build/file only |
 | removed member loses access | `removed-member.test.ts` | one route sampled |
-| same answer for real and made-up resource (no existence leak) | `isolation.test.ts` | GET team and build only, not PUT/PATCH/DELETE |
-| `/api/v1` token routes (`POST /builds`, `/finalize`, `/status`, `PUT /files/:sha256`, `/team`, `/sites/served`) | `v1.test.ts` | one 401/403 case each? only 2 status assertions in the file; wrong-team token, revoked token, wrong method per route not tabled |
+| same answer for real and made-up resource (no existence leak) | `isolation.test.ts` | GET project and build only, not PUT/PATCH/DELETE |
+| `/api/v1` token routes (`POST /builds`, `/finalize`, `/status`, `PUT /files/:sha256`, `/project`, `/sites/served`) | `v1.test.ts` | one 401/403 case each? only 2 status assertions in the file; wrong-project token, revoked token, wrong method per route not tabled |
 | Argos routes | `argos.test.ts` | one 4xx assertion in the file |
 
 Proposal: one generated test, `apps/server/test/http/routes/permissions.test.ts`, that walks
 `app.printRoutes`/`app.routes` (or a small `routeTable()` exported from `buildServer` in test mode)
-and for every route under `/api/teams/:workspace/:team` and `/api/workspaces/:workspace` asserts:
+and for every route under `/api/projects/:workspace/:project` and `/api/workspaces/:workspace` asserts:
 no cookie → 401, outsider → 404 (same body as a made-up slug), plain member on a write → 403 unless
 the route is on an explicit `MEMBER_WRITABLE` allow-list kept in the test (comments, reviews,
 views, inbox, snooze). It also fails when a new route appears that is in neither list, which makes
@@ -151,16 +151,16 @@ file (`slack.test.ts`, `figma.test.ts`, `trackers.test.ts`, `git.test.ts`), and 
 
 | Finding | Files | Evidence / fix |
 |---|---|---|
-| Test names do not match a source module (61 of 311 test files have no `src` file of that name; most are intentional topic files) | e.g. `apps/server/test/e2e.test.ts`, `apps/web/test/features/teams/{support.tsx,delete-team.test.ts,flaky-setting.test.ts,settings-model.test.ts}`, `apps/server/test/http/routes/dashboard/{api,workspace-team-pages,rules-triage,search-bulk,baselines-insights}.test.ts` | "topic" files are fine; worst are the multi-resource ones: `rules-triage` (rules, rotation, ignore regions, triage), `search-bulk` (search plus bulk review), `baselines-insights`, `workspace-team-pages` (workspace, team, appearance, storage), `api.test.ts` (what does it cover?). Split by route file so the owner is obvious |
+| Test names do not match a source module (61 of 311 test files have no `src` file of that name; most are intentional topic files) | e.g. `apps/server/test/e2e.test.ts`, `apps/web/test/features/projects/{support.tsx,delete-project.test.ts,flaky-setting.test.ts,settings-model.test.ts}`, `apps/server/test/http/routes/dashboard/{api,workspace-project-pages,rules-triage,search-bulk,baselines-insights}.test.ts` | "topic" files are fine; worst are the multi-resource ones: `rules-triage` (rules, rotation, ignore regions, triage), `search-bulk` (search plus bulk review), `baselines-insights`, `workspace-project-pages` (workspace, project, appearance, storage), `api.test.ts` (what does it cover?). Split by route file so the owner is obvious |
 | `apps/server/test/e2e.test.ts` runs in the `node` project but is named like the Docker `e2e/` tests | `apps/server/test/e2e.test.ts` (8.2 s, slowest node file) | rename to `upload-to-review.test.ts` (it is a CLI to server to worker integration test on PGlite); confusion with `e2e/` and `pnpm test:e2e` |
 | `lifecycle.test.ts` and `lifecycle/web-dist.test.ts` | `apps/server/test/` | one subject in two places; fold `web-dist` into `test/lifecycle/` and split `lifecycle.test.ts` by `startup`/`shutdown`/`server-options` as the sources are |
-| `apps/server/test/http/lib/github-app-sync.test.ts` is the only test in `http/lib/`; the other 11 lib modules have none | `apps/server/test/http/lib/` | add `team-access.test.ts` and `workspace-access.test.ts` (or fold into the permission test) |
+| `apps/server/test/http/lib/github-app-sync.test.ts` is the only test in `http/lib/`; the other 11 lib modules have none | `apps/server/test/http/lib/` | add `project-access.test.ts` and `workspace-access.test.ts` (or fold into the permission test) |
 | Test reaches into another package's test folder | none found: `grep` for `providers/test`, `server/test`, `worker/test`, `testing/test` across imports found no violation | but the **opposite** copying: `e2e/src/fakes/fake-idp.ts:8` says "Adapted from apps/server/test/support/fake-idp.ts (another package's test folder can't be imported)" and `fake-github.ts` (480 lines) shadows `providers/test/support/fake-github-host.ts` (87 lines). Duplication caused by the rule: fix with 3.2 |
 | A web "api" test file asserts fetch URLs and bodies (implementation detail) for 14 `features/*/api.test.ts` | `apps/web/test/features/*/api.test.ts` | acceptable as the wire contract, but half duplicate what the page browser tests assert through `fakeApi` ("posts X then shows Y"); each pair tests the same request at two layers. Keep `api.test.ts` for parsing/error mapping and let page tests own the request shape, or reverse |
 | Duplicated behaviour at several layers | review: `services/reviews.test.ts`, `server/…/reviews.test.ts`, `web/…/ReviewsPage.browser.test.tsx`, `BuildPage.browser.test.tsx`; webhooks: `services/outbox.test.ts`, `worker/jobs/*`, `server/…/settings.test.ts`, `WebhooksPage` | each layer tests its own contract (rules, HTTP mapping, UI); fine where the lower layer's assertions differ. Flag: the same "401 / 404 / 403" triple is rewritten in 12 server files |
 | Skipped/only tests | `packages/storage/test/s3.test.ts:54` `describe.skipIf(!endpoint)` is the only one; zero `.only`, zero `.todo` | fine, but state in the README which env var enables it (`S3_TEST_ENDPOINT`?) and make `pnpm test:e2e` run it (`e2e/test/s3.e2e.test.ts` probably duplicates it: confirm) |
 | `apps/web/test/features/fetch-routes.ts` is a support module sitting in `features/` rather than `test/support/` | `apps/web/test/features/fetch-routes.ts` (imported by 47 files as `#test/features/fetch-routes.ts`) | move to `apps/web/test/support/fetch.ts` next to `render.tsx` |
-| Per-feature `fixtures.ts`/`support.tsx` named three ways | `features/instance/fixtures.ts`, `features/integrations/fixtures.ts`, `features/teams/support.tsx`, `features/builds/fake-build-api.tsx` | pick one name, `fixtures.ts`, exporting plain data builders; `fake-build-api.tsx` is a 190-line stateful fake with its own `json` and `stubGlobal` |
+| Per-feature `fixtures.ts`/`support.tsx` named three ways | `features/instance/fixtures.ts`, `features/integrations/fixtures.ts`, `features/projects/support.tsx`, `features/builds/fake-build-api.tsx` | pick one name, `fixtures.ts`, exporting plain data builders; `fake-build-api.tsx` is a 190-line stateful fake with its own `json` and `stubGlobal` |
 | Browser tests that are logic | `apps/web/test/support/render.browser.test.tsx` tests the helper itself (fine) | `packages/ui/test/theme.test.ts` is a Node test living in the browser package: fine, but add it to the `node` project include (currently `packages/*/test/**/*.test.ts` covers it, ok) |
 | Stale artifacts | `.vitest/attachments/failure-screenshots/*.png` (ignored by git) for ~60 test files | left from earlier failing runs; they make "which tests have failed" look worse than it is. Add `rm -rf .vitest` to a `pnpm clean` script |
 
@@ -191,7 +191,7 @@ increasing `createdAt` (monotonic counter, +1 ms per row) so insertion order equ
 
 Heavy reliance on `expect.poll` / `vi.waitFor` / `expect.element` (124 `poll|waitFor` calls plus
 Vitest browser defaults): browser `expect.element` timeout is the Vitest default (1 s). Four tests
-override upward (`TeamsPage`, `TeamPage`, `TeamSettingsPage`: 2 000 ms; `Tooltip` 3 000; `Ref` 4 000),
+override upward (`ProjectsPage`, `ProjectPage`, `ProjectsettingsPage`: 2 000 ms; `Tooltip` 3 000; `Ref` 4 000),
 which is the list of files that were slow under load. A single config value removes these (4.2).
 
 ## 3. CUSTOM BEHAVIOUR THAT ALREADY EXISTS OR SHOULD
@@ -277,8 +277,8 @@ common `FakeHost` shape is mechanical.
 | `localStorage.clear()` per file | `BuildsBrowser`, others (2 + Shell) | same setup file |
 | `vi.mock('#lib/auth-client.ts', …)` with ad hoc shape | `Shell`, `routes-h1`, `TriagePage`, `MembersPage`, `InviteForm`, `ReviewsPage`, `ReviewsSettingsPage`, `BuildsBrowser`, `members/api.test.ts` (9 files, shapes differ: `organization` only vs full `useSession/listSessions/...`) | `apps/web/test/support/auth-client.ts` exporting `mockAuthClient(overrides?)` and a `setSignedInUser(user | null)`; one `vi.mock` line per file using `vi.hoisted`, or `vi.mock` in `setup.ts` once with `vi.importActual`-free fake |
 | Hand-made `Response`/`json` | `Shell.browser.test.tsx:217`, `BuildPage.browser.test.tsx:73,82`, `fake-build-api.tsx:119` | use `json()` from `fetch-routes.ts` (move to `support/fetch.ts`); `fake-build-api.tsx` should build on `fakeApi` |
-| Sample data `info = { id:'p1', slug:'web', workspaceSlug:'acme', … }`, `sidebar()` | `BuildsBrowser`, `TeamPage` and 2 more (4 files with `workspaceSlug: 'acme'`) | `apps/web/test/support/fixtures.ts`: `teamInfo(over?)`, `sidebarModel(over?)`, `sessionFor(user)`; the per-feature `fixtures.ts`/`support.tsx` import from it |
-| Time: `const now = Date.now(); … minutesAgo` | `ProfilePage`, `BuildDiscussion`, `TeamSitesPage`, `IssueAction`, `BuildPage` | `support/clock.ts`, see 4.4 |
+| Sample data `info = { id:'p1', slug:'web', workspaceSlug:'acme', … }`, `sidebar()` | `BuildsBrowser`, `ProjectPage` and 2 more (4 files with `workspaceSlug: 'acme'`) | `apps/web/test/support/fixtures.ts`: `projectInfo(over?)`, `sidebarModel(over?)`, `sessionFor(user)`; the per-feature `fixtures.ts`/`support.tsx` import from it |
+| Time: `const now = Date.now(); … minutesAgo` | `ProfilePage`, `BuildDiscussion`, `ProjectsitesPage`, `IssueAction`, `BuildPage` | `support/clock.ts`, see 4.4 |
 | Route params: `SAMPLE` map | `routes-h1.browser.test.tsx:28` only | fine; reuse in the new all-routes invariants (4.5) |
 
 `renderPage` options worth adding (it already has `route`, `url`, `announcer`, `validateSearch`,
@@ -309,7 +309,7 @@ Vitest's `expect.poll` is not enough for worker state (it is: used in `process-b
 | `apps/worker/test/jobs/notify-git.test.ts` | git rows | `seedGitConnection`, `seedGitLink` |
 
 Two parallel seeders for the same thing: `@circi/testing`'s `seedWorkspace` (direct insert, no
-better-auth) and server's `seedTenant` (through `createUser`/`createWorkspace`/`createTeamWithToken`,
+better-auth) and server's `seedTenant` (through `createUser`/`createWorkspace`/`createProjectWithToken`,
 password and token). Intentional, but unnamed: rename `seedTenant` to `seedSignedInTenant`... or
 better, put it in `@circi/testing` behind a lazy import of `@circi/auth`-free code only when the
 auth package is provided (keep it in server tests; document the split in `@circi/testing`'s header).
@@ -339,7 +339,7 @@ in `vitest/test/screenshot.test.ts:14` are single-use and fine.
 ### 3.7 Logic duplicated in three layers, tested three times
 
 `build-filters`: `packages/core/src/build-filters.ts` (no test by that name), `apps/server/src/http/lib/build-filters.ts`
-(no test), `apps/web/src/features/teams/builds-filters.ts` (`builds-filters.test.ts`). If the three
+(no test), `apps/web/src/features/projects/builds-filters.ts` (`builds-filters.test.ts`). If the three
 parse the same query string, one shared parser plus one test in `@circi/core` replaces three; if they
 differ, the names should say how. (Another reviewer file, `duplication.md`, covers the source side.)
 
@@ -411,7 +411,7 @@ export function fixedClock(at = T0): { now: Date; tick(ms: number): void; ago(ms
 ```
 
 and a seeder option `createdAt` that defaults to `clock.now + seq` (strictly increasing). Convert
-`ProfilePage`, `BuildDiscussion`, `TeamSitesPage`, `IssueAction`, `BuildPage`, `services/retention`,
+`ProfilePage`, `BuildDiscussion`, `ProjectsitesPage`, `IssueAction`, `BuildPage`, `services/retention`,
 `db/queries/{insights,search}` first (they compute "N minutes ago" from the real clock).
 
 ### 4.5 Generalising `routes-h1`: invariants over every page
@@ -466,7 +466,7 @@ Slowest files from the runs above (file duration, summed with other work running
 | `packages/auth/test/sso/trusted-issuers.test.ts` | 5.1 s | one test at 4.9 s "survives a database that has no tables yet": a deliberate failing connection with retries/backoff; shorten the backoff via injected option |
 | `apps/server/test/http/lib/github-app-sync.test.ts` | 3.4 s (5) | "does not stall a request on a slow read" waits real time 3.3 s: inject the stall threshold |
 | `apps/server/test/http/routes/client-address.test.ts` | 2.6 s (4) | one test 1.26 s: rate limiter with real window? |
-| web browser (Accounts 6.8 s, Shell 6.4 s, BuildDiscussion 6.1 s, NewTeamDialog 5.9 s, TeamSettingsPage 5.5 s, BuildsBrowser 5.4 s, ProfilePage 5.3 s) | each under 7 s | Chromium start per file plus user-event typing; `NewTeamDialog` creates a team with token tabs in 1.8 s |
+| web browser (Accounts 6.8 s, Shell 6.4 s, BuildDiscussion 6.1 s, NewProjectDialog 5.9 s, ProjectsettingsPage 5.5 s, BuildsBrowser 5.4 s, ProfilePage 5.3 s) | each under 7 s | Chromium start per file plus user-event typing; `NewProjectDialog` creates a project with token tabs in 1.8 s |
 
 By area (summed file time in the node run): `apps/server` 74 s, `packages/db` 24 s,
 `packages/services` 19 s, `apps/worker` 16 s, `packages/cli` 9 s, `packages/auth` 9 s: the server
@@ -495,11 +495,11 @@ Each step names the files it owns; none overlaps another's. Size: S under 2 h, M
 | A | **Test infra in `@circi/testing`**: `clock.ts` (`fixedClock`), `sha256`/`fakeSha`/`pngBytes`, `fakeMailer`, monotonic `createdAt` in seeders, template-DB `globalSetup` + `reset()`, `setup-node.ts` | High (stability + speed) | M | `packages/testing/**`, root `vitest.config.ts` (`hookTimeout`, `expect.poll`, `setupFiles`, `globalSetup`) |
 | B | **Host fakes to `@circi/testing/hosts`**: move `providers/test/support/fake-*-host.ts` verbatim, add `FakeHost` type and `jsonResponse`; repoint `notify-git`, `github-link`, `integrations/test/*`, `services/test/{issues,integration-links}`, `server/test/support/fake-{gitlab,idp}`, `e2e/src/fakes/fake-idp.ts` | High (removes ~9 fakes) | M | `packages/testing/src/hosts/**` (new), `packages/providers/test/support/**`, `packages/integrations/test/**`, `packages/services/test/{issues,integration-links}.test.ts`, `apps/worker/test/{support,jobs/notify-git.test.ts,jobs/integration-event.test.ts}`, `apps/server/test/support/fake-*.ts`, `apps/server/test/cli/github-link.test.ts`, `e2e/src/fakes/**`. Must wait for A to land the package skeleton, or create `hosts/` itself (A does not touch it) |
 | C | **Web browser infra**: `support/setup.ts` (afterEach reset: fetch, mocks, storage, stores, throwing default fetch), `support/auth-client.ts`, `support/fixtures.ts`, `support/clock.ts`, move `fetch-routes.ts` to `support/fetch.ts`, extend `renderPage` (`user`, `api`, `viewport`, `router`), then convert the 48 `afterEach(restoreFetch)` and the 9 auth-client mocks | High (stability, removes boilerplate) | L (mechanical, many files) | all of `apps/web/test/**`; `vitest.config.ts` `setupFiles` line for `web-browser` is one agreed edit (coordinate with A) |
-| D | **Server permission matrix** + `signedInClient` (`support/client.ts`, `JSON_HEADERS`, `fx.addMember(role)`), replace local `call/send/post/json` in the 17 files; add `permissions.test.ts`; add `team-access`/`workspace-access` tests | Highest (security guarantee) | M | `apps/server/test/support/{client,helpers,dashboard-fixture}.ts`, `apps/server/test/http/routes/**`, new `permissions.test.ts`; also splits `rules-triage`, `search-bulk`, `baselines-insights`, `workspace-team-pages` by route |
+| D | **Server permission matrix** + `signedInClient` (`support/client.ts`, `JSON_HEADERS`, `fx.addMember(role)`), replace local `call/send/post/json` in the 17 files; add `permissions.test.ts`; add `project-access`/`workspace-access` tests | Highest (security guarantee) | M | `apps/server/test/support/{client,helpers,dashboard-fixture}.ts`, `apps/server/test/http/routes/**`, new `permissions.test.ts`; also splits `rules-triage`, `search-bulk`, `baselines-insights`, `workspace-project-pages` by route |
 | E | **Outbox rollback tests** for `finalizeBuild`, `completeBuild`, `failBuild`, `requeueBuild`, `reviewBuild`, `requestReview(s)`, `notifyReviewRequested`, `handleGitEvents`: a table-driven `describe.each(services)` in `packages/services/test/outbox.test.ts`, each case runs the call inside `t.db.transaction` that throws afterwards and asserts `jobs`, `notifications`, `webhook_deliveries` are empty, plus one positive case "exists after commit" | High | S–M | `packages/services/test/outbox.test.ts` only (other service tests untouched) |
 | F | **Definition contract** `runIntegrationDefinitionContract(def, harness)` in `packages/integrations/test/support/contract.ts`; run it over `integrationRegistry.all()`; keep per-kind files for the specifics; add a "registry has a harness for every definition" guard so a new definition fails CI until it has one | Medium-high | M | `packages/integrations/test/**`, `packages/providers/test/{provider,tracker}-contract.test.ts` (read-only reuse) |
 | G | **Invariants**: `invariants.browser.test.tsx` (h1, accessible names, axe, landmarks, focus visible, min size, no horizontal scroll, light and dark), replace the 250 ms sleep with idle-based waiting, add `axe-core` devDependency; `css-invariants.test.ts` (Node) with an initial allow-list | High (cheap global net) | M | `apps/web/test/app/routes-h1.browser.test.tsx` (renamed), `packages/ui/test/css-invariants.test.ts`, `apps/web/package.json` (devDependency only) |
-| H | **Fill real gaps**: browser tests for `RulesSection`/`RotationSection`/`ReviewTargetSection`, `RejectDialog`, `RequestReviewDialog`, `BulkRejectDialog`, `TeamSwitcher`, `WorkspaceSwitcher`, `SettingsNav`, `GithubSetupPage`, `ViewPage`/`SaveViewDialog`; `request-guard` + `session-created` in `packages/auth/test/hooks/`; `workspace-builds` query test | Medium | L | new files under `apps/web/test/features/{settings,builds,teams,instance,views}`, `packages/auth/test/hooks/`, `packages/db/test/queries/workspace-builds.test.ts`. Do after C so new tests use the new setup |
+| H | **Fill real gaps**: browser tests for `RulesSection`/`RotationSection`/`ReviewTargetSection`, `RejectDialog`, `RequestReviewDialog`, `BulkRejectDialog`, `Projectswitcher`, `WorkspaceSwitcher`, `SettingsNav`, `GithubSetupPage`, `ViewPage`/`SaveViewDialog`; `request-guard` + `session-created` in `packages/auth/test/hooks/`; `workspace-builds` query test | Medium | L | new files under `apps/web/test/features/{settings,builds,projects,instance,views}`, `packages/auth/test/hooks/`, `packages/db/test/queries/workspace-builds.test.ts`. Do after C so new tests use the new setup |
 | I | **Sleep removal in worker/server/ui**: `runner.test.ts`, `concurrency.test.ts`, `integration-event.test.ts`, `notify-git.test.ts`, `email-login.test.ts`, `domains.test.ts`, `Tooltip.browser.test.tsx`, and the slow ones in section 5 (`trusted-issuers`, `github-app-sync`, `lifecycle`): inject thresholds, deferred promises or fake timers (some need a source option: add the smallest seam) | Medium (stability) | M | listed test files; `apps/worker/src/runner.ts` and `lib/concurrency.ts` only if a seam is needed (flag to owner) |
 | J | **Housekeeping**: rename `apps/server/test/e2e.test.ts`, fold `lifecycle/web-dist.test.ts`, `pnpm clean` removes `.vitest`, install `@vitest/coverage-v8`, `pnpm test:coverage`, run `--sequence.shuffle` and record the order-dependent files | Low-medium | S | `apps/server/test/{e2e,lifecycle}*.ts`, root `package.json` scripts |
 
@@ -544,7 +544,7 @@ export function signedInClient(app: FastifyInstance, who: { email: string; passw
 // apps/web/test/support/{setup,fetch,auth-client,fixtures,clock}.ts
 export function mockAuthClient(overrides?: Partial<AuthClientFake>): AuthClientFake
 export function setSignedInUser(user: { id: string; name: string; email: string } | null): void
-export const teamInfo: (over?: Partial<TeamInfo>) => TeamInfo
+export const projectInfo: (over?: Partial<ProjectInfo>) => ProjectInfo
 export const sidebarModel: (over?: Partial<Sidebar>) => Sidebar
 // renderPage options added: { user?, api?, viewport?: [number, number], router?: Router }; result adds `calls`
 

@@ -19,19 +19,19 @@ export { createSmtpMailer, type Mailer, signInMail, invitationMail } from './mai
 export {
   addMember,
   createWorkspace,
-  createTeamWithToken,
+  createProjectWithToken,
   createUser,
   deleteNewUser,
-  deleteTeamWithToken,
+  deleteProjectWithToken,
   generatePassword,
   type IssuedToken,
-  rotateTeamToken,
+  rotateProjectToken,
   sendSignInCode,
   setInstanceAdmin,
   setUserEmail,
   setUserPassword,
   updateWorkspace,
-  verifyTeamToken,
+  verifyProjectToken,
 } from './operations/admin.ts'
 
 export { isAPIError as isAuthApiError } from 'better-auth/api'

@@ -120,7 +120,7 @@ describe('per-workspace GitHub and Google sign-in', () => {
     expect(off.json().settings).toMatchObject({ signinGithub: false, signinGoogle: true })
 
     for (const url of [
-      `/api/teams/${acme.workspaceSlug}/web`,
+      `/api/projects/${acme.workspaceSlug}/web`,
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       `/api/workspaces/${acme.workspaceSlug}/settings`,
     ]) {
@@ -130,22 +130,24 @@ describe('per-workspace GitHub and Google sign-in', () => {
       expect(res.json().error).toBe(GITHUB_REFUSAL)
     }
     // Lists leave the workspace out, and the capabilities say why.
-    expect((await caller(app)('GET', '/api/teams', githubCookie)).json().teams).toEqual([])
+    expect((await caller(app)('GET', '/api/projects', githubCookie)).json().projects).toEqual([])
     const caps = (await caller(app)('GET', '/api/capabilities', githubCookie)).json()
     expect(caps.refusingWorkspaces).toEqual([
       { name: expect.any(String), accepts: ['password', 'email', 'google'] },
     ])
     // The same person's password session, and other workspaces, are untouched.
     expect(
-      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, passwordCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${acme.workspaceSlug}/web`, passwordCookie))
+        .statusCode,
     ).toBe(200)
     const otherCookie = await signInVia(other.owner.email, other.owner.password, 'github')
     expect(
-      (await caller(app)('GET', `/api/teams/${other.workspaceSlug}/web`, otherCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${other.workspaceSlug}/web`, otherCookie))
+        .statusCode,
     ).toBe(200)
     // And so is a person outside the workspace: plain "not found".
     expect(
-      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, otherCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${acme.workspaceSlug}/web`, otherCookie)).statusCode,
     ).toBe(404)
   })
 
@@ -154,13 +156,15 @@ describe('per-workspace GitHub and Google sign-in', () => {
       signinGithub: false,
     })
     expect(
-      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, githubCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${acme.workspaceSlug}/web`, githubCookie))
+        .statusCode,
     ).toBe(403)
     await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: true,
     })
     expect(
-      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, githubCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${acme.workspaceSlug}/web`, githubCookie))
+        .statusCode,
     ).toBe(200)
   })
 
@@ -181,7 +185,7 @@ describe('per-workspace GitHub and Google sign-in', () => {
       signinGithub: false,
     })
     expect(
-      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, adminCookie)).statusCode,
+      (await caller(app)('GET', `/api/projects/${acme.workspaceSlug}/web`, adminCookie)).statusCode,
     ).toBe(200)
     await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: true,

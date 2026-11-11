@@ -26,7 +26,7 @@ export function DeletedWorkspaceSection({ workspace }: DeletedWorkspaceSection.P
       <SettingsSection title={deletedLabel(workspace.daysLeft)}>
         <SettingsRow
           label="Restore"
-          detail="Brings the workspace back with its teams, builds and settings."
+          detail="Brings the workspace back with its projects, builds and settings."
         >
           <Button
             loading={restore.isPending}
@@ -43,7 +43,7 @@ export function DeletedWorkspaceSection({ workspace }: DeletedWorkspaceSection.P
         </SettingsRow>
         <SettingsRow
           label="Delete permanently"
-          detail="Deletes its teams, builds, screenshots and settings now, without waiting for the rest of the 30 days."
+          detail="Deletes its projects, builds, screenshots and settings now, without waiting for the rest of the 30 days."
         >
           <Button variant="danger" onClick={() => setPurging(true)}>
             Delete permanently
@@ -54,7 +54,7 @@ export function DeletedWorkspaceSection({ workspace }: DeletedWorkspaceSection.P
         open={purging}
         onOpenChange={setPurging}
         title={`Delete ${workspace.name} permanently?`}
-        description="Its teams, builds, screenshots and settings are deleted now, without waiting for the rest of the 30 days. This can't be undone."
+        description="Its projects, builds, screenshots and settings are deleted now, without waiting for the rest of the 30 days. This can't be undone."
         confirmLabel="Delete permanently"
         confirmText={workspace.slug}
         loading={purge.isPending}

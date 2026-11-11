@@ -7,11 +7,11 @@ const fx = await startDashboard()
 const { acme, rival, acmeCookie, rivalCookie, app, db } = fx
 afterAll(() => fx.close())
 
-// The fixture: Acme's `web` team has builds 1 (approved) and 2 (main, auto-approved), each
+// The fixture: Acme's `web` project has builds 1 (approved) and 2 (main, auto-approved), each
 // with screenshots `home` and `about`. Rival has nothing.
 const sendAs = sender(() => app, acmeCookie)
 const post = (payload: object, options: { workspace?: string; cookie?: string } = {}) =>
-  sendAs('POST', `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/review`, {
+  sendAs('POST', `/api/projects/${options.workspace ?? acme.workspaceSlug}/web/builds/review`, {
     payload,
     ...(options.cookie === undefined ? {} : { cookie: options.cookie }),
   })
@@ -19,11 +19,11 @@ const post = (payload: object, options: { workspace?: string; cookie?: string } 
 async function numbersOf(): Promise<Record<number, string>> {
   const rows = await db.query.builds.findMany()
   return Object.fromEntries(
-    rows.filter((b) => b.teamId === acme.team.id).map((b) => [b.number, b.reviewStatus]),
+    rows.filter((b) => b.projectId === acme.project.id).map((b) => [b.number, b.reviewStatus]),
   )
 }
 
-describe('POST /api/teams/:workspace/:team/builds/review', () => {
+describe('POST /api/projects/:workspace/:project/builds/review', () => {
   it('rejects the bad bodies with 400', async () => {
     const id = '00000000-0000-4000-8000-000000000000'
     expect((await post({ buildIds: [], decision: 'approved' })).statusCode).toBe(400)
@@ -35,7 +35,7 @@ describe('POST /api/teams/:workspace/:team/builds/review', () => {
     ).toBe(400)
   })
 
-  it('is not found for a non-member and for ids outside the team, changing nothing', async () => {
+  it('is not found for a non-member and for ids outside the project, changing nothing', async () => {
     const real = (await db.query.builds.findFirst({ where: (b, { eq }) => eq(b.number, 2) }))!
     expect(
       (await post({ buildIds: [real.id], decision: 'rejected' }, { cookie: rivalCookie }))
@@ -49,7 +49,7 @@ describe('POST /api/teams/:workspace/:team/builds/review', () => {
   })
 
   it('rejects several builds at once', async () => {
-    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
+    const rows = (await db.query.builds.findMany()).filter((b) => b.projectId === acme.project.id)
     const res = await post({ buildIds: rows.map((b) => b.id), decision: 'rejected', reason: 'no' })
     expect(res.statusCode).toBe(200)
     expect(res.json().builds.map((b: { reviewStatus: string }) => b.reviewStatus)).toEqual([
@@ -63,7 +63,7 @@ describe('POST /api/teams/:workspace/:team/builds/review', () => {
 const ask = (payload: object, options: { workspace?: string; cookie?: string } = {}) =>
   sendAs(
     'POST',
-    `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/request-review`,
+    `/api/projects/${options.workspace ?? acme.workspaceSlug}/web/builds/request-review`,
     {
       payload,
       ...(options.cookie === undefined ? {} : { cookie: options.cookie }),
@@ -72,7 +72,7 @@ const ask = (payload: object, options: { workspace?: string; cookie?: string } =
 const open = async () =>
   (await db.query.reviewRequests.findMany()).filter((r) => r.state === 'open')
 
-describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
+describe('POST /api/projects/:workspace/:project/builds/request-review', () => {
   it('rejects bad bodies with 400', async () => {
     const id = '00000000-0000-4000-8000-000000000000'
     expect((await ask({ buildIds: [], reviewerIds: ['u'] })).statusCode).toBe(400)
@@ -84,8 +84,8 @@ describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
     ).toBe(400)
   })
 
-  it('is not found for a non-member and for ids outside the team, changing nothing', async () => {
-    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
+  it('is not found for a non-member and for ids outside the project, changing nothing', async () => {
+    const rows = (await db.query.builds.findMany()).filter((b) => b.projectId === acme.project.id)
     const ids = rows.map((b) => b.id)
     expect(
       (await ask({ buildIds: ids, reviewerIds: [rival.owner.id] }, { cookie: rivalCookie }))
@@ -98,13 +98,13 @@ describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
     expect(await open()).toEqual([])
   })
 
-  it('refuses all of it, not part, when a reviewer is outside the team', async () => {
-    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
+  it('refuses all of it, not part, when a reviewer is outside the project', async () => {
+    const rows = (await db.query.builds.findMany()).filter((b) => b.projectId === acme.project.id)
     const res = await ask({
       buildIds: rows.map((b) => b.id),
       reviewerIds: [rival.owner.id],
     })
-    // Only the team's members can be asked: a validation error, nothing stored.
+    // Only the project's members can be asked: a validation error, nothing stored.
     expect(res.statusCode).toBe(400)
     expect(await open()).toEqual([])
   })

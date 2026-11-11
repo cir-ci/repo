@@ -3,7 +3,7 @@ import {
   getWorkspaceSettings,
   listWorkspaceDomains,
 } from '@circi/db/queries'
-import { createTestDb, seedTeam } from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -25,7 +25,7 @@ afterAll(async () => {
 
 describe('email domains', () => {
   it('adds, verifies by DNS proof, and removes a domain', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     const added = await addEmailDomain(t.db, { workspaceId: workspace.id, domain: '@Acme.Test' })
     expect(added.domain).toBe('acme.test')
     expect(added.verifiedAt).toBeNull()
@@ -52,7 +52,7 @@ describe('email domains', () => {
   })
 
   it('refuses a duplicate and rolls back nothing half-done', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     await addEmailDomain(t.db, { workspaceId: workspace.id, domain: 'dup.test' })
     await expect(
       addEmailDomain(t.db, { workspaceId: workspace.id, domain: 'dup.test' }),
@@ -63,7 +63,7 @@ describe('email domains', () => {
 
 describe('workspace settings', () => {
   it('returns the merged settings and rejects a bad retention', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     const next = await updateWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: true })
     expect(next.flakyBlocksMerge).toBe(true)
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual(next)
@@ -78,7 +78,7 @@ describe('workspace sign-in', () => {
 
   it('stores the switches, and refuses to lock every owner out unless forced', async () => {
     // The seeded owner has no credential, so no method is usable by an owner.
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     await expect(
       updateWorkspaceSignIn(t.db, workspace.id, { emailLoginEnabled: false }, { instance }),
     ).rejects.toThrow(/no owner able to sign in/)

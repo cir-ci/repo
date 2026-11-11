@@ -7,8 +7,8 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 import { returnTarget } from '#app/settings-return.ts'
 import { currentSection, isSettingsSection, type WorkspaceRef } from '#app/shell-model.ts'
 import { buildQuery } from '#features/builds/api/index.ts'
-import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { teamMembersQuery } from '#features/teams/api/members.ts'
+import { capabilitiesQuery, projectsQuery } from '#features/projects/api/index.ts'
+import { projectMembersQuery } from '#features/projects/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { keys } from '#lib/query-keys.ts'
 import { openInNewTab } from '#lib/row-menu.ts'
@@ -49,7 +49,7 @@ import {
 } from './pages.ts'
 import {
   chipLabel,
-  completeTeamToken,
+  completeProjectToken,
   kindChip,
   KIND_CHIPS,
   placeholderFor,
@@ -74,8 +74,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * The command menu (⌘K), one list for three intents: go somewhere, find something, do something.
  * Empty, it lists the page's actions, what you visited, what needs you, where to go and what to
  * switch. Typed, it ranks the best match first, then actions and places, then results by kind
- * (three each, with `Show all N …`), limited to the team you are in until you widen it. `#`, `/`
- * and `>` narrow it to builds, screenshots or commands and `in:name` to a team, as chips; rows with
+ * (three each, with `Show all N …`), limited to the project you are in until you widen it. `#`, `/`
+ * and `>` narrow it to builds, screenshots or commands and `in:name` to a project, as chips; rows with
  * a chevron open a nested list; ⌘↵ opens in a new tab, ⌘⇧C copies the link and ⌘. lists the row's
  * actions. Inside settings it offers settings only. ↑ ↓ move, ↵ chooses, Esc goes back or closes.
  */
@@ -83,7 +83,7 @@ export function CommandMenu({
   open,
   onOpenChange,
   workspace,
-  teams,
+  projects,
   views,
   canManage,
   workspaces = NO_WORKSPACES,
@@ -95,7 +95,7 @@ export function CommandMenu({
   const params = useParams({ strict: false })
   const { mode, setMode } = useColorScheme()
   const { data: caps } = useQuery(capabilitiesQuery())
-  const { data: overview } = useQuery(teamsQuery())
+  const { data: overview } = useQuery(projectsQuery())
   const { data: session } = authClient.useSession()
   const chooseWorkspace = useWorkspaceStore((s) => s.choose)
   const recents = useRecentStore((s) => (workspace ? s.byWorkspace[workspace] : undefined))
@@ -117,13 +117,13 @@ export function CommandMenu({
   const search = useRouterState({ select: (s) => s.location.search })
   const reviewersFor = page?.page === 'reviewers' ? page.subject : undefined
   const { data: members } = useQuery({
-    ...teamMembersQuery(reviewersFor?.workspace ?? '', reviewersFor?.team ?? ''),
+    ...projectMembersQuery(reviewersFor?.workspace ?? '', reviewersFor?.project ?? ''),
     enabled: reviewersFor !== undefined,
   })
   const { data: reviewedBuild } = useQuery({
     ...buildQuery(
       reviewersFor?.workspace ?? '',
-      reviewersFor?.team ?? '',
+      reviewersFor?.project ?? '',
       reviewersFor?.number ?? 0,
     ),
     enabled: reviewersFor !== undefined,
@@ -134,7 +134,7 @@ export function CommandMenu({
     workspace,
     pathname,
     routeWorkspace: params.workspace,
-    teams,
+    projects,
     views,
     workspaces,
     canManage,
@@ -146,7 +146,7 @@ export function CommandMenu({
     searches: searches ?? NO_SEARCHES,
     now,
     changed: changedCount(queryClient.getQueryData(buildKey(params)), params),
-    leave: returnTarget(returnedApp, teams),
+    leave: returnTarget(returnedApp, projects),
   }
   const q = text.trim()
   const kind = kindChip(chips)
@@ -155,7 +155,7 @@ export function CommandMenu({
     workspace,
     q,
     {
-      team: scope?.slug,
+      project: scope?.slug,
       kinds: kind ? KIND_CHIPS[kind].kinds : undefined,
       limit: kind && kind !== 'commands' ? NARROWED_LIMIT : undefined,
     },
@@ -179,9 +179,9 @@ export function CommandMenu({
             {
               workspace,
               pathname,
-              teams,
+              projects,
               workspaces,
-              routeTeam: view.context.team?.slug ?? params.team,
+              routeProject: view.context.project?.slug ?? params.project,
               theme: mode,
               members: members?.members,
               meId: session?.user.id,
@@ -243,7 +243,7 @@ export function CommandMenu({
   }
 
   function widen() {
-    setChips((c) => c.filter((x) => x.type !== 'team'))
+    setChips((c) => c.filter((x) => x.type !== 'project'))
     setContextCleared(true)
     setActive(0)
   }
@@ -274,7 +274,7 @@ export function CommandMenu({
     onOpenChange(false)
   }
 
-  /** Rejecting asks for a reason first when the team requires one; everything else goes at once. */
+  /** Rejecting asks for a reason first when the project requires one; everything else goes at once. */
   function runAction(action: RowAction) {
     if (!needsReason(action)) {
       perform(action)
@@ -308,11 +308,11 @@ export function CommandMenu({
 
   /** The build page's own actions run here, so they undo like the rest (and Reject asks for a reason). */
   function buildPageRun(key: string): boolean {
-    if (!params.workspace || !params.team || !params.number) return false
+    if (!params.workspace || !params.project || !params.number) return false
     const shot = typeof search.shot === 'string' ? search.shot : undefined
     const found = buildPageAction(key, {
       workspace: params.workspace,
-      team: params.team,
+      project: params.project,
       number: Number(params.number),
       shot,
     })
@@ -334,7 +334,7 @@ export function CommandMenu({
         router.history.push(target.path)
         onOpenChange(false)
         return
-      case 'team':
+      case 'project':
         router.history.push(entry.path ?? '/')
         onOpenChange(false)
         return
@@ -344,9 +344,9 @@ export function CommandMenu({
           pathname,
           target.slug,
           (slug) =>
-            (overview?.teams ?? [])
+            (overview?.projects ?? [])
               .filter((o) => o.workspace.slug === slug)
-              .map((o) => o.team.slug)[0],
+              .map((o) => o.project.slug)[0],
         )
         if (go) router.history.push(go)
         onOpenChange(false)
@@ -411,7 +411,7 @@ export function CommandMenu({
         const { what } = target
         afterClose.current = () => {
           const overlays = useOverlayStore.getState()
-          if (what === 'team') overlays.setNewTeamOpen(true)
+          if (what === 'project') overlays.setNewProjectOpen(true)
           else overlays.setNewWorkspaceOpen(true)
         }
         onOpenChange(false)
@@ -454,7 +454,7 @@ export function CommandMenu({
       setActive(0)
       return
     }
-    const typed = readTyped(value, chips, teams)
+    const typed = readTyped(value, chips, projects)
     setChips(typed.chips)
     setText(typed.text)
     setActive(0)
@@ -507,7 +507,7 @@ export function CommandMenu({
       e.preventDefault()
       back()
     } else if (e.key === 'Tab') {
-      const done = completeTeamToken(text, chips, teams)
+      const done = completeProjectToken(text, chips, projects)
       if (done) {
         e.preventDefault()
         setChips(done.chips)
@@ -534,7 +534,7 @@ export function CommandMenu({
     rowActions: !page && hasRowActions(highlighted),
     removable: removable && text === '',
   })
-  const contextName = view.context.team?.name ?? view.context.chip ?? ''
+  const contextName = view.context.project?.name ?? view.context.chip ?? ''
 
   return (
     <CommandDialog
@@ -561,7 +561,7 @@ export function CommandMenu({
               ) : null}
               {chips.map((chip) => (
                 <ChipView
-                  key={chip.type === 'team' ? `team:${chip.slug}` : chip.kind}
+                  key={chip.type === 'project' ? `project:${chip.slug}` : chip.kind}
                   label={chipLabel(chip)}
                   remove={`Remove ${chipLabel(chip)} scope`}
                   onRemove={() => setChips((c) => c.filter((x) => !sameChip(x, chip)))}
@@ -682,9 +682,9 @@ namespace ChipView {
 }
 
 /** The query key of the build on screen, when the address is a build. */
-function buildKey(params: { workspace?: string; team?: string; number?: string }) {
-  return params.workspace && params.team && params.number
-    ? keys.build(params.workspace, params.team, Number(params.number))
+function buildKey(params: { workspace?: string; project?: string; number?: string }) {
+  return params.workspace && params.project && params.number
+    ? keys.build(params.workspace, params.project, Number(params.number))
     : (['no-build'] as const)
 }
 
@@ -712,7 +712,7 @@ export namespace CommandMenu {
     workspace: string | undefined
     /** Whether the person may change the workspace's settings; false sends Settings to Members. */
     canManage?: boolean | undefined
-    teams: readonly Sidebar.Team[] | undefined
+    projects: readonly Sidebar.Project[] | undefined
     views: readonly View.Item[] | undefined
     /** The workspaces to switch between. */
     workspaces?: readonly WorkspaceRef[]

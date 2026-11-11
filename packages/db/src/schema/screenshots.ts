@@ -17,7 +17,7 @@ import { user } from './auth.ts'
 import { builds } from './builds.ts'
 import { DIFF_JOB_STATUSES, DIFF_STATUSES, type DiffJobStatus, type DiffStatus } from './enums.ts'
 import { files } from './files.ts'
-import { teams } from './teams.ts'
+import { projects } from './projects.ts'
 
 /** A build's screenshots, and the comparison of each against the baseline. */
 
@@ -70,7 +70,7 @@ export const screenshotDiffs = pgTable(
     /** Why a diff `failed` (e.g. not a PNG). */
     errorMessage: text('error_message'),
     /**
-     * Pixels that differed inside the team's ignore regions, which the mask hid (Insights shows
+     * Pixels that differed inside the project's ignore regions, which the mask hid (Insights shows
      * how many diffs the regions kept unchanged). Counted from the deploy that added the column.
      */
     ignoredChangedPixels: integer('ignored_changed_pixels').notNull().default(0),
@@ -94,16 +94,16 @@ export const screenshotDiffs = pgTable(
 )
 
 /**
- * A rectangle to ignore when comparing the screenshots with this name in a team: something
+ * A rectangle to ignore when comparing the screenshots with this name in a project: something
  * that legitimately differs every run (a clock, an ad, a random avatar).
  */
 export const ignoreRegions = pgTable(
   'ignore_regions',
   {
     id: id(),
-    teamId: uuid('team_id')
+    projectId: uuid('project_id')
       .notNull()
-      .references(() => teams.id, { onDelete: 'cascade' }),
+      .references(() => projects.id, { onDelete: 'cascade' }),
     /** The screenshot name it applies to (exact match). */
     name: text('name').notNull(),
     x: integer('x').notNull(),
@@ -115,7 +115,7 @@ export const ignoreRegions = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('ignore_regions_team_idx').on(t.teamId, t.name),
+    index('ignore_regions_project_idx').on(t.projectId, t.name),
     check(
       'ignore_regions_size_check',
       sql`${t.width} > 0 and ${t.height} > 0 and ${t.x} >= 0 and ${t.y} >= 0`,

@@ -137,7 +137,7 @@
   width: 136px;
 }
 
-.teamLink {
+.projectLink {
   display: flex;
   flex: 1 1 200px;
   align-items: center;
@@ -147,7 +147,7 @@
   text-decoration: none;
 }
 
-.teamLink:hover {
+.projectLink:hover {
   text-decoration: underline;
 }
 

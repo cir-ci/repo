@@ -6,7 +6,7 @@ import {
   Avatar,
   COLOR_SCHEME_ATTRIBUTE,
   peoplePalette,
-  teamPalette,
+  projectPalette,
   workspacePalette,
 } from '#src/index.ts'
 
@@ -99,9 +99,9 @@ describe('Avatar, type user', () => {
   })
 })
 
-describe('Avatar, type team', () => {
-  it('is an image named by the team, drawing a marble', async () => {
-    await render(<Avatar type="team" slug="web" name="Storefront" color="plum" icon={null} />)
+describe('Avatar, type project', () => {
+  it('is an image named by the project, drawing a marble', async () => {
+    await render(<Avatar type="project" slug="web" name="Storefront" color="plum" icon={null} />)
     const el = page.getByRole('img', { name: 'Storefront' }).element()
     expect(el.querySelector('svg')?.getAttribute('data-avatar')).toBe('marble')
     expect(el.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
@@ -112,9 +112,9 @@ describe('Avatar, type team', () => {
   it('draws the same marble for the same slug, whatever the name, and another for another slug', async () => {
     const { container } = await render(
       <>
-        <Avatar type="team" slug="web" name="Web" color="slate" icon={null} />
-        <Avatar type="team" slug="web" name="Website" color="slate" icon={null} />
-        <Avatar type="team" slug="mobile" name="Web" color="slate" icon={null} />
+        <Avatar type="project" slug="web" name="Web" color="slate" icon={null} />
+        <Avatar type="project" slug="web" name="Website" color="slate" icon={null} />
+        <Avatar type="project" slug="mobile" name="Web" color="slate" icon={null} />
       </>,
     )
     const [a, b, c] = drawings(container)
@@ -122,11 +122,11 @@ describe('Avatar, type team', () => {
     expect(a).not.toBe(c)
   })
 
-  it('uses shades of the team colour, so another colour looks different', async () => {
+  it('uses shades of the project colour, so another colour looks different', async () => {
     const { container } = await render(
       <>
-        <Avatar type="team" slug="web" name="Web" color="slate" icon={null} />
-        <Avatar type="team" slug="web" name="Web" color="plum" icon={null} />
+        <Avatar type="project" slug="web" name="Web" color="slate" icon={null} />
+        <Avatar type="project" slug="web" name="Web" color="plum" icon={null} />
       </>,
     )
     const [a, b] = drawings(container)
@@ -136,12 +136,12 @@ describe('Avatar, type team', () => {
   it('draws from the shades of its colour in the scheme pinned around it', async () => {
     const { container } = await render(
       <div {...{ [COLOR_SCHEME_ATTRIBUTE]: 'light' }}>
-        <Avatar type="team" slug="web" name="Web" color="moss" icon={null} />
+        <Avatar type="project" slug="web" name="Web" color="moss" icon={null} />
       </div>,
     )
     const svg = container.querySelector('svg')
     if (!svg) throw new Error('the marble should render')
-    const shades = teamPalette('moss', 'light')
+    const shades = projectPalette('moss', 'light')
     await expect.poll(() => fills(svg).some((f) => shades.includes(f))).toBe(true)
   })
 
@@ -153,7 +153,7 @@ describe('Avatar, type team', () => {
     [40, '10px'],
   ] as const)('size %i has radius %s', async (size, radius) => {
     await render(
-      <Avatar type="team" slug="mobile" name="Mobile" color="olive" icon={null} size={size} />,
+      <Avatar type="project" slug="mobile" name="Mobile" color="olive" icon={null} size={size} />,
     )
     const el = page.getByRole('img').element()
     const style = getComputedStyle(el)
@@ -165,8 +165,8 @@ describe('Avatar, type team', () => {
   it('has no icon when it has none, and an unknown name draws none', async () => {
     const { container } = await render(
       <>
-        <Avatar type="team" slug="a" name="A" color="slate" icon={null} />
-        <Avatar type="team" slug="b" name="B" color="slate" icon="not-an-icon" />
+        <Avatar type="project" slug="a" name="A" color="slate" icon={null} />
+        <Avatar type="project" slug="b" name="B" color="slate" icon="not-an-icon" />
       </>,
     )
     expect(container.querySelectorAll('svg')).toHaveLength(2)
@@ -180,7 +180,7 @@ describe('Avatar, type team', () => {
     [40, '24'],
   ] as const)('shows a %i avatar icon at %s on the marble', async (size, iconSize) => {
     const { container } = await render(
-      <Avatar type="team" slug="mobile" name="Mobile" color="mauve" icon="rocket" size={size} />,
+      <Avatar type="project" slug="mobile" name="Mobile" color="mauve" icon="rocket" size={size} />,
     )
     // The box is there before the icon has loaded, so nothing shifts when it arrives.
     const box = container.querySelector('svg[data-avatar="marble"] ~ span')
@@ -197,7 +197,7 @@ describe('Avatar, type team', () => {
     'loads the %s icon on demand and draws it on the marble',
     async (icon) => {
       const { container } = await render(
-        <Avatar type="team" slug="x" name="X" color="graphite" icon={icon} />,
+        <Avatar type="project" slug="x" name="X" color="graphite" icon={icon} />,
       )
       await expect.poll(() => container.querySelectorAll('svg')).toHaveLength(2)
       expect(container.querySelector('svg:not([data-avatar])')?.getAttribute('class')).toContain(

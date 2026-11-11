@@ -80,7 +80,7 @@ export namespace Menu {
   }
 
   /**
-   * A row of icon-only items (a team's pages): each is a real menu item (arrow keys reach it, a
+   * A row of icon-only items (a project's pages): each is a real menu item (arrow keys reach it, a
    * pick closes the menu), named by its label, which also shows as a tooltip.
    */
   export interface IconRow {

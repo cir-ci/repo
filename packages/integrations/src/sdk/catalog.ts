@@ -21,7 +21,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
     kind: 'teams',
     group: 'chat',
     name: 'Microsoft Teams',
-    description: 'Review notices in a Teams channel per team.',
+    description: 'Review notices in a Teams channel per project.',
     status: 'planned',
   },
   {

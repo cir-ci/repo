@@ -26,9 +26,9 @@ import { trustedOriginsFor } from './plugins/sso/trusted-issuers.ts'
  * - **Accounts and sessions** for the dashboard: email + password, httpOnly session cookies.
  *   Self sign-up is off (PLAN §8: invite-only by default); accounts come from the admin CLI.
  * - **Workspaces** (better-auth's organization plugin): workspaces, members with owner/admin/member roles,
- *   invitations. Teams belong to a workspace.
+ *   invitations. Projects belong to a workspace.
  * - **CI tokens** (api-key plugin, config `ci`): keys owned by a workspace, prefixed `circi_`,
- *   stored hashed, with the team id in their metadata.
+ *   stored hashed, with the project id in their metadata.
  * - **Instance admins** (admin plugin): the operator role, and server-side user creation.
  *
  * This file only composes: plugins live in `plugins/`, the rules around sign-in in `hooks/`.

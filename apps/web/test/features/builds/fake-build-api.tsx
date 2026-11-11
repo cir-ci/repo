@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
 import { validateBuildSearch } from '#features/builds/search.ts'
-import { teamInfo } from '#test/support/fixtures.ts'
+import { projectInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 let nextId = 0
@@ -62,7 +62,7 @@ export function detail(
   ]
   const count = (s: string) => diffs.filter((d) => d.status === s).length
   const result: Build.Detail = {
-    team: teamInfo({ slug: 'web-app', name: 'web-app', workspaceName: 'Acme' }),
+    project: projectInfo({ slug: 'web-app', name: 'web-app', workspaceName: 'Acme' }),
     build: {
       id: 'b7',
       number: 7,
@@ -120,13 +120,13 @@ export interface FakeApi {
   comments: Comment.Item[]
   /** `GET …/activity`. */
   activity: Activity.Event[]
-  /** `GET …/issues`: the issues filed from this build and the trackers its team has. */
+  /** `GET …/issues`: the issues filed from this build and the trackers its project has. */
   issues: Issue.List
   /** The bodies of the comment POSTs, in order. */
   commentPosts: Comment.Create[]
   /** The bodies of the review-request POSTs, in order. */
   requests: unknown[]
-  /** The team's members: `GET …/members` answers with these. */
+  /** The project's members: `GET …/members` answers with these. */
   members: { id: string; userId: string; user: { name: string; email: string } }[]
   /** `GET …/settings`: owners and admins can manage ignore regions, members can't. */
   canManage: boolean
@@ -183,7 +183,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
-      if (url.pathname === '/api/teams/acme/web-app/builds/7/review' && method === 'POST') {
+      if (url.pathname === '/api/projects/acme/web-app/builds/7/review' && method === 'POST') {
         if (api.reviewError) return json({ error: api.reviewError }, 500)
         const body = typeof init?.body === 'string' ? init.body : ''
         api.reviews.push(body)
@@ -192,7 +192,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.build = { ...api.build, build: { ...api.build.build, reviewStatus: state } }
         return json({ build: { reviewStatus: state }, undo })
       }
-      const root = '/api/teams/acme/web-app/builds/7'
+      const root = '/api/projects/acme/web-app/builds/7'
       if (url.pathname === `${root}/snapshots/review` && method === 'POST') {
         if (api.reviewError) return json({ error: api.reviewError }, 500)
         const body = typeof init?.body === 'string' ? init.body : ''
@@ -211,7 +211,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.build = { ...api.build, diffs, build: { ...api.build.build, reviewStatus } }
         return json({ build: { reviewStatus }, undo })
       }
-      const undoRoute = /^\/api\/teams\/acme\/web-app\/undo\/([^/]+)$/.exec(url.pathname)
+      const undoRoute = /^\/api\/projects\/acme\/web-app\/undo\/([^/]+)$/.exec(url.pathname)
       if (undoRoute && method === 'POST') {
         const id = undoRoute[1] ?? ''
         api.undos.push(id)
@@ -251,7 +251,10 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
       if (url.pathname === `${root}/comments`) return json({ comments: api.comments })
       if (url.pathname === `${root}/activity`) return json({ events: api.activity })
       if (url.pathname === `${root}/issues`) return json(api.issues)
-      if (url.pathname === '/api/teams/acme/web-app/builds/request-review' && method === 'POST') {
+      if (
+        url.pathname === '/api/projects/acme/web-app/builds/request-review' &&
+        method === 'POST'
+      ) {
         const asked = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.requests.push(asked)
         return json({
@@ -266,7 +269,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           undo: { id: 'undo-request', expiresAt: '2099-01-01T00:00:00.000Z' },
         })
       }
-      if (url.pathname === '/api/teams/acme/web-app/undo/undo-request' && method === 'POST') {
+      if (url.pathname === '/api/projects/acme/web-app/undo/undo-request' && method === 'POST') {
         api.undos.push('undo-request')
         return json({ undone: true })
       }
@@ -284,8 +287,8 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           members: api.members,
           invitations: [],
         })
-      const team = '/api/teams/acme/web-app'
-      if (url.pathname === `${team}/members`)
+      const project = '/api/projects/acme/web-app'
+      if (url.pathname === `${project}/members`)
         return json({
           members: api.members.map((m) => ({
             id: m.userId,
@@ -297,8 +300,8 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           })),
           canManage: false,
         })
-      if (url.pathname === `${team}/settings`) return json({ canManage: api.canManage })
-      if (url.pathname === `${team}/ignore-regions` && method === 'POST') {
+      if (url.pathname === `${project}/settings`) return json({ canManage: api.canManage })
+      if (url.pathname === `${project}/ignore-regions` && method === 'POST') {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.ignorePosts.push(body)
         const item = {
@@ -310,7 +313,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.ignoreRegions.push(item)
         return json(item, 201)
       }
-      const ignorePatch = new RegExp(`^${team}/ignore-regions/([^/]+)$`).exec(url.pathname)
+      const ignorePatch = new RegExp(`^${project}/ignore-regions/([^/]+)$`).exec(url.pathname)
       if (ignorePatch && method === 'PATCH') {
         if (api.regionError) return json({ error: api.regionError }, 400)
         const id = ignorePatch[1] ?? ''
@@ -319,7 +322,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.ignoreRegions = api.ignoreRegions.map((r) => (r.id === id ? { ...r, ...body } : r))
         return after(api.regionDelayMs, json(api.ignoreRegions.find((r) => r.id === id)))
       }
-      if (url.pathname === `${team}/ignore-regions`) {
+      if (url.pathname === `${project}/ignore-regions`) {
         const name = url.searchParams.get('name')
         return json({
           regions: api.ignoreRegions.filter((r) => name === null || r.name === name),
@@ -327,7 +330,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         })
       }
       if (url.pathname === root) return json(api.build)
-      if (url.pathname === '/api/teams/acme/web-app/flaky')
+      if (url.pathname === '/api/projects/acme/web-app/flaky')
         return json({ builds: 10, flaky: api.flaky })
       return json({ error: 'not found' }, 404)
     }),
@@ -339,7 +342,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
 /** Renders the real build page at its route, with the theme, announcer, query client and router. */
 export async function renderBuild(url = '/acme/web-app/builds/7') {
   const { router } = await renderPage(<BuildPage />, {
-    route: '$workspace/$team/builds/$number',
+    route: '$workspace/$project/builds/$number',
     url,
     announcer: true,
     validateSearch: validateBuildSearch,

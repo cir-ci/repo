@@ -5,7 +5,7 @@ import { BaselinePage } from '#features/baselines/BaselinePage.tsx'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const API = '/api/teams/acme/web'
+const API = '/api/projects/acme/web'
 const NAME = 'checkout/payment-form'
 const NOW = new Date(Date.now() - 3_600_000).toISOString()
 const ID1 = '11111111-1111-4111-8111-111111111111'
@@ -47,7 +47,7 @@ function api(canManage: boolean, extra: Record<string, ReplyHandler> = {}, name 
   return fakeApi({
     [`GET ${API}/baselines`]: {
       body: {
-        team: { slug: 'web', name: 'Web App', defaultBranch: 'main' },
+        project: { slug: 'web', name: 'Web App', defaultBranch: 'main' },
         baselines: [baseline(name)],
       },
     },
@@ -116,10 +116,10 @@ function api(canManage: boolean, extra: Record<string, ReplyHandler> = {}, name 
 
 const show = (name = NAME) =>
   renderPage(<BaselinePage />, {
-    route: '/$workspace/$team/baselines/$',
+    route: '/$workspace/$project/baselines/$',
     url: `/acme/web/baselines/${name}`,
     announcer: true,
-    otherRoutes: ['/$workspace/$team/baselines', '/$workspace/$team/builds/$number'],
+    otherRoutes: ['/$workspace/$project/baselines', '/$workspace/$project/builds/$number'],
   })
 
 const trigger = () => page.getByRole('button', { name: `Enlarge ${NAME}` })
@@ -156,7 +156,7 @@ describe('BaselinePage', () => {
     await expect
       .element(
         page.getByText(
-          "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the team's limit is 2, and one disagreement is enough.",
+          "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the project's limit is 2, and one disagreement is enough.",
         ),
       )
       .toBeVisible()
@@ -356,7 +356,7 @@ describe('BaselinePage', () => {
   it('says so when no approved screenshot has the name', async () => {
     api(false, {
       [`GET ${API}/baselines`]: {
-        body: { team: { slug: 'web', name: 'Web App', defaultBranch: 'main' }, baselines: [] },
+        body: { project: { slug: 'web', name: 'Web App', defaultBranch: 'main' }, baselines: [] },
       },
     })
     await show()

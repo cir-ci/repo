@@ -1,6 +1,6 @@
 import {
-  getTeamById,
-  getTeamTokenInfo,
+  getProjectById,
+  getProjectTokenInfo,
   getWorkspaceBySlug,
   listUserWorkspaceIds,
 } from '@circi/db/queries'
@@ -14,11 +14,11 @@ import {
   type Auth,
   createAuth,
   createWorkspace,
-  createTeamWithToken,
+  createProjectWithToken,
   createUser,
-  rotateTeamToken,
+  rotateProjectToken,
   updateWorkspace,
-  verifyTeamToken,
+  verifyProjectToken,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -94,8 +94,8 @@ describe('accounts and workspaces', () => {
   })
 })
 
-describe('team members', () => {
-  it('starts a team with its creator and the members named by ID or email', async () => {
+describe('project members', () => {
+  it('starts a project with its creator and the members named by ID or email', async () => {
     const { owner, slug } = await workspaceWithOwner()
     const ann = await createUser(auth, {
       email: 'ann@example.com',
@@ -109,7 +109,7 @@ describe('team members', () => {
     })
     await addMember(auth, t.db, { workspaceSlug: slug, email: ann.email, role: 'member' })
     await addMember(auth, t.db, { workspaceSlug: slug, email: bob.email, role: 'member' })
-    const { team } = await createTeamWithToken(auth, t.db, {
+    const { project } = await createProjectWithToken(auth, t.db, {
       workspaceSlug: slug,
       name: 'Docs',
       createdBy: owner.id,
@@ -118,16 +118,22 @@ describe('team members', () => {
     })
     const rows = await t.db
       .select()
-      .from(schema.teamMembers)
-      .where(eq(schema.teamMembers.teamId, team.id))
+      .from(schema.projectMembers)
+      .where(eq(schema.projectMembers.projectId, project.id))
     expect(rows.map((r) => r.userId).toSorted()).toEqual([owner.id, ann.id, bob.id].toSorted())
   })
 
   it('starts empty when nobody is named (the admin CLI), and refuses someone outside the workspace', async () => {
     const { slug } = await workspaceWithOwner()
-    const { team } = await createTeamWithToken(auth, t.db, { workspaceSlug: slug, name: 'Empty' })
+    const { project } = await createProjectWithToken(auth, t.db, {
+      workspaceSlug: slug,
+      name: 'Empty',
+    })
     expect(
-      await t.db.select().from(schema.teamMembers).where(eq(schema.teamMembers.teamId, team.id)),
+      await t.db
+        .select()
+        .from(schema.projectMembers)
+        .where(eq(schema.projectMembers.projectId, project.id)),
     ).toEqual([])
     const stranger = await createUser(auth, {
       email: 'stranger@example.com',
@@ -135,7 +141,7 @@ describe('team members', () => {
       password: 'a-long-password-1',
     })
     await expect(
-      createTeamWithToken(auth, t.db, {
+      createProjectWithToken(auth, t.db, {
         workspaceSlug: slug,
         name: 'No',
         memberIds: [stranger.id],
@@ -145,47 +151,50 @@ describe('team members', () => {
 })
 
 describe('CI tokens (better-auth API keys owned by the workspace)', () => {
-  it('issues a circi_ token that resolves to its team', async () => {
+  it('issues a circi_ token that resolves to its project', async () => {
     const { slug } = await workspaceWithOwner()
-    const { team, token } = await createTeamWithToken(auth, t.db, {
+    const { project, token } = await createProjectWithToken(auth, t.db, {
       workspaceSlug: slug,
       name: 'Web app',
     })
     expect(token).toMatch(/^circi_/)
-    expect(team.ciKeyId).toBeTruthy()
-    const ctx = await verifyTeamToken(auth, t.db, token)
-    expect(ctx).toMatchObject({ workspaceSlug: slug, team: { id: team.id, slug: 'web-app' } })
+    expect(project.ciKeyId).toBeTruthy()
+    const ctx = await verifyProjectToken(auth, t.db, token)
+    expect(ctx).toMatchObject({ workspaceSlug: slug, project: { id: project.id, slug: 'web-app' } })
   })
 
   it('stores only a hash of the token', async () => {
     const { slug } = await workspaceWithOwner()
-    const { token } = await createTeamWithToken(auth, t.db, { workspaceSlug: slug, name: 'p' })
+    const { token } = await createProjectWithToken(auth, t.db, { workspaceSlug: slug, name: 'p' })
     const rows = await t.client.query('select key from apikey')
     expect(JSON.stringify(rows.rows)).not.toContain(token)
   })
 
   it('stops accepting the old token as soon as it is rotated', async () => {
     const { slug } = await workspaceWithOwner()
-    const first = await createTeamWithToken(auth, t.db, { workspaceSlug: slug, name: 'p' })
-    const second = await rotateTeamToken(auth, t.db, { workspaceSlug: slug, teamSlug: 'p' })
+    const first = await createProjectWithToken(auth, t.db, { workspaceSlug: slug, name: 'p' })
+    const second = await rotateProjectToken(auth, t.db, { workspaceSlug: slug, projectslug: 'p' })
     expect(second.token).not.toBe(first.token)
-    expect(await verifyTeamToken(auth, t.db, first.token)).toBeUndefined()
-    expect(await verifyTeamToken(auth, t.db, second.token)).toMatchObject({
-      team: { slug: 'p' },
+    expect(await verifyProjectToken(auth, t.db, first.token)).toBeUndefined()
+    expect(await verifyProjectToken(auth, t.db, second.token)).toMatchObject({
+      project: { slug: 'p' },
     })
   })
 
   it('rejects unknown and malformed tokens', async () => {
-    expect(await verifyTeamToken(auth, t.db, `circi_${'x'.repeat(64)}`)).toBeUndefined()
-    expect(await verifyTeamToken(auth, t.db, 'not-a-token')).toBeUndefined()
+    expect(await verifyProjectToken(auth, t.db, `circi_${'x'.repeat(64)}`)).toBeUndefined()
+    expect(await verifyProjectToken(auth, t.db, 'not-a-token')).toBeUndefined()
   })
 
   it('keeps working through a whole CI run (no per-key daily cap)', async () => {
     const { slug } = await workspaceWithOwner()
-    const { token } = await createTeamWithToken(auth, t.db, { workspaceSlug: slug, name: 'busy' })
+    const { token } = await createProjectWithToken(auth, t.db, {
+      workspaceSlug: slug,
+      name: 'busy',
+    })
     for (let i = 0; i < 30; i += 1) {
       // oxlint-disable-next-line no-await-in-loop -- sequential requests, like a CI run polling
-      expect(await verifyTeamToken(auth, t.db, token)).toBeDefined()
+      expect(await verifyProjectToken(auth, t.db, token)).toBeDefined()
     }
   })
 })
@@ -193,7 +202,7 @@ describe('CI tokens (better-auth API keys owned by the workspace)', () => {
 describe('CI token facts', () => {
   it('stores only a hash, keeps a short hint, and records who issued it and when it was used', async () => {
     const { owner, slug } = await workspaceWithOwner()
-    const first = await createTeamWithToken(auth, t.db, {
+    const first = await createProjectWithToken(auth, t.db, {
       workspaceSlug: slug,
       name: 'tok',
       createdBy: owner.id,
@@ -201,20 +210,20 @@ describe('CI token facts', () => {
     const [row] = await t.db
       .select()
       .from(schema.apikey)
-      .where(eq(schema.apikey.id, first.team.ciKeyId ?? ''))
+      .where(eq(schema.apikey.id, first.project.ciKeyId ?? ''))
     // Nothing in the key row is the token, and the row's key column is its hash.
     expect(JSON.stringify(row)).not.toContain(first.token)
     expect(row?.key).not.toBe(first.token)
     expect(row?.key).toMatch(/^[A-Za-z0-9_+/=-]{20,}$/)
 
-    const fresh = await getTeamTokenInfo(t.db, first.team.id)
+    const fresh = await getProjectTokenInfo(t.db, first.project.id)
     expect(fresh.hint).toBe(`${first.token.slice(0, 12)}…`)
     expect(fresh.createdBy).toEqual({ id: owner.id, name: owner.name })
     expect(fresh.createdAt).toBeInstanceOf(Date)
     expect(fresh.lastUsedAt).toBeNull()
 
-    await verifyTeamToken(auth, t.db, first.token)
-    expect((await getTeamTokenInfo(t.db, first.team.id)).lastUsedAt).toBeInstanceOf(Date)
+    await verifyProjectToken(auth, t.db, first.token)
+    expect((await getProjectTokenInfo(t.db, first.project.id)).lastUsedAt).toBeInstanceOf(Date)
 
     // Rotating makes a different token, forgets the use, and names the person who rotated.
     const dev = await createUser(auth, {
@@ -222,18 +231,18 @@ describe('CI token facts', () => {
       name: 'Rotator',
       password: 'a-long-password-3',
     })
-    const next = await rotateTeamToken(auth, t.db, {
+    const next = await rotateProjectToken(auth, t.db, {
       workspaceSlug: slug,
-      teamSlug: 'tok',
+      projectslug: 'tok',
       rotatedBy: dev.id,
     })
     expect(next.token).not.toBe(first.token)
-    const after = await getTeamTokenInfo(t.db, first.team.id)
+    const after = await getProjectTokenInfo(t.db, first.project.id)
     expect(after.hint).toBe(`${next.token.slice(0, 12)}…`)
     expect(after.createdBy).toEqual({ id: dev.id, name: 'Rotator' })
     expect(after.lastUsedAt).toBeNull()
-    expect(await verifyTeamToken(auth, t.db, first.token)).toBeUndefined()
-    expect((await getTeamById(t.db, first.team.id))?.ciKeyCreatedBy).toBe(dev.id)
+    expect(await verifyProjectToken(auth, t.db, first.token)).toBeUndefined()
+    expect((await getProjectById(t.db, first.project.id))?.ciKeyCreatedBy).toBe(dev.id)
   })
 })
 

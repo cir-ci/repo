@@ -1,26 +1,26 @@
 import type { BuildOrder } from '@circi/core'
 import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 
-import { builds, member, teams, user, workspace } from '#schema/index.ts'
+import { builds, member, projects, user, workspace } from '#schema/index.ts'
 import { containsPattern as contains } from '#shared/like.ts'
+import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
-import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 
 import { buildAfterCursor, buildOrderBy, workspaceTie } from './builds-order.ts'
-import { buildFilterConditions, hydrateBuildList, type listBuildsForTeam } from './builds.ts'
+import { buildFilterConditions, hydrateBuildList, type listBuildsForProject } from './builds.ts'
 
 /**
- * The builds of every team of a workspace in one list (a saved view with no team), and the
- * suggestions behind the author and reviewer filter chips. "Teams the user can see" are the
- * workspace's teams they belong to (every team, for an owner or admin), if the workspace itself
+ * The builds of every project of a workspace in one list (a saved view with no project), and the
+ * suggestions behind the author and reviewer filter chips. "Projects the user can see" are the
+ * workspace's projects they belong to (every project, for an owner or admin), if the workspace itself
  * is theirs (and their session method is accepted).
  */
 
 export namespace listBuildsForWorkspace {
-  export interface Item extends listBuildsForTeam.Item {
-    team: { slug: string; name: string }
+  export interface Item extends listBuildsForProject.Item {
+    project: { slug: string; name: string }
   }
 
   export interface Result {
@@ -46,8 +46,8 @@ export async function visibleWorkspace(
 }
 
 /**
- * A page of the workspace's builds in `order`, with the same filters as a team's list. Build
- * numbers belong to a team, so the page cursor is a build id: `before` returns the builds that
+ * A page of the workspace's builds in `order`, with the same filters as a project's list. Build
+ * numbers belong to a project, so the page cursor is a build id: `before` returns the builds that
  * come after that one in the order; a cursor that names no build of the workspace is a
  * `NotFoundError`.
  */
@@ -59,7 +59,7 @@ export async function listBuildsForWorkspace(
     method?: SessionMethod | undefined
     limit: number
     before?: string
-    filters?: listBuildsForTeam.Filters
+    filters?: listBuildsForProject.Filters
     /** Default newest first. */
     order?: BuildOrder
   },
@@ -71,12 +71,12 @@ export async function listBuildsForWorkspace(
     const [row] = await db
       .select({ id: builds.id })
       .from(builds)
-      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .innerJoin(projects, eq(projects.id, builds.projectId))
       .where(
         and(
           eq(builds.id, input.before),
-          eq(teams.workspaceId, ws.id),
-          teamVisibleTo(input.userId, teams),
+          eq(projects.workspaceId, ws.id),
+          projectVisibleTo(input.userId, projects),
         ),
       )
     assertFound(row, 'Page not found')
@@ -85,15 +85,15 @@ export async function listBuildsForWorkspace(
     .select({
       build: builds,
       member: { name: user.name, image: user.image },
-      team: { slug: teams.slug, name: teams.name },
+      project: { slug: projects.slug, name: projects.name },
     })
     .from(builds)
-    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .innerJoin(projects, eq(projects.id, builds.projectId))
     .leftJoin(user, eq(user.id, builds.authorUserId))
     .where(
       and(
-        eq(teams.workspaceId, ws.id),
-        teamVisibleTo(input.userId, teams),
+        eq(projects.workspaceId, ws.id),
+        projectVisibleTo(input.userId, projects),
         // Compared in the database, on the cursor row itself: a round trip through a JS Date
         // would cut the timestamp to milliseconds and repeat or skip builds.
         input.before
@@ -105,11 +105,11 @@ export async function listBuildsForWorkspace(
     .orderBy(...buildOrderBy(order, workspaceTie))
     .limit(input.limit)
   const items = await hydrateBuildList(db, found)
-  const teamOf = new Map(found.map((f) => [f.build.id, f.team]))
+  const projectOf = new Map(found.map((f) => [f.build.id, f.project]))
   return {
     workspace: { slug: ws.slug, name: ws.name },
     builds: items.map((b) =>
-      Object.assign({}, b, { team: teamOf.get(b.id) ?? { slug: '', name: '' } }),
+      Object.assign({}, b, { project: projectOf.get(b.id) ?? { slug: '', name: '' } }),
     ),
   }
 }
@@ -164,11 +164,11 @@ export async function listBuildFilterSuggestions(
     const logins = await db
       .selectDistinct({ login: builds.authorLogin })
       .from(builds)
-      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .innerJoin(projects, eq(projects.id, builds.projectId))
       .where(
         and(
-          eq(teams.workspaceId, ws.id),
-          teamVisibleTo(input.userId, teams),
+          eq(projects.workspaceId, ws.id),
+          projectVisibleTo(input.userId, projects),
           isNull(builds.authorUserId),
           q ? ilike(builds.authorLogin, contains(q)) : undefined,
           isNotNull(builds.authorLogin),

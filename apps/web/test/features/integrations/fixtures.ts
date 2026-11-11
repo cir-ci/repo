@@ -18,7 +18,7 @@ export const item = (over: Partial<Integration.Item> & Pick<Integration.Item, 'k
     name: over.kind,
     needsAttention: false,
     attentionReason: null,
-    teamCount: 0,
+    projectCount: 0,
     createdAt: '2026-11-01T00:00:00.000Z',
     ...over,
   }) satisfies Integration.Item

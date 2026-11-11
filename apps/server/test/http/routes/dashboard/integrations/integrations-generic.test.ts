@@ -7,7 +7,7 @@ import { openSecret, signState } from '@circi/core/node'
 import { getIntegration, getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
 import {
   createIntegration,
-  listIntegrationTeams,
+  listIntegrationProjects,
   setIntegrationAttention,
 } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
@@ -216,15 +216,15 @@ async function installSlack(): Promise<string> {
   return (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')?.id ?? ''
 }
 
-describe('the mapping page, targets and team mapping', () => {
-  it('lists the integration with its definition and every team, for every member', async () => {
+describe('the mapping page, targets and project mapping', () => {
+  it('lists the integration with its definition and every project, for every member', async () => {
     const id = await installSlack()
     for (const [cookie, manage] of [
       [ownerCookie, true],
       [louCookie, false],
     ] as const) {
       // eslint-disable-next-line no-await-in-loop -- two viewers
-      const res = await call('GET', `${workspaceBase}/${id}/teams`, cookie)
+      const res = await call('GET', `${workspaceBase}/${id}/projects`, cookie)
       expect(res.statusCode).toBe(200)
       expect(res.json()).toMatchObject({
         canManage: manage,
@@ -236,11 +236,11 @@ describe('the mapping page, targets and team mapping', () => {
           credentials: [],
           mapping: { targetKind: 'select', fields: [{ kind: 'events', key: 'events' }] },
         },
-        teams: [{ slug: 'web', mapping: null }],
+        projects: [{ slug: 'web', mapping: null }],
       })
     }
-    expect((await call('GET', `${workspaceBase}/${id}/teams`, rivalCookie)).statusCode).toBe(404)
-    expect((await call('GET', `${workspaceBase}/${id}/teams`, '')).statusCode).toBe(401)
+    expect((await call('GET', `${workspaceBase}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${workspaceBase}/${id}/projects`, '')).statusCode).toBe(401)
   })
 
   it('lists the targets for admins only', async () => {
@@ -255,9 +255,9 @@ describe('the mapping page, targets and team mapping', () => {
     ])
   })
 
-  it('maps a team to a channel with events, replaces it, and clears it', async () => {
+  it('maps a project to a channel with events, replaces it, and clears it', async () => {
     const id = await installSlack()
-    const url = `${workspaceBase}/${id}/teams/web`
+    const url = `${workspaceBase}/${id}/projects/web`
     const body = {
       ref: 'C02WEB1',
       name: 'web-reviews',
@@ -274,25 +274,25 @@ describe('the mapping page, targets and team mapping', () => {
       (await call('PUT', url, ownerCookie, { ...body, extra: { other: true } })).statusCode,
     ).toBe(400)
     expect(
-      (await call('PUT', `${workspaceBase}/${id}/teams/ghost`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${workspaceBase}/${id}/projects/ghost`, ownerCookie, body)).statusCode,
     ).toBe(404)
     expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
-    expect(await listIntegrationTeams(t.db, id)).toMatchObject([
+    expect(await listIntegrationProjects(t.db, id)).toMatchObject([
       {
         slug: 'web',
         externalRef: 'C02WEB1',
         extra: { name: 'web-reviews', events: ['review.requested', 'build.rejected'] },
       },
     ])
-    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
-    expect(page.teams[0].mapping).toEqual({
+    const page = (await call('GET', `${workspaceBase}/${id}/projects`, louCookie)).json()
+    expect(page.projects[0].mapping).toEqual({
       ref: 'C02WEB1',
       name: 'web-reviews',
       extra: { name: 'web-reviews', events: ['review.requested', 'build.rejected'] },
     })
     // Without settings the definition's defaults apply; the channel is replaced.
     await call('PUT', url, ownerCookie, { ref: 'G01DSGN', name: 'design' })
-    expect(await listIntegrationTeams(t.db, id)).toMatchObject([
+    expect(await listIntegrationProjects(t.db, id)).toMatchObject([
       {
         externalRef: 'G01DSGN',
         extra: { events: ['review.requested', 'review.overdue', 'build.rejected'] },
@@ -300,7 +300,7 @@ describe('the mapping page, targets and team mapping', () => {
     ])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect(await listIntegrationTeams(t.db, id)).toEqual([])
+    expect(await listIntegrationProjects(t.db, id)).toEqual([])
   })
 
   it('flags the workspace when Slack says the token is gone', async () => {
@@ -324,10 +324,10 @@ describe('the mapping page, targets and team mapping', () => {
     expect(
       (await call('GET', `${workspaceBase}/${other.id}/targets`, ownerCookie)).statusCode,
     ).toBe(404)
-    expect((await call('GET', `${workspaceBase}/${other.id}/teams`, ownerCookie)).statusCode).toBe(
-      404,
-    )
-    const put = await call('PUT', `${workspaceBase}/${other.id}/teams/web`, ownerCookie, {
+    expect(
+      (await call('GET', `${workspaceBase}/${other.id}/projects`, ownerCookie)).statusCode,
+    ).toBe(404)
+    const put = await call('PUT', `${workspaceBase}/${other.id}/projects/web`, ownerCookie, {
       ref: 'C02WEB1',
       name: 'x',
     })
@@ -342,7 +342,7 @@ describe('the mapping page, targets and team mapping', () => {
       externalId: 'g1',
     })
     expect(
-      (await call('GET', `${workspaceBase}/${unknown.id}/teams`, ownerCookie)).statusCode,
+      (await call('GET', `${workspaceBase}/${unknown.id}/projects`, ownerCookie)).statusCode,
     ).toBe(404)
   })
 })

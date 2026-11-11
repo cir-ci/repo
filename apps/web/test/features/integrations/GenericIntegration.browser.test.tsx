@@ -22,7 +22,7 @@ const slackDefinition = entry({
   group: 'chat',
   oauth: true,
   mapping: {
-    description: 'Choose a channel for each team.',
+    description: 'Choose a channel for each project.',
     targetLabel: 'Channel',
     targetKind: 'select',
     fields: [
@@ -58,7 +58,7 @@ const pageData = (
       ...integration,
     },
     definition: slackDefinition,
-    teams: [
+    projects: [
       {
         slug: 'web',
         name: 'Web',
@@ -91,13 +91,13 @@ const show = (url = '/workspaces/acme/settings/integrations/slack/w1') =>
   })
 
 describe('GenericIntegrationPage', () => {
-  it('maps a team to a target with the chosen events, and removes the mapping', async () => {
+  it('maps a project to a target with the chosen events, and removes the mapping', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      [`GET ${BASE}/w1/teams`]: pageData(),
+      [`GET ${BASE}/w1/projects`]: pageData(),
       [`GET ${BASE}/w1/targets`]: TARGETS,
-      [`PUT ${BASE}/w1/teams/docs`]: { status: 204 },
-      [`DELETE ${BASE}/w1/teams/web`]: { status: 204 },
+      [`PUT ${BASE}/w1/projects/docs`]: { status: 204 },
+      [`DELETE ${BASE}/w1/projects/web`]: { status: 204 },
     })
     await show()
     const web = page.getByRole('form', { name: 'Web' })
@@ -142,11 +142,11 @@ describe('GenericIntegrationPage', () => {
       },
     })
     const fake = fakeApi({
-      [`GET ${BASE}/t1/teams`]: pageData(
-        { definition, teams: [{ slug: 'web', name: 'Web', mapping: null }] },
+      [`GET ${BASE}/t1/projects`]: pageData(
+        { definition, projects: [{ slug: 'web', name: 'Web', mapping: null }] },
         { id: 't1', kind: 'tokenchat', name: 'Chat' },
       ),
-      [`PUT ${BASE}/t1/teams/web`]: { status: 204 },
+      [`PUT ${BASE}/t1/projects/web`]: { status: 204 },
     })
     await show('/workspaces/acme/settings/integrations/tokenchat/t1')
     const web = page.getByRole('form', { name: 'Web' })
@@ -161,7 +161,7 @@ describe('GenericIntegrationPage', () => {
 
   it('sends members to Members instead of showing the mapping, without asking for targets', async () => {
     await page.viewport(1000, 900)
-    const fake = fakeApi({ [`GET ${BASE}/w1/teams`]: pageData({ canManage: false }) })
+    const fake = fakeApi({ [`GET ${BASE}/w1/projects`]: pageData({ canManage: false }) })
     const { router } = await show()
     await expect
       .poll(() => router.state.location.pathname)
@@ -174,7 +174,7 @@ describe('GenericIntegrationPage', () => {
     await page.viewport(1000, 900)
     const assign = vi.spyOn(navigation, 'assign').mockImplementation(() => {})
     fakeApi({
-      [`GET ${BASE}/w1/teams`]: pageData(
+      [`GET ${BASE}/w1/projects`]: pageData(
         {},
         { needsAttention: true, attentionReason: 'Slack rejected the token (token_revoked)' },
       ),
@@ -199,7 +199,7 @@ describe('GenericIntegrationPage', () => {
   it('removes the integration after a confirmation', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      [`GET ${BASE}/w1/teams`]: pageData(),
+      [`GET ${BASE}/w1/projects`]: pageData(),
       [`GET ${BASE}/w1/targets`]: TARGETS,
       [`DELETE ${BASE}/w1`]: { status: 204 },
     })
@@ -217,7 +217,7 @@ describe('GenericIntegrationPage', () => {
 
   it('has the breadcrumb as its h1', async () => {
     await page.viewport(1000, 900)
-    fakeApi({ [`GET ${BASE}/w1/teams`]: pageData(), [`GET ${BASE}/w1/targets`]: TARGETS })
+    fakeApi({ [`GET ${BASE}/w1/projects`]: pageData(), [`GET ${BASE}/w1/targets`]: TARGETS })
     await show()
     await expect.element(page.getByRole('heading', { level: 1, name: 'Slack' })).toBeVisible()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
@@ -227,7 +227,7 @@ describe('GenericIntegrationPage', () => {
 
   it('reports how the install ended', async () => {
     await page.viewport(1000, 900)
-    fakeApi({ [`GET ${BASE}/w1/teams`]: pageData(), [`GET ${BASE}/w1/targets`]: TARGETS })
+    fakeApi({ [`GET ${BASE}/w1/projects`]: pageData(), [`GET ${BASE}/w1/targets`]: TARGETS })
     await show('/workspaces/acme/settings/integrations/slack/w1?connect=connected')
     await expect.element(page.getByText(/Slack is connected/)).toBeVisible()
   })
@@ -302,7 +302,7 @@ const figmaDefinition = entry({
   group: 'design',
   credentials: [{ name: 'token', label: 'Access token', secret: true, optional: false }],
   mapping: {
-    description: 'Choose the Figma file each team is designed in.',
+    description: 'Choose the Figma file each project is designed in.',
     targetLabel: 'File',
     targetKind: 'text',
     targetPlaceholder: 'https://www.figma.com/design/…',
@@ -333,7 +333,7 @@ const figmaPage = (canManage = true) => ({
       attentionReason: null,
     },
     definition: figmaDefinition,
-    teams: [
+    projects: [
       {
         slug: 'web',
         name: 'Web',
@@ -372,13 +372,13 @@ const frameLinks = {
 const showFigma = () => show('/workspaces/acme/settings/integrations/figma/f1')
 
 describe('GenericIntegrationPage links (Figma frames)', () => {
-  it('maps a team to a file typed as an address, and shows the links with their source', async () => {
+  it('maps a project to a file typed as an address, and shows the links with their source', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      [`GET ${BASE}/f1/teams`]: figmaPage(),
-      [`GET ${BASE}/f1/teams/web/links`]: frameLinks,
-      [`GET ${BASE}/f1/teams/docs/links`]: { body: { links: [] } },
-      [`PUT ${BASE}/f1/teams/docs`]: { status: 204 },
+      [`GET ${BASE}/f1/projects`]: figmaPage(),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/projects/docs/links`]: { body: { links: [] } },
+      [`PUT ${BASE}/f1/projects/docs`]: { status: 204 },
     })
     await showFigma()
     await expect
@@ -405,9 +405,9 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
   it('sorts the links by a column and goes back to the order they came in', async () => {
     await page.viewport(1000, 900)
     fakeApi({
-      [`GET ${BASE}/f1/teams`]: figmaPage(),
-      [`GET ${BASE}/f1/teams/web/links`]: frameLinks,
-      [`GET ${BASE}/f1/teams/docs/links`]: { body: { links: [] } },
+      [`GET ${BASE}/f1/projects`]: figmaPage(),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/projects/docs/links`]: { body: { links: [] } },
     })
     await showFigma()
     const table = page.getByRole('table', { name: 'Web frame links' })
@@ -432,12 +432,12 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
   it("adds a link from the definition's fields, removes one, and links automatically", async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      [`GET ${BASE}/f1/teams`]: figmaPage(),
-      [`GET ${BASE}/f1/teams/web/links`]: frameLinks,
-      [`GET ${BASE}/f1/teams/docs/links`]: { body: { links: [] } },
-      [`POST ${BASE}/f1/teams/web/links`]: { status: 201, body: frameLinks.body.links[0] },
-      [`DELETE ${BASE}/f1/teams/web/links/l2`]: { status: 204 },
-      [`POST ${BASE}/f1/teams/web/links/auto`]: { body: { created: 2, unlinked: 1, frames: 5 } },
+      [`GET ${BASE}/f1/projects`]: figmaPage(),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/projects/docs/links`]: { body: { links: [] } },
+      [`POST ${BASE}/f1/projects/web/links`]: { status: 201, body: frameLinks.body.links[0] },
+      [`DELETE ${BASE}/f1/projects/web/links/l2`]: { status: 204 },
+      [`POST ${BASE}/f1/projects/web/links/auto`]: { body: { created: 2, unlinked: 1, frames: 5 } },
     })
     await showFigma()
     const add = page.getByRole('form', { name: 'Add a link to Web' })
@@ -472,7 +472,7 @@ const gitDefinition = entry({
   kind: 'gitlab',
   name: 'GitLab',
   mapping: {
-    description: 'Choose the GitLab project each CirCI team reports to.',
+    description: 'Choose the GitLab project each CirCI project reports to.',
     targetLabel: 'GitLab project',
     targetKind: 'repository',
     targetPlaceholder: 'acme/web',
@@ -493,7 +493,7 @@ const gitPage = (over: Record<string, unknown> = {}) => ({
     },
     definition: gitDefinition,
     webhook: { url: 'https://circi.test/webhooks/gitlab', secret: 'shh-secret' },
-    teams: [
+    projects: [
       { slug: 'web', name: 'Web', mapping: { ref: 'acme/web', name: 'acme/web', extra: {} } },
       { slug: 'docs', name: 'Docs', mapping: null },
     ],
@@ -505,25 +505,25 @@ describe('GenericIntegrationPage for a git host', () => {
   it('shows the webhook address and secret, and maps a repository typed or suggested', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      [`GET ${BASE}/g1/teams`]: gitPage(),
+      [`GET ${BASE}/g1/projects`]: gitPage(),
       [`GET ${BASE}/g1/targets`]: {
         body: { targets: [{ id: 'acme/docs', name: 'acme/docs' }] },
       },
-      [`PUT ${BASE}/g1/teams/docs`]: { status: 204 },
-      [`DELETE ${BASE}/g1/teams/web`]: { status: 204 },
+      [`PUT ${BASE}/g1/projects/docs`]: { status: 204 },
+      [`DELETE ${BASE}/g1/projects/web`]: { status: 204 },
     })
     await show('/workspaces/acme/settings/integrations/gitlab/g1')
     await expect.element(page.getByText('https://circi.test/webhooks/gitlab')).toBeVisible()
     await expect.element(page.getByText('shh-secret')).toBeVisible()
-    // Repository first, with its team; the host's own list adds the ones no team has yet.
+    // Repository first, with its project; the host's own list adds the ones no project has yet.
     await expect
-      .element(page.getByRole('combobox', { name: 'Team for acme/web' }))
+      .element(page.getByRole('combobox', { name: 'Project for acme/web' }))
       .toHaveTextContent('Web')
     await expect
-      .element(page.getByRole('combobox', { name: 'Team for acme/docs' }))
+      .element(page.getByRole('combobox', { name: 'Project for acme/docs' }))
       .toHaveTextContent('Not linked')
 
-    await page.getByRole('combobox', { name: 'Team for acme/docs' }).click()
+    await page.getByRole('combobox', { name: 'Project for acme/docs' }).click()
     await page.getByRole('option', { name: 'Docs' }).click()
     await expect.poll(() => fake.of('PUT')).toHaveLength(1)
     expect(fake.of('PUT')[0]?.body).toEqual({ ref: 'acme/docs', extra: {} })
@@ -533,8 +533,8 @@ describe('GenericIntegrationPage for a git host', () => {
     // machine). Wait for it to go before opening the other select.
     await expect.poll(() => page.getByRole('option').elements()).toHaveLength(0)
 
-    // "Not linked" lets the team go.
-    await page.getByRole('combobox', { name: 'Team for acme/web' }).click()
+    // "Not linked" lets the project go.
+    await page.getByRole('combobox', { name: 'Project for acme/web' }).click()
     await page.getByRole('option', { name: 'Not linked' }).click()
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
   })
@@ -542,7 +542,7 @@ describe('GenericIntegrationPage for a git host', () => {
   it('flags a repository the host no longer lists, and reinstalls', async () => {
     await page.viewport(1000, 900)
     fakeApi({
-      [`GET ${BASE}/g1/teams`]: gitPage(),
+      [`GET ${BASE}/g1/projects`]: gitPage(),
       [`GET ${BASE}/g1/targets`]: { body: { targets: [{ id: 'acme/docs', name: 'acme/docs' }] } },
     })
     await show('/workspaces/acme/settings/integrations/gitlab/g1')

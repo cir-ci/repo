@@ -26,16 +26,16 @@ import { dashboardSetupFinishRoutes } from './instance/setup-finish.ts'
 import { dashboardSetupRoutes } from './instance/setup.ts'
 import { dashboardInstanceWorkspaceRoutes } from './instance/workspaces.ts'
 import { dashboardIntegrationRoutes, dashboardIssueTrackerRoutes } from './integrations/index.ts'
+import { dashboardIgnoreRegionRoutes } from './projects/ignore-regions.ts'
+import { dashboardProjectMemberRoutes } from './projects/members.ts'
+import { dashboardProjectRoutes } from './projects/routes.ts'
+import { dashboardRuleRoutes } from './projects/rules.ts'
+import { dashboardSettingsRoutes } from './projects/settings.ts'
+import { dashboardSiteDomainRoutes } from './projects/site-domains.ts'
+import { dashboardSiteHandoffRoutes } from './projects/site-handoff.ts'
+import { dashboardProjectsitesRoutes } from './projects/sites.ts'
+import { dashboardTriageRoutes } from './projects/triage.ts'
 import { dashboardPushRoutes } from './push/push.ts'
-import { dashboardIgnoreRegionRoutes } from './teams/ignore-regions.ts'
-import { dashboardTeamMemberRoutes } from './teams/members.ts'
-import { dashboardTeamRoutes } from './teams/routes.ts'
-import { dashboardRuleRoutes } from './teams/rules.ts'
-import { dashboardSettingsRoutes } from './teams/settings.ts'
-import { dashboardSiteDomainRoutes } from './teams/site-domains.ts'
-import { dashboardSiteHandoffRoutes } from './teams/site-handoff.ts'
-import { dashboardTeamSitesRoutes } from './teams/sites.ts'
-import { dashboardTriageRoutes } from './teams/triage.ts'
 import { dashboardUndoRoutes } from './undo.ts'
 import { webAppRoutes } from './web-app.ts'
 import { dashboardWorkspaceAuthRoutes } from './workspaces/auth.ts'
@@ -95,8 +95,8 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
   api.addHook('preHandler', refuseBlockedProvider(deps.db))
-  await api.register(dashboardTeamRoutes, deps)
-  await api.register(dashboardTeamMemberRoutes, deps)
+  await api.register(dashboardProjectRoutes, deps)
+  await api.register(dashboardProjectMemberRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardWorkspaceRoutes, deps)
   await api.register(dashboardGithubImportRoutes, deps)
@@ -116,7 +116,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardIntegrationRoutes, deps)
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
-  await api.register(dashboardTeamSitesRoutes, deps)
+  await api.register(dashboardProjectsitesRoutes, deps)
   await api.register(dashboardSiteDomainRoutes, deps)
   await api.register(dashboardBulkReviewRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)

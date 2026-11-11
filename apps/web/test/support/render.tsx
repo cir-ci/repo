@@ -21,7 +21,7 @@ import { setSignedInUser } from './auth-client.ts'
 import { type FakeRequest, fakeApi, type ReplyHandler } from './fetch.ts'
 
 export interface RenderPageOptions {
-  /** The route's path pattern ("/$workspace/$team/sites"); "/" by default. */
+  /** The route's path pattern ("/$workspace/$project/sites"); "/" by default. */
   route?: string
   /** The address to open ("/acme/web/sites?x=1"); the route itself by default. */
   url?: string
@@ -33,7 +33,7 @@ export interface RenderPageOptions {
   user?: SessionUser | null
   /** Dashboard API answers keyed "METHOD /path", as `fakeApi` takes them (faked before render). */
   api?: Record<string, ReplyHandler>
-  /** Other route patterns that exist in the app ("/$workspace/$team/builds/$number"), so links to them resolve; they render nothing. */
+  /** Other route patterns that exist in the app ("/$workspace/$project/builds/$number"), so links to them resolve; they render nothing. */
   otherRoutes?: string[]
   /** The browser viewport ([width, height]) to render at. */
   viewport?: [number, number]

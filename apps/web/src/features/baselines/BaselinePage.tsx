@@ -13,9 +13,9 @@ import { useParams } from '@tanstack/react-router'
 import { useId } from 'react'
 
 import { screenshotLabel, screenshotStatus, shotReview } from '#features/builds/diff-status.ts'
+import { flakyQuery, settingsQuery } from '#features/projects/api/index.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { IgnoreRegionsEditor } from '#features/regions/IgnoreRegionsEditor.tsx'
-import { flakyQuery, settingsQuery } from '#features/teams/api/index.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { snapshotHistoryQuery } from '#features/triage/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
@@ -36,10 +36,10 @@ import styles from './BaselinePage.module.css'
  * and the recent builds where it changed.
  */
 export function BaselinePage() {
-  const { workspace, team, _splat } = useParams({ from: BASELINE_ROUTE })
+  const { workspace, project, _splat } = useParams({ from: BASELINE_ROUTE })
   const name = _splat ?? ''
-  const names = useCrumbNames(workspace, team)
-  useDocumentTitle(name, 'Baselines', team)
+  const names = useCrumbNames(workspace, project)
+  useDocumentTitle(name, 'Baselines', project)
   return (
     <>
       <PageHeading
@@ -47,33 +47,34 @@ export function BaselinePage() {
           {
             label: 'Baselines',
             link: {
-              to: '/$workspace/$team/baselines',
-              params: { workspace, team },
+              to: '/$workspace/$project/baselines',
+              params: { workspace, project },
             },
           },
         ])}
         title={name}
       />
       <SettingsPage width="wide">
-        <BaselineBody workspace={workspace} team={team} name={name} />
+        <BaselineBody workspace={workspace} project={project} name={name} />
       </SettingsPage>
     </>
   )
 }
 
 /**
- * The body of a baseline's page, shared by the app page and team settings' Ignore regions, which
+ * The body of a baseline's page, shared by the app page and project settings' Ignore regions, which
  * shows it in its own frame (`inSettings`: nothing links out to builds, settings is a closed area).
  */
-export function BaselineBody({ workspace, team, name, inSettings = false }: BaselineBody.Props) {
+export function BaselineBody({ workspace, project, name, inSettings = false }: BaselineBody.Props) {
   const clientLink = useClientLink()
-  const baselines = useQuery(baselinesQuery(workspace, team))
-  const settings = useQuery(settingsQuery(workspace, team))
-  const flaky = useQuery(flakyQuery(workspace, team))
+  const baselines = useQuery(baselinesQuery(workspace, project))
+  const settings = useQuery(settingsQuery(workspace, project))
+  const flaky = useQuery(flakyQuery(workspace, project))
   const historyHeading = useId()
   const error = baselines.error ?? settings.error
 
-  const defaultBranch = baselines.data?.team.defaultBranch ?? settings.data?.settings.defaultBranch
+  const defaultBranch =
+    baselines.data?.project.defaultBranch ?? settings.data?.settings.defaultBranch
   const baseline = baselines.data ? baselineOf(baselines.data.baselines, name) : undefined
   const flakyEntry = flaky.data?.flaky.find((f) => f.name === name)
 
@@ -84,7 +85,7 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
         void baselines.refetch()
         void settings.refetch()
       }}
-      notFound="This team doesn't exist"
+      notFound="This project doesn't exist"
     />
   ) : !baselines.data || !settings.data || !defaultBranch ? (
     <QuerySkeleton rows={4} />
@@ -112,8 +113,8 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
                   ? undefined
                   : (number) =>
                       clientLink({
-                        to: '/$workspace/$team/builds/$number',
-                        params: { workspace, team, number: String(number) },
+                        to: '/$workspace/$project/builds/$number',
+                        params: { workspace, project, number: String(number) },
                         search: { shot: name },
                       })
               }
@@ -138,8 +139,8 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
         {baseline && !inSettings ? (
           <Button
             {...clientLink({
-              to: '/$workspace/$team/builds/$number',
-              params: { workspace, team, number: String(baseline.buildNumber) },
+              to: '/$workspace/$project/builds/$number',
+              params: { workspace, project, number: String(baseline.buildNumber) },
             })}
           >
             Open build
@@ -150,7 +151,7 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
 
       <IgnoreRegionsEditor
         workspace={workspace}
-        team={team}
+        project={project}
         name={name}
         latest={
           baseline
@@ -174,7 +175,7 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
         </div>
         <History
           workspace={workspace}
-          team={team}
+          project={project}
           name={name}
           defaultBranch={defaultBranch}
           inSettings={inSettings}
@@ -187,17 +188,17 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
 export namespace BaselineBody {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     name: string
-    /** Shown inside team settings: nothing links out to the builds. */
+    /** Shown inside project settings: nothing links out to the builds. */
     inSettings?: boolean
   }
 }
 
-function History({ workspace, team, name, defaultBranch, inSettings }: History.Props) {
+function History({ workspace, project, name, defaultBranch, inSettings }: History.Props) {
   const clientLink = useClientLink()
   const { data, error, refetch } = useQuery(
-    snapshotHistoryQuery(workspace, team, name, undefined, HISTORY_LENGTH),
+    snapshotHistoryQuery(workspace, project, name, undefined, HISTORY_LENGTH),
   )
   if (error) return <ErrorState error={error} onRetry={() => void refetch()} />
   if (!data) return <QuerySkeleton rows={2} />
@@ -220,10 +221,10 @@ function History({ workspace, team, name, defaultBranch, inSettings }: History.P
               {...(inSettings
                 ? {}
                 : clientLink({
-                    to: '/$workspace/$team/builds/$number',
+                    to: '/$workspace/$project/builds/$number',
                     params: {
                       workspace,
-                      team,
+                      project,
                       number: String(entry.build.number),
                     },
                     search: { shot: name },
@@ -255,7 +256,7 @@ function History({ workspace, team, name, defaultBranch, inSettings }: History.P
 namespace History {
   export interface Props {
     workspace: string
-    team: string
+    project: string
     name: string
     defaultBranch: string
     inSettings: boolean

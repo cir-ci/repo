@@ -1,10 +1,10 @@
-import { getTeamById } from '#queries/index.ts'
+import { getProjectById } from '#queries/index.ts'
 import {
   createIntegration,
   findIntegrationByExternalId,
-  removeOtherTeamMappings,
+  removeOtherProjectMappings,
   setIntegrationAttention,
-  setIntegrationTeam,
+  setIntegrationProject,
 } from '#repositories/index.ts'
 import { type Database } from '#src/index.ts'
 
@@ -33,36 +33,36 @@ export async function seedGitConnection(
   })
 }
 
-/** Points a team at a repository on a git host connection of its workspace (made if needed). */
+/** Points a project at a repository on a git host connection of its workspace (made if needed). */
 export async function seedGitLink(
   db: Database,
-  teamId: string,
+  projectId: string,
   input: {
     kind?: string
     externalId: string
     repoRef: string
     encryptedCredentials?: string | null
-    /** Like mapping through `mapTeam`: the team's mappings on other git hosts go. Default true. */
+    /** Like mapping through `mapProject`: the project's mappings on other git hosts go. Default true. */
     exclusive?: boolean
   },
 ): Promise<{ integrationId: string }> {
-  const team = await getTeamById(db, teamId)
-  if (!team) throw new Error('Team not found')
+  const project = await getProjectById(db, projectId)
+  if (!project) throw new Error('Project not found')
   const connection = await seedGitConnection(db, {
     ...input,
-    workspaceId: team.workspaceId,
+    workspaceId: project.workspaceId,
   })
-  await setIntegrationTeam(db, {
+  await setIntegrationProject(db, {
     integrationId: connection.id,
-    teamId,
+    projectId,
     externalRef: input.repoRef,
     extra: { name: input.repoRef },
   })
-  // What mapping a team to a git host does (`mapTeam` in @circi/services): one git host per team,
+  // What mapping a project to a git host does (`mapProject` in @circi/services): one git host per project,
   // and mapping says the connection works.
   if (input.exclusive !== false) {
-    await removeOtherTeamMappings(db, {
-      teamId,
+    await removeOtherProjectMappings(db, {
+      projectId,
       keepIntegrationId: connection.id,
       kinds: ['github', 'gitlab', 'bitbucket'],
     })

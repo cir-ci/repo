@@ -3,11 +3,11 @@ import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import {
   findBuildByCheckRun,
-  findGitTeams,
+  findGitProjects,
   latestBuildsForPr,
   linkBuildsToPullRequest,
 } from '@circi/db/queue'
-import { findTeamViewersByAccount } from '@circi/db/repositories'
+import { findProjectViewersByAccount } from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
 
 import { recordPullRequestAuthor, requeueBuild } from '#src/builds/lifecycle.ts'
@@ -21,7 +21,7 @@ import { reviewBuild } from '#src/reviews/reviews.ts'
  * reruns the builds of a pull request for the member the host account belongs to, and has the
  * definition answer on the host (a reaction or a reply).
  *
- * Only people who linked their account on the host to a CirCI sign-in and belong to the team's
+ * Only people who linked their account on the host to a CirCI sign-in and belong to the project's
  * workspace may act (matched by the host's account id, never by email); anyone else is told how
  * to link.
  */
@@ -48,12 +48,12 @@ function reviewSource(kind: string, how: 'comment' | 'check'): ReviewSource {
 }
 
 /**
- * The one CirCI user the host account is, if they may see the team (a member of it, or an owner
+ * The one CirCI user the host account is, if they may see the project (a member of it, or an owner
  * or admin of its workspace); otherwise undefined.
  */
-async function memberOf(db: Database, teamId: string, kind: string, accountId: string) {
+async function memberOf(db: Database, projectId: string, kind: string, accountId: string) {
   if (!accountId) return undefined
-  const members = await findTeamViewersByAccount(db, teamId, kind, accountId)
+  const members = await findProjectViewersByAccount(db, projectId, kind, accountId)
   return members.length === 1 ? members[0] : undefined
 }
 
@@ -80,13 +80,13 @@ async function onPullRequest(
   event: Of<'pull_request'>,
 ) {
   const kind = input.definition.id
-  const teams = await findGitTeams(db, kind, event.repo.connection, event.repo.ref)
-  for (const team of teams) {
+  const projects = await findGitProjects(db, kind, event.repo.connection, event.repo.ref)
+  for (const project of projects) {
     const { sha, branch } = event.head ?? {}
     if (sha || branch) {
-      // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several teams
+      // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several projects
       await linkBuildsToPullRequest(db, {
-        teamId: team.id,
+        projectId: project.id,
         prNumber: event.number,
         ...(sha ? { commitSha: sha } : {}),
         ...(branch ? { branch } : {}),
@@ -95,7 +95,7 @@ async function onPullRequest(
     if (event.author) {
       // eslint-disable-next-line no-await-in-loop
       await recordPullRequestAuthor(db, {
-        teamId: team.id,
+        projectId: project.id,
         prNumber: event.number,
         login: event.author.login,
         providerId: event.author.accountId ?? null,
@@ -108,21 +108,21 @@ async function onPullRequest(
 async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'command'>) {
   const { definition, ctx } = input
   const kind = definition.id
-  const teams = await findGitTeams(db, kind, event.repo.connection, event.repo.ref)
+  const projects = await findGitProjects(db, kind, event.repo.connection, event.repo.ref)
   let acted = false
   let refused = false
   let credentials: string | undefined
   let externalId = 'externalId' in event.repo.connection ? event.repo.connection.externalId : ''
   const source = reviewSource(kind, 'comment')
-  for (const team of teams) {
-    if (credentials === undefined && team.encryptedCredentials) {
-      credentials = openSecret(ctx.authSecret, team.encryptedCredentials)
+  for (const project of projects) {
+    if (credentials === undefined && project.encryptedCredentials) {
+      credentials = openSecret(ctx.authSecret, project.encryptedCredentials)
     }
-    externalId = team.externalId
-    // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several teams
-    const userId = await memberOf(db, team.id, kind, event.actor.accountId)
+    externalId = project.externalId
+    // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several projects
+    const userId = await memberOf(db, project.id, kind, event.actor.accountId)
     // eslint-disable-next-line no-await-in-loop
-    const builds = await latestBuildsForPr(db, team.id, event.number)
+    const builds = await latestBuildsForPr(db, project.id, event.number)
     if (builds.length === 0) continue
     if (!userId) {
       refused = true
@@ -168,7 +168,7 @@ async function onCheckAction(
   const kind = input.definition.id
   const build = await findBuildByCheckRun(db, event.checkRunId)
   if (!build) return
-  const userId = await memberOf(db, build.teamId, kind, event.actor.accountId)
+  const userId = await memberOf(db, build.projectId, kind, event.actor.accountId)
   if (!userId) {
     const connection = event.repo?.connection
     if (event.repo && connection && 'externalId' in connection && build.prNumber !== null) {

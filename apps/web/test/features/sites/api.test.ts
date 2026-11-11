@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { formatSize, teamSitesQuery, requestSiteAccess } from '#features/sites/api.ts'
+import { formatSize, projectsitesQuery, requestSiteAccess } from '#features/sites/api.ts'
 import { fakeFetch, restoreFetch, json } from '#test/support/fetch.ts'
 
 afterEach(() => restoreFetch())
@@ -19,13 +19,13 @@ describe('formatSize', () => {
   })
 })
 
-describe('teamSitesQuery', () => {
-  it('is keyed by team and escapes both path segments', async () => {
+describe('projectsitesQuery', () => {
+  it('is keyed by project and escapes both path segments', async () => {
     const calls = fakeFetch({
-      'GET /api/teams/my%20workspace/web%2Fapp/sites': { configured: true, sites: [] },
+      'GET /api/projects/my%20workspace/web%2Fapp/sites': { configured: true, sites: [] },
     })
-    const query = teamSitesQuery('my workspace', 'web/app')
-    expect(query.queryKey).toEqual(['team-sites', 'my workspace', 'web/app'])
+    const query = projectsitesQuery('my workspace', 'web/app')
+    expect(query.queryKey).toEqual(['project-sites', 'my workspace', 'web/app'])
     expect(await new QueryClient().fetchQuery(query)).toEqual({ configured: true, sites: [] })
     expect(calls).toHaveLength(1)
   })

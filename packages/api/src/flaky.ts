@@ -1,8 +1,8 @@
 export namespace Flaky {
-  /** Flip-flops: returns to an earlier image on the default branch, against the team's limit. */
+  /** Flip-flops: returns to an earlier image on the default branch, against the project's limit. */
   export interface FlipFlop {
     count: number
-    /** The flip-flops the team needs before a screenshot is flaky. */
+    /** The flip-flops the project needs before a screenshot is flaky. */
     threshold: number
     /** How many commits were looked at (up to 10). */
     window: number

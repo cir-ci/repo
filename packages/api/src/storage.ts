@@ -1,4 +1,4 @@
-import type { Team } from './team.ts'
+import type { Project } from './project.ts'
 
 export namespace Storage {
   export type Kind = 'screenshot' | 'diff' | 'thumbnail' | 'site'
@@ -11,10 +11,10 @@ export namespace Storage {
     versions?: number
   }
 
-  export interface TeamUsage {
+  export interface ProjectUsage {
     slug: string
     name: string
-    color: Team.Color
+    color: Project.Color
     icon: string | null
     retentionDays: number
     files: number
@@ -23,15 +23,15 @@ export namespace Storage {
 
   /**
    * `GET /api/workspaces/:workspace/storage`. Identical files are stored once across builds and
-   * teams, so the per-kind and per-team bytes add up to more than `totalBytes`.
+   * projects, so the per-kind and per-project bytes add up to more than `totalBytes`.
    */
   export interface Usage {
     canManage: boolean
     totalBytes: number
     totalFiles: number
     kinds: KindUsage[]
-    teams: TeamUsage[]
-    /** The retention in days a new team starts with. */
+    projects: ProjectUsage[]
+    /** The retention in days a new project starts with. */
     defaultRetentionDays: number
   }
 }

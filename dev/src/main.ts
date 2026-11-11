@@ -120,17 +120,17 @@ async function up(): Promise<void> {
   const { token } = await ensureSeeded()
   await waitForHttp(URLS.web, 60_000)
 
-  const { owner, member, password, workspace, team } = SEED
+  const { owner, member, password, workspace, project } = SEED
   const lines = [
     '',
-    `Dashboard   ${URLS.web}/${workspace.slug}/${team.slug}`,
+    `Dashboard   ${URLS.web}/${workspace.slug}/${project.slug}`,
     `Sign in     ${owner.email} (owner, instance admin) or ${member.email} (member)`,
     `Password    ${password}`,
     `Mail        ${URLS.mail}  (sign-in codes, invitations)`,
     `API         ${URLS.server}`,
     `Database    postgres://circi:circi@localhost:${PORTS.postgres}/circi`,
     '',
-    'Upload your own screenshots to the seeded team:',
+    'Upload your own screenshots to the seeded project:',
     `  CIRCI_API_URL=${URLS.server} CIRCI_TOKEN=${token} node --conditions=@circi/source packages/cli/src/main.ts upload <dir> --wait`,
     '',
     'Ctrl+C stops everything; `pnpm dev:reset` starts over with fresh data.',

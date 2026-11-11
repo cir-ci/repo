@@ -58,8 +58,8 @@ async function isSeeded(): Promise<boolean> {
 }
 
 /**
- * Makes sure the dev database has the seed's accounts, workspace, team and builds, and returns
- * the team's CI token. Seeds once: later runs reuse `.dev/seed.json` (or rotate the token when
+ * Makes sure the dev database has the seed's accounts, workspace, project and builds, and returns
+ * the project's CI token. Seeds once: later runs reuse `.dev/seed.json` (or rotate the token when
  * that file is gone but the data is still there).
  */
 export async function ensureSeeded(): Promise<SeedState> {
@@ -67,15 +67,15 @@ export async function ensureSeeded(): Promise<SeedState> {
     if (existsSync(STATE_FILE)) {
       return { token: tokenIn(await readFile(STATE_FILE, 'utf8')) }
     }
-    log('seed', 'Seed state missing: rotating the team token')
+    log('seed', 'Seed state missing: rotating the project token')
     const token = tokenIn(
       await admin([
-        'team',
+        'project',
         'rotate-token',
         '--org',
         SEED.workspace.slug,
-        '--team',
-        SEED.team.slug,
+        '--project',
+        SEED.project.slug,
         '--json',
       ]),
     )
@@ -83,7 +83,7 @@ export async function ensureSeeded(): Promise<SeedState> {
     return { token }
   }
 
-  log('seed', 'Empty database: creating accounts, a workspace, a team and sample builds')
+  log('seed', 'Empty database: creating accounts, a workspace, a project and sample builds')
   try {
     const state = await seedAccounts()
     await saveState(state)
@@ -104,7 +104,7 @@ async function saveState(state: SeedState): Promise<void> {
 }
 
 async function seedAccounts(): Promise<SeedState> {
-  const { owner, member, password, workspace, team, hiddenTeam } = SEED
+  const { owner, member, password, workspace, project, hiddenProject } = SEED
   const user = (who: { email: string; name: string }, extra: string[] = []) =>
     admin([
       'user',
@@ -141,14 +141,14 @@ async function seedAccounts(): Promise<SeedState> {
   ])
   const token = tokenIn(
     await admin([
-      'team',
+      'project',
       'create',
       '--org',
       workspace.slug,
       '--name',
-      team.name,
+      project.name,
       '--slug',
-      team.slug,
+      project.slug,
       '--member',
       owner.email,
       '--member',
@@ -156,16 +156,16 @@ async function seedAccounts(): Promise<SeedState> {
       '--json',
     ]),
   )
-  // Teams have their own members: the member is in Web app but doesn't see this one at all.
+  // Projects have their own members: the member is in Web app but doesn't see this one at all.
   await admin([
-    'team',
+    'project',
     'create',
     '--org',
     workspace.slug,
     '--name',
-    hiddenTeam.name,
+    hiddenProject.name,
     '--slug',
-    hiddenTeam.slug,
+    hiddenProject.slug,
     '--member',
     owner.email,
     '--json',
@@ -237,9 +237,9 @@ async function review(
   state: 'approved' | 'rejected',
   reason?: string,
 ) {
-  const { workspace, team } = SEED
+  const { workspace, project } = SEED
   const res = await fetch(
-    `${URLS.server}/api/teams/${workspace.slug}/${team.slug}/builds/${build}/review`,
+    `${URLS.server}/api/projects/${workspace.slug}/${project.slug}/builds/${build}/review`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: URLS.web, cookie },
@@ -342,8 +342,8 @@ async function seedTriage(token: string, owner: string): Promise<void> {
       `where id = '${half.build.id}'`,
   )
 
-  const { workspace, team } = SEED
-  const api = `${URLS.server}/api/teams/${workspace.slug}/${team.slug}`
+  const { workspace, project } = SEED
+  const api = `${URLS.server}/api/projects/${workspace.slug}/${project.slug}`
   const call = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${api}${path}`, {
       method,
@@ -368,7 +368,7 @@ async function seedTriage(token: string, owner: string): Promise<void> {
       : []
   const id = (email: string) => {
     const found = members.find((m) => m.email === email)
-    if (!found) throw new Error(`${email} is not in ${team.slug}`)
+    if (!found) throw new Error(`${email} is not in ${project.slug}`)
     return found.id
   }
   const monday = new Date()

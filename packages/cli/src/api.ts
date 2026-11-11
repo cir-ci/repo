@@ -7,7 +7,7 @@ export namespace ApiClient {
     fetch?: typeof fetch
   }
 
-  export interface Team {
+  export interface Project {
     workspace: string
     slug: string
     name: string
@@ -30,7 +30,7 @@ export namespace ApiClient {
     url: string
     method: 'PUT'
     headers: Record<string, string>
-    /** `token`: send the team token too (uploads through the API, local-disk storage). */
+    /** `token`: send the project token too (uploads through the API, local-disk storage). */
     auth: 'token' | 'none'
   }
 
@@ -80,8 +80,8 @@ export class ApiClient {
     this.fetchImpl = options.fetch ?? fetch
   }
 
-  team(): Promise<ApiClient.Team> {
-    return this.json('GET', '/v1/team')
+  project(): Promise<ApiClient.Project> {
+    return this.json('GET', '/v1/project')
   }
 
   createBuild(

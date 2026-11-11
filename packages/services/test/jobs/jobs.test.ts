@@ -2,7 +2,7 @@ import { type Job } from '@circi/db'
 import { listWebhookDeliveries } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, setNotificationPreferences } from '@circi/db/repositories'
-import { addTestMember, createTestDb, seedTeam, seedUser, seedWebhook } from '@circi/db/testing'
+import { addTestMember, createTestDb, seedProject, seedUser, seedWebhook } from '@circi/db/testing'
 import { fakeMailer } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -36,13 +36,13 @@ const payload = (webhookId: string) => ({
   deliveryId: 'd-1',
   event: 'build.completed',
   createdAt: '2026-01-01T00:00:00.000Z',
-  data: { workspace: { slug: 'acme' }, team: { slug: 'web' }, build: { number: 7 } },
+  data: { workspace: { slug: 'acme' }, project: { slug: 'web' }, build: { number: 7 } },
 })
 
 describe('deliverWebhook (service)', () => {
   it('delivers, records the attempt, and throws on a non-2xx so the queue retries', async () => {
-    const { team } = await seedTeam(t.db)
-    const hook = await seedWebhook(t.db, team.id)
+    const { project } = await seedProject(t.db)
+    const hook = await seedWebhook(t.db, project.id)
     const deps = { db: t.db, resolve: async () => ['93.184.216.34'] }
     const ok = await deliverWebhook(
       { ...deps, fetch: async () => new Response('', { status: 200 }) },
@@ -61,8 +61,8 @@ describe('deliverWebhook (service)', () => {
   })
 
   it('refuses a receiver that resolves to a private address', async () => {
-    const { team } = await seedTeam(t.db)
-    const hook = await seedWebhook(t.db, team.id)
+    const { project } = await seedProject(t.db)
+    const hook = await seedWebhook(t.db, project.id)
     let called = false
     const result = await deliverWebhook(
       {
@@ -82,10 +82,14 @@ describe('deliverWebhook (service)', () => {
 
 describe('sendNotificationEmail (service)', () => {
   it('mails once, and skips when the reviewer has opted out', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
+    const { project, workspace, owner } = await seedProject(t.db)
     const reviewer = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
-    const build = await createBuild(t.db, { teamId: team.id, commitSha: 'abc1234', branch: 'f' })
+    const build = await createBuild(t.db, {
+      projectId: project.id,
+      commitSha: 'abc1234',
+      branch: 'f',
+    })
     const n = await notify(t.db, {
       userId: reviewer.id,
       kind: 'review_requested',

@@ -2,7 +2,7 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
-  seedTeam,
+  seedProject,
   seedReviewRequest,
   seedScreenshot,
   seedUser,
@@ -11,7 +11,7 @@ import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildsForTeam, searchWorkspace } from '#src/queries/index.ts'
+import { listBuildsForProject, searchWorkspace } from '#src/queries/index.ts'
 import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -26,13 +26,13 @@ const at = (iso: string) => new Date(iso)
 const done = { status: 'complete', conclusion: 'changes_detected' } as const
 
 describe('searchWorkspace', () => {
-  it('groups builds, branches, teams and snapshots, scoped to the workspace', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db, { slug: 'checkout-web' })
-    const rival = await seedTeam(t.db, { slug: 'checkout-rival' })
+  it('groups builds, branches, projects and snapshots, scoped to the workspace', async () => {
+    const { project, workspace, owner } = await seedProject(t.db, { slug: 'checkout-web' })
+    const rival = await seedProject(t.db, { slug: 'checkout-rival' })
     let last = 0
     for (let i = 0; i < 148; i += 1) {
       // eslint-disable-next-line no-await-in-loop -- sequential numbering
-      const b = await seedBuild(t.db, team.id, {
+      const b = await seedBuild(t.db, project.id, {
         branch: i === 147 ? 'feature/checkout-redesign' : 'main',
         ...(i === 147 ? { prNumber: 7 } : {}),
       })
@@ -47,7 +47,7 @@ describe('searchWorkspace', () => {
       name: 'checkout-page',
       fileSha256: fakeSha('a'),
     })
-    const rivalBuild = await seedBuild(t.db, rival.team.id, { branch: 'feature/checkout-x' })
+    const rivalBuild = await seedBuild(t.db, rival.project.id, { branch: 'feature/checkout-x' })
     await seedScreenshot(t.db, {
       buildId: rivalBuild.id,
       name: 'checkout-rival-shot',
@@ -56,7 +56,7 @@ describe('searchWorkspace', () => {
 
     const input = { userId: owner.id, workspaceSlug: workspace.slug }
     const hash = await searchWorkspace(t.db, { ...input, query: '#148' })
-    expect(hash?.builds).toMatchObject([{ teamSlug: 'checkout-web', number: 148 }])
+    expect(hash?.builds).toMatchObject([{ projectslug: 'checkout-web', number: 148 }])
     const bare = await searchWorkspace(t.db, { ...input, query: '148' })
     expect(bare?.builds.map((b) => b.number)).toEqual([148])
     const pr = await searchWorkspace(t.db, { ...input, query: '7' })
@@ -66,21 +66,21 @@ describe('searchWorkspace', () => {
     ])
 
     const text = await searchWorkspace(t.db, { ...input, query: 'CHECKOUT' })
-    expect(text?.teams.map((p) => p.slug)).toEqual(['checkout-web'])
+    expect(text?.projects.map((p) => p.slug)).toEqual(['checkout-web'])
     expect(text?.branches).toMatchObject([
-      { teamSlug: 'checkout-web', branch: 'feature/checkout-redesign', latestBuildNumber: 148 },
+      { projectslug: 'checkout-web', branch: 'feature/checkout-redesign', latestBuildNumber: 148 },
     ])
     expect(text?.snapshots).toMatchObject([
-      { teamSlug: 'checkout-web', name: 'checkout-page', latestBuildNumber: 148 },
+      { projectslug: 'checkout-web', name: 'checkout-page', latestBuildNumber: 148 },
     ])
     expect(text?.builds).toEqual([])
   })
 
   it('limits each group, matches wildcards literally and ignores a blank query', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db, { slug: 'lim' })
+    const { project, workspace, owner } = await seedProject(t.db, { slug: 'lim' })
     for (let i = 0; i < 4; i += 1) {
       // eslint-disable-next-line no-await-in-loop -- sequential numbering
-      await seedBuild(t.db, team.id, { branch: `rel_${i}` })
+      await seedBuild(t.db, project.id, { branch: `rel_${i}` })
     }
     const input = { userId: owner.id, workspaceSlug: workspace.slug }
     expect(
@@ -91,7 +91,7 @@ describe('searchWorkspace', () => {
     expect(await searchWorkspace(t.db, { ...input, query: '  ' })).toMatchObject({
       builds: [],
       branches: [],
-      teams: [],
+      projects: [],
       snapshots: [],
       baselines: [],
       triage: [],
@@ -102,7 +102,7 @@ describe('searchWorkspace', () => {
   })
 
   it('is undefined for a non-member and an unknown workspace', async () => {
-    const { workspace } = await seedTeam(t.db)
+    const { workspace } = await seedProject(t.db)
     const stranger = await seedUser(t.db)
     expect(
       await searchWorkspace(t.db, {
@@ -111,7 +111,7 @@ describe('searchWorkspace', () => {
         query: 'a',
       }),
     ).toBeUndefined()
-    const { owner } = await seedTeam(t.db)
+    const { owner } = await seedProject(t.db)
     expect(
       await searchWorkspace(t.db, { userId: owner.id, workspaceSlug: 'nope', query: 'a' }),
     ).toBeUndefined()
@@ -126,24 +126,24 @@ describe('searchWorkspace', () => {
   })
 })
 
-describe('listBuildsForTeam filters', () => {
+describe('listBuildsForProject filters', () => {
   it('filters by status, review, branch, author, reviewer, name and date', async () => {
-    const { team, workspace, owner } = await seedTeam(t.db)
+    const { project, workspace, owner } = await seedProject(t.db)
     const mate = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
-    const b1 = await seedBuild(t.db, team.id, {
+    const b1 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'main',
       reviewStatus: 'approved',
       createdAt: at('2026-03-01T10:00:00Z'),
     })
-    const b2 = await seedBuild(t.db, team.id, {
+    const b2 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'feature',
       name: 'mobile',
       createdAt: at('2026-03-05T10:00:00Z'),
     })
-    const b3 = await seedBuild(t.db, team.id, {
+    const b3 = await seedBuild(t.db, project.id, {
       status: 'error',
       branch: 'feature',
       createdAt: at('2026-03-10T10:00:00Z'),
@@ -159,8 +159,8 @@ describe('listBuildsForTeam filters', () => {
     await seedReviewRequest(t.db, { buildId: b2.id, reviewerId: owner.id })
     await seedReviewRequest(t.db, { buildId: b1.id, reviewerId: owner.id, state: 'done' })
 
-    const numbers = async (filters: Parameters<typeof listBuildsForTeam>[2]['filters']) =>
-      (await listBuildsForTeam(t.db, team.id, { limit: 10, filters })).map((b) => b.number)
+    const numbers = async (filters: Parameters<typeof listBuildsForProject>[2]['filters']) =>
+      (await listBuildsForProject(t.db, project.id, { limit: 10, filters })).map((b) => b.number)
 
     expect(await numbers(undefined)).toEqual([3, 2, 1])
     expect(await numbers({})).toEqual([3, 2, 1])

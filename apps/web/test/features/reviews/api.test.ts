@@ -42,7 +42,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
     conclusion: 'changes_detected',
     reviewStatus: 'pending',
   },
-  team: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
   largestChanges: [],

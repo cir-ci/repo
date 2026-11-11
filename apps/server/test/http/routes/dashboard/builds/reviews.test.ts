@@ -18,7 +18,7 @@ describe('reviewing a build', () => {
   it('starts approved on the default branch once there is a baseline, and says it was automatic', async () => {
     // The fixture approved build 1 by hand (a first build is never automatic); build 2 compares
     // with it and is approved without anyone looking.
-    const first = (await get(`/api/teams/${acme.workspaceSlug}/web/builds/1`)).json()
+    const first = (await get(`/api/projects/${acme.workspaceSlug}/web/builds/1`)).json()
     expect(first.reviews).toMatchObject([{ state: 'approved', source: 'ui' }])
     expect((await buildDetail(acmeCookie)).json().baseline).toMatchObject({ number: 1 })
     expect(await reviewStatus()).toBe('approved')
@@ -47,7 +47,9 @@ describe('reviewing a build', () => {
       userName: expect.stringMatching(/^Owner \d+$/),
       createdAt: expect.any(String),
     })
-    expect((await get('/api/teams')).json().teams[0].latestBuild.reviewStatus).toBe('rejected')
+    expect((await get('/api/projects')).json().projects[0].latestBuild.reviewStatus).toBe(
+      'rejected',
+    )
   })
 
   it('lets them change their mind, keeping the history', async () => {
@@ -101,7 +103,7 @@ describe('reviewing a build', () => {
 
   it('refuses a build with no changes to decide on', async () => {
     // Same screenshots as build 1 (approved), so build 3 matches its baseline exactly.
-    await buildWith(acme.team.id, 'aaaa003', ['aaaa001'], {
+    await buildWith(acme.project.id, 'aaaa003', ['aaaa001'], {
       home: await png('#ffffff'),
       about: await png('#eeeeee'),
     })
@@ -117,7 +119,7 @@ const decide = (
 ) =>
   fx.app.inject({
     method: 'POST',
-    url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/snapshots/review`,
+    url: `/api/projects/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/snapshots/review`,
     headers: {
       'content-type': 'application/json',
       cookie: options.cookie ?? acmeCookie,
@@ -170,7 +172,7 @@ const notices = async () =>
 /** The pull request comment is rewritten from a `git-notify` job; each review move queues one. */
 describe('refreshing the pull request comment', () => {
   it('queues a git-notify for an approval or rejection from the dashboard, and for a single snapshot', async () => {
-    await seedGitLink(fx.db, acme.team.id, { externalId: '99', repoRef: 'acme/web' })
+    await seedGitLink(fx.db, acme.project.id, { externalId: '99', repoRef: 'acme/web' })
     await fx.db.delete(schema.jobs)
     expect((await review('rejected')).statusCode).toBe(200)
     expect((await notices()).some((k) => k.endsWith(':rejected'))).toBe(true)
@@ -219,7 +221,7 @@ describe('the build page facts', () => {
   })
 
   it('names the repository next to the pull request number', async () => {
-    await seedGitLink(fx.db, acme.team.id, { externalId: '99', repoRef: 'acme/web' })
+    await seedGitLink(fx.db, acme.project.id, { externalId: '99', repoRef: 'acme/web' })
     await fx.db.update(schema.builds).set({ prNumber: 412 }).where(eq(schema.builds.number, 2))
     expect((await facts()).pullRequest).toEqual({ number: 412, repo: 'acme/web' })
   })

@@ -4,11 +4,11 @@ import { getGitMapping, type GitKinds, type GitLink } from '#queries/git-links.t
 import {
   buildChecks,
   builds,
-  integrationTeams,
+  integrationProjects,
   integrations,
   workspace,
   prComments,
-  teams,
+  projects,
   providerDeliveries,
 } from '#schema/index.ts'
 import { workspaceIsLive } from '#shared/session-method.ts'
@@ -18,23 +18,27 @@ import type { Build } from '#src/types.ts'
 import { enqueueJob } from './jobs.ts'
 
 /**
- * Git host integration (PLAN §7.4): which teams report to which repository, the jobs that
+ * Git host integration (PLAN §7.4): which projects report to which repository, the jobs that
  * push build state to it, and the bookkeeping that keeps updates idempotent. A git host is an
- * integration (`integrations`) and a team's repository is its `integration_teams` row for
+ * integration (`integrations`) and a project's repository is its `integration_projects` row for
  * it (`external_ref` is the repository). Which kinds are git hosts is the registry's knowledge
  * (`integrationRegistry.gitKinds()` in `@circi/integrations`); callers pass `kinds`.
  */
 
 export const GIT_NOTIFY_QUEUE = 'git-notify'
 
-/** Stops a team reporting to any git host (the repository mapping goes; the connection stays). */
-export async function unlinkTeam(db: Database, teamId: string, kinds: GitKinds): Promise<void> {
+/** Stops a project reporting to any git host (the repository mapping goes; the connection stays). */
+export async function unlinkProject(
+  db: Database,
+  projectId: string,
+  kinds: GitKinds,
+): Promise<void> {
   if (kinds.length === 0) return
-  await db.delete(integrationTeams).where(
+  await db.delete(integrationProjects).where(
     and(
-      eq(integrationTeams.teamId, teamId),
+      eq(integrationProjects.projectId, projectId),
       inArray(
-        integrationTeams.integrationId,
+        integrationProjects.integrationId,
         db
           .select({ id: integrations.id })
           .from(integrations)
@@ -87,7 +91,7 @@ export async function clearInstallationNeedsAttention(
 export namespace getGitTarget {
   /** Everything the notify job needs to report a build. */
   export interface Target extends GitLink {
-    /** The connection (integration) the team reports through. */
+    /** The connection (integration) the project reports through. */
     integrationId: string
     /** The connection's `kind`: which provider reports this build. */
     kind: string
@@ -95,11 +99,11 @@ export namespace getGitTarget {
     encryptedCredentials: string | null
     build: Build
     workspaceSlug: string
-    teamSlug: string
-    teamName: string
+    projectslug: string
+    projectName: string
     blockMergeOnChanges: boolean
     commentsEnabled: boolean
-    /** The team hosts static sites: the pull request comment lists a commit's. */
+    /** The project hosts static sites: the pull request comment lists a commit's. */
     staticHostingEnabled: boolean
     /** The connection is marked as unusable; a successful notify clears it. */
     connectionNeedsAttention: boolean
@@ -116,11 +120,11 @@ export async function getGitTarget(
     .select({
       build: builds,
       workspaceSlug: workspace.slug,
-      teamSlug: teams.slug,
-      teamName: teams.name,
-      block: teams.blockMergeOnChanges,
-      hosting: teams.staticHostingEnabled,
-      repoRef: integrationTeams.externalRef,
+      projectslug: projects.slug,
+      projectName: projects.name,
+      block: projects.blockMergeOnChanges,
+      hosting: projects.staticHostingEnabled,
+      repoRef: integrationProjects.externalRef,
       integrationId: integrations.id,
       installationId: integrations.externalId,
       kind: integrations.kind,
@@ -128,19 +132,19 @@ export async function getGitTarget(
       attention: integrations.needsAttention,
     })
     .from(builds)
-    .innerJoin(teams, eq(teams.id, builds.teamId))
-    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
-    .innerJoin(integrationTeams, eq(integrationTeams.teamId, teams.id))
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
+    .innerJoin(projects, eq(projects.id, builds.projectId))
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .innerJoin(integrationProjects, eq(integrationProjects.projectId, projects.id))
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
     .where(and(eq(builds.id, buildId), inArray(integrations.kind, [...kinds])))
-    .orderBy(integrationTeams.createdAt)
+    .orderBy(integrationProjects.createdAt)
     .limit(1)
   if (!row) return undefined
   return {
     build: row.build,
     workspaceSlug: row.workspaceSlug,
-    teamSlug: row.teamSlug,
-    teamName: row.teamName,
+    projectslug: row.projectslug,
+    projectName: row.projectName,
     blockMergeOnChanges: row.block,
     commentsEnabled: true,
     staticHostingEnabled: row.hosting,
@@ -154,7 +158,7 @@ export async function getGitTarget(
 }
 
 /**
- * Queues a "tell the git host" job when the build's team is linked to a repository. Call it
+ * Queues a "tell the git host" job when the build's project is linked to a repository. Call it
  * inside the transaction that changed the build. One job per distinct state, so a change that
  * lands while an older job runs still gets reported. `variant` tells apart changes the build's
  * own state doesn't show (a site uploaded for its commit, a snapshot decided): the job reads the
@@ -162,11 +166,11 @@ export async function getGitTarget(
  */
 export async function queueGitNotify(
   db: Database,
-  build: Pick<Build, 'id' | 'teamId' | 'status' | 'conclusion' | 'reviewStatus'>,
+  build: Pick<Build, 'id' | 'projectId' | 'status' | 'conclusion' | 'reviewStatus'>,
   kinds: GitKinds,
   variant?: string,
 ): Promise<void> {
-  if (!(await getGitMapping(db, build.teamId, kinds))) return
+  if (!(await getGitMapping(db, build.projectId, kinds))) return
   await enqueueJob(db, {
     queue: GIT_NOTIFY_QUEUE,
     payload: { buildId: build.id },
@@ -182,18 +186,18 @@ export async function queueGitNotify(
  */
 export async function queueGitNotifyForCommit(
   db: Database,
-  input: { teamId: string; commitSha: string },
+  input: { projectId: string; commitSha: string },
   kinds: GitKinds,
   variant: string,
 ): Promise<void> {
   const sha = input.commitSha.toLowerCase()
-  if (sha.length < 7 || !(await getGitMapping(db, input.teamId, kinds))) return
+  if (sha.length < 7 || !(await getGitMapping(db, input.projectId, kinds))) return
   const rows = await db
     .select()
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, input.teamId),
+        eq(builds.projectId, input.projectId),
         isNotNull(builds.prNumber),
         sql`(starts_with(lower(${builds.commitSha}), ${sha}) or starts_with(${sha}, lower(${builds.commitSha})))`,
       ),
@@ -226,26 +230,26 @@ export async function setCheckRunId(
 
 export async function getPrCommentId(
   db: Database,
-  teamId: string,
+  projectId: string,
   prNumber: number,
 ): Promise<string | undefined> {
   const [row] = await db
     .select()
     .from(prComments)
-    .where(and(eq(prComments.teamId, teamId), eq(prComments.prNumber, prNumber)))
+    .where(and(eq(prComments.projectId, projectId), eq(prComments.prNumber, prNumber)))
   return row?.commentId
 }
 
 export async function setPrCommentId(
   db: Database,
-  teamId: string,
+  projectId: string,
   prNumber: number,
   commentId: string,
 ): Promise<void> {
   await db
     .insert(prComments)
-    .values({ teamId, prNumber, commentId })
-    .onConflictDoUpdate({ target: [prComments.teamId, prComments.prNumber], set: { commentId } })
+    .values({ projectId, prNumber, commentId })
+    .onConflictDoUpdate({ target: [prComments.projectId, prComments.prNumber], set: { commentId } })
 }
 
 /** Records a webhook delivery; false when it was already handled. */
@@ -258,7 +262,7 @@ export async function claimDelivery(db: Database, deliveryId: string): Promise<b
   return rows.length > 0
 }
 
-/** The build a check run belongs to, with its team (for who may review it). */
+/** The build a check run belongs to, with its project (for who may review it). */
 export async function findBuildByCheckRun(
   db: Database,
   checkRunId: string,
@@ -274,13 +278,13 @@ export async function findBuildByCheckRun(
 /** The builds of a pull request's newest commit (one per build name), newest first. */
 export async function latestBuildsForPr(
   db: Database,
-  teamId: string,
+  projectId: string,
   prNumber: number,
 ): Promise<Build[]> {
   const [newest] = await db
     .select()
     .from(builds)
-    .where(and(eq(builds.teamId, teamId), eq(builds.prNumber, prNumber)))
+    .where(and(eq(builds.projectId, projectId), eq(builds.prNumber, prNumber)))
     .orderBy(desc(builds.number))
     .limit(1)
   if (!newest) return []
@@ -289,7 +293,7 @@ export async function latestBuildsForPr(
     .from(builds)
     .where(
       and(
-        eq(builds.teamId, teamId),
+        eq(builds.projectId, projectId),
         eq(builds.prNumber, prNumber),
         eq(builds.commitSha, newest.commitSha),
       ),
@@ -300,13 +304,13 @@ export async function latestBuildsForPr(
 /** All of a pull request's builds' newest-per-name rows, for the summary comment. */
 export async function buildsForPrSummary(
   db: Database,
-  teamId: string,
+  projectId: string,
   prNumber: number,
 ): Promise<Build[]> {
-  return latestBuildsForPr(db, teamId, prNumber)
+  return latestBuildsForPr(db, projectId, prNumber)
 }
 
-export namespace findGitTeams {
+export namespace findGitProjects {
   export interface Row {
     id: string
     workspaceId: string
@@ -319,50 +323,50 @@ export namespace findGitTeams {
 }
 
 /**
- * Teams linked to a repository on a host's connection, for webhooks that name the repository
+ * Projects linked to a repository on a host's connection, for webhooks that name the repository
  * and where it lives but not our connection: `connection` is the external id, or the start of it
  * (GitLab: `host#`). Compared case-insensitively, as the hosts do.
  */
-export async function findGitTeams(
+export async function findGitProjects(
   db: Database,
   kind: string,
   connection: { externalId: string } | { externalIdPrefix: string },
   repoRef: string,
-): Promise<findGitTeams.Row[]> {
+): Promise<findGitProjects.Row[]> {
   const matches =
     'externalId' in connection
       ? sql`lower(${integrations.externalId}) = ${connection.externalId.toLowerCase()}`
       : sql`starts_with(lower(${integrations.externalId}), ${connection.externalIdPrefix.toLowerCase()})`
   return db
     .select({
-      id: teams.id,
-      workspaceId: teams.workspaceId,
+      id: projects.id,
+      workspaceId: projects.workspaceId,
       integrationId: integrations.id,
       externalId: integrations.externalId,
       encryptedCredentials: integrations.encryptedCredentials,
     })
-    .from(integrationTeams)
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
-    .innerJoin(teams, eq(teams.id, integrationTeams.teamId))
+    .from(integrationProjects)
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
+    .innerJoin(projects, eq(projects.id, integrationProjects.projectId))
     .where(
       and(
         eq(integrations.kind, kind),
         matches,
-        sql`lower(${integrationTeams.externalRef}) = ${repoRef.toLowerCase()}`,
-        // A deleted workspace's teams hear nothing from the host.
-        workspaceIsLive(teams.workspaceId),
+        sql`lower(${integrationProjects.externalRef}) = ${repoRef.toLowerCase()}`,
+        // A deleted workspace's projects hear nothing from the host.
+        workspaceIsLive(projects.workspaceId),
       ),
     )
 }
 
 /**
- * Gives builds a pull request number the host now knows: builds of the team that don't have
+ * Gives builds a pull request number the host now knows: builds of the project that don't have
  * one yet and were made for this commit or for the pull request's source branch. Returns how many
  * builds changed.
  */
 export async function linkBuildsToPullRequest(
   db: Database,
-  input: { teamId: string; prNumber: number; commitSha?: string; branch?: string },
+  input: { projectId: string; prNumber: number; commitSha?: string; branch?: string },
 ): Promise<number> {
   const matches = [
     ...(input.commitSha ? [eq(builds.commitSha, input.commitSha)] : []),
@@ -372,7 +376,7 @@ export async function linkBuildsToPullRequest(
   const rows = await db
     .update(builds)
     .set({ prNumber: input.prNumber })
-    .where(and(eq(builds.teamId, input.teamId), isNull(builds.prNumber), or(...matches)))
+    .where(and(eq(builds.projectId, input.projectId), isNull(builds.prNumber), or(...matches)))
     .returning({ id: builds.id })
   return rows.length
 }

@@ -6,7 +6,7 @@ import {
   addTestMember,
   createTestDb,
   seedNotification,
-  seedTeam,
+  seedProject,
   seedUser,
 } from '@circi/db/testing'
 import { notify } from '@circi/services'
@@ -25,11 +25,11 @@ afterAll(async () => {
 })
 
 async function setup() {
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -40,7 +40,7 @@ async function setup() {
     actorId: owner.id,
   })
   if (!notification) throw new Error('no notification')
-  return { team, workspace, owner, reviewer, build, notification }
+  return { project, workspace, owner, reviewer, build, notification }
 }
 const jobFor = (notificationId: string): Job => ({
   id: 1,
@@ -59,7 +59,7 @@ const jobFor = (notificationId: string): Job => ({
 
 describe('sendNotificationEmail', () => {
   it('mails the reviewer a link to the build', async () => {
-    const { workspace, team, owner, reviewer, build, notification } = await setup()
+    const { workspace, project, owner, reviewer, build, notification } = await setup()
     const mailer = fakeMailer()
     const { sent } = mailer
     const result = await sendNotificationEmail(
@@ -71,7 +71,7 @@ describe('sendNotificationEmail', () => {
     expect(sent[0]?.to).toBe(reviewer.email)
     expect(sent[0]?.subject).toContain(owner.name)
     expect(sent[0]?.text).toContain(
-      `https://ci.acme.io/${workspace.slug}/${team.slug}/builds/${build.number}`,
+      `https://ci.acme.io/${workspace.slug}/${project.slug}/builds/${build.number}`,
     )
   })
 

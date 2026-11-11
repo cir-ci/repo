@@ -18,11 +18,11 @@ import { copyLinkItem, menuEntries, separator } from '#lib/row-menu.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf, type Tab, titleOf } from '#lib/tabs.ts'
 
-import { teamOfAddress } from './shell-model.ts'
+import { projectOfAddress } from './shell-model.ts'
 
 import styles from './TabStrip.module.css'
 
-/** The icon of a page that isn't a team's: what stands in for the team tile. */
+/** The icon of a page that isn't a project's: what stands in for the project tile. */
 function pageIcon(href: string): ReactNode {
   const first = href.split(/[/?#]/).find(Boolean) ?? ''
   if (first === 'inbox') return <InboxIcon size={16} />
@@ -36,17 +36,17 @@ function pageIcon(href: string): ReactNode {
   return <FrameIcon size={16} />
 }
 
-/** A tab's tile: its team's (from the sidebar's model, a plain one until that has loaded), else its page's icon. */
+/** A tab's tile: its project's (from the sidebar's model, a plain one until that has loaded), else its page's icon. */
 export function TabTile({ href }: { href: string }) {
-  const team = teamOfAddress(href)
-  const { data } = useSidebarModel(team?.workspace)
-  if (!team) return <span className={styles.icon}>{pageIcon(href)}</span>
-  const known = data?.teams.find((t) => t.slug === team.team)
+  const project = projectOfAddress(href)
+  const { data } = useSidebarModel(project?.workspace)
+  if (!project) return <span className={styles.icon}>{pageIcon(href)}</span>
+  const known = data?.projects.find((t) => t.slug === project.project)
   return (
     <Avatar
-      type="team"
-      slug={team.team}
-      name={known?.name ?? team.team}
+      type="project"
+      slug={project.project}
+      name={known?.name ?? project.project}
       color={known?.color ?? 'slate'}
       icon={known?.icon ?? null}
       size={16}
@@ -74,7 +74,7 @@ export function tabMenuItems(tab: Tab, closedCount: number): Menu.Entry[] {
 }
 
 /**
- * The installed app's tabs, as a row: the team tile and the page's title (pinned tabs show the tile
+ * The installed app's tabs, as a row: the project tile and the page's title (pinned tabs show the tile
  * or icon only), a close button on hover or focus, a new-tab button at the end. Click switches, a
  * middle click closes, the right click (or the menu key) opens the tab's menu. The row sits in the
  * window's title bar strip (window-controls-overlay) or at the top of the frame (standalone).

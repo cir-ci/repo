@@ -47,9 +47,10 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
           label="Delete workspace"
           detail={
             <>
-              Hides {name} for everyone at once: its teams, builds, hosted sites and CI tokens stop
-              working. Everything is deleted for good after 30 days; until then whoever runs this
-              server can restore it. You'll type <Text variant="mono">{workspace}</Text> to confirm.
+              Hides {name} for everyone at once: its projects, builds, hosted sites and CI tokens
+              stop working. Everything is deleted for good after 30 days; until then whoever runs
+              this server can restore it. You'll type <Text variant="mono">{workspace}</Text> to
+              confirm.
             </>
           }
         >
@@ -62,7 +63,7 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
         open={open}
         onOpenChange={close}
         title={`Delete ${name}?`}
-        description="Its teams, builds, screenshots and settings disappear for everyone now, and are deleted for good in 30 days."
+        description="Its projects, builds, screenshots and settings disappear for everyone now, and are deleted for good in 30 days."
         actions={
           <>
             <Button onClick={() => close(false)}>Cancel</Button>

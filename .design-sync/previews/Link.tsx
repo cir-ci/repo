@@ -12,8 +12,8 @@ const Scheme = (props: { scheme: 'light' | 'dark'; children: ReactNode }) => (
 
 const Demo = () => (
   <Text as="p">
-    Read the <Link href="#docs">upload guide</Link> or go back to <Link href="#teams">teams</Link>.
-    Links are underlined on hover.
+    Read the <Link href="#docs">upload guide</Link> or go back to{' '}
+    <Link href="#projects">projects</Link>. Links are underlined on hover.
   </Text>
 )
 

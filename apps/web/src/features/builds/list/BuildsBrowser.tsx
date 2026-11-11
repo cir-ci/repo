@@ -25,15 +25,15 @@ import { type ReactNode, useState } from 'react'
 import { buildState } from '#features/builds/build-state.ts'
 import { CountsSummary } from '#features/builds/CountsSummary.tsx'
 import { shotReview } from '#features/builds/diff-status.ts'
-import { MemberPicker } from '#features/reviews/MemberPicker.tsx'
 import {
   BUILDS_PAGE_SIZE,
-  teamQuery,
+  projectQuery,
   useRejectReasonRequired,
   useBulkRequestReview,
   useBulkReview,
   workspaceBuildsQuery,
-} from '#features/teams/api/index.ts'
+} from '#features/projects/api/index.ts'
+import { MemberPicker } from '#features/reviews/MemberPicker.tsx'
 import { useSaveView, viewsQuery, viewWithFilters } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
@@ -65,13 +65,13 @@ import styles from './BuildsBrowser.module.css'
 const countText = (n: number) => `${n} ${n === 1 ? 'build' : 'builds'}`
 
 /**
- * A team's builds: filter chips, display options, grouped rows with J / K, X to select, Space
+ * A project's builds: filter chips, display options, grouped rows with J / K, X to select, Space
  * to peek, and a bulk bar once something is selected. The filters belong to the page (the URL on
- * the team page, a saved view's on its own), so they come in as props.
+ * the project page, a saved view's on its own), so they come in as props.
  */
 export function BuildsBrowser({
   workspace,
-  team,
+  project,
   filters,
   onFiltersChange,
   before,
@@ -84,13 +84,13 @@ export function BuildsBrowser({
   const router = useRouter()
   const announce = useAnnounce()
   const queryClient = useQueryClient()
-  // Without a team this is the whole workspace's list (a saved view with no team).
-  const scoped = team !== undefined
+  // Without a project this is the whole workspace's list (a saved view with no project).
+  const scoped = project !== undefined
   // The server orders the list (and pages it in that order); grouping happens on the page.
   const display = useDisplayStore((s) => s.display)
   // The list stays on screen while the next one loads, so the find field under typing is not remounted.
-  const teamResult = useQuery({
-    ...teamQuery(workspace, team ?? '', before, filters, display.order),
+  const projectResult = useQuery({
+    ...projectQuery(workspace, project ?? '', before, filters, display.order),
     enabled: scoped,
     placeholderData: keepPreviousData,
   })
@@ -99,9 +99,9 @@ export function BuildsBrowser({
     enabled: !scoped,
     placeholderData: keepPreviousData,
   })
-  const query = scoped ? teamResult : workspaceResult
+  const query = scoped ? projectResult : workspaceResult
   const { data } = query
-  const teamOf = (b: Row) => b.team?.slug ?? team ?? ''
+  const projectOf = (b: Row) => b.project?.slug ?? project ?? ''
 
   const setDisplay = useDisplayStore((s) => s.setDisplay)
   const clearChecked = useListStore((s) => s.clearChecked)
@@ -113,10 +113,10 @@ export function BuildsBrowser({
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Bulk decisions are one team's (a single transaction); a workspace-wide list only browses.
-  const bulk = useBulkReview(workspace, team ?? '')
-  const reasonRequired = useRejectReasonRequired(workspace, team ?? '')
-  const bulkRequest = useBulkRequestReview(workspace, team ?? '')
+  // Bulk decisions are one project's (a single transaction); a workspace-wide list only browses.
+  const bulk = useBulkReview(workspace, project ?? '')
+  const reasonRequired = useRejectReasonRequired(workspace, project ?? '')
+  const bulkRequest = useBulkRequestReview(workspace, project ?? '')
   const saveView = useSaveView(workspace)
   const views = useQuery({ ...viewsQuery(workspace), enabled: canSave })
 
@@ -126,8 +126,8 @@ export function BuildsBrowser({
   const flat = groups.flatMap((g) => g.builds)
   const openBuild = (b: Row) =>
     void router.navigate({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace, team: teamOf(b), number: String(b.number) },
+      to: '/$workspace/$project/builds/$number',
+      params: { workspace, project: projectOf(b), number: String(b.number) },
     })
   const chosen = flat.filter((b) => selected.has(b.id))
   const filtered = hasFilters(filters)
@@ -181,7 +181,7 @@ export function BuildsBrowser({
       b.commitSha
         ? { label: 'Copy commit SHA', onSelect: () => void copyText(b.commitSha, 'Commit SHA') }
         : null,
-      // Reviewing is one team's (a single transaction); a workspace-wide list only browses.
+      // Reviewing is one project's (a single transaction); a workspace-wide list only browses.
       scoped && separator,
       scoped && {
         label: many ? `Approve ${noun}` : 'Approve',
@@ -227,7 +227,7 @@ export function BuildsBrowser({
       {data && (builds.length > 0 || filtered) ? (
         <BuildFilterBar
           workspace={workspace}
-          team={team}
+          project={project}
           filters={filters}
           onFiltersChange={onFiltersChange}
           display={display}
@@ -242,13 +242,13 @@ export function BuildsBrowser({
           open={open}
           onOpenChange={setOpen}
           onSaveView={canSave ? () => setSaving(true) : undefined}
-          savedAs={viewWithFilters(views.data?.views, team, filters)?.name}
+          savedAs={viewWithFilters(views.data?.views, project, filters)?.name}
         />
       ) : null}
       <QueryBoundary<NonNullable<typeof data>>
         query={query}
         announce="Loading builds"
-        notFound={scoped ? "This team doesn't exist" : "This workspace doesn't exist"}
+        notFound={scoped ? "This project doesn't exist" : "This workspace doesn't exist"}
       >
         {() =>
           builds.length === 0 ? (
@@ -257,7 +257,7 @@ export function BuildsBrowser({
             ) : filtered ? (
               <NoFilterResults
                 plural="builds"
-                scope={scoped ? team : workspace}
+                scope={scoped ? project : workspace}
                 onClear={() => onFiltersChange({})}
               />
             ) : before ? (
@@ -277,7 +277,7 @@ export function BuildsBrowser({
               >
                 {scoped
                   ? 'Builds appear here once your CI uploads screenshots.'
-                  : `Builds from every team in ${workspace} appear here.`}
+                  : `Builds from every project in ${workspace} appear here.`}
               </EmptyState>
             )
           ) : (
@@ -293,8 +293,8 @@ export function BuildsBrowser({
                         const state = buildState(b)
                         const checked = selected.has(b.id)
                         const link = clientLink({
-                          to: '/$workspace/$team/builds/$number',
-                          params: { workspace, team: teamOf(b), number: String(b.number) },
+                          to: '/$workspace/$project/builds/$number',
+                          params: { workspace, project: projectOf(b), number: String(b.number) },
                         })
                         return (
                           <li
@@ -365,10 +365,10 @@ export function BuildsBrowser({
                           size="sm"
                           variant="primary"
                           {...clientLink({
-                            to: '/$workspace/$team/builds/$number',
+                            to: '/$workspace/$project/builds/$number',
                             params: {
                               workspace,
-                              team: teamOf(cursor),
+                              project: projectOf(cursor),
                               number: String(cursor.number),
                             },
                           })}
@@ -389,8 +389,8 @@ export function BuildsBrowser({
                     {before ? (
                       <Button
                         {...clientLink({
-                          to: '/$workspace/$team',
-                          params: { workspace, team },
+                          to: '/$workspace/$project',
+                          params: { workspace, project },
                           search: toSearch(filters),
                         })}
                       >
@@ -400,8 +400,8 @@ export function BuildsBrowser({
                     {builds.length === BUILDS_PAGE_SIZE && oldest ? (
                       <Button
                         {...clientLink({
-                          to: '/$workspace/$team',
-                          params: { workspace, team },
+                          to: '/$workspace/$project',
+                          params: { workspace, project },
                           search: toSearch(filters, oldest),
                         })}
                       >
@@ -477,7 +477,7 @@ export function BuildsBrowser({
       />
       <MemberPicker
         workspace={workspace}
-        team={team}
+        project={project}
         open={picking}
         onOpenChange={setPicking}
         onPick={(member) =>
@@ -489,7 +489,7 @@ export function BuildsBrowser({
                   withUndo(
                     `Asked ${member.name} to review ${countText(target.length)}`,
                     answer.undo,
-                    { workspace, team: team ?? '' },
+                    { workspace, project: project ?? '' },
                     refreshAll(queryClient),
                     "Couldn't cancel the requests",
                   ),
@@ -508,7 +508,7 @@ export function BuildsBrowser({
         onCancel={() => setSaving(false)}
         onSave={(name) =>
           saveView.mutate(
-            { name, team, filters },
+            { name, project, filters },
             {
               onSuccess: () => {
                 setSaving(false)
@@ -525,11 +525,11 @@ export function BuildsBrowser({
 export namespace BuildsBrowser {
   export interface Props {
     workspace: string
-    /** The team whose builds to list; absent for every team of the workspace (a view with no team). */
-    team?: string | undefined
+    /** The project whose builds to list; absent for every project of the workspace (a view with no project). */
+    project?: string | undefined
     filters: BuildFilters
     onFiltersChange: (filters: BuildFilters) => void
-    /** A team's page cursor (builds older than this number). */
+    /** A project's page cursor (builds older than this number). */
     before?: number | undefined
     /** The workspace-wide page cursor (builds before this build id), and how to change it. */
     cursor?: string | undefined
@@ -568,15 +568,15 @@ function GroupRows({
   )
 }
 
-/** A build in either list: a workspace-wide one also names its team. */
-type Row = Build.ListItem & { team?: { slug: string; name: string } }
+/** A build in either list: a workspace-wide one also names its project. */
+type Row = Build.ListItem & { project?: { slug: string; name: string } }
 
 function RowMeta({ build, show }: { build: Row; show: DisplayOptions['show'] }) {
   return (
     <span className={styles.metaLine}>
-      {build.team ? (
+      {build.project ? (
         <Text variant="small" tone="tertiary">
-          {build.team.name}
+          {build.project.name}
         </Text>
       ) : null}
       {build.prNumber ? (

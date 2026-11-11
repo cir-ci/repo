@@ -6,7 +6,7 @@ const fx = await startDashboard()
 const { acme, rival, acmeCookie, rivalCookie, get } = fx
 afterAll(() => fx.close())
 
-// The fixture: Acme's `web` team has build 1 (approved by its owner) and build 2 (on main,
+// The fixture: Acme's `web` project has build 1 (approved by its owner) and build 2 (on main,
 // approved automatically), each with screenshots `home` and `about`. Rival has nothing.
 const url = (workspace: string, query = '') => `/api/workspaces/${workspace}/insights${query}`
 
@@ -16,11 +16,11 @@ describe('GET /api/workspaces/:workspace/insights', () => {
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.workspace.slug).toBe(acme.workspaceSlug)
-    expect(body.team).toBeNull()
+    expect(body.project).toBeNull()
     // Build 1 had a person's decision just now; build 2 was approved automatically.
     expect(body.summary).toMatchObject({ buildsReviewed: 1, buildsFinished: 2 })
     expect(body.summary.medianReviewHours).toBeGreaterThanOrEqual(0)
-    expect(body.storage.teams).toMatchObject([{ slug: 'web' }])
+    expect(body.storage.projects).toMatchObject([{ slug: 'web' }])
     expect(body.storage.totalBytes).toBeGreaterThan(0)
     expect(body.reviewers).toMatchObject([{ id: acme.owner.id, reviews: 1 }])
     expect(body.weeks.length).toBeGreaterThanOrEqual(5)
@@ -38,8 +38,8 @@ describe('GET /api/workspaces/:workspace/insights', () => {
       rejected: 0,
       failed: 0,
     })
-    expect(body.storage.teams[0].colour).toEqual(expect.any(String))
-    // Dates in lists are strings, and one team in the workspace means one comparison row.
+    expect(body.storage.projects[0].colour).toEqual(expect.any(String))
+    // Dates in lists are strings, and one project in the workspace means one comparison row.
     expect(Date.parse(body.backlog[0].day)).not.toBeNaN()
     expect(body.backlog.at(-1)).toMatchObject({ waiting: expect.any(Number) })
     expect(body.waitingNow).toBe(0)
@@ -47,15 +47,15 @@ describe('GET /api/workspaces/:workspace/insights', () => {
     expect(body.rejections).toEqual({ rejectedBuilds: 0, withReason: 0, recent: [] })
     expect(body.failureReasons).toEqual([])
     expect(body.mostRejected).toEqual([])
-    expect(body.teamsComparison).toMatchObject([{ team: { slug: 'web' }, builds: 2 }])
+    expect(body.projectsComparison).toMatchObject([{ project: { slug: 'web' }, builds: 2 }])
     expect(body.ignoreRegions).toBeNull()
     expect(body.mostChanged).toBeInstanceOf(Array)
     expect(body.flakiest).toBeInstanceOf(Array)
   })
 
-  it('has no comparison for one team, and a day axis for a week', async () => {
-    const one = (await get(url(acme.workspaceSlug, '?team=web'))).json()
-    expect(one.teamsComparison).toEqual([])
+  it('has no comparison for one project, and a day axis for a week', async () => {
+    const one = (await get(url(acme.workspaceSlug, '?project=web'))).json()
+    expect(one.projectsComparison).toEqual([])
     const to = new Date(Date.now() + 3_600_000).toISOString()
     const from = new Date(Date.now() - 7 * 86_400_000 + 3_600_000).toISOString()
     const week = (await get(url(acme.workspaceSlug, `?from=${from}&to=${to}`))).json()
@@ -63,9 +63,9 @@ describe('GET /api/workspaces/:workspace/insights', () => {
     expect(week.weeks.length).toBeGreaterThanOrEqual(7)
   })
 
-  it('narrows to a team and a date range', async () => {
-    const one = await get(url(acme.workspaceSlug, '?team=web'))
-    expect(one.json().team).toBe('web')
+  it('narrows to a project and a date range', async () => {
+    const one = await get(url(acme.workspaceSlug, '?project=web'))
+    expect(one.json().project).toBe('web')
     const old = await get(
       url(acme.workspaceSlug, '?from=2020-01-01T00:00:00.000Z&to=2020-02-01T00:00:00.000Z'),
     )
@@ -73,10 +73,10 @@ describe('GET /api/workspaces/:workspace/insights', () => {
     expect(old.json().summary).toMatchObject({ buildsReviewed: 0, changeRate: null })
   })
 
-  it('is not found for a non-member, an unknown workspace or team', async () => {
+  it('is not found for a non-member, an unknown workspace or project', async () => {
     expect((await get(url(acme.workspaceSlug), rivalCookie)).statusCode).toBe(404)
     expect((await get(url(rival.workspaceSlug), acmeCookie)).statusCode).toBe(404)
-    expect((await get(url(acme.workspaceSlug, '?team=nope'))).statusCode).toBe(404)
+    expect((await get(url(acme.workspaceSlug, '?project=nope'))).statusCode).toBe(404)
     expect((await get(url(acme.workspaceSlug), '')).statusCode).toBe(401)
   })
 

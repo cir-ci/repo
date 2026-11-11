@@ -7,7 +7,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const API = '/api/teams/acme/web'
+const API = '/api/projects/acme/web'
 
 const snapshot = (name: string, regions: number) => ({
   name,
@@ -36,14 +36,14 @@ function api(snapshots: unknown[], canManage = true, extra: Record<string, Reply
 
 const show = () =>
   renderPage(<IgnoreRegionsPage />, {
-    route: '/$workspace/$team/settings/ignore-regions/',
+    route: '/$workspace/$project/settings/ignore-regions/',
     url: '/acme/web/settings/ignore-regions',
     announcer: true,
     validateSearch: parseIgnoreRegionsSearch,
-    otherRoutes: ['/$workspace/$team/settings/ignore-regions/$'],
+    otherRoutes: ['/$workspace/$project/settings/ignore-regions/$'],
   })
 
-describe('IgnoreRegionsPage (the team settings overview)', () => {
+describe('IgnoreRegionsPage (the project settings overview)', () => {
   it('lists the screenshots that have ignore regions with their counts, each opening its baseline inside settings', async () => {
     api([snapshot('checkout/summary', 2), snapshot('nav/header', 1)])
     await show()

@@ -76,7 +76,7 @@ run in `globalSetup`, random ports and a unique compose project per stack.
 ### Step 3: share stacks between tests (the biggest win, medium)
 
 Most tests don't need a stack of their own: CirCI is multi-tenant, and a test that creates its own
-workspace, team and people can't see another test's. So:
+workspace, project and people can't see another test's. So:
 
 - **Profiles.** Group stacks by configuration: `default` (fs), `s3`, `sites` (`STATIC_SITES_HOST`),
   `oidc` (instance-wide `AUTH_OIDC_*`), `strict-webhooks` (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false`),
@@ -84,7 +84,7 @@ workspace, team and people can't see another test's. So:
 - **A pool per Vitest worker.** The first file that needs a profile boots it; later files in the
   same worker reuse it; the pool tears everything down when the worker exits (and on Ctrl-C, as
   today). Expected: from 21 boots to about 6 to 8.
-- **Per-test tenants.** A helper `ctx.tenant()` creates a fresh workspace, owner and team
+- **Per-test tenants.** A helper `ctx.tenant()` creates a fresh workspace, owner and project
   through the API, so tests never share data. Host fakes (GitHub, IdP, webhook receiver) get
   per-test namespaces or one instance per test, the way the receiver already works.
 - **Dedicated stacks stay** for tests that change instance-wide state: first-run setup,

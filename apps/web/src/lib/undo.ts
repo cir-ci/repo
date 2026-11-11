@@ -1,12 +1,12 @@
 import type { Undo } from '@circi/api'
 import type { QueryClient } from '@tanstack/react-query'
 
-import { inboxPath, teamPath } from '#lib/api-paths.ts'
+import { inboxPath, projectPath } from '#lib/api-paths.ts'
 import { post } from '#lib/http.ts'
 import type { ToastInput } from '#lib/stores/toast-store.ts'
 
-/** Whose undo it is: a team's actions (`workspace`, `team`), or the inbox's (`null`). */
-export type UndoScope = { workspace: string; team: string } | null
+/** Whose undo it is: a project's actions (`workspace`, `project`), or the inbox's (`null`). */
+export type UndoScope = { workspace: string; project: string } | null
 
 /**
  * The toast for a change the server can take back: `message`, with Undo when the answer carried a
@@ -23,7 +23,7 @@ export function withUndo(
 ): ToastInput {
   if (!undo) return { message }
   const path = scope
-    ? teamPath(scope.workspace, scope.team, 'undo', undo.id)
+    ? projectPath(scope.workspace, scope.project, 'undo', undo.id)
     : inboxPath('undo', undo.id)
   return {
     message,

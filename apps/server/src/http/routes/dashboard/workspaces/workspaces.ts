@@ -1,4 +1,4 @@
-import { createWorkspace, createTeamWithToken } from '@circi/auth'
+import { createWorkspace, createProjectWithToken } from '@circi/auth'
 import {
   getLastWorkspaceSlug,
   listManageableWorkspaces,
@@ -14,7 +14,7 @@ import {
   normalizeExtra,
   type IntegrationDefinition,
 } from '@circi/integrations'
-import { mapTeam, rememberWorkspace } from '@circi/services'
+import { mapProject, rememberWorkspace } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -24,13 +24,13 @@ import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 const nameBody = z.object({ name: z.string().min(1).max(100) })
-const teamBody = nameBody.extend({
+const projectBody = nameBody.extend({
   color: z.string().max(40).optional(),
   icon: z.string().max(40).nullable().optional(),
   defaultBranch: z.string().trim().min(1).max(255).optional(),
-  /** Workspace members (user IDs) to add to the team; the person creating it is added anyway. */
+  /** Workspace members (user IDs) to add to the project; the person creating it is added anyway. */
   memberIds: z.array(z.string().min(1).max(200)).max(500).optional(),
-  /** A repository of one of the workspace's git integrations to point the team at. */
+  /** A repository of one of the workspace's git integrations to point the project at. */
   repository: z
     .strictObject({
       integration: z.uuid(),
@@ -42,9 +42,9 @@ const teamBody = nameBody.extend({
 const workspaceParams = z.object({ workspace: z.string() })
 
 /**
- * Creating workspaces and teams from the dashboard. Workspaces: instance admins, or
- * any member when `WORKSPACE_CREATION=anyone`. Teams: owners and admins of the workspace, who
- * get the team's CI token once, in the response.
+ * Creating workspaces and projects from the dashboard. Workspaces: instance admins, or
+ * any member when `WORKSPACE_CREATION=anyone`. Projects: owners and admins of the workspace, who
+ * get the project's CI token once, in the response.
  */
 export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function canCreateWorkspace(user: { id: string; method: SessionMethod }): Promise<boolean> {
@@ -58,7 +58,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     return {
       /** Whether this person runs the instance (its admin pages). */
       instanceAdmin,
-      /** First-run setup has steps left (the storage check, the first team); only the admin is shown them. */
+      /** First-run setup has steps left (the storage check, the first project); only the admin is shown them. */
       setupPending: instanceAdmin && (await isFirstRunSetupPending(deps.db)),
       canCreateWorkspace: await canCreateWorkspace(currentUser(req)),
       /** Workspaces that refuse the way this session signed in, and what they accept. */
@@ -76,7 +76,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
         currentUser(req).id,
         currentUser(req).method,
       ),
-      /** Where this person may create teams. */
+      /** Where this person may create projects. */
       manageableWorkspaces: await listManageableWorkspaces(
         deps.db,
         currentUser(req).id,
@@ -105,14 +105,14 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     return reply.code(201).send({ workspace: { slug: workspace.slug, name: workspace.name } })
   })
 
-  app.post('/workspaces/:workspace/teams', async (req, reply) => {
+  app.post('/workspaces/:workspace/projects', async (req, reply) => {
     const { workspace: workspaceSlug } = parse(workspaceParams, req.params)
-    const { name, color, icon, defaultBranch, repository, memberIds } = parse(teamBody, req.body)
+    const { name, color, icon, defaultBranch, repository, memberIds } = parse(projectBody, req.body)
     const { workspace } = await loadWorkspace(deps, req, {
       manage: true,
-      forbidden: 'Only owners and admins can create teams',
+      forbidden: 'Only owners and admins can create projects',
     })
-    // The repository is checked before the team exists, so a bad one creates nothing.
+    // The repository is checked before the project exists, so a bad one creates nothing.
     const registry = deps.integrations?.registry ?? integrationRegistry
     let mapping:
       | { definition: IntegrationDefinition; integrationId: string; ref: string; name: string }
@@ -135,7 +135,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
         name: repository.name ?? repository.ref,
       }
     }
-    const { team, token } = await createTeamWithToken(deps.auth, deps.db, {
+    const { project, token } = await createProjectWithToken(deps.auth, deps.db, {
       workspaceSlug,
       name,
       createdBy: currentUser(req).id,
@@ -146,10 +146,10 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     })
     if (mapping) {
       // The same service the integration's PUT uses (exclusive hosts, attention, automatic links).
-      await mapTeam(deps.db, {
+      await mapProject(deps.db, {
         definition: mapping.definition,
         integrationId: mapping.integrationId,
-        teamId: team.id,
+        projectId: project.id,
         ref: mapping.ref,
         extra: {
           name: mapping.name,
@@ -163,7 +163,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       })
     }
     return reply.code(201).send({
-      team: { slug: team.slug, name: team.name, color: team.color, icon: team.icon },
+      project: { slug: project.slug, name: project.name, color: project.color, icon: project.icon },
       token,
     })
   })

@@ -28,7 +28,7 @@ import {
  * GitLab (gitlab.com or self-managed), through an access token with the `api` scope. A connection
  * is the token's principal on one GitLab instance (`<host>#<user id>`, so the same principal cannot
  * belong to two workspaces); its sealed credentials are the address and token as JSON. A
- * team maps to one GitLab project (its path with namespace). Builds show as a commit status
+ * project maps to one GitLab project (its path with namespace). Builds show as a commit status
  * with one summary note; commands in notes review from GitLab (statuses have no buttons).
  * GitLab's webhook carries a secret token (`X-Gitlab-Token`), derived from the instance secret and
  * shown to owners and admins.
@@ -58,7 +58,7 @@ function repoOf(p: Record<string, unknown>): IntegrationDefinition.GitRepo | und
 }
 
 const LINK_HELP = (origin: string) =>
-  `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitLab (a member of this team's workspace), then try again.`
+  `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitLab (a member of this project's workspace), then try again.`
 
 function events(
   headers: Readonly<Record<string, string | string[] | undefined>>,
@@ -115,7 +115,7 @@ export const gitlab = defineIntegration({
   name: 'GitLab',
   description: 'Build status on the merge request, one summary note, and sign-in with GitLab.',
   logo: 'gitlab',
-  exclusive: { account: true, team: 'group' },
+  exclusive: { account: true, project: 'group' },
   replaceOnReconnect: true,
   credentials: z.strictObject({
     baseUrl: z.string().trim().min(1, 'Enter the GitLab address').max(512).meta({
@@ -189,7 +189,7 @@ export const gitlab = defineIntegration({
 
   mapping: {
     description:
-      'Choose the GitLab project each CirCI team reports to. Builds show up on the merge request as a commit status and one summary note; /circi approve, reject or rerun in a note acts on its latest builds.',
+      'Choose the GitLab project each CirCI project reports to. Builds show up on the merge request as a commit status and one summary note; /circi approve, reject or rerun in a note acts on its latest builds.',
     target: {
       label: 'GitLab project',
       kind: 'repository',

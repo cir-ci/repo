@@ -4,8 +4,8 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { listReviewRules, type ReviewRuleRow } from '#queries/review-rules.ts'
 import {
   member,
-  teamMembers,
-  teams,
+  projectMembers,
+  projects,
   reviewRuleReviewers,
   reviewRules,
   type ReviewRuleKind,
@@ -21,13 +21,13 @@ import type { Database } from '#src/client.ts'
 const MAX_PATTERN = 200
 const MAX_REVIEWERS = 20
 
-async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
+async function assertMembers(db: Database, projectId: string, userIds: string[]): Promise<void> {
   const found = await db
-    .select({ id: teamMembers.userId })
-    .from(teamMembers)
-    .where(and(eq(teamMembers.teamId, teamId), inArray(teamMembers.userId, userIds)))
+    .select({ id: projectMembers.userId })
+    .from(projectMembers)
+    .where(and(eq(projectMembers.projectId, projectId), inArray(projectMembers.userId, userIds)))
   if (new Set(found.map((r) => r.id)).size !== userIds.length) {
-    throw new ValidationError('Reviewers must be members of this team')
+    throw new ValidationError('Reviewers must be members of this project')
   }
 }
 
@@ -49,23 +49,23 @@ function checkInput(input: { kind: string; pattern: string; reviewerIds: string[
 
 /**
  * The rules to apply to a new build: like `listReviewRules`, but only reviewers who are still
- * members of the team (someone removed from it can't be asked), as ids.
+ * members of the project (someone removed from it can't be asked), as ids.
  */
 export async function listRulesForResolution(
   db: Database,
-  teamId: string,
+  projectId: string,
 ): Promise<{ kind: ReviewRuleKind; pattern: string; reviewers: string[] }[]> {
-  const rules = await listReviewRules(db, teamId)
+  const rules = await listReviewRules(db, projectId)
   if (rules.length === 0) return []
   const current = await db
-    .select({ id: teamMembers.userId })
-    .from(teamMembers)
-    .innerJoin(teams, eq(teams.id, teamMembers.teamId))
+    .select({ id: projectMembers.userId })
+    .from(projectMembers)
+    .innerJoin(projects, eq(projects.id, projectMembers.projectId))
     .innerJoin(
       member,
-      and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, teamMembers.userId)),
+      and(eq(member.workspaceId, projects.workspaceId), eq(member.userId, projectMembers.userId)),
     )
-    .where(eq(teamMembers.teamId, teamId))
+    .where(eq(projectMembers.projectId, projectId))
   const ok = new Set(current.map((r) => r.id))
   return rules.map((r) => ({
     kind: r.kind,
@@ -84,21 +84,21 @@ export async function listScreenshotNames(db: Database, buildId: string): Promis
   return rows.map((r) => r.name)
 }
 
-/** Adds a rule after the team's others. */
+/** Adds a rule after the project's others. */
 export async function createReviewRule(
   db: Database,
   input: createReviewRule.Input,
 ): Promise<ReviewRuleRow> {
   const { kind, pattern, reviewerIds } = checkInput(input)
-  await assertMembers(db, input.teamId, reviewerIds)
+  await assertMembers(db, input.projectId, reviewerIds)
   const id = await db.transaction(async (tx) => {
     const [last] = await tx
       .select({ max: sql<number>`coalesce(max(${reviewRules.position}), -1)` })
       .from(reviewRules)
-      .where(eq(reviewRules.teamId, input.teamId))
+      .where(eq(reviewRules.projectId, input.projectId))
     const [rule] = await tx
       .insert(reviewRules)
-      .values({ teamId: input.teamId, kind, pattern, position: (last?.max ?? -1) + 1 })
+      .values({ projectId: input.projectId, kind, pattern, position: (last?.max ?? -1) + 1 })
       .returning({ id: reviewRules.id })
     if (!rule) throw new Error('insert returned no row')
     await tx
@@ -106,13 +106,13 @@ export async function createReviewRule(
       .values(reviewerIds.map((userId) => ({ ruleId: rule.id, userId })))
     return rule.id
   })
-  const created = (await listReviewRules(db, input.teamId)).find((r) => r.id === id)
+  const created = (await listReviewRules(db, input.projectId)).find((r) => r.id === id)
   if (!created) throw new Error('review rule vanished')
   return created
 }
 export namespace createReviewRule {
   export interface Input {
-    teamId: string
+    projectId: string
     kind: string
     pattern: string
     reviewerIds: string[]
@@ -125,12 +125,12 @@ export async function updateReviewRule(
   input: updateReviewRule.Input,
 ): Promise<ReviewRuleRow> {
   const { kind, pattern, reviewerIds } = checkInput(input)
-  await assertMembers(db, input.teamId, reviewerIds)
+  await assertMembers(db, input.projectId, reviewerIds)
   await db.transaction(async (tx) => {
     const rows = await tx
       .update(reviewRules)
       .set({ kind, pattern })
-      .where(and(eq(reviewRules.id, input.id), eq(reviewRules.teamId, input.teamId)))
+      .where(and(eq(reviewRules.id, input.id), eq(reviewRules.projectId, input.projectId)))
       .returning({ id: reviewRules.id })
     assertFound(rows[0], 'Review rule not found')
     await tx.delete(reviewRuleReviewers).where(eq(reviewRuleReviewers.ruleId, input.id))
@@ -138,7 +138,7 @@ export async function updateReviewRule(
       .insert(reviewRuleReviewers)
       .values(reviewerIds.map((userId) => ({ ruleId: input.id, userId })))
   })
-  const updated = (await listReviewRules(db, input.teamId)).find((r) => r.id === input.id)
+  const updated = (await listReviewRules(db, input.projectId)).find((r) => r.id === input.id)
   if (!updated) throw new Error('review rule vanished')
   return updated
 }
@@ -148,29 +148,29 @@ export namespace updateReviewRule {
   }
 }
 
-export async function deleteReviewRule(db: Database, teamId: string, id: string): Promise<void> {
+export async function deleteReviewRule(db: Database, projectId: string, id: string): Promise<void> {
   const rows = await db
     .delete(reviewRules)
-    .where(and(eq(reviewRules.id, id), eq(reviewRules.teamId, teamId)))
+    .where(and(eq(reviewRules.id, id), eq(reviewRules.projectId, projectId)))
     .returning({ id: reviewRules.id })
   assertFound(rows[0], 'Review rule not found')
 }
 
 /**
- * Puts a team's rules in the given order (first match wins, so the order matters). The list
- * must name every rule of the team exactly once; otherwise nothing changes. One statement per
+ * Puts a project's rules in the given order (first match wins, so the order matters). The list
+ * must name every rule of the project exactly once; otherwise nothing changes. One statement per
  * rule inside one transaction, so a reader never sees a half-moved list.
  */
 export async function reorderReviewRules(
   db: Database,
-  teamId: string,
+  projectId: string,
   ruleIds: readonly string[],
 ): Promise<ReviewRuleRow[]> {
   await db.transaction(async (tx) => {
     const current = await tx
       .select({ id: reviewRules.id })
       .from(reviewRules)
-      .where(eq(reviewRules.teamId, teamId))
+      .where(eq(reviewRules.projectId, projectId))
       .for('update')
     const known = new Set(current.map((r) => r.id))
     if (
@@ -178,15 +178,15 @@ export async function reorderReviewRules(
       ruleIds.length !== known.size ||
       !ruleIds.every((id) => known.has(id))
     ) {
-      throw new ValidationError('Give every review rule of the team exactly once')
+      throw new ValidationError('Give every review rule of the project exactly once')
     }
     for (const [position, id] of ruleIds.entries()) {
-      // oxlint-disable-next-line no-await-in-loop -- a team has a handful of rules
+      // oxlint-disable-next-line no-await-in-loop -- a project has a handful of rules
       await tx
         .update(reviewRules)
         .set({ position })
-        .where(and(eq(reviewRules.id, id), eq(reviewRules.teamId, teamId)))
+        .where(and(eq(reviewRules.id, id), eq(reviewRules.projectId, projectId)))
     }
   })
-  return listReviewRules(db, teamId)
+  return listReviewRules(db, projectId)
 }

@@ -4,12 +4,12 @@ import {
   addMember as addWorkspaceMember,
   createAuth,
   createWorkspace,
-  createTeamWithToken,
+  createProjectWithToken,
   createUser,
 } from '@circi/auth'
 import type { Database } from '@circi/db'
-import { listTeams } from '@circi/db/queries'
-import { addTestTeamMember } from '@circi/db/testing'
+import { listProjects } from '@circi/db/queries'
+import { addTestProjectMember } from '@circi/db/testing'
 import type { FastifyInstance } from 'fastify'
 import { expect } from 'vitest'
 
@@ -35,12 +35,12 @@ let n = 0
 export interface Tenant {
   owner: { id: string; email: string; password: string }
   workspaceSlug: string
-  team: Awaited<ReturnType<typeof createTeamWithToken>>['team']
-  /** The team's CI token. */
+  project: Awaited<ReturnType<typeof createProjectWithToken>>['project']
+  /** The project's CI token. */
   token: string
 }
 
-/** A user who owns a new workspace with one team, created the way the admin CLI does. */
+/** A user who owns a new workspace with one project, created the way the admin CLI does. */
 export async function seedTenant(
   auth: Auth,
   db: Database,
@@ -59,32 +59,32 @@ export async function seedTenant(
     slug: workspaceSlug,
     ownerEmail: owner.email,
   })
-  const { team, token } = await createTeamWithToken(auth, db, {
+  const { project, token } = await createProjectWithToken(auth, db, {
     workspaceSlug,
     name: 'web',
     memberIds: [owner.id],
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
-  return { owner: { id: owner.id, email: owner.email, password }, workspaceSlug, team, token }
+  return { owner: { id: owner.id, email: owner.email, password }, workspaceSlug, project, token }
 }
 
 /**
  * Adds someone to a workspace the way the admin CLI does, and (as the upgrade did for existing
- * teams) puts them in every team the workspace has now; `teams: false` leaves them in none, as an
- * invitation does. Teams made later have to be joined on purpose.
+ * projects) puts them in every project the workspace has now; `projects: false` leaves them in none, as an
+ * invitation does. Projects made later have to be joined on purpose.
  */
 export async function addMember(
   auth: Auth,
   db: Database,
-  input: Parameters<typeof addWorkspaceMember>[2] & { teams?: boolean },
+  input: Parameters<typeof addWorkspaceMember>[2] & { projects?: boolean },
 ) {
-  const { teams = true, ...rest } = input
+  const { projects = true, ...rest } = input
   const result = await addWorkspaceMember(auth, db, rest)
-  if (teams) {
+  if (projects) {
     const userId = result.userId
-    for (const team of await listTeams(db, input.workspaceSlug)) {
-      // oxlint-disable-next-line no-await-in-loop -- a test workspace has a few teams
-      await addTestTeamMember(db, { teamId: team.id, userId })
+    for (const project of await listProjects(db, input.workspaceSlug)) {
+      // oxlint-disable-next-line no-await-in-loop -- a test workspace has a few projects
+      await addTestProjectMember(db, { projectId: project.id, userId })
     }
   }
   return result

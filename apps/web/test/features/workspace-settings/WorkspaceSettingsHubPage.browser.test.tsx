@@ -60,7 +60,7 @@ function api(options: Options = {}) {
 const PAGES = [
   '/workspaces/$workspace/settings/general',
   '/workspaces/$workspace/settings/members',
-  '/workspaces/$workspace/settings/teams',
+  '/workspaces/$workspace/settings/projects',
   '/workspaces/$workspace/settings/sign-in',
   '/workspaces/$workspace/settings/integrations',
   '/workspaces/$workspace/settings/storage',
@@ -97,7 +97,7 @@ describe('WorkspaceSettingsHubPage', () => {
     api()
     await show()
     await expect.element(page.getByRole('heading', { name: 'Acme', level: 1 })).toBeVisible()
-    await expect.element(page.getByText('6 members · 3 teams')).toBeVisible()
+    await expect.element(page.getByText('6 members · 3 projects')).toBeVisible()
   })
 
   it('goes back to the All workspaces list with "‹ Workspaces", and names it in its breadcrumb', async () => {
@@ -115,7 +115,7 @@ describe('WorkspaceSettingsHubPage', () => {
     api()
     await show()
     await expect.element(rowOf('General')).toBeVisible()
-    expect(rows('Workspace')).toEqual(['General', 'Members', 'Teams'])
+    expect(rows('Workspace')).toEqual(['General', 'Members', 'Projects'])
     expect(rows('Access')).toEqual(['Sign-in and domains'])
     expect(rows('Connections')).toEqual(['Integrations'])
     expect(rows('Data')).toEqual(['Storage and retention'])
@@ -126,7 +126,7 @@ describe('WorkspaceSettingsHubPage', () => {
     await show()
     await expect.element(rowOf('General').getByText('acme')).toBeVisible()
     await expect.element(rowOf('Members').getByText('6 members')).toBeVisible()
-    await expect.element(rowOf('Teams').getByText('3 teams')).toBeVisible()
+    await expect.element(rowOf('Projects').getByText('3 projects')).toBeVisible()
     // Email, password and GitHub are on; Google is off.
     await expect.element(rowOf('Sign-in and domains').getByText('3 methods')).toBeVisible()
     await expect.element(rowOf('Integrations').getByText('2 integrations')).toBeVisible()
@@ -142,7 +142,7 @@ describe('WorkspaceSettingsHubPage', () => {
   it.each([
     ['General', '/workspaces/acme/settings/general'],
     ['Members', '/workspaces/acme/settings/members'],
-    ['Teams', '/workspaces/acme/settings/teams'],
+    ['Projects', '/workspaces/acme/settings/projects'],
     ['Sign-in and domains', '/workspaces/acme/settings/sign-in'],
     ['Integrations', '/workspaces/acme/settings/integrations'],
     ['Storage and retention', '/workspaces/acme/settings/storage'],
@@ -166,11 +166,11 @@ describe('WorkspaceSettingsHubPage', () => {
     expect(hrefs.filter((h) => !h?.startsWith('/workspaces/acme/settings'))).toEqual([])
   })
 
-  it('gives an owner or admin who only belongs to the workspace as a member Members and Teams', async () => {
+  it('gives an owner or admin who only belongs to the workspace as a member Members and Projects', async () => {
     api({ canManage: false })
     await show()
     await expect.element(rowOf('Members')).toBeVisible()
-    await expect.element(rowOf('Teams')).toBeVisible()
+    await expect.element(rowOf('Projects')).toBeVisible()
     for (const name of [
       'General',
       'Sign-in and domains',

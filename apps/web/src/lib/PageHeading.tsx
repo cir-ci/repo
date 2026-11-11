@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { NavToggleButton } from '#app/NavToggle.tsx'
 import { PhoneEnd } from '#app/PhoneHeader.tsx'
-import { PhoneTeamTabs } from '#app/PhoneTeamTabs.tsx'
+import { PhoneProjectTabs } from '#app/PhoneProjectTabs.tsx'
 
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
@@ -14,8 +14,8 @@ import styles from './PageHeading.module.css'
 export {
   crumbsFor,
   settingsCrumbsFor,
-  teamBuildsCrumb,
-  teamCrumb,
+  projectBuildsCrumb,
+  projectCrumb,
   workspaceCrumb,
 } from './crumbs.ts'
 
@@ -28,10 +28,10 @@ const NO_CRUMBS: readonly PageHeading.Crumb[] = []
  * `PageHeading` is the header bar of a page: its ancestors as links (`crumbs`), then `title`,
  * the current page, as the `<h1>` (plain text, no link). Pass `actions` for the page's buttons.
  *
- *   <PageHeading crumbs={crumbsFor({ workspace: ws, team })} title="Webhooks" />
+ *   <PageHeading crumbs={crumbsFor({ workspace: ws, project })} title="Webhooks" />
  *
  * Build the crumbs with `crumbsFor` (see `crumbs.ts`: display names, the workspace crumb goes to
- * the Inbox, the team crumb to its Builds page). A top-level page (Inbox, Teams) has no ancestors:
+ * the Inbox, the project crumb to its Builds page). A top-level page (Inbox, Projects) has no ancestors:
  * `<PageHeading title="Inbox" />`. Keep this API stable: other pages depend on it.
  */
 export function PageHeading({
@@ -69,7 +69,7 @@ export function PageHeading({
         />
         {after}
       </PanelHeader>
-      <PhoneTeamTabs />
+      <PhoneProjectTabs />
       {phone && find ? <div className={styles.find}>{find}</div> : null}
     </>
   )

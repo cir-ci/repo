@@ -1,4 +1,4 @@
-import { createTestDb, seedTeam, seedUser } from '@circi/db/testing'
+import { createTestDb, seedProject, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { NotFoundError } from '#src/index.ts'
@@ -19,15 +19,15 @@ afterAll(async () => {
 })
 
 describe('ignore regions', () => {
-  it('adds, lists and groups regions by screenshot name, per team', async () => {
-    const { team } = await seedTeam(t.db)
-    const other = await seedTeam(t.db)
-    await addIgnoreRegion(t.db, team.id, { name: 'home', x: 0, y: 0, width: 10, height: 10 })
-    await addIgnoreRegion(t.db, team.id, { name: 'home', x: 20, y: 20, width: 5, height: 5 })
-    await addIgnoreRegion(t.db, team.id, { name: 'login', x: 1, y: 2, width: 3, height: 4 })
-    await addIgnoreRegion(t.db, other.team.id, { name: 'home', x: 9, y: 9, width: 9, height: 9 })
-    expect(await listIgnoreRegions(t.db, team.id)).toHaveLength(3)
-    const byName = await ignoreRegionsByName(t.db, team.id)
+  it('adds, lists and groups regions by screenshot name, per project', async () => {
+    const { project } = await seedProject(t.db)
+    const other = await seedProject(t.db)
+    await addIgnoreRegion(t.db, project.id, { name: 'home', x: 0, y: 0, width: 10, height: 10 })
+    await addIgnoreRegion(t.db, project.id, { name: 'home', x: 20, y: 20, width: 5, height: 5 })
+    await addIgnoreRegion(t.db, project.id, { name: 'login', x: 1, y: 2, width: 3, height: 4 })
+    await addIgnoreRegion(t.db, other.project.id, { name: 'home', x: 9, y: 9, width: 9, height: 9 })
+    expect(await listIgnoreRegions(t.db, project.id)).toHaveLength(3)
+    const byName = await ignoreRegionsByName(t.db, project.id)
     expect(byName.get('home')).toEqual([
       { x: 0, y: 0, width: 10, height: 10 },
       { x: 20, y: 20, width: 5, height: 5 },
@@ -37,7 +37,7 @@ describe('ignore regions', () => {
   })
 
   it('refuses regions that make no sense', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const bad = [
       { name: '', x: 0, y: 0, width: 1, height: 1 },
       { name: 'a', x: -1, y: 0, width: 1, height: 1 },
@@ -47,7 +47,7 @@ describe('ignore regions', () => {
     ]
     const outcomes = await Promise.all(
       bad.map((r) =>
-        addIgnoreRegion(t.db, team.id, r).then(
+        addIgnoreRegion(t.db, project.id, r).then(
           () => 'added',
           () => 'refused',
         ),
@@ -56,25 +56,25 @@ describe('ignore regions', () => {
     expect(outcomes).toEqual(Array(5).fill('refused'))
   })
 
-  it("removes only the team's own region", async () => {
-    const { team } = await seedTeam(t.db)
-    const other = await seedTeam(t.db)
-    const mine = await addIgnoreRegion(t.db, team.id, {
+  it("removes only the project's own region", async () => {
+    const { project } = await seedProject(t.db)
+    const other = await seedProject(t.db)
+    const mine = await addIgnoreRegion(t.db, project.id, {
       name: 'a',
       x: 0,
       y: 0,
       width: 1,
       height: 1,
     })
-    await expect(removeIgnoreRegion(t.db, other.team.id, mine.id)).rejects.toThrow(NotFoundError)
-    await removeIgnoreRegion(t.db, team.id, mine.id)
-    expect(await listIgnoreRegions(t.db, team.id)).toEqual([])
+    await expect(removeIgnoreRegion(t.db, other.project.id, mine.id)).rejects.toThrow(NotFoundError)
+    await removeIgnoreRegion(t.db, project.id, mine.id)
+    expect(await listIgnoreRegions(t.db, project.id)).toEqual([])
   })
 
   it('records who added a region, and moves or renames one', async () => {
-    const { team } = await seedTeam(t.db)
+    const { project } = await seedProject(t.db)
     const person = await seedUser(t.db)
-    const added = await addIgnoreRegion(t.db, team.id, {
+    const added = await addIgnoreRegion(t.db, project.id, {
       name: 'home',
       x: 0,
       y: 0,
@@ -83,7 +83,7 @@ describe('ignore regions', () => {
       createdBy: person.id,
     })
     expect(added.createdBy).toEqual({ id: person.id, name: person.name })
-    const cli = await addIgnoreRegion(t.db, team.id, {
+    const cli = await addIgnoreRegion(t.db, project.id, {
       name: 'home',
       x: 5,
       y: 5,
@@ -92,21 +92,21 @@ describe('ignore regions', () => {
     })
     expect(cli.createdBy).toBeNull()
 
-    const moved = await changeIgnoreRegion(t.db, team.id, added.id, { x: 4, width: 20 })
+    const moved = await changeIgnoreRegion(t.db, project.id, added.id, { x: 4, width: 20 })
     expect(moved).toMatchObject({ x: 4, y: 0, width: 20, height: 10, name: 'home' })
     expect(moved.createdBy).toEqual({ id: person.id, name: person.name })
-    expect((await changeIgnoreRegion(t.db, team.id, added.id, { name: ' login ' })).name).toBe(
+    expect((await changeIgnoreRegion(t.db, project.id, added.id, { name: ' login ' })).name).toBe(
       'login',
     )
-    await expect(changeIgnoreRegion(t.db, team.id, added.id, { width: 0 })).rejects.toThrow(
+    await expect(changeIgnoreRegion(t.db, project.id, added.id, { width: 0 })).rejects.toThrow(
       /at least 1/,
     )
-    await expect(changeIgnoreRegion(t.db, team.id, added.id, { name: ' ' })).rejects.toThrow(
+    await expect(changeIgnoreRegion(t.db, project.id, added.id, { name: ' ' })).rejects.toThrow(
       /name is required/,
     )
-    // Another team's region is not found.
-    const other = await seedTeam(t.db)
-    await expect(changeIgnoreRegion(t.db, other.team.id, added.id, { x: 1 })).rejects.toThrow(
+    // Another project's region is not found.
+    const other = await seedProject(t.db)
+    await expect(changeIgnoreRegion(t.db, other.project.id, added.id, { x: 1 })).rejects.toThrow(
       NotFoundError,
     )
   })

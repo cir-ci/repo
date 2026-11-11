@@ -3,13 +3,13 @@ import {
   createBuild,
   createIntegration,
   setIntegrationAttention,
-  setIntegrationTeam,
+  setIntegrationProject,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
-  seedTeam,
+  seedProject,
   seedUser,
   seedChangedSnapshots,
 } from '@circi/db/testing'
@@ -43,11 +43,11 @@ const typeOf = (event: unknown) =>
 
 async function setup(options: { events?: string[] } = {}) {
   await t.db.delete(schema.jobs)
-  const { team, workspace, owner } = await seedTeam(t.db)
+  const { project, workspace, owner } = await seedProject(t.db)
   const reviewer = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    teamId: team.id,
+    projectId: project.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -63,13 +63,13 @@ async function setup(options: { events?: string[] } = {}) {
     externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     encryptedCredentials: 'sealed',
   })
-  await setIntegrationTeam(t.db, {
+  await setIntegrationProject(t.db, {
     integrationId: integration.id,
-    teamId: team.id,
+    projectId: project.id,
     externalRef: 'C1',
     extra: { name: 'reviews', ...(options.events ? { events: options.events } : {}) },
   })
-  return { team, owner, reviewer, build, integration }
+  return { project, owner, reviewer, build, integration }
 }
 
 describe('integration events (outbox)', () => {
@@ -161,7 +161,7 @@ describe('integration events (outbox)', () => {
   })
 
   it('queues nothing for an event no definition handles, or for a kind the registry does not know', async () => {
-    const { owner, build, team, integration } = await setup()
+    const { owner, build, project, integration } = await setup()
     // Slack does not handle build.completed.
     expect(await queueIntegrationEvent(t.db, { type: 'build.completed', buildId: build.id })).toBe(
       0,
@@ -172,11 +172,11 @@ describe('integration events (outbox)', () => {
       .where(eq(schema.integrations.id, integration.id))
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     expect(await eventJobs()).toEqual([])
-    expect(team.id).toBeTruthy()
+    expect(project.id).toBeTruthy()
   })
 
   it('queues one job per integration, and the same event for the same build only once', async () => {
-    const { owner, build, team, integration } = await setup()
+    const { owner, build, project, integration } = await setup()
     const workspace = await t.db
       .select({ workspaceId: schema.integrations.workspaceId })
       .from(schema.integrations)
@@ -187,9 +187,9 @@ describe('integration events (outbox)', () => {
       displayName: 'Second',
       externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     })
-    await setIntegrationTeam(t.db, {
+    await setIntegrationProject(t.db, {
       integrationId: second.id,
-      teamId: team.id,
+      projectId: project.id,
       externalRef: 'C2',
       extra: {},
     })

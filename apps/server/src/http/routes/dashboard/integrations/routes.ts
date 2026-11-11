@@ -51,7 +51,7 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     return payload
   })
 
-  /** Removes an integration; every team mapped to it stops using it (a git host: stops reporting). */
+  /** Removes an integration; every project mapped to it stops using it (a git host: stops reporting). */
   app.delete('/workspaces/:workspace/integrations/:id', async (req, reply) => {
     const { workspace } = await loadWorkspace(deps, req, {
       manage: true,

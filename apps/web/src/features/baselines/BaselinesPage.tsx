@@ -14,8 +14,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { flakyQuery } from '#features/teams/api/index.ts'
-import { useCrumbNames } from '#features/teams/crumb-names.ts'
+import { flakyQuery } from '#features/projects/api/index.ts'
+import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
@@ -39,34 +39,35 @@ import { ROUTE } from './routes.ts'
 import styles from './BaselinesPage.module.css'
 
 export function BaselinesPage() {
-  const { workspace, team } = useParams({ from: ROUTE })
-  const names = useCrumbNames(workspace, team)
-  useDocumentTitle('Baselines', team)
+  const { workspace, project } = useParams({ from: ROUTE })
+  const names = useCrumbNames(workspace, project)
+  useDocumentTitle('Baselines', project)
   const clientLink = useClientLink()
   const router = useRouter()
-  const query = useQuery(baselinesQuery(workspace, team))
+  const query = useQuery(baselinesQuery(workspace, project))
   const { data } = query
-  const flaky = useQuery(flakyQuery(workspace, team))
+  const flaky = useQuery(flakyQuery(workspace, project))
   const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.reason]))
   const [filter, setFilter] = useFindParam()
   const [selectedId, setSelectedId] = useState<string>()
 
   const openBuild = (number: number) =>
     void router.navigate({
-      to: '/$workspace/$team/builds/$number',
-      params: { workspace, team, number: String(number) },
+      to: '/$workspace/$project/builds/$number',
+      params: { workspace, project, number: String(number) },
     })
   /** A row's right-click menu: what its address, its build chip and its flaky chip open. */
   const rowMenu = (item: Baseline.Item, href: string) =>
     menuEntries([
       {
         label: 'Open',
-        onSelect: () => void router.navigate(baselineLink(workspace, team, item.name)),
+        onSelect: () => void router.navigate(baselineLink(workspace, project, item.name)),
       },
       { label: `Open build #${item.buildNumber}`, onSelect: () => openBuild(item.buildNumber) },
       flakyOf.has(item.name) && {
         label: 'Open in Triage',
-        onSelect: () => void router.navigate({ href: triageItemHref(workspace, team, item.name) }),
+        onSelect: () =>
+          void router.navigate({ href: triageItemHref(workspace, project, item.name) }),
       },
       openInNewTabItem(href),
       copyLinkItem(href),
@@ -92,7 +93,7 @@ export function BaselinesPage() {
         after={
           data && all.length > 0 ? (
             <Text variant="small" tone="tertiary" role="status">
-              {items.length} on {data.team.defaultBranch}
+              {items.length} on {data.project.defaultBranch}
             </Text>
           ) : null
         }
@@ -106,15 +107,15 @@ export function BaselinesPage() {
         <QueryBoundary
           query={query}
           announce="Loading baselines"
-          notFound="Team not found"
+          notFound="Project not found"
           rows={4}
         >
           {(loaded) =>
             all.length === 0 ? (
               <div className={styles.empty}>
                 <EmptyState icon={<ImagesIcon />} title="No baselines yet">
-                  Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
-                  baselines.
+                  Once a build of {loaded.project.defaultBranch} finishes, its screenshots become
+                  the baselines.
                 </EmptyState>
               </div>
             ) : (
@@ -137,16 +138,16 @@ export function BaselinesPage() {
                                 <ContextMenu
                                   items={rowMenu(
                                     item,
-                                    clientLink(baselineLink(workspace, team, item.name)).href,
+                                    clientLink(baselineLink(workspace, project, item.name)).href,
                                   )}
                                 >
                                   <ListRow
                                     selected={baselineId(item) === selectedId}
-                                    {...clientLink(baselineLink(workspace, team, item.name))}
+                                    {...clientLink(baselineLink(workspace, project, item.name))}
                                     leading={
                                       <StatusIcon
                                         status="approved"
-                                        label={`Baseline on ${loaded.team.defaultBranch}`}
+                                        label={`Baseline on ${loaded.project.defaultBranch}`}
                                       />
                                     }
                                     title={
@@ -165,10 +166,10 @@ export function BaselinesPage() {
                                       label: `Open build #${item.buildNumber} ↗`,
                                       onAction: () =>
                                         void router.navigate({
-                                          to: '/$workspace/$team/builds/$number',
+                                          to: '/$workspace/$project/builds/$number',
                                           params: {
                                             workspace,
-                                            team,
+                                            project,
                                             number: String(item.buildNumber),
                                           },
                                         }),
@@ -180,7 +181,7 @@ export function BaselinesPage() {
                                             reason={flakyOf.get(item.name)!}
                                             onOpen={() =>
                                               void router.navigate({
-                                                href: triageItemHref(workspace, team, item.name),
+                                                href: triageItemHref(workspace, project, item.name),
                                               })
                                             }
                                           />
@@ -210,8 +211,8 @@ export function BaselinesPage() {
 }
 
 /** The Triage page with this screenshot's flaky item selected. */
-const triageItemHref = (workspace: string, team: string, name: string) =>
-  `/${encodeURIComponent(workspace)}/${encodeURIComponent(team)}/triage?item=${encodeURIComponent(`flaky:${name}`)}`
+const triageItemHref = (workspace: string, project: string, name: string) =>
+  `/${encodeURIComponent(workspace)}/${encodeURIComponent(project)}/triage?item=${encodeURIComponent(`flaky:${name}`)}`
 
 /**
  * A flaky screenshot's chip: the flaky glyph and why it was marked. It opens the screenshot's item

@@ -67,7 +67,7 @@ const fakeFetch: typeof fetch = async (input, init) => {
     }
     if (query.includes('teams')) {
       return Response.json({
-        data: { teams: { nodes: [{ id: 'team-1', key: 'WEB', name: 'Web' }] } },
+        data: { teams: { nodes: [{ id: 'project-1', key: 'WEB', name: 'Web' }] } },
       })
     }
     if (query.includes('issueCreate')) {
@@ -167,9 +167,9 @@ async function connectJira(): Promise<string> {
   return res.json().id
 }
 
-/** Maps Acme's `web` team to the Jira project WEB. */
+/** Maps Acme's `web` project to the Jira project WEB. */
 async function mapJira(id: string) {
-  const res = await call('PUT', `${base}/${id}/teams/web`, ownerCookie, {
+  const res = await call('PUT', `${base}/${id}/projects/web`, ownerCookie, {
     ref: 'WEB',
     name: 'Website (WEB)',
   })
@@ -255,41 +255,43 @@ describe('connecting a tracker', () => {
   })
 })
 
-describe('mapping teams', () => {
-  it('lists targets, maps a team, shows it on the page and clears it', async () => {
+describe('mapping projects', () => {
+  it('lists targets, maps a project, shows it on the page and clears it', async () => {
     const id = await connectLinear()
     const targets = await call('GET', `${base}/${id}/targets`, ownerCookie)
-    expect(targets.json()).toEqual({ targets: [{ id: 'team-1', name: 'Web (WEB)' }] })
+    expect(targets.json()).toEqual({ targets: [{ id: 'project-1', name: 'Web (WEB)' }] })
     expect((await call('GET', `${base}/${id}/targets`, louCookie)).statusCode).toBe(403)
     expect((await call('GET', `${base}/${id}/targets`, rivalCookie)).statusCode).toBe(404)
 
-    const url = `${base}/${id}/teams/web`
-    const team = { ref: 'team-1', name: 'Web (WEB)' }
-    expect((await call('PUT', url, louCookie, team)).statusCode).toBe(403)
-    expect((await call('PUT', `${base}/${id}/teams/ghost`, ownerCookie, team)).statusCode).toBe(404)
-    expect((await call('PUT', url, ownerCookie, team)).statusCode).toBe(204)
+    const url = `${base}/${id}/projects/web`
+    const project = { ref: 'project-1', name: 'Web (WEB)' }
+    expect((await call('PUT', url, louCookie, project)).statusCode).toBe(403)
+    expect(
+      (await call('PUT', `${base}/${id}/projects/ghost`, ownerCookie, project)).statusCode,
+    ).toBe(404)
+    expect((await call('PUT', url, ownerCookie, project)).statusCode).toBe(204)
 
     for (const cookie of [ownerCookie, louCookie]) {
       // eslint-disable-next-line no-await-in-loop -- two viewers
-      const page = await call('GET', `${base}/${id}/teams`, cookie)
+      const page = await call('GET', `${base}/${id}/projects`, cookie)
       expect(page.statusCode).toBe(200)
       expect(page.json()).toMatchObject({
         canManage: cookie === ownerCookie,
         integration: { id, kind: 'linear', name: 'Acme Linear', needsAttention: false },
-        definition: { mapping: { targetLabel: 'Team', targetKind: 'select' } },
-        teams: [
+        definition: { mapping: { targetLabel: 'Project', targetKind: 'select' } },
+        projects: [
           {
             slug: 'web',
-            mapping: { ref: 'team-1', name: 'Web (WEB)', extra: { name: 'Web (WEB)' } },
+            mapping: { ref: 'project-1', name: 'Web (WEB)', extra: { name: 'Web (WEB)' } },
           },
         ],
       })
     }
-    expect((await call('GET', `${base}/${id}/teams`, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${base}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
 
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    const after = await call('GET', `${base}/${id}/teams`, ownerCookie)
-    expect(after.json().teams[0]).toMatchObject({ slug: 'web', mapping: null })
+    const after = await call('GET', `${base}/${id}/projects`, ownerCookie)
+    expect(after.json().projects[0]).toMatchObject({ slug: 'web', mapping: null })
   })
 
   it('flags the connection when the tracker rejects the saved key while listing targets', async () => {
@@ -307,11 +309,11 @@ describe('mapping teams', () => {
   })
 })
 
-const buildUrl = (n: number) => `/api/teams/${acme.workspaceSlug}/web/builds/${n}`
+const buildUrl = (n: number) => `/api/projects/${acme.workspaceSlug}/web/builds/${n}`
 
 async function setup() {
   const build = await createBuild(t.db, {
-    teamId: acme.team.id,
+    projectId: acme.project.id,
     commitSha: `c${Math.random().toString(16).slice(2, 9)}`,
     branch: 'feat/x',
   })
@@ -325,7 +327,7 @@ async function setup() {
 }
 
 describe('issues from a build', () => {
-  it('hides the action until the team has a tracker, then creates and lists issues', async () => {
+  it('hides the action until the project has a tracker, then creates and lists issues', async () => {
     const build = await setup()
     const jira = { id: await connectJira() }
     const url = `${buildUrl(build.number)}/issues`
@@ -334,7 +336,7 @@ describe('issues from a build', () => {
     const early = await call('POST', url, ownerCookie, { integrationId: jira?.id })
     expect(early.statusCode).toBe(404)
 
-    await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
+    await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, {
       ref: 'WEB',
       name: 'Website (WEB)',
     })
@@ -376,10 +378,10 @@ describe('issues from a build', () => {
     )
   })
 
-  it("files the issue as the type chosen on the team's mapping", async () => {
+  it("files the issue as the type chosen on the project's mapping", async () => {
     const build = await setup()
     const jira = { id: await connectJira() }
-    const mapped = await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
+    const mapped = await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, {
       ref: 'WEB',
       name: 'Website (WEB)',
       extra: { issueType: 'Bug' },
@@ -390,7 +392,7 @@ describe('issues from a build', () => {
     })
     expect(res.statusCode).toBe(201)
     expect(fake.created.at(-1)?.issueType).toBe('Bug')
-    await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
+    await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, {
       ref: 'WEB',
       name: 'Website (WEB)',
     })

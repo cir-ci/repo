@@ -43,9 +43,9 @@ export function unavailableNote(entry: Integration.CatalogEntry): string | null 
 export const integrationLabel = (item: Pick<Integration.Item, 'kindName' | 'name'>) =>
   `${item.kindName} (${item.name})`
 
-/** "3 teams", "1 team", "No teams yet". */
-export const teamCountLabel = (count: number) =>
-  count === 0 ? 'No teams yet' : `${count} ${count === 1 ? 'team' : 'teams'}`
+/** "3 projects", "1 project", "No projects yet". */
+export const projectCountLabel = (count: number) =>
+  count === 0 ? 'No projects yet' : `${count} ${count === 1 ? 'project' : 'projects'}`
 
 // ---- Server state -----------------------------------------------------------------------------
 

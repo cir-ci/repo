@@ -3,16 +3,16 @@ import { type SavedViewRow } from '@circi/db/queries'
 import {
   createSavedView,
   deleteSavedView,
-  pinTeam as pinRow,
+  pinProject as pinRow,
   reorderSavedViews,
-  unpinTeam as unpinRow,
+  unpinProject as unpinRow,
   updateSavedView,
 } from '@circi/db/repositories'
 
 /**
- * A person's sidebar: saved views and pinned teams. Nothing here notifies anyone, so these
+ * A person's sidebar: saved views and pinned projects. Nothing here notifies anyone, so these
  * are thin: each runs in its own transaction and only ever touches the owner's rows. Whether
- * the owner belongs to the workspace (and the team to it) is the caller's check.
+ * the owner belongs to the workspace (and the project to it) is the caller's check.
  */
 
 export async function createView(
@@ -70,16 +70,16 @@ export async function deleteView(
   await db.transaction((tx) => deleteSavedView(tx, input))
 }
 
-export async function pinTeam(
+export async function pinProject(
   db: Database,
-  input: { userId: string; teamId: string },
+  input: { userId: string; projectId: string },
 ): Promise<boolean> {
   return db.transaction((tx) => pinRow(tx, input))
 }
 
-export async function unpinTeam(
+export async function unpinProject(
   db: Database,
-  input: { userId: string; teamId: string },
+  input: { userId: string; projectId: string },
 ): Promise<boolean> {
   return db.transaction((tx) => unpinRow(tx, input))
 }
