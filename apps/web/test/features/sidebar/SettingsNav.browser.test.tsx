@@ -3,6 +3,7 @@ import { page } from 'vitest/browser'
 
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
+import { workspace as instanceWorkspace } from '#test/features/instance/fixtures.ts'
 import { overview, sidebarModel, sidebarTeam } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -12,6 +13,8 @@ function show(
     route?: string
     instanceAdmin?: boolean
     canManage?: boolean
+    /** The instance has a deleted workspace (default). */
+    deleted?: boolean
     /** The app page the person came from. */
     from?: string
   } = {},
@@ -31,6 +34,25 @@ function show(
           manageableWorkspaces: [],
           refusingWorkspaces: [],
           mailConfigured: false,
+        },
+      },
+      'GET /api/instance/workspaces': {
+        body: {
+          workspaces: [
+            instanceWorkspace(),
+            instanceWorkspace({ id: 'w2', name: 'Globex', slug: 'globex', youAreMember: false }),
+            ...(options.deleted === false
+              ? []
+              : [
+                  instanceWorkspace({
+                    id: 'w3',
+                    name: 'Old Co',
+                    slug: 'old-co',
+                    deletedAt: '2026-11-01T00:00:00.000Z',
+                    daysLeft: 22,
+                  }),
+                ]),
+          ],
         },
       },
       'GET /api/teams': { body: { teams: [overview('acme', 'web')] } },
@@ -191,12 +213,78 @@ describe('SettingsNav', () => {
     await show({ instanceAdmin: true })
     const instance = page.getByRole('region', { name: /Instance/ })
     await expect.element(instance).toBeVisible()
-    expect(names(instance.getByRole('link'))).toEqual([
-      'Accounts',
-      'Workspaces',
-      'Instance settings',
-      'Health',
-    ])
+    // Workspaces are their own section now: the Instance section has no entry for them.
+    expect(names(instance.getByRole('link'))).toEqual(['Accounts', 'Instance settings', 'Health'])
+  })
+
+  it('keeps the Workspace section, General at its own address, for an owner or admin', async () => {
+    await show()
+    const workspaceSection = page.getByRole('region', { name: /^Workspace ·/ })
+    await expect
+      .element(workspaceSection.getByRole('link', { name: 'General' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings/general')
+    expect(page.getByRole('region', { name: 'Workspaces' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'New workspace' }).elements()).toHaveLength(0)
+  })
+
+  describe('for an instance admin', () => {
+    it('replaces the Workspace section with a Workspaces section: every live workspace, then New workspace', async () => {
+      await show({ instanceAdmin: true })
+      const workspaces = page.getByRole('region', { name: 'Workspaces' })
+      await expect.element(workspaces).toBeVisible()
+      expect(names(workspaces.getByRole('link'))).toEqual(['Acme', 'Globex'])
+      await expect.element(workspaces.getByRole('button', { name: 'New workspace' })).toBeVisible()
+      expect(page.getByRole('region', { name: /^Workspace ·/ }).elements()).toHaveLength(0)
+      expect(page.getByRole('link', { name: 'All workspaces' }).elements()).toHaveLength(0)
+      // The Teams section stays, for the workspace being viewed.
+      await expect
+        .element(page.getByRole('region', { name: 'Teams' }).getByRole('link', { name: 'Web App' }))
+        .toBeVisible()
+    })
+
+    it('opens a workspace at its settings hub', async () => {
+      await show({ instanceAdmin: true })
+      await expect
+        .element(page.getByRole('link', { name: 'Globex' }))
+        .toHaveAttribute('href', '/workspaces/globex/settings')
+    })
+
+    it.each([
+      ['/workspaces/$workspace/settings', '/workspaces/acme/settings'],
+      ['/workspaces/$workspace/settings/general', '/workspaces/acme/settings/general'],
+      ['/workspaces/$workspace/settings/members', '/workspaces/acme/settings/members'],
+      ['/workspaces/$workspace/settings/integrations', '/workspaces/acme/settings/integrations'],
+    ])('marks the workspace on %s, and no other', async (route, url) => {
+      await show({ instanceAdmin: true, route, url })
+      await expect
+        .element(page.getByRole('link', { name: 'Acme' }))
+        .toHaveAttribute('aria-current', 'page')
+      await expect
+        .element(page.getByRole('link', { name: 'Globex' }))
+        .not.toHaveAttribute('aria-current')
+    })
+
+    it('lists deleted workspaces in their own section, each opening its hub to restore it', async () => {
+      await show({ instanceAdmin: true })
+      const deleted = page.getByRole('region', { name: 'Deleted workspaces' })
+      await expect.element(deleted).toBeVisible()
+      await expect
+        .element(deleted.getByRole('link', { name: 'Old Co' }))
+        .toHaveAttribute('href', '/workspaces/old-co/settings')
+    })
+
+    it('creates a workspace from New workspace', async () => {
+      await show({ instanceAdmin: true })
+      await page.getByRole('button', { name: 'New workspace' }).click()
+      await expect.element(page.getByRole('dialog', { name: 'Create workspace' })).toBeVisible()
+      await expect.element(page.getByRole('textbox', { name: "Owner's email" })).toBeVisible()
+    })
+
+    it('leaves out the deleted section when none is deleted', async () => {
+      await show({ instanceAdmin: true, deleted: false })
+      await expect.element(page.getByRole('region', { name: 'Workspaces' })).toBeVisible()
+      expect(page.getByRole('region', { name: 'Deleted workspaces' }).elements()).toHaveLength(0)
+    })
   })
 
   it('hides the Instance section from everyone else', async () => {

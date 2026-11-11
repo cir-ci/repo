@@ -1,3 +1,4 @@
+import type { InstanceAdmin } from '@circi/api'
 import {
   ActivityIcon,
   BellIcon,
@@ -9,6 +10,7 @@ import {
   LayersIcon,
   NavItem,
   NavSection,
+  PlusIcon,
   ServerIcon,
   ShieldCheckIcon,
   SunIcon,
@@ -19,13 +21,17 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
+import { workspacesQuery } from '#features/instance/api/admin.ts'
+import { CreateWorkspaceDialog } from '#features/instance/CreateWorkspaceDialog.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
+import { toast } from '#lib/toast.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { useWorkspaces } from './use-workspaces.ts'
@@ -36,7 +42,10 @@ import styles from './SettingsNav.module.css'
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
  * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Teams
  * (each team the person may see, opening its settings hub, then All teams) and, for the people
- * who run the instance, Instance. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen. On a
+ * who run the instance, Instance. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen.
+ * Instance admins get a Workspaces section (every workspace of the instance, each opening its
+ * settings hub and selected on every page of it, then New workspace, and a Deleted workspaces
+ * section when there are any, to restore them from their hub) in place of the Workspace one. On a
  * phone it is the body of the settings sections sheet (`SettingsSections`): no Back row (the
  * header's Close is the way out) and no Hide button.
  */
@@ -46,6 +55,18 @@ export function SettingsNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const { data: model } = useSidebarModel(workspace?.slug)
+  // Instance admins get every workspace of the instance in place of the one's section.
+  const { data: instanceList } = useQuery({
+    ...workspacesQuery(),
+    enabled: caps?.instanceAdmin === true,
+  })
+  const instanceWorkspaces = (instanceList?.workspaces ?? [])
+    .filter((w) => !w.deletedAt)
+    .toSorted(byName)
+  const deletedWorkspaces = (instanceList?.workspaces ?? [])
+    .filter((w) => w.deletedAt)
+    .toSorted(byName)
+  const [creating, setCreating] = useState(false)
   const router = useRouter()
   const back = returnTarget(
     useSettingsReturnStore((s) => s.app),
@@ -90,7 +111,39 @@ export function SettingsNav() {
           </NavLink>
         )}
       </NavSection>
-      {workspace ? (
+      {caps?.instanceAdmin ? (
+        <>
+          <NavSection label="Workspaces">
+            {instanceWorkspaces.map((w) => (
+              <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
+            ))}
+            <NavItem
+              icon={<PlusIcon />}
+              onClick={() => {
+                setCreating(true)
+              }}
+            >
+              New workspace
+            </NavItem>
+          </NavSection>
+          {deletedWorkspaces.length > 0 ? (
+            // Each opens its hub, where it can be restored or deleted for good.
+            <NavSection label="Deleted workspaces">
+              {deletedWorkspaces.map((w) => (
+                <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
+              ))}
+            </NavSection>
+          ) : null}
+          <CreateWorkspaceDialog
+            open={creating}
+            onClose={() => setCreating(false)}
+            onCreated={(created) => {
+              setCreating(false)
+              toast(`Created ${created}`)
+            }}
+          />
+        </>
+      ) : workspace ? (
         <NavSection
           label={
             <>
@@ -108,7 +161,7 @@ export function SettingsNav() {
         >
           {canManage ? (
             <NavLink
-              to="/workspaces/$workspace/settings"
+              to="/workspaces/$workspace/settings/general"
               params={{ workspace: workspace.slug }}
               icon={<BuildingIcon />}
             >
@@ -198,9 +251,6 @@ export function SettingsNav() {
           <NavLink to="/instance/accounts" icon={<UserPlusIcon />}>
             Accounts
           </NavLink>
-          <NavLink to="/instance/workspaces" icon={<BuildingIcon />}>
-            Workspaces
-          </NavLink>
           <NavLink to="/instance/settings" icon={<ServerIcon />}>
             Instance settings
           </NavLink>
@@ -211,4 +261,38 @@ export function SettingsNav() {
       ) : null}
     </>
   )
+}
+
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
+
+/** A workspace of the instance (an instance admin's list): its tile and name, opening its settings hub. */
+function WorkspaceEntry({ workspace, pathname }: WorkspaceEntry.Props) {
+  const base = `/workspaces/${encodeURIComponent(workspace.slug)}/settings`
+  return (
+    <NavLink
+      to="/workspaces/$workspace/settings"
+      params={{ workspace: workspace.slug }}
+      icon={
+        <Avatar
+          type="workspace"
+          aria-hidden
+          slug={workspace.slug}
+          name={workspace.name}
+          picture={workspace.picture}
+          size={20}
+        />
+      }
+      // Every page of the workspace's settings belongs to its entry: the hub and the pages below it.
+      selected={pathname === base || pathname.startsWith(`${base}/`)}
+    >
+      {workspace.name}
+    </NavLink>
+  )
+}
+
+namespace WorkspaceEntry {
+  export interface Props {
+    workspace: Pick<InstanceAdmin.Workspace, 'slug' | 'name' | 'picture'>
+    pathname: string
+  }
 }
