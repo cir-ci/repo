@@ -1,9 +1,20 @@
 import type { Integration } from '@circi/api'
-import { Banner, Button, EmptyState, Heading, PlugIcon, PlusIcon, Text } from '@circi/ui'
+import {
+  Avatar,
+  Banner,
+  Button,
+  EmptyState,
+  Heading,
+  Menu,
+  PlugIcon,
+  PlusIcon,
+  Text,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useParams, useSearch } from '@tanstack/react-router'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { useSidebarModel } from '#features/sidebar/api.ts'
 import { MembersRedirect } from '#features/workspace-settings/MembersRedirect.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -93,7 +104,8 @@ export function IntegrationsPage() {
             </div>
           )}
           <Text tone="tertiary" variant="small">
-            Missing a tool? Webhooks send every CirCI event as signed JSON.
+            Missing a tool? <WebhooksLink workspace={workspace} /> send every CirCI event as signed
+            JSON.
           </Text>
           <AddIntegrationDialog
             workspace={workspace}
@@ -136,5 +148,56 @@ function Row(props: { workspace: string; item: Integration.Item; logo: string })
         Configure
       </Button>
     </div>
+  )
+}
+
+/**
+ * "Webhooks" in the note under the integrations: a team's own setting, so with one team it opens
+ * that team's Webhooks page, and with several a menu of the teams, each opening its Webhooks page.
+ * Both stay inside settings.
+ */
+function WebhooksLink({ workspace }: { workspace: string }) {
+  const navigate = useNavigate()
+  const clientLink = useClientLink()
+  const { data: model } = useSidebarModel(workspace)
+  const teams = model?.teams ?? []
+  const webhooksOf = (team: string) => ({
+    to: '/$workspace/$team/settings/webhooks' as const,
+    params: { workspace, team },
+  })
+  const [only] = teams
+  if (teams.length === 1 && only) {
+    const link = clientLink(webhooksOf(only.slug))
+    return (
+      <a href={link.href} onClick={link.onClick} className={styles.noteLink}>
+        Webhooks
+      </a>
+    )
+  }
+  if (teams.length === 0) return <>Webhooks</>
+  return (
+    <Menu
+      size="md"
+      trigger={
+        <Button variant="link" className={styles.noteLink}>
+          Webhooks
+        </Button>
+      }
+      items={teams.map((t) => ({
+        label: t.name,
+        icon: (
+          <Avatar
+            type="team"
+            aria-hidden
+            slug={t.slug}
+            name={t.name}
+            color={t.color}
+            icon={t.icon}
+            size={18}
+          />
+        ),
+        onSelect: () => void navigate(webhooksOf(t.slug)),
+      }))}
+    />
   )
 }

@@ -247,3 +247,9 @@
 .empty {
   padding: 8px;
 }
+
+/* "Webhooks" in the note: a link (or a menu of the teams) in the note's own size. */
+.noteLink {
+  font-size: inherit;
+  text-decoration: underline;
+}
