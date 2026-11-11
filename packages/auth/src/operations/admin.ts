@@ -71,6 +71,21 @@ export async function setInstanceAdmin(
 }
 
 /**
+ * Sets an account's email address as an instance admin, with no confirmation mail (the admin
+ * vouches for it, so it counts as verified, like accounts made from the command line). `headers`
+ * are the requesting admin's: better-auth checks that they may.
+ */
+export async function setUserEmail(
+  auth: Auth,
+  input: { userId: string; email: string; headers: Headers },
+): Promise<void> {
+  await auth.api.adminUpdateUser({
+    body: { userId: input.userId, data: { email: input.email, emailVerified: true } },
+    headers: input.headers,
+  })
+}
+
+/**
  * Mails the address a one-time sign-in code and link: exactly what "Email me a code" on the
  * sign-in page does (same code, same mail, same expiry). Sent only when the instance has mail.
  */

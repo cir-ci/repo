@@ -5,6 +5,7 @@
  * One folder per area; each folder's `index.ts` is its public surface.
  */
 export * from './access/index.ts'
+export * from './accounts/index.ts'
 export * from './builds/index.ts'
 export * from './comments/index.ts'
 export * from './git/index.ts'

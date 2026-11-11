@@ -356,3 +356,58 @@ describe('the Accounts page heading', () => {
     )
   })
 })
+
+const openChangeEmail = async () => {
+  await show()
+  await openMenu('Dana Levi')
+  await page.getByRole('menuitem', { name: 'Change email' }).click()
+}
+
+describe('changing an account email', () => {
+  it('sets the address directly and says so in a toast', async () => {
+    const fake = fakeApi({
+      ...LIST,
+      'POST /api/instance/accounts/u1/email': {
+        body: { account: { ...dana, email: 'dana@new.dev' }, previousEmail: 'dana@acme.dev' },
+      },
+    })
+    await openChangeEmail()
+    const dialog = page.getByRole('dialog', { name: 'Change the email for Dana Levi' })
+    await expect.element(dialog.getByText('Change the email for Dana Levi')).toBeVisible()
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('Dana@new.dev')
+    await dialog.getByRole('button', { name: 'Change email' }).click()
+    await expect
+      .element(toastNamed('Changed the email for Dana Levi to dana@new.dev'))
+      .toBeVisible()
+    expect(fake.of('POST')[0]?.body).toEqual({ email: 'Dana@new.dev' })
+    await expect.element(dialog).not.toBeInTheDocument()
+  })
+
+  it('checks the address before asking the server', async () => {
+    const fake = fakeApi(LIST)
+    await openChangeEmail()
+    const dialog = page.getByRole('dialog', { name: 'Change the email for Dana Levi' })
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('nope')
+    await dialog.getByRole('button', { name: 'Change email' }).click()
+    await expect.element(page.getByText('Enter a valid email address')).toBeVisible()
+    expect(fake.of('POST')).toHaveLength(0)
+  })
+
+  it("shows the server's refusal on the field and in a toast", async () => {
+    fakeApi({
+      ...LIST,
+      'POST /api/instance/accounts/u1/email': {
+        status: 409,
+        body: { error: 'That email address is already in use' },
+      },
+    })
+    await openChangeEmail()
+    const dialog = page.getByRole('dialog', { name: 'Change the email for Dana Levi' })
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('ron@acme.dev')
+    await dialog.getByRole('button', { name: 'Change email' }).click()
+    await expect.element(dialog.getByText('That email address is already in use')).toBeVisible()
+    await expect
+      .element(toastNamed("Couldn't change the email: That email address is already in use"))
+      .toBeVisible()
+  })
+})

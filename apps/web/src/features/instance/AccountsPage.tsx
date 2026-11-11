@@ -49,6 +49,7 @@ import {
   useSignOutEverywhere,
   useUnbanAccount,
 } from './api/admin.ts'
+import { ChangeEmailDialog } from './ChangeEmailDialog.tsx'
 import { OnceSecret } from './OnceSecret.tsx'
 
 import styles from './Admin.module.css'
@@ -68,6 +69,7 @@ export function AccountsPage() {
   const { data, error, refetch, isFetching } = useQuery(accountsQuery({ q, page }))
   const [creating, setCreating] = useState(false)
   const [pending, setPending] = useState<Pending>(null)
+  const [emailFor, setEmailFor] = useState<InstanceAdmin.Account | null>(null)
   const [secret, setSecret] = useState<{ email: string; password: string } | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -139,6 +141,7 @@ export function AccountsPage() {
                       setFailure(null)
                       setPending({ kind, account })
                     }}
+                    onChangeEmail={() => setEmailFor(account)}
                   />
                 </li>
               ))}
@@ -179,6 +182,7 @@ export function AccountsPage() {
           if (password) setSecret({ email, password })
         }}
       />
+      <ChangeEmailDialog account={emailFor} onClose={() => setEmailFor(null)} />
       <AccountActions
         pending={pending}
         onClose={() => setPending(null)}
@@ -212,6 +216,7 @@ function AccountRow(props: {
   account: InstanceAdmin.Account
   now: number
   onAction: (kind: 'reset' | 'admin' | 'sign-out' | 'unban' | 'ban') => void
+  onChangeEmail: () => void
 }) {
   const { account } = props
   const ban = banSummary(account)
@@ -239,6 +244,7 @@ function AccountRow(props: {
               </IconButton>
             }
             items={[
+              { label: 'Change email', onSelect: () => props.onChangeEmail() },
               { label: 'Reset password', onSelect: () => props.onAction('reset') },
               {
                 label: account.instanceAdmin ? 'Remove instance admin' : 'Make instance admin',

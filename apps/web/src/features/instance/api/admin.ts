@@ -64,6 +64,10 @@ export const accountBody = (draft: AccountDraft) => ({
       : {}),
 })
 
+/** What is wrong with an address typed for an account, or null. */
+export const emailAddressProblem = (email: string): string | null =>
+  EMAIL.test(email.trim()) ? null : 'Enter a valid email address'
+
 /** What a person fills in to ban an account; `days` empty is permanent. */
 export interface BanDraft {
   reason: string
@@ -397,6 +401,19 @@ export function useCreateAccount() {
     meta: { what: 'create the account' },
     mutationFn: (draft: AccountDraft) =>
       post<InstanceAdmin.CreatedAccount>(instancePath('accounts'), accountBody(draft)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
+  })
+}
+
+/** Sets an account's address directly (no confirmation mail); the server refuses one that is in use. */
+export function useChangeAccountEmail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'change the email' },
+    mutationFn: (input: { id: string; email: string }) =>
+      post<InstanceAdmin.EmailChanged>(instancePath('accounts', input.id, 'email'), {
+        email: input.email.trim(),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
 }

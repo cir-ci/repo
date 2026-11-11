@@ -7,6 +7,7 @@
  * against these in `apps/server/src/contract-check.ts`.
  */
 
+export * from './account.ts'
 export * from './baseline.ts'
 export * from './build.ts'
 export * from './comment.ts'

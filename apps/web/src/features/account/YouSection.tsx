@@ -1,10 +1,13 @@
 import { Avatar, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { CheckedTextField } from '#lib/CheckedTextField.tsx'
 import { IdentityFields } from '#lib/IdentityFields.tsx'
 import { toast } from '#lib/toast.ts'
+
+import { emailChangeQuery, emailProblem, useChangeEmail } from './api.ts'
 
 import styles from '#features/workspace-settings/Settings.module.css'
 
@@ -18,6 +21,11 @@ export function YouSection({ user }: YouSection.Props) {
     },
     onSuccess: () => toast('Name saved'),
   })
+  // Changing the address needs mail to confirm the new one; without it an instance admin does it.
+  const { data: caps } = useQuery(capabilitiesQuery())
+  const { data: change } = useQuery(emailChangeQuery())
+  const changeEmail = useChangeEmail()
+  const pending = change?.pendingEmail ?? null
 
   return (
     <div className={styles.form}>
@@ -52,15 +60,33 @@ export function YouSection({ user }: YouSection.Props) {
               validate={(next) => (next ? null : 'Enter your name')}
               onCommit={(next) => save.mutate(next)}
             />
-            <TextField
-              className={styles.emailField}
-              label="Email"
-              name="email"
-              stacked
-              value={user.email}
-              readOnly
-              description="Changing your email isn't available yet: ask an admin."
-            />
+            {caps?.mailConfigured === true ? (
+              <CheckedTextField
+                label="Email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                saved={user.email}
+                mutation={changeEmail}
+                description={pending ? `Waiting for confirmation of ${pending}` : undefined}
+                validate={emailProblem}
+                onCommit={(next) =>
+                  changeEmail.mutate(next, {
+                    onSuccess: () => toast(`Check ${next} to confirm the change`),
+                  })
+                }
+              />
+            ) : (
+              <TextField
+                className={styles.emailField}
+                label="Email"
+                name="email"
+                stacked
+                value={user.email}
+                readOnly
+                description="Only an instance admin can change your email."
+              />
+            )}
           </IdentityFields>
         </SettingsRow>
       </SettingsSection>

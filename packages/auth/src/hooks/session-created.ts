@@ -74,7 +74,7 @@ async function warnAboutNewDevice(
 }
 
 /** Adds the user to every workspace that claimed (and proved) their email's domain. */
-async function joinByVerifiedDomain(
+export async function joinByVerifiedDomain(
   db: Database,
   userId: string,
   options: { requireVerifiedEmail?: boolean; method?: SessionMethod } = {},

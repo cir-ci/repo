@@ -79,6 +79,7 @@ export const keys = {
   pushDevices: () => ['push-devices'] as const,
   sessions: () => ['sessions'] as const,
   linkedAccounts: () => ['linked-accounts'] as const,
+  emailChange: () => ['email-change'] as const,
   authMethods: () => ['auth-methods'] as const,
   setup: () => ['setup'] as const,
 

@@ -5,6 +5,12 @@ import { betterAuth } from 'better-auth'
 import { MIN_PASSWORD_LENGTH } from './constants.ts'
 import { hostCookies } from './cookies.ts'
 import { beforeAccountCreate } from './hooks/account-create.ts'
+import {
+  afterEmailChanged,
+  EMAIL_CHANGE_TTL_SECONDS,
+  sendEmailChangeMails,
+  type AuthContextHolder,
+} from './hooks/email-change.ts'
 import { afterOrganizationRequest } from './hooks/invitations.ts'
 import { requestGuard } from './hooks/request-guard.ts'
 import { onSessionCreated } from './hooks/session-created.ts'
@@ -28,7 +34,8 @@ import { trustedOriginsFor } from './plugins/sso/trusted-issuers.ts'
  * This file only composes: plugins live in `plugins/`, the rules around sign-in in `hooks/`.
  */
 export function createAuth(options: AuthOptions) {
-  return betterAuth({
+  const holder: AuthContextHolder = {}
+  const auth = betterAuth({
     appName: 'CirCI',
     baseURL: options.baseURL,
     basePath: '/api/auth',
@@ -57,6 +64,15 @@ export function createAuth(options: AuthOptions) {
         trustedProviders: (options.sso ?? []).filter((p) => p.trustedForEmail).map((p) => p.id),
       },
     },
+    // Changing the email address: the confirmation link goes to the NEW address (the account keeps the
+    // old one until it is opened) and the old address is told. No `sendChangeEmailConfirmation`: that would
+    // add a second round trip through the old mailbox, which a person who lost it can't make.
+    user: { changeEmail: { enabled: true } },
+    emailVerification: {
+      expiresIn: EMAIL_CHANGE_TTL_SECONDS,
+      sendVerificationEmail: sendEmailChangeMails(options, holder),
+      afterEmailVerification: (user) => afterEmailChanged(options, holder, user.id),
+    },
     emailAndPassword: {
       enabled: options.passwordLogin !== false,
       disableSignUp: true,
@@ -73,11 +89,22 @@ export function createAuth(options: AuthOptions) {
       account: { create: { before: beforeAccountCreate(options) } },
       user: {
         create: { before: beforeUserCreate(options) },
-        update: { before: beforeUserUpdate() },
+        update: {
+          before: beforeUserUpdate(),
+          // An instance admin set the address directly; the link flow runs `afterEmailVerification`.
+          after: async (user, context) => {
+            const data: unknown = context?.path === '/admin/update-user' ? context.body?.data : null
+            if (typeof data === 'object' && data !== null && 'email' in data) {
+              await afterEmailChanged(options, holder, user.id)
+            }
+          },
+        },
       },
     },
     plugins: authPlugins(options),
   })
+  holder.context = auth.$context
+  return auth
 }
 
 export namespace createAuth {

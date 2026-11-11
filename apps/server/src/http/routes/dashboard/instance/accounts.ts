@@ -6,11 +6,13 @@ import {
   MIN_PASSWORD_LENGTH,
   sendSignInCode,
   setInstanceAdmin,
+  setUserEmail,
   setUserPassword,
 } from '@circi/auth'
 import { ValidationError } from '@circi/core'
 import { ConflictError, NotFoundError } from '@circi/db'
-import { countInstanceAdmins, getAccount, listAccounts } from '@circi/db/queries'
+import { countInstanceAdmins, getAccount, isInstanceAdmin, listAccounts } from '@circi/db/queries'
+import { changeAccountEmail } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -40,6 +42,7 @@ const banBody = z.object({
   /** Days until the ban ends; omitted is permanent. */
   expiresInDays: z.number().int().min(1).max(3650).optional(),
 })
+const emailBody = z.object({ email: z.string().trim().min(1).max(254) })
 const idParams = z.object({ id: z.string().min(1) })
 
 const wire = (a: listAccounts.Item): InstanceAdmin.Account => ({
@@ -128,6 +131,27 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
       headers: fromNodeHeaders(req.headers),
     })
     return { account: wire(await load(id)) }
+  })
+
+  /**
+   * Sets the address directly, with no confirmation mail: for instances without mail, or a
+   * mailbox the person can't reach. The service checks the policy and that the address is free.
+   */
+  app.post('/instance/accounts/:id/email', async (req): Promise<InstanceAdmin.EmailChanged> => {
+    const { id } = parse(idParams, req.params)
+    const { email } = parse(emailBody, req.body)
+    const { previousEmail } = await changeAccountEmail(deps.db, {
+      actor: { instanceAdmin: await isInstanceAdmin(deps.db, currentUser(req).id) },
+      userId: id,
+      email,
+      apply: (next) =>
+        setUserEmail(deps.auth, {
+          userId: id,
+          email: next,
+          headers: fromNodeHeaders(req.headers),
+        }),
+    })
+    return { account: wire(await load(id)), previousEmail }
   })
 
   /** The new password is in this response only; every session of the account is revoked. */

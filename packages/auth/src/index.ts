@@ -28,6 +28,7 @@ export {
   rotateTeamToken,
   sendSignInCode,
   setInstanceAdmin,
+  setUserEmail,
   setUserPassword,
   updateWorkspace,
   verifyTeamToken,

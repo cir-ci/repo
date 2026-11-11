@@ -120,3 +120,48 @@ export function newSignInMail(input: {
     ].join('\n'),
   }
 }
+
+/** Sent to the NEW address: the link that confirms it as the account's email. */
+export function confirmNewEmailMail(input: {
+  to: string
+  name: string
+  currentEmail: string
+  link: string
+}): Mailer.Mail {
+  return {
+    to: input.to,
+    subject: 'Confirm your new CirCI email address',
+    text: [
+      `Hi ${input.name},`,
+      '',
+      `You asked to change the email address of your CirCI account from ${input.currentEmail} to this one. Open this link, signed in to CirCI in the same browser, to confirm it:`,
+      input.link,
+      '',
+      'The link works for one hour. Until you open it, nothing changes.',
+      '',
+      "If you didn't ask for this, you can ignore this email.",
+      '',
+    ].join('\n'),
+  }
+}
+
+/** Sent to the OLD address when a change is requested: nothing has changed yet. */
+export function emailChangeRequestedMail(input: {
+  to: string
+  name: string
+  newEmail: string
+  origin: string
+}): Mailer.Mail {
+  return {
+    to: input.to,
+    subject: 'Someone asked to change your CirCI email address',
+    text: [
+      `Hi ${input.name},`,
+      '',
+      `A change of your CirCI account's email address to ${input.newEmail} was requested. It only takes effect once that address is confirmed, and your account keeps using this address until then.`,
+      '',
+      `If this wasn't you, sign in at ${input.origin}, open "Profile and sessions" to sign other devices out, and change your password.`,
+      '',
+    ].join('\n'),
+  }
+}

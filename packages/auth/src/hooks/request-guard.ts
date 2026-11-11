@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm'
 
 import type { AuthOptions } from '#src/options.ts'
 
+import { guardEmailChange } from './email-change.ts'
 import { rememberOpenInvitations } from './invitations.ts'
 import { guardOwnerRemoval } from './member-removal.ts'
 
@@ -27,6 +28,8 @@ function workspaceRef(source: unknown): { id?: string; slug?: string } | undefin
 /**
  * Runs before better-auth handles a request:
  *
+ * - changing the email address needs mail and a free address, and its confirmation link a signed-in
+ *   browser (see `guardEmailChange`);
  * - sign-in code requests are limited per address, on top of better-auth's per-IP limit;
  * - better-auth's own organization endpoints (CirCI's workspaces: members, invitations) obey a workspace's
  *   login-method rules like the rest of the dashboard: a refused session gets "not found", and
@@ -34,10 +37,11 @@ function workspaceRef(source: unknown): { id?: string; slug?: string } | undefin
  *   reason (instance admins are never refused that way). Accepting an invitation counts too,
  *   so nobody joins a workspace through a method it does not allow.
  */
-export function requestGuard(options: Pick<AuthOptions, 'db'>) {
+export function requestGuard(options: Pick<AuthOptions, 'db' | 'mailer'>) {
   return createAuthMiddleware(async (ctx) => {
     await rememberOpenInvitations(options, ctx)
     await guardOwnerRemoval(options, ctx, async () => (await getSessionFromCtx(ctx))?.user.id)
+    await guardEmailChange(options, ctx)
     if (ctx.path === '/change-password') {
       const { currentPassword, newPassword } = ctx.body ?? {}
       if (typeof currentPassword === 'string' && currentPassword === newPassword) {

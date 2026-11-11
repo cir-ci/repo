@@ -6,6 +6,7 @@ import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { authRoutes } from '#http/routes/auth.ts'
 
+import { dashboardAccountEmailRoutes } from './account/email-change.ts'
 import { dashboardActivityRoutes } from './builds/activity.ts'
 import { dashboardBaselineRoutes } from './builds/baselines.ts'
 import { dashboardCommentRoutes } from './builds/comments.ts'
@@ -99,6 +100,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardWorkspaceRoutes, deps)
   await api.register(dashboardGithubImportRoutes, deps)
+  await api.register(dashboardAccountEmailRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
   await api.register(dashboardInstanceAccountRoutes, deps)
   await api.register(dashboardInstanceWorkspaceRoutes, deps)

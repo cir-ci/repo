@@ -1,4 +1,4 @@
-import type { Inbox } from '@circi/api'
+import type { Account, Inbox } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
@@ -95,5 +95,40 @@ export function useSetPreference() {
       if (context?.previous) queryClient.setQueryData(key, context.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  })
+}
+
+// ---- Email address ----------------------------------------------------------------------------
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** What is wrong with an address typed for the account, or null. */
+export const emailProblem = (email: string): string | null =>
+  EMAIL.test(email.trim()) && email.trim().length <= 254 ? null : 'Enter a valid email address'
+
+/** The address whose confirmation mail is still waiting to be opened, if any. */
+export const emailChangeQuery = () =>
+  queryOptions({
+    queryKey: keys.emailChange(),
+    queryFn: () => getJson<Account.EmailChange>('/api/account/email-change'),
+  })
+
+/**
+ * Asks for the change: better-auth mails a confirmation link to the new address (and a notice to
+ * the old one); the address changes only when the link is opened. The server's reason (in use,
+ * not an address) is the error shown on the field.
+ */
+export function useChangeEmail() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'change your email' },
+    mutationFn: async (newEmail: string) => {
+      const { error } = await authClient.changeEmail({ newEmail, callbackURL: '/account/profile' })
+      if (error) throw new Error(error.message ?? "Couldn't change your email")
+      return newEmail
+    },
+    // The server noted the request before it answered; not refetched, so a slow note can't undo it.
+    onSuccess: (newEmail) =>
+      queryClient.setQueryData<Account.EmailChange>(keys.emailChange(), { pendingEmail: newEmail }),
   })
 }

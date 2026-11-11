@@ -35,6 +35,12 @@ export namespace InstanceAdmin {
     signInCodeSentTo?: string
   }
 
+  /** `POST /api/instance/accounts/:id/email`: the account with its new address, and the one it had. */
+  export interface EmailChanged {
+    account: Account
+    previousEmail: string
+  }
+
   /** `POST /api/instance/accounts/:id/reset-password`: the new password, shown once. */
   export interface PasswordReset {
     password: string

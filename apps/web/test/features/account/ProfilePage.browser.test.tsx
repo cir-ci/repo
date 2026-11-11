@@ -28,6 +28,8 @@ const signedIn = {
     user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.com' },
   },
   'GET /api/auth-methods': { password: true, email: false, sso: [] },
+  'GET /api/capabilities': { mailConfigured: true },
+  'GET /api/account/email-change': { pendingEmail: null },
   'GET /api/auth/list-accounts': [
     {
       id: 'a1',
@@ -371,5 +373,78 @@ describe('ProfilePage', () => {
     await renderPage(<ProfilePage />)
     await expect.element(page.getByText('Chrome on Windows')).toBeVisible()
     expect(page.getByRole('button', { name: 'Change password' }).elements()).toHaveLength(0)
+  })
+})
+
+const email = () => page.getByRole('textbox', { name: 'Email' })
+
+describe('ProfilePage email', () => {
+  const withSessions = { ...signedIn, 'GET /api/auth/list-sessions': sessions }
+
+  it('saves with the check, toasts where to confirm, and shows the pending line', async () => {
+    let pendingEmail: string | null = null
+    const calls = fakeFetch({
+      ...withSessions,
+      'GET /api/account/email-change': () => ({ pendingEmail }),
+      'POST /api/auth/change-email': () => {
+        pendingEmail = 'ada@new.test'
+        return { status: true }
+      },
+    })
+    await renderPage(<ProfilePage />)
+    await expect.element(email()).toHaveValue('ada@example.com')
+    expect(page.getByRole('button', { name: 'Save Email' }).elements()).toHaveLength(0)
+    await email().fill('ada@new.test')
+    await page.getByRole('button', { name: 'Save Email' }).click()
+    await expect.element(toastNamed('Check ada@new.test to confirm the change')).toBeVisible()
+    await expect.element(page.getByText('Waiting for confirmation of ada@new.test')).toBeVisible()
+    const request = calls.find((c) => c.path === '/api/auth/change-email')
+    expect(request?.body).toEqual({ newEmail: 'ada@new.test', callbackURL: '/account/profile' })
+  })
+
+  it('saves with Enter and puts the saved address back with Escape', async () => {
+    const calls = fakeFetch({ ...withSessions, 'POST /api/auth/change-email': { status: true } })
+    await renderPage(<ProfilePage />)
+    await expect.element(email()).toHaveValue('ada@example.com')
+    await email().fill('typo@new.test')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(email()).toHaveValue('ada@example.com')
+    await email().fill('ada@new.test')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(toastNamed('Check ada@new.test to confirm the change')).toBeVisible()
+    expect(calls.filter((c) => c.path === '/api/auth/change-email')).toHaveLength(1)
+  })
+
+  it('refuses an invalid address on the field without asking the server', async () => {
+    const calls = fakeFetch(withSessions)
+    await renderPage(<ProfilePage />)
+    await expect.element(email()).toHaveValue('ada@example.com')
+    await email().fill('nope')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByText('Enter a valid email address')).toBeVisible()
+    expect(calls.some((c) => c.path === '/api/auth/change-email')).toBe(false)
+  })
+
+  it('shows an address that is already in use as a field error', async () => {
+    fakeFetch({
+      ...withSessions,
+      'POST /api/auth/change-email': () =>
+        json({ message: 'That email address is already in use' }, 400),
+    })
+    await renderPage(<ProfilePage />)
+    await expect.element(email()).toHaveValue('ada@example.com')
+    await email().fill('taken@example.com')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(email()).toHaveAccessibleDescription(/already in use/)
+    expect(toastNamed('Check taken@example.com to confirm the change').elements()).toHaveLength(0)
+  })
+
+  it('keeps the field read-only and says who can change it when the instance has no mail', async () => {
+    fakeFetch({ ...withSessions, 'GET /api/capabilities': { mailConfigured: false } })
+    await renderPage(<ProfilePage />)
+    await expect
+      .element(page.getByText('Only an instance admin can change your email.'))
+      .toBeVisible()
+    await expect.element(email()).toHaveAttribute('readonly')
   })
 })
