@@ -398,6 +398,9 @@ describe('ProfilePage email', () => {
     await page.getByRole('button', { name: 'Save Email' }).click()
     await expect.element(toastNamed('Check ada@new.test to confirm the change')).toBeVisible()
     await expect.element(page.getByText('Waiting for confirmation of ada@new.test')).toBeVisible()
+    // The field goes back to the current address, so the ✓ doesn't stay to send the mail again.
+    await expect.element(email()).toHaveValue('ada@example.com')
+    expect(page.getByRole('button', { name: 'Save Email' }).elements()).toHaveLength(0)
     const request = calls.find((c) => c.path === '/api/auth/change-email')
     expect(request?.body).toEqual({ newEmail: 'ada@new.test', callbackURL: '/account/profile' })
   })

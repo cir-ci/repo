@@ -62,6 +62,9 @@ export function YouSection({ user }: YouSection.Props) {
             />
             {caps?.mailConfigured === true ? (
               <CheckedTextField
+                // A sent request goes back to the current address: the pending line shows the new one,
+                // and the ✓ doesn't stay to send the mail again.
+                key={pending ?? 'none'}
                 label="Email"
                 name="email"
                 type="email"
