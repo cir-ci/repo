@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 /** The installed app: its window already says it's CirCI, so the title leaves the name out. */
 const INSTALLED = '(display-mode: standalone), (display-mode: window-controls-overlay)'
@@ -9,17 +9,60 @@ export function documentTitle(parts: readonly (string | undefined)[], installed:
   return installed && named.length > 0 ? named.join(' · ') : [...named, 'CirCI'].join(' · ')
 }
 
-/** Whether the dashboard runs as the installed app (its own window, no browser tabs). */
-export const isInstalled = () =>
+const OVERLAY = '(display-mode: window-controls-overlay)'
+const FULLSCREEN = '(display-mode: fullscreen)'
+/** Set once this window has been the installed app, so full screen (its own display mode) keeps it so. */
+const SEEN_INSTALLED = 'circi-installed-window'
+
+const matches = (query: string) =>
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
-  window.matchMedia(INSTALLED).matches
+  window.matchMedia(query).matches
+
+function seenInstalled(): boolean {
+  try {
+    return window.sessionStorage.getItem(SEEN_INSTALLED) === '1'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Whether the dashboard runs as the installed app (its own window, no browser tabs). Full screen is
+ * a display mode of its own, so it counts when this window was the installed app before it (this
+ * session) or has no browser toolbar: the installed app keeps its tabs in full screen.
+ */
+export function isInstalled(): boolean {
+  if (matches(INSTALLED)) {
+    try {
+      window.sessionStorage.setItem(SEEN_INSTALLED, '1')
+    } catch {
+      // No storage: full screen then relies on the toolbar check alone.
+    }
+    return true
+  }
+  return matches(FULLSCREEN) && (seenInstalled() || !window.toolbar.visible)
+}
 
 /** The installed app with its own title bar strip (the manifest's window-controls-overlay mode, desktop Chromium). */
-export const isOverlay = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(display-mode: window-controls-overlay)').matches
+export const isOverlay = () => matches(OVERLAY)
+
+/** Calls `onChange` whenever the window's display mode changes (entering or leaving full screen, say). */
+function subscribeDisplayMode(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {}
+  const lists = [INSTALLED, OVERLAY, FULLSCREEN].map((query) => window.matchMedia(query))
+  for (const list of lists) list.addEventListener('change', onChange)
+  return () => {
+    for (const list of lists) list.removeEventListener('change', onChange)
+  }
+}
+
+/** `isInstalled()`, followed as the display mode changes: components that show or hide on it use this. */
+export const useInstalled = () =>
+  useSyncExternalStore(subscribeDisplayMode, isInstalled, () => false)
+
+/** `isOverlay()`, followed as the display mode changes (full screen has no title bar strip). */
+export const useOverlay = () => useSyncExternalStore(subscribeDisplayMode, isOverlay, () => false)
 
 /** The page's title as the browser has it, followed as pages change it. */
 export function useWindowTitle(): string {

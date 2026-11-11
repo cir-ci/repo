@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { isInstalled, isOverlay } from '#lib/document-title.ts'
+import { useInstalled, useOverlay } from '#lib/document-title.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
@@ -16,11 +16,15 @@ const ROW_HEIGHT = '36px'
  * (standalone mode, where `WindowTitleBar` isn't shown): above the sidebar and the page header, so
  * they stay as they are, and sticky so the tabs stay put when the page scrolls. Nothing in a
  * browser tab, on a phone (its switcher is a sheet) or in overlay mode (the title bar has them).
+ * Full screen has no title bar strip, so there the tabs are in this row.
  */
 export function TabRow() {
   const phone = usePhone()
   const hasTabs = useTabStore((s) => s.tabs.length > 0)
-  const shown = hasTabs && !phone && isInstalled() && !isOverlay()
+  // Followed live: in full screen the title bar strip is gone, so the tabs move here.
+  const installed = useInstalled()
+  const overlay = useOverlay()
+  const shown = hasTabs && !phone && installed && !overlay
   useEffect(() => {
     if (!shown) return undefined
     const root = document.documentElement

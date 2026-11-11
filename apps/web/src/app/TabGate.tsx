@@ -1,7 +1,7 @@
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { type ReactNode, useEffect } from 'react'
 
-import { isInstalled, useWindowTitle } from '#lib/document-title.ts'
+import { useInstalled, useWindowTitle } from '#lib/document-title.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { activeTab, hrefOf } from '#lib/tabs.ts'
 
@@ -22,7 +22,7 @@ function appLinkAt(event: MouseEvent): HTMLAnchorElement | undefined {
  */
 export function TabGate({ userId, children }: TabGate.Props) {
   const router = useRouter()
-  const installed = isInstalled()
+  const installed = useInstalled()
   // The tabs are this person's once `adopt` has said so (the effect below); until then no page renders.
   const ready = useTabStore((s) => !installed || s.owner === userId)
 

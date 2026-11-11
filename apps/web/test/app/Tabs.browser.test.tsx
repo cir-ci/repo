@@ -62,8 +62,44 @@ function installedAs(mode: 'browser' | 'standalone' | 'overlay') {
     if (!query.includes('display-mode')) return real(query)
     const overlayOnly = query.includes('window-controls-overlay') && !query.includes('standalone')
     const matches = mode === 'browser' ? false : overlayOnly ? mode === 'overlay' : true
-    return Object.create(real(query), { matches: { value: matches } })
+    // Listeners are kept by the app (useInstalled); this mode never changes, so they never run.
+    return Object.create(real(query), {
+      matches: { value: matches },
+      addEventListener: { value: () => {} },
+      removeEventListener: { value: () => {} },
+    })
   })
+}
+
+/**
+ * A display mode that can change while the app runs (entering full screen): the media queries
+ * follow `mode`, and `switchTo` fires their change events as the browser does.
+ */
+function switchableDisplayMode(start: 'standalone' | 'overlay' | 'fullscreen') {
+  let mode = start
+  const listeners = new Set<() => void>()
+  const real = window.matchMedia.bind(window)
+  const matchesFor = (query: string) => {
+    if (query.includes('fullscreen')) return mode === 'fullscreen'
+    const overlayOnly = query.includes('window-controls-overlay') && !query.includes('standalone')
+    return overlayOnly ? mode === 'overlay' : mode !== 'fullscreen'
+  }
+  vi.stubGlobal('matchMedia', (query: string) => {
+    if (!query.includes('display-mode')) return real(query)
+    return Object.create(real(query), {
+      matches: { get: () => matchesFor(query) },
+      addEventListener: { value: (_: string, listener: () => void) => listeners.add(listener) },
+      removeEventListener: {
+        value: (_: string, listener: () => void) => listeners.delete(listener),
+      },
+    })
+  })
+  return {
+    switchTo(next: typeof mode) {
+      mode = next
+      for (const listener of listeners) listener()
+    },
+  }
 }
 
 /** A page: a header, a title for the document, and buttons that go elsewhere through the router. */
@@ -185,6 +221,29 @@ describe('tabs in the installed app', () => {
       .poll(() => document.querySelector('[role="tab"]')?.textContent)
       .toBe('Projects page')
     expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
+  })
+
+  it('keeps the tabs in full screen, in the frame, and back in the title bar after it', async () => {
+    const display = switchableDisplayMode('overlay')
+    await renderApp()
+    await expect
+      .poll(() => document.querySelector('[role="tab"]')?.textContent)
+      .toBe('Projects page')
+    // The title bar carries them: no row in the frame.
+    expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
+    // Full screen: no title bar strip, so the frame's row shows the tabs, and the page stays a tab.
+    display.switchTo('fullscreen')
+    await expect.element(tabNamed('Projects page')).toBeVisible()
+    await expect
+      .poll(() => document.documentElement.style.getPropertyValue('--circi-window-top'))
+      .toBe('36px')
+    await expect.element(page.getByRole('button', { name: 'New tab' })).toBeVisible()
+    // Leaving full screen: back in the title bar, the row gone again.
+    display.switchTo('overlay')
+    await expect
+      .poll(() => document.documentElement.style.getPropertyValue('--circi-window-top'))
+      .toBe('')
+    expect(document.querySelector('[role="tab"]')?.textContent).toBe('Projects page')
   })
 
   it('opens a tab from the menu, and each tab keeps its own page', async () => {

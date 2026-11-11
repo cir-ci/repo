@@ -15,9 +15,10 @@ describe('the installable app', () => {
       short_name: 'CirCI',
       start_url: '/?source=pwa',
       scope: '/',
-      display: 'standalone',
-      // The installed app draws its own title bar beside the window's controls.
-      display_override: ['window-controls-overlay', 'standalone'],
+      display: 'fullscreen',
+      // The installed app opens full screen where the platform allows, else in its own window;
+      // either way the tabs are its own (TabRow).
+      display_override: ['fullscreen', 'standalone'],
       theme_color: '#0c0a09',
       background_color: '#0c0a09',
     })

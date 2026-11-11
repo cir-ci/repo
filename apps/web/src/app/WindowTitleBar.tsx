@@ -1,5 +1,5 @@
 import { Logo } from '#features/auth/Logo.tsx'
-import { isOverlay, useWindowTitle } from '#lib/document-title.ts'
+import { useOverlay, useWindowTitle } from '#lib/document-title.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
@@ -18,7 +18,8 @@ export function WindowTitleBar() {
   const title = useWindowTitle()
   const phone = usePhone()
   const hasTabs = useTabStore((s) => s.tabs.length > 0)
-  const tabs = hasTabs && !phone && isOverlay()
+  const overlay = useOverlay()
+  const tabs = hasTabs && !phone && overlay
   return (
     <div className={styles.root} aria-hidden={tabs ? undefined : 'true'}>
       <Logo size={16} />

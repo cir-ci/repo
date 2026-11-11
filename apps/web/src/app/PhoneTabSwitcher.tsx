@@ -1,7 +1,7 @@
 import { CloseIcon, IconButton, PinIcon, PlusIcon, Sheet } from '@circi/ui'
 import { type PointerEvent, useRef, useState } from 'react'
 
-import { isInstalled } from '#lib/document-title.ts'
+import { useInstalled } from '#lib/document-title.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf, type Tab, titleOf } from '#lib/tabs.ts'
@@ -23,7 +23,8 @@ export function PhoneTabsButton() {
   const phone = usePhone()
   const count = useTabStore((s) => s.tabs.length)
   const setOpen = useOverlayStore((s) => s.setTabsOpen)
-  if (!phone || !isInstalled() || count === 0) return null
+  const installed = useInstalled()
+  if (!phone || !installed || count === 0) return null
   return (
     <IconButton label={`Tabs, ${count} open`} onClick={() => setOpen(true)}>
       <span className={styles.count} aria-hidden="true">
@@ -50,11 +51,12 @@ export function PhoneTabSwitcher() {
   const close = useTabStore((s) => s.close)
   const openNew = useTabStore((s) => s.openNew)
   const restore = useTabStore((s) => s.restore)
+  const installed = useInstalled()
 
   return (
     <>
       <Sheet
-        open={open && isInstalled()}
+        open={open && installed}
         onOpenChange={setOpen}
         title={`${tabs.length} ${tabs.length === 1 ? 'tab' : 'tabs'}`}
         size="tall"
