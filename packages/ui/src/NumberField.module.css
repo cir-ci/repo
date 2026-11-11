@@ -73,6 +73,8 @@
   color: inherit;
   font: inherit;
   font-variant-numeric: tabular-nums;
+  /* Centred in its space, so the number sits near its unit instead of a gap opening between them. */
+  text-align: center;
 }
 
 .input::placeholder {
