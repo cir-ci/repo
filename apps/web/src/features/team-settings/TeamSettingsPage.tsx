@@ -11,7 +11,7 @@ import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 
 /** A team's General settings. Owners and admins edit; members look. */
 export function TeamSettingsPage() {
-  const { workspace, team } = useParams({ from: '/$workspace/$team/settings' })
+  const { workspace, team } = useParams({ from: '/$workspace/$team/settings/general' })
   const save = useSaveSettings(workspace, team)
   const [saved, setSaved] = useState(false)
   const navigate = useNavigate()
@@ -43,7 +43,7 @@ export function TeamSettingsPage() {
             onSavedChange={setSaved}
             onRenamed={(slug) =>
               void navigate({
-                to: '/$workspace/$team/settings',
+                to: '/$workspace/$team/settings/general',
                 params: { workspace, team: slug },
                 replace: true,
               })

@@ -2,9 +2,16 @@ import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
 
 import { rootRoute } from '#app/root-route.ts'
 
+// The team's settings hub: one row per settings page, grouped. Each page below has its own address.
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$team/settings',
+  component: lazyRouteComponent(() => import('./TeamSettingsHubPage.tsx'), 'TeamSettingsHubPage'),
+})
+
+const generalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace/$team/settings/general',
   component: lazyRouteComponent(() => import('./TeamSettingsPage.tsx'), 'TeamSettingsPage'),
 })
 
@@ -44,6 +51,7 @@ const teamsRoute = createRoute({
 
 export const teamSettingsRoutes = [
   settingsRoute,
+  generalRoute,
   membersRoute,
   tokenRoute,
   webhooksRoute,

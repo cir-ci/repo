@@ -1,23 +1,35 @@
 import type { Team } from '@circi/api'
+import { Avatar, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Navigate } from '@tanstack/react-router'
+import { Navigate, type NavigateOptions } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { TEAM_SETTINGS_PAGES } from '#app/shell-model.ts'
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { settingsQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { settingsCrumbsFor, teamsSettingsCrumb, workspaceSettingsCrumb } from '#lib/crumbs.ts'
+import { memberCountLabel } from '#features/teams/AvatarStack.tsx'
+import {
+  settingsCrumbsFor,
+  teamSettingsCrumb,
+  teamsSettingsCrumb,
+  workspaceSettingsCrumb,
+} from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
-import { PageTitle } from '#lib/PageHeading.tsx'
 
-import { TeamHeader } from './TeamHeader.tsx'
+import { SettingsBackLink } from './SettingsBackLink.tsx'
+
+import styles from './TeamSettingsHub.module.css'
 
 /**
- * What every team settings page shares: the breadcrumb (workspace, Settings, Teams, the team: see
- * `lib/crumbs.ts`), the team's header with its tabs, one column, the team's settings loaded once (the other pages read the same cache), its
- * loading and error states, and, for the pages only owners and admins may use, a redirect to the team's Members tab for everyone else (settings is a closed area: never out to the app)
+ * What every team settings page shares: the breadcrumb (Workspace, Settings, Teams, the team, the
+ * page: see `lib/crumbs.ts`), one column that starts with a way back ("Teams" on the hub, the
+ * team's name on a page), the team's settings loaded once (the other pages read the same cache),
+ * its loading and error states, and, for the pages only owners and admins may use, a redirect to
+ * the team's settings hub for everyone else (settings is a closed area: never out to the app)
  * (`managersOnly={false}` keeps a page that members may read).
+ *
+ * Without a `page` it is the team's hub (`TeamSettingsHubPage`): the team's name is its title, with
+ * its tile and member count above the rows.
  */
 export function TeamSettingsFrame({
   workspace,
@@ -25,6 +37,7 @@ export function TeamSettingsFrame({
   page,
   width = 'default',
   managersOnly = true,
+  back,
   find,
   actions,
   children,
@@ -38,36 +51,19 @@ export function TeamSettingsFrame({
   const teamName = data?.settings.name ?? team
   // The tile follows the team's appearance; until the settings say, the default colour.
   const appearance: Partial<Team.Appearance> | undefined = data?.appearance
-  useDocumentTitle(page, team)
-  useLoadingAnnouncement(!data && !error, `Loading ${page.toLowerCase()}`)
+  useDocumentTitle(page ?? teamName, page ? team : undefined)
+  useLoadingAnnouncement(!data && !error, `Loading ${(page ?? teamName).toLowerCase()}`)
 
   return (
     <PageFrame
       crumbs={settingsCrumbsFor({ slug: workspace, name: workspaceName }, [
         workspaceSettingsCrumb(workspace),
         teamsSettingsCrumb(workspace),
+        ...(page ? [teamSettingsCrumb(workspace, team, teamName)] : []),
       ])}
-      title={teamName}
+      title={page ?? teamName}
       {...(find ? { find } : {})}
       {...(actions ? { actions } : {})}
-      headingInPage
-      header={
-        <>
-          <PageTitle>{page}</PageTitle>
-          {data ? (
-            <TeamHeader
-              workspace={workspace}
-              team={team}
-              name={teamName}
-              color={appearance?.color ?? 'slate'}
-              icon={appearance?.icon ?? null}
-              memberCount={found?.team.memberCount}
-              canManage={data.canManage}
-              active={TEAM_SETTINGS_PAGES.find((p) => p.label === page)?.key}
-            />
-          ) : null}
-        </>
-      }
       width={width}
       loading={!data}
       error={error}
@@ -75,11 +71,51 @@ export function TeamSettingsFrame({
       notFound="This team doesn't exist"
       forbidden={
         managersOnly && data && !data.canManage ? (
-          <Navigate to="/$workspace/$team/settings/members" params={{ workspace, team }} replace />
+          <Navigate to="/$workspace/$team/settings" params={{ workspace, team }} replace />
         ) : null
       }
     >
-      {data ? children(data, teamName) : null}
+      {data ? (
+        <>
+          <div className={styles.head}>
+            {page ? (
+              <SettingsBackLink
+                label={back?.label ?? teamName}
+                link={
+                  back?.link ?? { to: '/$workspace/$team/settings', params: { workspace, team } }
+                }
+              />
+            ) : (
+              <>
+                <SettingsBackLink
+                  label="Teams"
+                  link={{ to: '/workspaces/$workspace/settings/teams', params: { workspace } }}
+                />
+                <div className={styles.identity}>
+                  <Avatar
+                    type="team"
+                    aria-hidden
+                    slug={team}
+                    name={teamName}
+                    color={appearance?.color ?? 'slate'}
+                    icon={appearance?.icon ?? null}
+                    size={40}
+                  />
+                  <div className={styles.names}>
+                    <span className={styles.name}>{teamName}</span>
+                    {found ? (
+                      <Text tone="tertiary" variant="small">
+                        {memberCountLabel(found.team.memberCount)}
+                      </Text>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          {children(data, teamName)}
+        </>
+      ) : null}
     </PageFrame>
   )
 }
@@ -88,12 +124,14 @@ export namespace TeamSettingsFrame {
   export interface Props {
     workspace: string
     team: string
-    /** This page's name: the last crumb and the start of the tab title. */
-    page: string
+    /** This page's name: its title and the last crumb. Without one the frame is the team's hub, titled with the team's name. */
+    page?: string
     /** The column's width: 720 by default, 1040 for the ignore regions workbench. */
     width?: 'default' | 'wide'
-    /** Default: people who can't change the team's settings are sent to its Members tab. `false` for a page members may read. */
+    /** Default: people who can't change the team's settings are sent to its settings hub. `false` for a page members may read. */
     managersOnly?: boolean
+    /** A page one level below another settings page (an ignore region's screenshot) goes back to that page instead of the hub. */
+    back?: { label: string; link: NavigateOptions }
     /** The page's find field and main button, in the header bar. */
     find?: ReactNode
     actions?: ReactNode
