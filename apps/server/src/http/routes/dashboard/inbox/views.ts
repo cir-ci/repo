@@ -64,7 +64,7 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     if (body.project) {
       const project = await findProjectForMember(deps.db, {
         workspaceSlug: found.workspace.slug,
-        projectslug: body.project,
+        projectSlug: body.project,
         userId: found.user.id,
         method: found.user.method,
       })
@@ -120,7 +120,7 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const p = parse(pinParams, req.params)
     const project = await findProjectForMember(deps.db, {
       workspaceSlug: found.workspace.slug,
-      projectslug: p.project,
+      projectSlug: p.project,
       userId: found.user.id,
       method: found.user.method,
     })

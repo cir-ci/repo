@@ -265,11 +265,11 @@ export async function addMemberViaCli(
 export async function addProjectMembers(
   session: Session,
   workspaceSlug: string,
-  projectslug: string,
+  projectSlug: string,
   userIds: string[],
 ): Promise<void> {
   await session.post(
-    `/api/projects/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectslug)}/members`,
+    `/api/projects/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(projectSlug)}/members`,
     { userIds },
   )
 }

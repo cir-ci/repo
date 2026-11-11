@@ -84,12 +84,12 @@ describe('projects', () => {
   it('finds a project by its slugs, or says it does not exist', async () => {
     const { project, workspace } = await seedProject(t.db)
     expect(
-      await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectslug: project.slug }),
+      await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectSlug: project.slug }),
     ).toMatchObject({
       id: project.id,
     })
     await expect(
-      getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectslug: 'nope' }),
+      getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectSlug: 'nope' }),
     ).rejects.toBeInstanceOf(NotFoundError)
   })
 
@@ -100,12 +100,12 @@ describe('projects', () => {
     )
     await setProjectCiKey(t.db, project.id, 'k1')
     expect(
-      (await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectslug: project.slug }))
+      (await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectSlug: project.slug }))
         .ciKeyId,
     ).toBe('k1')
     await setProjectCiKey(t.db, project.id, null)
     expect(
-      (await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectslug: project.slug }))
+      (await getProjectBySlugs(t.db, { workspaceSlug: workspace.slug, projectSlug: project.slug }))
         .ciKeyId,
     ).toBeNull()
   })
@@ -120,7 +120,7 @@ describe('findProjectForMember (workspace isolation)', () => {
     const ask = (userId: string) =>
       findProjectForMember(t.db, {
         workspaceSlug: workspace.slug,
-        projectslug: project.slug,
+        projectSlug: project.slug,
         userId,
       })
 
@@ -134,7 +134,7 @@ describe('findProjectForMember (workspace isolation)', () => {
     expect(
       await findProjectForMember(t.db, {
         workspaceSlug: workspace.slug,
-        projectslug: 'nope',
+        projectSlug: 'nope',
         userId: owner.id,
       }),
     ).toBeUndefined()
@@ -147,7 +147,7 @@ describe('findProjectForMember (workspace isolation)', () => {
     expect(
       await findProjectForMember(t.db, {
         workspaceSlug: b.workspace.slug,
-        projectslug: b.project.slug,
+        projectSlug: b.project.slug,
         userId: a.owner.id,
       }),
     ).toBeUndefined()

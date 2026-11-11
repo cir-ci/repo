@@ -21,7 +21,7 @@ export interface PushSubject {
   build: {
     number: number
     branch: string | null
-    projectslug: string
+    projectSlug: string
     projectName: string
     workspaceSlug: string
   } | null
@@ -34,7 +34,7 @@ export function composePushMessage(n: PushSubject): PushMessage {
     ? `#${n.build.number}${n.build.branch ? ` (${n.build.branch})` : ''}, ${n.build.projectName}`
     : 'a build'
   const url = n.build
-    ? `/${n.build.workspaceSlug}/${n.build.projectslug}/builds/${n.build.number}`
+    ? `/${n.build.workspaceSlug}/${n.build.projectSlug}/builds/${n.build.number}`
     : '/'
   const rawReason = n.payload['reason']
   const reason =

@@ -202,8 +202,8 @@ export type Actor =
   | { kind: 'system' }            // worker, CLI with --admin
 // packages/services/src/access/policies.ts
 export async function requireWorkspaceMember(tx, actor, workspaceSlug): Promise<WorkspaceScope>   // throws NotFoundError
-export async function requireProjectMember(tx, actor, ref): Promise<Projectscope>                         // throws NotFoundError
-export async function requireProjectManager(tx, actor, ref): Promise<Projectscope>                        // + ForbiddenError
+export async function requireProjectMember(tx, actor, ref): Promise<ProjectScope>                         // throws NotFoundError
+export async function requireProjectManager(tx, actor, ref): Promise<ProjectScope>                        // + ForbiddenError
 export async function requireWorkspaceAdmin(tx, actor, workspaceSlug): Promise<WorkspaceScope>
 export async function requireInstanceAdmin(tx, actor): Promise<void>
 ```

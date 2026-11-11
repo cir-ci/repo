@@ -41,7 +41,7 @@ export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       const report = await getInsights(deps.db, {
         userId: user.id,
         workspaceSlug: p.workspace,
-        ...(q.project === undefined ? {} : { projectslug: q.project }),
+        ...(q.project === undefined ? {} : { projectSlug: q.project }),
         from,
         to,
         method: user.method,

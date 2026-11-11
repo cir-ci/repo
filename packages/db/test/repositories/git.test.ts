@@ -107,7 +107,7 @@ describe('project links', () => {
       installationId: '9',
       repoRef: 'a/b',
       workspaceSlug: workspace.slug,
-      projectslug: project.slug,
+      projectSlug: project.slug,
       blockMergeOnChanges: project.blockMergeOnChanges,
     })
     expect(target?.build.id).toBe(build.id)

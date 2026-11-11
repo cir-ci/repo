@@ -93,9 +93,9 @@ export const triageTitle = (t: Pick<Search.Triage, 'snapshotName' | 'buildNumber
 const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
   const title = `#${b.number} ${b.name === 'default' ? '' : b.name}`.trim()
   const { status, label } = buildStatus(b)
-  const path = buildPath(c.workspace, b.projectslug, b.number)
+  const path = buildPath(c.workspace, b.projectSlug, b.number)
   return {
-    id: `build:${b.projectslug}:${b.number}`,
+    id: `build:${b.projectSlug}:${b.number}`,
     group: 'Builds',
     kind: 'build',
     label: title,
@@ -112,7 +112,7 @@ const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
     subject: {
       type: 'build',
       workspace: c.workspace,
-      project: b.projectslug,
+      project: b.projectSlug,
       number: b.number,
       label: `build #${b.number}`,
     },
@@ -158,9 +158,9 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
   const { workspace } = c
   const entries: Entry[] = results.builds.map((b) => buildEntry(c, b))
   for (const b of results.branches) {
-    const path = buildPath(workspace, b.projectslug, b.latestBuildNumber)
+    const path = buildPath(workspace, b.projectSlug, b.latestBuildNumber)
     entries.push({
-      id: `branch:${b.projectslug}:${b.branch}`,
+      id: `branch:${b.projectSlug}:${b.branch}`,
       group: 'Branches',
       kind: 'branch',
       label: b.branch,
@@ -198,9 +198,9 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
     })
   }
   for (const s of results.snapshots) {
-    const path = `${buildPath(workspace, s.projectslug, s.latestBuildNumber)}?shot=${enc(s.name)}`
+    const path = `${buildPath(workspace, s.projectSlug, s.latestBuildNumber)}?shot=${enc(s.name)}`
     entries.push({
-      id: `snapshot:${s.projectslug}:${s.name}`,
+      id: `snapshot:${s.projectSlug}:${s.name}`,
       group: 'Screenshots',
       kind: 'screenshot',
       label: s.name,
@@ -220,9 +220,9 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
     })
   }
   for (const b of results.baselines) {
-    const path = `${projectPath(workspace, b.projectslug)}/baselines/${splat(b.name)}`
+    const path = `${projectPath(workspace, b.projectSlug)}/baselines/${splat(b.name)}`
     entries.push({
-      id: `baseline:${b.projectslug}:${b.name}`,
+      id: `baseline:${b.projectSlug}:${b.name}`,
       group: 'Baselines',
       kind: 'baseline',
       label: b.name,
@@ -246,9 +246,9 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
   }
   for (const t of results.triage) {
     const title = triageTitle(t)
-    const path = `${projectPath(workspace, t.projectslug)}/triage?item=${enc(`${t.kind}:${t.key}`)}`
+    const path = `${projectPath(workspace, t.projectSlug)}/triage?item=${enc(`${t.kind}:${t.key}`)}`
     entries.push({
-      id: `triage:${t.projectslug}:${t.kind}:${t.key}`,
+      id: `triage:${t.projectSlug}:${t.kind}:${t.key}`,
       group: 'Triage',
       kind: 'triage',
       label: title,
@@ -260,7 +260,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       subject: {
         type: 'triage',
         workspace,
-        project: t.projectslug,
+        project: t.projectSlug,
         kind: t.kind,
         key: t.key,
         label: title,
@@ -323,7 +323,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       subject: {
         type: 'review',
         workspace,
-        project: r.projectslug,
+        project: r.projectSlug,
         number: r.build.number,
         id: r.id,
         label: `build #${r.build.number}`,

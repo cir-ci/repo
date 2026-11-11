@@ -47,7 +47,7 @@ function compose(data: getNotificationEmailData.Data, origin: string) {
     ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} in ${build.projectName}`
     : 'a build'
   const link = build
-    ? `${origin}/${build.workspaceSlug}/${build.projectslug}/builds/${build.number}`
+    ? `${origin}/${build.workspaceSlug}/${build.projectSlug}/builds/${build.number}`
     : origin
   const overdue = data.notification.kind === 'review_overdue'
   const again = data.notification.kind === 'review_re_requested'

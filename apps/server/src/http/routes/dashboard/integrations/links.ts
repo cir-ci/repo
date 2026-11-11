@@ -33,13 +33,13 @@ export const dashboardIntegrationLinkRoutes: FastifyPluginAsync<Deps.Dashboard> 
     if (!loaded.definition.links) throw new NotFoundError(`${loaded.definition.name} has no links`)
     const project = await getProjectBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
-      projectslug: params.project,
+      projectSlug: params.project,
     })
     // Reading a project's links needs the project to be visible: members don't learn of other projects.
     if (!options.manage) {
       const visible = await findProjectForMember(deps.db, {
         workspaceSlug: found.workspace.slug,
-        projectslug: params.project,
+        projectSlug: params.project,
         userId: found.user.id,
         method: found.user.method,
       })

@@ -100,7 +100,7 @@ describe('expireSites', () => {
     await t.db.insert(schema.siteHostnames).values([
       {
         label: 'stale-branch',
-        projectsiteId: stale.site.id,
+        projectSiteId: stale.site.id,
         linkKind: 'branch',
         branch: 'feature',
         staticSiteId: stale.version.id,
@@ -108,7 +108,7 @@ describe('expireSites', () => {
       },
       {
         label: 'main-branch',
-        projectsiteId: stale.site.id,
+        projectSiteId: stale.site.id,
         linkKind: 'branch',
         branch: project.defaultBranch,
         staticSiteId: stale.version.id,

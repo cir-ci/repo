@@ -99,7 +99,7 @@ export namespace getGitTarget {
     encryptedCredentials: string | null
     build: Build
     workspaceSlug: string
-    projectslug: string
+    projectSlug: string
     projectName: string
     blockMergeOnChanges: boolean
     commentsEnabled: boolean
@@ -120,7 +120,7 @@ export async function getGitTarget(
     .select({
       build: builds,
       workspaceSlug: workspace.slug,
-      projectslug: projects.slug,
+      projectSlug: projects.slug,
       projectName: projects.name,
       block: projects.blockMergeOnChanges,
       hosting: projects.staticHostingEnabled,
@@ -143,7 +143,7 @@ export async function getGitTarget(
   return {
     build: row.build,
     workspaceSlug: row.workspaceSlug,
-    projectslug: row.projectslug,
+    projectSlug: row.projectSlug,
     projectName: row.projectName,
     blockMergeOnChanges: row.block,
     commentsEnabled: true,

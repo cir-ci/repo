@@ -111,7 +111,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       const p = parse(projectParams, req.params)
       const issued = await rotateProjectToken(deps.auth, deps.db, {
         workspaceSlug: p.workspace,
-        projectslug: project.slug,
+        projectSlug: project.slug,
         rotatedBy: currentUser(req).id,
       })
       return { token: issued.token, info: await tokenInfo(deps.db, project.id, true) }

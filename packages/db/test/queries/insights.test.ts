@@ -322,7 +322,7 @@ describe('getInsights', () => {
     const r = await getInsights(t.db, {
       userId: owner.id,
       workspaceSlug: workspace.slug,
-      projectslug: 'docs',
+      projectSlug: 'docs',
       ...range,
     })
     expect(r?.project).toBe('docs')
@@ -340,11 +340,11 @@ describe('getInsights', () => {
   it("reports the scope's review target, retention and flaky threshold when its projects agree", async () => {
     const { project, workspace, owner } = await seedProject(t.db)
     const other = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'docs' })
-    const ask = (projectslug?: string) =>
+    const ask = (projectSlug?: string) =>
       getInsights(t.db, {
         userId: owner.id,
         workspaceSlug: workspace.slug,
-        ...(projectslug ? { projectslug } : {}),
+        ...(projectSlug ? { projectSlug } : {}),
         ...range,
       })
     expect(await ask()).toMatchObject({
@@ -384,7 +384,7 @@ describe('getInsights', () => {
       await getInsights(t.db, {
         userId: owner.id,
         workspaceSlug: workspace.slug,
-        projectslug: 'nope',
+        projectSlug: 'nope',
         ...range,
       }),
     ).toBeUndefined()

@@ -65,7 +65,7 @@ export namespace getIntegrationSendData {
       number: number
       branch: string | null
       projectName: string
-      projectslug: string
+      projectSlug: string
       workspaceSlug: string
     }
     reviewerName: string | null
@@ -99,7 +99,7 @@ export async function getIntegrationSendData(
       branch: builds.branch,
       projectId: projects.id,
       projectName: projects.name,
-      projectslug: projects.slug,
+      projectSlug: projects.slug,
       workspaceSlug: workspace.slug,
     })
     .from(builds)

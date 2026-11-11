@@ -259,11 +259,11 @@ describe('expiring sites', () => {
     await t.db
       .update(schema.siteHostnames)
       .set({ updatedAt: longAgo })
-      .where(eq(schema.siteHostnames.projectsiteId, stale.site.id))
+      .where(eq(schema.siteHostnames.projectSiteId, stale.site.id))
     await t.db
       .update(schema.siteHostnames)
       .set({ updatedAt: longAgo })
-      .where(eq(schema.siteHostnames.projectsiteId, main.site.id))
+      .where(eq(schema.siteHostnames.projectSiteId, main.site.id))
     await t.db.update(schema.staticSites).set({ createdAt: longAgo })
 
     const result = await retention()

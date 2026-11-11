@@ -61,7 +61,7 @@ async function setup() {
 const visibleTo = (s: Awaited<ReturnType<typeof setup>>, userId: string) =>
   findProjectForMember(t.db, {
     workspaceSlug: s.workspace.slug,
-    projectslug: s.project.slug,
+    projectSlug: s.project.slug,
     userId,
     method: 'password',
   })

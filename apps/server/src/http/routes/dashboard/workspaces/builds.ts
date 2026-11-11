@@ -97,7 +97,7 @@ export const dashboardWorkspaceBuildsRoutes: FastifyPluginAsync<Deps.Dashboard> 
         userId: user.id,
         workspaceSlug: p.workspace,
         method: user.method,
-        projectslug: q.project,
+        projectSlug: q.project,
         query: q.q,
         limit: q.limit,
       })

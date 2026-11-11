@@ -231,7 +231,7 @@ export async function getInsights(
   input: {
     userId: string
     workspaceSlug: string
-    projectslug?: string
+    projectSlug?: string
     from: Date
     to: Date
     now?: Date
@@ -264,11 +264,11 @@ export async function getInsights(
       and(
         eq(projects.workspaceId, found.id),
         projectVisibleTo(input.userId, projects),
-        ...(input.projectslug === undefined ? [] : [eq(projects.slug, input.projectslug)]),
+        ...(input.projectSlug === undefined ? [] : [eq(projects.slug, input.projectSlug)]),
       ),
     )
     .orderBy(projects.slug)
-  if (input.projectslug !== undefined && scoped.length === 0) return undefined
+  if (input.projectSlug !== undefined && scoped.length === 0) return undefined
   const projectIds = scoped.map((p) => p.id)
 
   const { from, to } = input
@@ -433,7 +433,7 @@ export async function getInsights(
   }
 
   const projectsComparison =
-    input.projectslug === undefined
+    input.projectSlug === undefined
       ? scoped
           .map((p) => {
             const own = inRangeFinished.filter((b) => b.projectId === p.id)
@@ -457,7 +457,7 @@ export async function getInsights(
 
   return {
     workspace: { slug: found.slug, name: found.name },
-    project: input.projectslug ?? null,
+    project: input.projectSlug ?? null,
     range: { from, to },
     summary,
     previous: summarize(previousFrom, from),

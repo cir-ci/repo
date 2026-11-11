@@ -159,7 +159,7 @@ Do first: change the two loaders, then migrate route files in batches (they are 
   `Stack` exists (`packages/ui/src/Stack.tsx`, gap steps 4px) but is used in **5** places while
   web has **110** `flex-direction: column` rules.
 - Truncate (`flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap`) x5 +
-  x2 variants: `SettingsNav.module.css:1`, `Projectswitcher.module.css:88`,
+  x2 variants: `SettingsNav.module.css:1`, `ProjectSwitcher.module.css:88`,
   `WorkspaceSwitcher.module.css:32`, `UserMenu.module.css:27`, `NavItem.module.css:55`,
   `BuildReview.module.css:36`, `Menu.module.css:69`. 7 in ui, 11 in web use the ellipsis trio.
 - Visually hidden text in **six** hand-written variants (two flavours: `clip-path: inset(50%)`

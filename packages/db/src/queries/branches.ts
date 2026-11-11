@@ -29,7 +29,7 @@ export async function listBranches(
   input: {
     userId: string
     workspaceSlug: string
-    projectslug?: string | undefined
+    projectSlug?: string | undefined
     method?: SessionMethod | undefined
     query?: string | undefined
     limit?: number | undefined
@@ -37,19 +37,19 @@ export async function listBranches(
 ): Promise<listBranches.Item[] | undefined> {
   const ws = await visibleWorkspace(db, input)
   if (!ws) return undefined
-  const [project] = input.projectslug
+  const [project] = input.projectSlug
     ? await db
         .select({ id: projects.id })
         .from(projects)
         .where(
           and(
             eq(projects.workspaceId, ws.id),
-            eq(projects.slug, input.projectslug),
+            eq(projects.slug, input.projectSlug),
             projectVisibleTo(input.userId, projects),
           ),
         )
     : []
-  if (input.projectslug && !project) return undefined
+  if (input.projectSlug && !project) return undefined
   const q = input.query?.trim()
   const lastBuildAt = max(builds.createdAt)
   const rows = await db

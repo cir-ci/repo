@@ -97,7 +97,7 @@ export async function queueWebhookEvent(
   const targets = await db
     .select({
       id: webhooks.id,
-      projectslug: projects.slug,
+      projectSlug: projects.slug,
       projectName: projects.name,
       workspaceSlug: workspace.slug,
     })
@@ -115,7 +115,7 @@ export async function queueWebhookEvent(
   for (const target of targets) {
     const data: queueWebhookEvent.Data = {
       workspace: { slug: target.workspaceSlug },
-      project: { id: build.projectId, slug: target.projectslug, name: target.projectName },
+      project: { id: build.projectId, slug: target.projectSlug, name: target.projectName },
       build: {
         id: build.id,
         number: build.number,
@@ -159,7 +159,7 @@ export async function queueTestWebhook(db: Database, webhookId: string): Promise
   const [target] = await db
     .select({
       projectId: webhooks.projectId,
-      projectslug: projects.slug,
+      projectSlug: projects.slug,
       projectName: projects.name,
       workspaceSlug: workspace.slug,
     })
@@ -179,7 +179,7 @@ export async function queueTestWebhook(db: Database, webhookId: string): Promise
       createdAt: new Date().toISOString(),
       data: {
         workspace: { slug: target.workspaceSlug },
-        project: { id: target.projectId, slug: target.projectslug, name: target.projectName },
+        project: { id: target.projectId, slug: target.projectSlug, name: target.projectName },
       },
     },
     maxAttempts: 1,

@@ -54,7 +54,7 @@ const views: View.Item[] = [
 ]
 
 const build = (over: Partial<Search.Build> = {}): Search.Build => ({
-  projectslug: 'web',
+  projectSlug: 'web',
   projectName: 'Web App',
   number: 148,
   name: 'Checkout',
@@ -484,7 +484,7 @@ describe('a typed query', () => {
     builds: [build(), build({ number: 147, name: 'Cart' }), build({ number: 146, name: 'Nav' })],
     branches: [
       {
-        projectslug: 'web',
+        projectSlug: 'web',
         projectName: 'Web App',
         branch: 'feat/checkout',
         latestBuildNumber: 148,
@@ -492,7 +492,7 @@ describe('a typed query', () => {
     ],
     snapshots: [
       {
-        projectslug: 'web',
+        projectSlug: 'web',
         projectName: 'Web App',
         name: 'Checkout / Payment',
         latestBuildNumber: 148,
@@ -582,7 +582,7 @@ describe('a typed query', () => {
       results({
         baselines: [
           {
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             name: 'checkout/summary',
             buildNumber: 140,
@@ -592,7 +592,7 @@ describe('a typed query', () => {
         ],
         triage: [
           {
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             kind: 'flaky',
             key: 'checkout/summary',
@@ -619,7 +619,7 @@ describe('a typed query', () => {
           {
             id: 'r1',
             tab: 'for-you',
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             build: { number: 148, name: 'default', branch: 'main' },
             reviewer: { name: 'Me' },
@@ -899,7 +899,7 @@ describe('search results with peeks', () => {
       results({
         snapshots: [
           {
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             name: 'home',
             latestBuildNumber: 3,
@@ -908,7 +908,7 @@ describe('search results with peeks', () => {
         ],
         baselines: [
           {
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             name: 'home',
             buildNumber: 2,
@@ -929,7 +929,7 @@ describe('search results with peeks', () => {
       results({
         triage: [
           {
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             kind: 'flaky',
             key: 'home',
@@ -943,7 +943,7 @@ describe('search results with peeks', () => {
           {
             id: 'r1',
             tab: 'for-you',
-            projectslug: 'web',
+            projectSlug: 'web',
             projectName: 'Web App',
             build: { number: 9, name: 'default', branch: 'main' },
             reviewer: { name: 'Me' },

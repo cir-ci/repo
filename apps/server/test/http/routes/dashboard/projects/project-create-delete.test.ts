@@ -60,7 +60,7 @@ const bitbucket = await createIntegration(t.db, {
   displayName: 'Acme',
   externalId: 'acme-ws',
 })
-const mappings = async (projectslug: string) =>
+const mappings = async (projectSlug: string) =>
   t.db
     .select({
       ref: schema.integrationProjects.externalRef,
@@ -68,7 +68,7 @@ const mappings = async (projectslug: string) =>
     })
     .from(schema.integrationProjects)
     .innerJoin(schema.projects, eq(schema.projects.id, schema.integrationProjects.projectId))
-    .where(eq(schema.projects.slug, projectslug))
+    .where(eq(schema.projects.slug, projectSlug))
 
 describe('GET /api/capabilities', () => {
   it('says whether the person runs the instance', async () => {

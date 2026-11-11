@@ -145,7 +145,7 @@ describe('POST /api/workspaces/:workspace/github-import', () => {
     })
     const project = await getProjectBySlugs(t.db, {
       workspaceSlug: acme.workspaceSlug,
-      projectslug: 'web-app',
+      projectSlug: 'web-app',
     })
     expect(await getProjectLink(t.db, project.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '42',

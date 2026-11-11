@@ -44,7 +44,7 @@ export async function findSiteByLabel(
     })
     .from(siteHostnames)
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
-    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectsiteId))
+    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectSiteId))
     .innerJoin(projects, eq(projects.id, projectSites.projectId))
     .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
     .where(eq(siteHostnames.label, label))
@@ -92,7 +92,7 @@ export async function findSiteByCustomDomain(
     .innerJoin(
       siteHostnames,
       and(
-        eq(siteHostnames.projectsiteId, projectSites.id),
+        eq(siteHostnames.projectSiteId, projectSites.id),
         eq(siteHostnames.linkKind, 'branch'),
         eq(siteHostnames.branch, projects.defaultBranch),
       ),
@@ -185,7 +185,7 @@ export async function sitesForCommit(
       label: siteHostnames.label,
     })
     .from(staticSites)
-    .innerJoin(projectSites, eq(projectSites.id, staticSites.projectsiteId))
+    .innerJoin(projectSites, eq(projectSites.id, staticSites.projectSiteId))
     .leftJoin(
       siteHostnames,
       and(eq(siteHostnames.staticSiteId, staticSites.id), eq(siteHostnames.linkKind, 'commit')),
@@ -277,14 +277,14 @@ export async function listProjectSites(
     const versions = await db
       .select()
       .from(staticSites)
-      .where(eq(staticSites.projectsiteId, site.id))
+      .where(eq(staticSites.projectSiteId, site.id))
       .orderBy(desc(staticSites.createdAt))
       .limit(30)
     // eslint-disable-next-line no-await-in-loop
     const hostnames = await db
       .select()
       .from(siteHostnames)
-      .where(eq(siteHostnames.projectsiteId, site.id))
+      .where(eq(siteHostnames.projectSiteId, site.id))
     const byVersion = new Map(
       hostnames.filter((h) => h.linkKind === 'commit').map((h) => [h.staticSiteId, h.label]),
     )
@@ -327,7 +327,7 @@ export async function servedCommitForBranch(
   const [row] = await db
     .select({ commitSha: staticSites.commitSha })
     .from(siteHostnames)
-    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectsiteId))
+    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectSiteId))
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(

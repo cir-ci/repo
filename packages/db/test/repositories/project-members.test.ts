@@ -306,7 +306,7 @@ describe('findProjectForMember', () => {
     const ask = (userId: string) =>
       findProjectForMember(t.db, {
         workspaceSlug: workspace.slug,
-        projectslug: project.slug,
+        projectSlug: project.slug,
         userId,
       })
     expect(await ask(owner.id)).toMatchObject({ id: project.id })

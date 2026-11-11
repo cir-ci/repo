@@ -33,7 +33,7 @@ describe('listBranches', () => {
     const found = await listBranches(t.db, {
       userId: owner.id,
       workspaceSlug: workspace.slug,
-      projectslug: 'web',
+      projectSlug: 'web',
     })
     expect(found?.map((b) => b.name)).toEqual(['main', 'feature/a', 'qa/pr20'])
     expect(found?.[0]?.lastBuildAt).toEqual(at(4))
@@ -47,7 +47,7 @@ describe('listBranches', () => {
 
   it('matches what is typed anywhere in the name, ignoring case and treating % and _ as text', async () => {
     const { workspace, owner } = await history(['qa/pr20', 'feature/QA-login', 'main', '100%_done'])
-    const input = { userId: owner.id, workspaceSlug: workspace.slug, projectslug: 'web' }
+    const input = { userId: owner.id, workspaceSlug: workspace.slug, projectSlug: 'web' }
     expect((await listBranches(t.db, { ...input, query: 'qa' }))?.map((b) => b.name)).toEqual([
       'feature/QA-login',
       'qa/pr20',
@@ -66,7 +66,7 @@ describe('listBranches', () => {
     const found = await listBranches(t.db, {
       userId: owner.id,
       workspaceSlug: workspace.slug,
-      projectslug: 'web',
+      projectSlug: 'web',
       limit: 2,
     })
     expect(found?.map((b) => b.name)).toEqual(['d', 'c'])
@@ -83,7 +83,7 @@ describe('listBranches', () => {
       await listBranches(t.db, {
         userId: owner.id,
         workspaceSlug: workspace.slug,
-        projectslug: 'x',
+        projectSlug: 'x',
       }),
     ).toBeUndefined()
   })

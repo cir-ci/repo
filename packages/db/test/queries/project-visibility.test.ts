@@ -123,7 +123,7 @@ describe('what each person sees of a project they are not in', () => {
       await listBranches(t.db, {
         userId: s.outsider.id,
         workspaceSlug: s.workspace.slug,
-        projectslug: 'secret',
+        projectSlug: 'secret',
       }),
     ).toBeUndefined()
 

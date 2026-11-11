@@ -267,7 +267,7 @@ export async function createProjectWithToken(
 export async function rotateProjectToken(
   auth: Auth,
   db: Database,
-  input: { workspaceSlug: string; projectslug: string; rotatedBy?: string },
+  input: { workspaceSlug: string; projectSlug: string; rotatedBy?: string },
 ): Promise<IssuedToken> {
   const project = await getProjectBySlugs(db, input)
   return issueToken(auth, db, input.workspaceSlug, project, input.rotatedBy)

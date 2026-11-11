@@ -90,7 +90,7 @@ export async function integrationEvent(
           projectName: data.build.projectName,
           number: data.build.number,
           branch: data.build.branch,
-          url: `${deps.context.publicOrigin}/${data.build.workspaceSlug}/${data.build.projectslug}/builds/${data.build.number}`,
+          url: `${deps.context.publicOrigin}/${data.build.workspaceSlug}/${data.build.projectSlug}/builds/${data.build.number}`,
         },
         reviewer: data.reviewerName,
         actor: data.actorName,

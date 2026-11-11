@@ -85,7 +85,7 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
     const extra = normalizeExtra(mapping, parse(mappingExtraSchema(mapping), body.extra ?? {}))
     const project = await getProjectBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
-      projectslug: params.project,
+      projectSlug: params.project,
     })
     let target: { ref: string; name?: string | undefined } = {
       ref: body.ref,
@@ -118,7 +118,7 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
     const loaded = await integrationFor(found.workspace.id, params.id)
     const project = await getProjectBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
-      projectslug: params.project,
+      projectSlug: params.project,
     })
     await unmapProject(deps.db, {
       definition: loaded.definition,

@@ -72,7 +72,7 @@ export function addProjectCommands(admin: Command): void {
       withRuntime(async (rt) => {
         const { project: p, token } = await rotateProjectToken(rt.auth, rt.db.db, {
           workspaceSlug: opts.org,
-          projectslug: opts.project,
+          projectSlug: opts.project,
         })
         if (opts.json) return printJson({ project: publicProject(p), token })
         console.log(

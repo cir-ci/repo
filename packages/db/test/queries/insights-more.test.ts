@@ -193,8 +193,8 @@ async function history() {
   return { workspace, owner, mia }
 }
 
-const ask = (userId: string, workspaceSlug: string, projectslug?: string) =>
-  getInsights(t.db, { userId, workspaceSlug, ...(projectslug ? { projectslug } : {}), ...range })
+const ask = (userId: string, workspaceSlug: string, projectSlug?: string) =>
+  getInsights(t.db, { userId, workspaceSlug, ...(projectSlug ? { projectSlug } : {}), ...range })
 
 describe('getInsights: time to decision, outcomes and CI health', () => {
   it('measures ready to the last decision by a person, in the summary and per week', async () => {

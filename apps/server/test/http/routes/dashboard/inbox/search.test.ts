@@ -33,7 +33,7 @@ const list = async (query: string): Promise<number[]> =>
 describe('GET /api/workspaces/:workspace/search', () => {
   it('finds builds, branches, projects and snapshots', async () => {
     const byNumber = (await search(acme.workspaceSlug, '#2')).json()
-    expect(byNumber.builds).toMatchObject([{ projectslug: 'web', number: 2 }])
+    expect(byNumber.builds).toMatchObject([{ projectSlug: 'web', number: 2 }])
     const byName = (await search(acme.workspaceSlug, 'ab')).json()
     expect(byName.snapshots).toMatchObject([{ name: 'about', latestBuildNumber: 2 }])
     expect((await search(acme.workspaceSlug, 'mai')).json().branches).toMatchObject([
@@ -74,7 +74,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
 
   it('finds a baseline by a path segment of its screenshot name', async () => {
     const found = (await search(acme.workspaceSlug, 'hom')).json()
-    expect(found.baselines).toMatchObject([{ projectslug: 'web', name: 'home', buildNumber: 2 }])
+    expect(found.baselines).toMatchObject([{ projectSlug: 'web', name: 'home', buildNumber: 2 }])
   })
 
   it("finds the person's own notifications, review requests and views, as ISO dates", async () => {
@@ -99,7 +99,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
     expect(typeof found.notifications[0].createdAt).toBe('string')
     expect(found.views).toMatchObject([{ name: 'Header regressions', project: null }])
     expect((await search(acme.workspaceSlug, 'web')).json().reviews).toMatchObject([
-      { tab: 'for-you', projectslug: 'web' },
+      { tab: 'for-you', projectSlug: 'web' },
     ])
     // Another person in the workspace sees none of them.
     expect(
@@ -123,12 +123,12 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
       // eslint-disable-next-line no-await-in-loop -- reads
       const body = (await member.get(`/api/workspaces/${acme.workspaceSlug}/search?q=${q}`)).json()
       expect(JSON.stringify({ ...body, query: '' })).not.toMatch(/hush/)
-      expect(body.triage.map((i: { projectslug: string }) => i.projectslug)).not.toContain('hush')
+      expect(body.triage.map((i: { projectSlug: string }) => i.projectSlug)).not.toContain('hush')
     }
     const owner = (await search(acme.workspaceSlug, 'hush')).json()
     expect(owner.projects).toMatchObject([{ slug: 'hush' }])
     expect((await search(acme.workspaceSlug, 'hush/page')).json().baselines).toMatchObject([
-      { projectslug: 'hush' },
+      { projectSlug: 'hush' },
     ])
   })
 })
@@ -176,7 +176,7 @@ describe('GET /api/workspaces/:workspace/search, project, kinds, limit and total
     const homeInHush = (await get(`/api/workspaces/${ws}/search?q=home&project=hush`)).json()
     expect(homeInHush.snapshots).toEqual([])
     const homeInWeb = (await get(`/api/workspaces/${ws}/search?q=home&project=web`)).json()
-    expect(homeInWeb.snapshots).toMatchObject([{ projectslug: 'web' }])
+    expect(homeInWeb.snapshots).toMatchObject([{ projectSlug: 'web' }])
     // A member who isn't in a project (added first: a project made later is not theirs) finds nothing in it.
     const member = await fx.addMember('member')
     await createProject(fx.db, { workspaceSlug: ws, name: 'quiet' })

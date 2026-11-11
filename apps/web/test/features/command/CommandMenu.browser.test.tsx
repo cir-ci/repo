@@ -88,7 +88,7 @@ const api = (
 }
 
 const build = (over: Record<string, unknown> = {}) => ({
-  projectslug: 'web',
+  projectSlug: 'web',
   projectName: 'Web',
   number: 148,
   name: 'Checkout',
@@ -108,7 +108,7 @@ const more = {
   query: 'summary',
   baselines: [
     {
-      projectslug: 'web',
+      projectSlug: 'web',
       projectName: 'Web',
       name: 'checkout/summary',
       buildNumber: 140,
@@ -118,7 +118,7 @@ const more = {
   ],
   triage: [
     {
-      projectslug: 'web',
+      projectSlug: 'web',
       projectName: 'Web',
       kind: 'flaky',
       key: 'checkout/summary',
@@ -145,7 +145,7 @@ const more = {
     {
       id: 'r1',
       tab: 'for-you',
-      projectslug: 'web',
+      projectSlug: 'web',
       projectName: 'Web',
       build: { number: 148, name: 'default', branch: 'main' },
       reviewer: { name: 'Me' },

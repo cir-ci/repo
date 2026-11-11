@@ -22,7 +22,7 @@ import { NotifySection } from './NotifySection.tsx'
 import { ReviewTargetSection } from './ReviewTargetSection.tsx'
 import { RotationSection } from './RotationSection.tsx'
 
-import projectstyles from '#features/project-settings/ProjectSettings.module.css'
+import projectStyles from '#features/project-settings/ProjectSettings.module.css'
 
 /**
  * The settings below the rules, saved together: the review target, the automation, and triage
@@ -98,7 +98,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
   const fieldMessages = ['reviewTargetHours', 'reviewOverdueNotifyUserId', 'flakyAfterChanges']
   const shownByField = fieldMessages.some((f) => fields[f])
   return (
-    <form onSubmit={(e) => void submit(e)} noValidate className={projectstyles.form}>
+    <form onSubmit={(e) => void submit(e)} noValidate className={projectStyles.form}>
       <ReviewTargetSection
         hours={values.hours}
         notifyUserId={values.notifyUserId}
@@ -109,7 +109,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         disabled={disabled}
         onHoursChange={(hours) => edit({ hours })}
         onNotifyChange={(notifyUserId) => edit({ notifyUserId })}
-        className={projectstyles.number}
+        className={projectStyles.number}
       />
       <AutomationSection
         close={values.close}
@@ -150,7 +150,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
       {failure && !shownByField ? <Banner tone="danger">{failure.message}</Banner> : null}
       {done ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
-        <div className={projectstyles.footer}>
+        <div className={projectStyles.footer}>
           <Button type="button" variant="ghost" onClick={discard} disabled={!dirty || saving}>
             Discard
           </Button>

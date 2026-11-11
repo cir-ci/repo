@@ -37,7 +37,7 @@ export async function seedSite(
   const [version] = await db
     .insert(schema.staticSites)
     .values({
-      projectsiteId: site?.id ?? '',
+      projectSiteId: site?.id ?? '',
       commitSha: input.commitSha ?? 'abcdef012345',
       branch: input.branch ?? null,
       totalBytes: siteFiles.reduce((sum, f) => sum + (f.size ?? 1), 0),
@@ -62,7 +62,7 @@ export async function seedSite(
   if (label) {
     await db.insert(schema.siteHostnames).values({
       label,
-      projectsiteId: site.id,
+      projectSiteId: site.id,
       linkKind: 'commit',
       staticSiteId: version.id,
     })

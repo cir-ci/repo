@@ -53,7 +53,7 @@ export async function loadProject(
   const user = currentUser(req)
   const project = await findProjectForMember(deps.db, {
     workspaceSlug: p.workspace,
-    projectslug: p.project,
+    projectSlug: p.project,
     userId: user.id,
     method: user.method,
   })

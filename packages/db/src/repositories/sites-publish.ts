@@ -106,7 +106,7 @@ export async function publishSiteVersion(
       .select()
       .from(staticSites)
       .where(
-        and(eq(staticSites.projectsiteId, site.id), eq(staticSites.commitSha, input.commitSha)),
+        and(eq(staticSites.projectSiteId, site.id), eq(staticSites.commitSha, input.commitSha)),
       )
     let version = existing
     if (version) {
@@ -126,7 +126,7 @@ export async function publishSiteVersion(
       ;[version] = await tx
         .insert(staticSites)
         .values({
-          projectsiteId: site.id,
+          projectSiteId: site.id,
           commitSha: input.commitSha,
           branch: input.branch,
           entryPath: input.entryPath,
@@ -170,7 +170,7 @@ export async function publishSiteVersion(
       commitLabel = input.addressing.commitLabel(site.slug, (l) => taken.has(l))
       await tx.insert(siteHostnames).values({
         label: commitLabel,
-        projectsiteId: site.id,
+        projectSiteId: site.id,
         linkKind: 'commit',
         staticSiteId: versionId,
       })
@@ -183,7 +183,7 @@ export async function publishSiteVersion(
         .from(siteHostnames)
         .where(
           and(
-            eq(siteHostnames.projectsiteId, site.id),
+            eq(siteHostnames.projectSiteId, site.id),
             eq(siteHostnames.linkKind, 'branch'),
             eq(siteHostnames.branch, input.branch),
           ),
@@ -201,7 +201,7 @@ export async function publishSiteVersion(
         branchLabel = input.addressing.branchLabel(input.branch, site.slug, (l) => taken.has(l))
         await tx.insert(siteHostnames).values({
           label: branchLabel,
-          projectsiteId: site.id,
+          projectSiteId: site.id,
           linkKind: 'branch',
           branch: input.branch,
           staticSiteId: versionId,

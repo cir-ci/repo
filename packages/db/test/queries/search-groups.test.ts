@@ -173,7 +173,7 @@ describe('searchWorkspace groups', () => {
     const s = await setup()
     const found = await s.search(s.owner.id, 'summary')
     expect(found?.baselines).toMatchObject([
-      { projectslug: 'open', name: 'checkout/summary', buildNumber: 1 },
+      { projectSlug: 'open', name: 'checkout/summary', buildNumber: 1 },
     ])
     const { project, workspace, owner } = await seedProject(t.db, { slug: 'feature-only' })
     const b = await seedBuild(t.db, project.id, { branch: 'feature/x', status: 'complete' })
@@ -194,12 +194,12 @@ describe('searchWorkspace groups', () => {
   it('finds triage items by kind and build number', async () => {
     const s = await setup()
     const found = await s.search(s.owner.id, 'failed')
-    expect(found?.triage.map((i) => [i.projectslug, i.kind]).toSorted()).toEqual([
+    expect(found?.triage.map((i) => [i.projectSlug, i.kind]).toSorted()).toEqual([
       ['open', 'failed'],
       ['secret', 'failed'],
     ])
     const byNumber = await s.search(s.owner.id, `#${s.broken.number}`)
-    expect(byNumber?.triage.find((i) => i.projectslug === 'open')).toMatchObject({
+    expect(byNumber?.triage.find((i) => i.projectSlug === 'open')).toMatchObject({
       kind: 'failed',
       key: `build:${s.broken.number}`,
       snapshotName: null,
@@ -242,12 +242,12 @@ describe('searchWorkspace groups', () => {
       {
         id: s.request.id,
         tab: 'for-you',
-        projectslug: 'open',
+        projectSlug: 'open',
         reviewer: { name: 'Olive Outsider' },
       },
     ])
     const asked = (await s.search(s.owner.id, 'olive'))?.reviews.filter(
-      (r) => r.projectslug === 'open',
+      (r) => r.projectSlug === 'open',
     )
     expect(asked).toMatchObject([{ id: s.request.id, tab: 'created' }])
   })
@@ -269,10 +269,10 @@ describe('searchWorkspace groups', () => {
     }
     // The owner is in the project and does see them.
     expect((await s.search(s.owner.id, 'secretive'))?.builds).toMatchObject([
-      { projectslug: 'secret', name: 'secretive' },
+      { projectSlug: 'secret', name: 'secretive' },
     ])
     expect((await s.search(s.owner.id, 'checkout/hidden'))?.baselines).toHaveLength(1)
-    expect((await s.search(s.owner.id, 'failed'))?.triage.map((i) => i.projectslug)).toContain(
+    expect((await s.search(s.owner.id, 'failed'))?.triage.map((i) => i.projectSlug)).toContain(
       'secret',
     )
   })

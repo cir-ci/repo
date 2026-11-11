@@ -15,7 +15,7 @@ export namespace Search {
     | 'people'
 
   export interface Build {
-    projectslug: string
+    projectSlug: string
     projectName: string
     number: number
     name: string
@@ -30,7 +30,7 @@ export namespace Search {
   }
 
   export interface Branch {
-    projectslug: string
+    projectSlug: string
     projectName: string
     branch: string
     latestBuildNumber: number
@@ -42,7 +42,7 @@ export namespace Search {
   }
 
   export interface Snapshot {
-    projectslug: string
+    projectSlug: string
     projectName: string
     name: string
     latestBuildNumber: number
@@ -52,7 +52,7 @@ export namespace Search {
 
   /** A screenshot that is a baseline (on the project's default branch), opening its baseline page. */
   export interface Baseline {
-    projectslug: string
+    projectSlug: string
     projectName: string
     name: string
     /** The default-branch build the baseline comes from. */
@@ -64,7 +64,7 @@ export namespace Search {
 
   /** A triage item of a project (the page's `kind:key` identifies it). */
   export interface Triage {
-    projectslug: string
+    projectSlug: string
     projectName: string
     kind: 'flaky' | 'no_baseline' | 'failed'
     key: string
@@ -95,7 +95,7 @@ export namespace Search {
     id: string
     /** The Reviews tab that lists it for them. */
     tab: 'for-you' | 'created' | 'snoozed'
-    projectslug: string
+    projectSlug: string
     projectName: string
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }

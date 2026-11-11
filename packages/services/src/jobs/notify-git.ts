@@ -157,7 +157,7 @@ async function notifyLocked(
       ...(b.status === 'complete' && b.conclusion === 'changes_detected'
         ? { review: await getBuildReviewSummary(deps.db, b.id) }
         : {}),
-      url: `${deps.publicOrigin}/${target.workspaceSlug}/${target.projectslug}/builds/${b.number}`,
+      url: `${deps.publicOrigin}/${target.workspaceSlug}/${target.projectSlug}/builds/${b.number}`,
     }
   }
 

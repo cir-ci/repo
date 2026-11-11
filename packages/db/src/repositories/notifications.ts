@@ -213,7 +213,7 @@ export namespace getNotificationEmailData {
     build: {
       number: number
       branch: string | null
-      projectslug: string
+      projectSlug: string
       projectName: string
       workspaceSlug: string
     } | null
@@ -240,7 +240,7 @@ export async function getNotificationEmailData(
         .select({
           number: builds.number,
           branch: builds.branch,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           workspaceSlug: workspace.slug,
         })

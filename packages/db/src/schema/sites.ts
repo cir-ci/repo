@@ -65,7 +65,7 @@ export const staticSites = pgTable(
   'static_sites',
   {
     id: id(),
-    projectsiteId: uuid('project_site_id')
+    projectSiteId: uuid('project_site_id')
       .notNull()
       .references(() => projectSites.id, { onDelete: 'cascade' }),
     commitSha: text('commit_sha').notNull(),
@@ -76,7 +76,7 @@ export const staticSites = pgTable(
     fileCount: integer('file_count').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('static_sites_commit_key').on(t.projectsiteId, t.commitSha)],
+  (t) => [uniqueIndex('static_sites_commit_key').on(t.projectSiteId, t.commitSha)],
 )
 
 export const staticSiteFiles = pgTable(
@@ -103,7 +103,7 @@ export const siteHostnames = pgTable(
   'site_hostnames',
   {
     label: text('label').primaryKey(),
-    projectsiteId: uuid('project_site_id')
+    projectSiteId: uuid('project_site_id')
       .notNull()
       .references(() => projectSites.id, { onDelete: 'cascade' }),
     /** `commit` addresses serve one version for good; `branch` ones move with the branch. */
@@ -116,7 +116,7 @@ export const siteHostnames = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('site_hostnames_site_idx').on(t.projectsiteId),
+    index('site_hostnames_site_idx').on(t.projectSiteId),
     check('site_hostnames_kind_check', inList(t.linkKind.name, ['commit', 'branch'])),
   ],
 )

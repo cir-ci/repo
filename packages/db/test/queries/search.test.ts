@@ -56,7 +56,7 @@ describe('searchWorkspace', () => {
 
     const input = { userId: owner.id, workspaceSlug: workspace.slug }
     const hash = await searchWorkspace(t.db, { ...input, query: '#148' })
-    expect(hash?.builds).toMatchObject([{ projectslug: 'checkout-web', number: 148 }])
+    expect(hash?.builds).toMatchObject([{ projectSlug: 'checkout-web', number: 148 }])
     const bare = await searchWorkspace(t.db, { ...input, query: '148' })
     expect(bare?.builds.map((b) => b.number)).toEqual([148])
     const pr = await searchWorkspace(t.db, { ...input, query: '7' })
@@ -68,10 +68,10 @@ describe('searchWorkspace', () => {
     const text = await searchWorkspace(t.db, { ...input, query: 'CHECKOUT' })
     expect(text?.projects.map((p) => p.slug)).toEqual(['checkout-web'])
     expect(text?.branches).toMatchObject([
-      { projectslug: 'checkout-web', branch: 'feature/checkout-redesign', latestBuildNumber: 148 },
+      { projectSlug: 'checkout-web', branch: 'feature/checkout-redesign', latestBuildNumber: 148 },
     ])
     expect(text?.snapshots).toMatchObject([
-      { projectslug: 'checkout-web', name: 'checkout-page', latestBuildNumber: 148 },
+      { projectSlug: 'checkout-web', name: 'checkout-page', latestBuildNumber: 148 },
     ])
     expect(text?.builds).toEqual([])
   })

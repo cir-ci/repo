@@ -23,14 +23,14 @@ export async function listProjects(db: Database, workspaceSlug: string): Promise
 
 export async function getProjectBySlugs(
   db: Database,
-  input: { workspaceSlug: string; projectslug: string },
+  input: { workspaceSlug: string; projectSlug: string },
 ): Promise<Project> {
   const [row] = await db
     .select({ project: projects })
     .from(projects)
     .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
-    .where(and(eq(workspace.slug, input.workspaceSlug), eq(projects.slug, input.projectslug)))
-  assertFound(row, `Project "${input.workspaceSlug}/${input.projectslug}" not found`)
+    .where(and(eq(workspace.slug, input.workspaceSlug), eq(projects.slug, input.projectSlug)))
+  assertFound(row, `Project "${input.workspaceSlug}/${input.projectSlug}" not found`)
   return row.project
 }
 
@@ -82,7 +82,7 @@ export namespace findProjectForMember {
  */
 export async function findProjectForMember(
   db: Database,
-  input: { workspaceSlug: string; projectslug: string; userId: string; method?: SessionMethod },
+  input: { workspaceSlug: string; projectSlug: string; userId: string; method?: SessionMethod },
 ): Promise<findProjectForMember.Visible | undefined> {
   const [row] = await db
     .select({
@@ -101,7 +101,7 @@ export async function findProjectForMember(
     .where(
       and(
         eq(workspace.slug, input.workspaceSlug),
-        eq(projects.slug, input.projectslug),
+        eq(projects.slug, input.projectSlug),
         workspaceAccepts(workspace.id, input.method),
         projectVisibleTo(input.userId, projects),
       ),

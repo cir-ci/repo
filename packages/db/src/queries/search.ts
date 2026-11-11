@@ -66,7 +66,7 @@ export namespace searchWorkspace {
   export type Kind = (typeof SEARCH_KINDS)[number]
 
   export interface Build {
-    projectslug: string
+    projectSlug: string
     projectName: string
     number: number
     name: string
@@ -83,7 +83,7 @@ export namespace searchWorkspace {
   export interface Person extends searchExtras.Person {}
 
   export interface Branch {
-    projectslug: string
+    projectSlug: string
     projectName: string
     branch: string
     /** The newest build on it. */
@@ -96,7 +96,7 @@ export namespace searchWorkspace {
   }
 
   export interface Snapshot {
-    projectslug: string
+    projectSlug: string
     projectName: string
     name: string
     /** The newest build that has a screenshot of this name. */
@@ -105,7 +105,7 @@ export namespace searchWorkspace {
   }
 
   export interface Baseline {
-    projectslug: string
+    projectSlug: string
     projectName: string
     name: string
     /** The newest default-branch build that is a baseline source for the name. */
@@ -116,7 +116,7 @@ export namespace searchWorkspace {
   }
 
   export interface Triage {
-    projectslug: string
+    projectSlug: string
     projectName: string
     kind: TriageKind
     key: string
@@ -141,7 +141,7 @@ export namespace searchWorkspace {
   export interface Review {
     id: string
     tab: 'for-you' | 'created' | 'snoozed'
-    projectslug: string
+    projectSlug: string
     projectName: string
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }
@@ -299,7 +299,7 @@ export async function searchWorkspace(
         .select({
           total,
           id: builds.id,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           number: builds.number,
           name: builds.name,
@@ -334,7 +334,7 @@ export async function searchWorkspace(
       db
         .select({
           total,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           branch: builds.branch,
           latestBuildNumber: max(builds.number),
@@ -360,7 +360,7 @@ export async function searchWorkspace(
         .select({
           total,
           projectId: projects.id,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           name: screenshots.name,
           latestBuildNumber: max(builds.number),
@@ -379,7 +379,7 @@ export async function searchWorkspace(
         .select({
           total,
           projectId: projects.id,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           name: screenshots.name,
           buildNumber: max(builds.number),
@@ -413,7 +413,7 @@ export async function searchWorkspace(
           actorName: actor.name,
           buildNumber: builds.number,
           buildName: builds.name,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
         })
         .from(notifications)
@@ -449,7 +449,7 @@ export async function searchWorkspace(
           snoozeKind: reviewRequests.snoozeKind,
           snoozedUntil: reviewRequests.snoozedUntil,
           createdAt: reviewRequests.createdAt,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
           buildNumber: builds.number,
           buildName: builds.name,
@@ -487,7 +487,7 @@ export async function searchWorkspace(
           total,
           id: savedViews.id,
           name: savedViews.name,
-          projectslug: projects.slug,
+          projectSlug: projects.slug,
           projectName: projects.name,
         })
         .from(savedViews)
@@ -601,7 +601,7 @@ export async function searchWorkspace(
         createdAt: r.createdAt,
         actor: r.actorName === null ? null : { name: r.actorName },
         build: { number: r.buildNumber, name: r.buildName },
-        project: { slug: r.projectslug, name: r.projectName },
+        project: { slug: r.projectSlug, name: r.projectName },
         payload: {
           ...(snippet ? { snippet } : {}),
           ...(reason ? { reason } : {}),
@@ -612,7 +612,7 @@ export async function searchWorkspace(
     reviews: reviewRows.map((r) => ({
       id: r.id,
       tab: r.reviewerId === input.userId ? (snoozed(r) ? 'snoozed' : 'for-you') : 'created',
-      projectslug: r.projectslug,
+      projectSlug: r.projectSlug,
       projectName: r.projectName,
       build: { number: r.buildNumber, name: r.buildName, branch: r.branch },
       reviewer: { name: r.reviewerName ?? '' },
@@ -623,9 +623,9 @@ export async function searchWorkspace(
       id: r.id,
       name: r.name,
       project:
-        r.projectslug === null || r.projectName === null
+        r.projectSlug === null || r.projectName === null
           ? null
-          : { slug: r.projectslug, name: r.projectName },
+          : { slug: r.projectSlug, name: r.projectName },
     })),
     totals: {
       builds: totalOf(buildRows),
@@ -706,7 +706,7 @@ async function searchTriage(
     (a, b) => a.best - b.best || b.item.build.number - a.item.build.number,
   )
   const items = sorted.slice(0, input.limit).map(({ item, project }) => ({
-    projectslug: project.slug,
+    projectSlug: project.slug,
     projectName: project.name,
     kind: item.kind,
     key: item.key,

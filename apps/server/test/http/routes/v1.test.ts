@@ -120,7 +120,7 @@ describe('authentication', () => {
     expect(ok.statusCode).toBe(200)
     const { token: fresh } = await rotateProjectToken(betterAuth, t.db, {
       workspaceSlug: tenant.workspaceSlug,
-      projectslug: 'web',
+      projectSlug: 'web',
     })
     const old = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(tenant.token) })
     expect(old.statusCode).toBe(401)

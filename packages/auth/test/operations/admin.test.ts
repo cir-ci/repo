@@ -173,7 +173,7 @@ describe('CI tokens (better-auth API keys owned by the workspace)', () => {
   it('stops accepting the old token as soon as it is rotated', async () => {
     const { slug } = await workspaceWithOwner()
     const first = await createProjectWithToken(auth, t.db, { workspaceSlug: slug, name: 'p' })
-    const second = await rotateProjectToken(auth, t.db, { workspaceSlug: slug, projectslug: 'p' })
+    const second = await rotateProjectToken(auth, t.db, { workspaceSlug: slug, projectSlug: 'p' })
     expect(second.token).not.toBe(first.token)
     expect(await verifyProjectToken(auth, t.db, first.token)).toBeUndefined()
     expect(await verifyProjectToken(auth, t.db, second.token)).toMatchObject({
@@ -233,7 +233,7 @@ describe('CI token facts', () => {
     })
     const next = await rotateProjectToken(auth, t.db, {
       workspaceSlug: slug,
-      projectslug: 'tok',
+      projectSlug: 'tok',
       rotatedBy: dev.id,
     })
     expect(next.token).not.toBe(first.token)
