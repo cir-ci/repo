@@ -42,4 +42,24 @@ describe('SessionCheck', () => {
     expect(note.top).toBeGreaterThanOrEqual(mark.bottom)
     expect(centre(logo.element()).y).toBe(400)
   })
+
+  it('keeps the logo in place in the installed app, below its title bar', async () => {
+    await page.viewport(1200, 800)
+    // The installed app's title bar: global.css pads the body by it, boot.css starts below it.
+    document.body.style.paddingTop = '32px'
+    const boot = document.createElement('div')
+    boot.className = 'circi-boot'
+    boot.style.setProperty('--boot-top', '32px')
+    boot.innerHTML = '<img alt="CirCI" width="56" height="56">'
+    document.body.append(boot)
+    const before = centre(boot.querySelector('img')!)
+    boot.remove()
+
+    await render(<SessionCheck />)
+    const logo = page.getByRole('img', { name: 'CirCI' })
+    await expect.element(logo).toBeVisible()
+    expect(before).toEqual({ x: 600, y: 432 })
+    expect(centre(logo.element())).toEqual(before)
+    document.body.style.paddingTop = ''
+  })
 })

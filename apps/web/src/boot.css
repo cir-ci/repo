@@ -8,10 +8,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Where the page starts: below the installed app's title bar (see the media query). */
+  --boot-top: 0px;
+
   box-sizing: border-box;
-  /* The whole window, whatever the body's margin before the reset loads. */
+  /*
+   * Pinned, so the body's margin before the reset loads can't move it, and laid out exactly as
+   * SessionCheck's page: from the top of the page, one window tall. The logo's centre is then the
+   * same in both, and the hand-over doesn't move it.
+   */
   position: fixed;
-  inset: 0;
+  top: var(--boot-top);
+  right: 0;
+  left: 0;
+  height: 100vh;
   padding: 48px 16px;
   background:
     radial-gradient(800px 480px at 50% -10%, var(--circi-glow, transparent), transparent 70%),
@@ -24,4 +34,14 @@
   height: 56px;
   border-radius: 12px;
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon, transparent) 50%, transparent);
+}
+
+/*
+ * The installed app's own title bar: the page (global.css pads the body by it) starts below it, so
+ * this does too. Read from env() here: the token variables have not loaded yet.
+ */
+@media (display-mode: window-controls-overlay) {
+  .circi-boot {
+    --boot-top: env(titlebar-area-height, 0px);
+  }
 }
