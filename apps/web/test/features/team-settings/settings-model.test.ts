@@ -9,7 +9,12 @@ import {
   toFractions,
   toPixels,
 } from '#features/regions/ignore-regions.ts'
-import { buildSettingsPatch, settingsProblems } from '#features/team-settings/settings-patch.ts'
+import {
+  branchProblem,
+  buildSettingsPatch,
+  settingsProblems,
+  slugProblem,
+} from '#features/team-settings/settings-patch.ts'
 import { webhookProblems } from '#features/team-settings/webhook-events.ts'
 import { appearancePatch, filterIcons, iconColumns, iconLabel } from '#features/teams/appearance.ts'
 
@@ -62,8 +67,6 @@ describe('team appearance', () => {
 
 describe('General settings patch', () => {
   const fields = {
-    slug: 'web',
-    defaultBranch: 'main',
     diffThresholdPercent: '2.5',
     retentionDays: '90',
     autoApprove: true,
@@ -73,8 +76,6 @@ describe('General settings patch', () => {
   }
   it('converts the percentage and inherits the flaky setting', () => {
     expect(buildSettingsPatch(fields, false)).toEqual({
-      slug: 'web',
-      defaultBranch: 'main',
       diffThreshold: 0.025,
       retentionDays: 90,
       autoApproveDefaultBranch: true,
@@ -89,8 +90,6 @@ describe('General settings patch', () => {
 
 describe('General settings problems', () => {
   const ok = {
-    slug: 'web',
-    defaultBranch: 'main',
     diffThresholdPercent: '2.5',
     retentionDays: '30',
   }
@@ -117,14 +116,17 @@ describe('General settings problems', () => {
       )
   })
 
-  it('wants an address and a branch, and leaves an old address alone until it is edited', () => {
-    expect(settingsProblems({ ...ok, slug: ' ', defaultBranch: ' ' })).toEqual({
-      slug: 'Enter an address',
-      defaultBranch: 'Enter a branch name',
-    })
-    expect(settingsProblems({ ...ok, slug: 'Old_Slug' }).slug).toMatch(/lowercase/)
-    expect(settingsProblems({ ...ok, slug: 'Old_Slug' }, 'Old_Slug').slug).toBeUndefined()
-    expect(settingsProblems({ ...ok, slug: 'settings' }).slug).toMatch(/lowercase/)
+  it('wants an address, and leaves an old one alone until it is edited', () => {
+    expect(slugProblem(' ')).toBe('Enter an address')
+    expect(slugProblem('web')).toBeNull()
+    expect(slugProblem('Old_Slug')).toMatch(/lowercase/)
+    expect(slugProblem('Old_Slug', 'Old_Slug')).toBeNull()
+    expect(slugProblem('settings')).toMatch(/lowercase/)
+  })
+
+  it('wants a branch name', () => {
+    expect(branchProblem(' ')).toBe('Enter a branch name')
+    expect(branchProblem('main')).toBeNull()
   })
 })
 

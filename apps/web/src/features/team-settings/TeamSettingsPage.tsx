@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
@@ -14,7 +14,6 @@ export function TeamSettingsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/general' })
   const save = useSaveSettings(workspace, team)
   const [saved, setSaved] = useState(false)
-  const navigate = useNavigate()
   return (
     <TeamSettingsFrame workspace={workspace} team={team} page="General">
       {(data, name) => (
@@ -24,13 +23,21 @@ export function TeamSettingsPage() {
             workspace={workspace}
             team={team}
             name={name}
+            slug={data.settings.slug}
+            defaultBranch={data.settings.defaultBranch}
             appearance={data.appearance}
             canManage={data.canManage}
           />
           <SettingsForm
             // A fresh form whenever the saved values change, so it never shows stale input. The
-            // name saves by itself above and is not in this form, so it must not reset it.
-            key={JSON.stringify({ ...data.settings, name: undefined })}
+            // name, address and default branch save by themselves above and are not in this form,
+            // so they must not reset it.
+            key={JSON.stringify({
+              ...data.settings,
+              name: undefined,
+              slug: undefined,
+              defaultBranch: undefined,
+            })}
             workspace={workspace}
             team={team}
             settings={data.settings}
@@ -41,13 +48,6 @@ export function TeamSettingsPage() {
             save={save}
             saved={saved}
             onSavedChange={setSaved}
-            onRenamed={(slug) =>
-              void navigate({
-                to: '/$workspace/$team/settings/general',
-                params: { workspace, team: slug },
-                replace: true,
-              })
-            }
           />
           <DeleteTeamSection
             workspace={workspace}

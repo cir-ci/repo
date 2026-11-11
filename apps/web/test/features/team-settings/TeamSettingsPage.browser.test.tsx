@@ -68,6 +68,7 @@ const show = () =>
     ],
   })
 const openPicker = () => page.getByRole('button', { name: 'Change icon and colour' }).click()
+const field = (name: string) => page.getByRole('textbox', { name })
 const heading = (name: string) => page.getByRole('heading', { name })
 
 async function openDelete() {
@@ -110,13 +111,13 @@ describe('TeamSettingsPage', () => {
   it('fills the form from the saved settings, converting the threshold to a percentage', async () => {
     api()
     await show()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
+    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toHaveValue('Web App')
+    await expect.element(page.getByRole('textbox', { name: 'Default Branch' })).toHaveValue('main')
     await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('30')
-    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
+    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
     await expect
       .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
@@ -137,19 +138,30 @@ describe('TeamSettingsPage', () => {
     await expect.element(page.getByText('Keep builds for', { exact: true })).toBeVisible()
   })
 
-  it('renames the slug and moves to the new address, warning first', async () => {
+  it('renames the slug with the ✓ and moves to the new address, warning while editing', async () => {
     const fake = api(
       {},
       { [`PATCH ${API}/settings`]: { body: { settings: { ...settings, slug: 'web-app' } } } },
     )
     const { router } = await show()
-    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
-    await page.getByRole('textbox', { name: 'Slug' }).fill('web-app')
+    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
+    expect(page.getByText(/stop working/).elements()).toHaveLength(0)
+    await page.getByRole('textbox', { name: 'URL Slug' }).fill('web-app')
     await expect.element(page.getByText(/stop working/)).toBeVisible()
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('button', { name: 'Save URL Slug' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    expect(fake.of('PATCH')[0]?.body).toMatchObject({ slug: 'web-app' })
+    // Only the address: the rest of the form is untouched.
+    expect(fake.of('PATCH')[0]?.body).toEqual({ slug: 'web-app' })
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings/general')
+  })
+
+  it('refuses a slug that is not an address, on the field, and sends nothing', async () => {
+    const fake = api()
+    await show()
+    await page.getByRole('textbox', { name: 'URL Slug' }).fill('Not An Address')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByText(/lowercase letters, digits/)).toBeVisible()
+    expect(fake.of('PATCH')).toHaveLength(0)
   })
 
   it('follows a slug rename: the sidebar refreshes', async () => {
@@ -167,9 +179,9 @@ describe('TeamSettingsPage', () => {
       queryFn: () => fetch('/api/workspaces/acme/sidebar').then((r) => r.json()),
     })
     expect(queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated).toBe(false)
-    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
-    await page.getByRole('textbox', { name: 'Slug' }).fill('web-app')
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
+    await page.getByRole('textbox', { name: 'URL Slug' }).fill('web-app')
+    await userEvent.keyboard('{Enter}')
     await expect
       .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
       .toBe(true)
@@ -186,8 +198,8 @@ describe('TeamSettingsPage', () => {
       },
     )
     const { router } = await show()
-    await page.getByRole('textbox', { name: 'Slug' }).fill('taken')
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('textbox', { name: 'URL Slug' }).fill('taken')
+    await page.getByRole('button', { name: 'Save URL Slug' }).click()
     await expect.element(page.getByText(/is already taken/)).toBeVisible()
     expect(router.state.location.pathname).toBe('/acme/web/settings/general')
   })
@@ -197,7 +209,7 @@ describe('TeamSettingsPage', () => {
     await show()
     // Edit only once the form shows the saved values: the form is keyed by them and remounts
     // (dropping what was typed, and the per-save callbacks) if they arrive after the first edit.
-    await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
+    await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
       .element(page.getByRole('checkbox', { name: /Host static sites/ }))
       .not.toBeChecked()
@@ -217,8 +229,6 @@ describe('TeamSettingsPage', () => {
         method: 'PATCH',
         path: `${API}/settings`,
         body: {
-          slug: 'web',
-          defaultBranch: 'main',
           diffThreshold: 0.025,
           retentionDays: 90,
           autoApproveDefaultBranch: true,
@@ -246,49 +256,129 @@ describe('TeamSettingsPage', () => {
     expect(fake.of('PATCH')).toHaveLength(0)
   })
 
-  it('saves the name by itself when the field is left, with a Saved note', async () => {
-    const fake = api()
-    await show()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
-    await page.getByRole('textbox', { name: 'Default branch' }).click()
-    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    // Only the name: the workflow settings stay with the Save button.
-    expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
-    expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
-    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
-    await expect.element(toastNamed('Team name saved')).toBeInTheDocument()
-  })
-
-  it('saves the name on Enter, and shows why it could not be saved', async () => {
-    const fake = api()
-    fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Name is too long' } })
-    await show()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await page.getByRole('textbox', { name: 'Name' }).fill('Webby')
-    await userEvent.keyboard('{Enter}')
-    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
-  })
-
-  it('does not reset what is typed in the form when the name is saved', async () => {
-    let saved = settings
-    fakeApi({
-      [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
-      [`PATCH ${API}/settings`]: (body) => {
-        const name = typeof body === 'object' && body && 'name' in body ? String(body.name) : ''
-        saved = { ...settings, name }
-        return { body: { settings: saved } }
-      },
+  describe('display settings', () => {
+    it('shows the picture and the three fields on one row, under one section', async () => {
+      api()
+      await show()
+      await expect.element(heading('Display Settings')).toBeVisible()
+      expect(page.getByText('Name and picture').elements()).toHaveLength(0)
+      expect(heading('Address and branch').elements()).toHaveLength(0)
+      const avatar = page.getByRole('button', { name: 'Change icon and colour' }).element()
+      const top = (name: string) => field(name).element().getBoundingClientRect().top
+      await page.viewport(1200, 800)
+      await expect.element(field('Display Name')).toBeVisible()
+      for (const name of ['Display Name', 'URL Slug', 'Default Branch']) {
+        expect(Math.abs(top(name) - top('Display Name'))).toBeLessThan(8)
+        expect(field(name).element().getBoundingClientRect().left).toBeGreaterThan(
+          avatar.getBoundingClientRect().right - 1,
+        )
+      }
     })
-    await show()
-    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
-    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
-    await page.getByRole('textbox', { name: 'Default branch' }).click()
-    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
-    await expect
-      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
-      .toHaveValue('90')
+
+    it('shows the ✓ only while a field differs from what is saved', async () => {
+      api()
+      await show()
+      const check = page.getByRole('button', { name: 'Save Display Name' })
+      await expect.element(field('Display Name')).toHaveValue('Web App')
+      expect(check.elements()).toHaveLength(0)
+      await field('Display Name').fill('Web')
+      await expect.element(check).toBeVisible()
+      await field('Display Name').fill('Web App')
+      await expect.element(check).not.toBeInTheDocument()
+    })
+
+    it('saves the name with the ✓, only the name, and the form stays untouched', async () => {
+      const fake = api()
+      await show()
+      await expect.element(field('Display Name')).toHaveValue('Web App')
+      await field('Display Name').fill('Web')
+      await page.getByRole('button', { name: 'Save Display Name' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
+      expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
+      await expect.element(toastNamed('Team name saved')).toBeInTheDocument()
+    })
+
+    it('saves on Enter, and shows why it could not be saved', async () => {
+      const fake = api()
+      fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Name is too long' } })
+      await show()
+      await expect.element(field('Display Name')).toHaveValue('Web App')
+      await field('Display Name').fill('Webby')
+      await userEvent.keyboard('{Enter}')
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+    })
+
+    it('puts the saved text back on Escape and sends nothing', async () => {
+      const fake = api()
+      await show()
+      await field('Display Name').fill('Web')
+      await userEvent.keyboard('{Escape}')
+      await expect.element(field('Display Name')).toHaveValue('Web App')
+      expect(page.getByRole('button', { name: 'Save Display Name' }).elements()).toHaveLength(0)
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('does nothing when a field is left half edited', async () => {
+      const fake = api()
+      await show()
+      await field('Display Name').fill('Web')
+      await field('Diff threshold').click()
+      await expect.element(field('Display Name')).toHaveValue('Web')
+      await expect.element(page.getByRole('button', { name: 'Save Display Name' })).toBeVisible()
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('does not reset what is typed in the form when a field is saved', async () => {
+      let saved = settings
+      fakeApi({
+        [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
+        [`PATCH ${API}/settings`]: (body) => {
+          const patch = typeof body === 'object' && body ? body : {}
+          saved = { ...saved, ...patch }
+          return { body: { settings: saved } }
+        },
+      })
+      await show()
+      await field('Keep builds for (days)').fill('90')
+      await field('Default Branch').fill('develop')
+      await userEvent.keyboard('{Enter}')
+      await expect.element(field('Default Branch')).toHaveValue('develop')
+      await expect.element(toastNamed('Default branch saved')).toBeInTheDocument()
+      await expect.element(field('Keep builds for (days)')).toHaveValue('90')
+    })
+
+    it('saves the default branch by itself, with its own PATCH', async () => {
+      const fake = api()
+      await show()
+      await expect.element(page.getByText('Its approved builds are the baselines.')).toBeVisible()
+      await field('Default Branch').fill('develop')
+      await page.getByRole('button', { name: 'Save Default Branch' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toEqual({ defaultBranch: 'develop' })
+      // The big form is still clean.
+      await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+    })
+
+    it('refuses an empty branch on the field, and sends nothing', async () => {
+      const fake = api()
+      await show()
+      await field('Default Branch').fill('  ')
+      await userEvent.keyboard('{Enter}')
+      await expect.element(page.getByText('Enter a branch name')).toBeVisible()
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('leaves the Save form with no address or branch of its own', async () => {
+      api()
+      await show()
+      await expect.element(field('Keep builds for (days)')).toBeVisible()
+      const form = document.querySelector('form')
+      expect(form?.querySelector('input[name="slug"]')).toBeNull()
+      expect(form?.querySelector('input[name="defaultBranch"]')).toBeNull()
+      expect(form?.querySelector('input[name="name"]')).toBeNull()
+    })
   })
 
   describe('checks before saving', () => {
@@ -311,7 +401,7 @@ describe('TeamSettingsPage', () => {
       const fake = api()
       await show()
       await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('5000')
-      await page.getByRole('textbox', { name: 'Default branch' }).click()
+      await page.getByRole('textbox', { name: 'Diff threshold' }).click()
       await expect
         .element(page.getByText('Enter a whole number of days from 1 to 3650'))
         .toBeVisible()
@@ -447,7 +537,7 @@ describe('TeamSettingsPage', () => {
       body: { error: 'Default branch is required' },
     })
     await show()
-    await page.getByRole('textbox', { name: 'Default branch' }).fill('develop')
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
     // The field keeps its own message; the toast names the action as a whole.
@@ -462,7 +552,7 @@ describe('TeamSettingsPage', () => {
     api({ canManage: false })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
-    expect(page.getByRole('textbox', { name: 'Name' }).elements()).toHaveLength(0)
+    expect(page.getByRole('textbox', { name: 'Display Name' }).elements()).toHaveLength(0)
   })
 
   it("says the team doesn't exist for a 404, and retries other errors", async () => {
@@ -477,7 +567,7 @@ describe('TeamSettingsPage', () => {
     await expect.element(page.getByText('db down')).toBeVisible()
     fake.set(`GET ${API}/settings`, { body: response() })
     await page.getByRole('button', { name: 'Try again' }).click()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
   })
 
   describe('GitHub', () => {
@@ -691,7 +781,7 @@ describe('TeamSettingsPage', () => {
   it('has no CI token or webhooks on this page: they have their own', async () => {
     api()
     await show()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
     expect(heading('CI token').elements()).toHaveLength(0)
     expect(heading('Webhooks').elements()).toHaveLength(0)
   })
@@ -701,7 +791,7 @@ describe('TeamSettingsPage opened at a setting', () => {
   it.each([
     ['merge-gate', /^Flaky-only changes block merging/, 'combobox'],
     ['retention', 'Keep builds for (days)', 'textbox'],
-    ['default-branch', 'Default branch', 'textbox'],
+    ['default-branch', 'Default Branch', 'textbox'],
   ] as const)('#%s scrolls to its setting and focuses it', async (hash, name, role) => {
     api()
     await page.viewport(1000, 500)

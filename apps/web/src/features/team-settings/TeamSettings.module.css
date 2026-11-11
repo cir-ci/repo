@@ -11,13 +11,6 @@
   gap: 14px;
 }
 
-.fields {
-  display: grid;
-  flex: 1 1 100%;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
 .footer {
   composes: saveBar from '@circi/ui/utilities.module.css';
   display: flex;
@@ -36,13 +29,6 @@
 /* A number with its unit, right-aligned in a row's control: about four digits, the unit and the steppers. */
 .number {
   width: 136px;
-}
-
-/* A wide page: each field takes a row of its own, label column and control. */
-@container settings (min-width: 900px) {
-  .fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* A phone: Discard and Save changes share the pinned bar's width. */

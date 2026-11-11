@@ -6,6 +6,7 @@ import {
   SettingsPage,
   SettingsRow,
   SettingsSection,
+  Select,
   Switch,
   TextField,
 } from '#src/index.ts'
@@ -131,5 +132,40 @@ describe('settings form layout', () => {
     const toggle = container.querySelector('[role="switch"]')
     expect(rect(toggle).left).toBeGreaterThan(rect(row).left + 600)
     expect(Math.round(rect(row).right - rect(toggle).right)).toBeLessThanOrEqual(24)
+  })
+
+  it('stacks a one-line label and its description tightly beside a taller control', async () => {
+    const { container } = await render(
+      <div style={{ width: 1000 }}>
+        <SettingsPage title="General">
+          <SettingsSection title="Merge gate">
+            <SettingsRow>
+              <Select
+                label="Flaky-only changes block merging"
+                description="When the only changes are to flaky screenshots."
+                items={[{ value: 'on', label: 'On' }]}
+                value="on"
+                onValueChange={() => {}}
+              />
+            </SettingsRow>
+            <SettingsRow>
+              <TextField label="Default branch" description="Its approved builds are baselines." />
+            </SettingsRow>
+          </SettingsSection>
+        </SettingsPage>
+      </div>,
+    )
+    for (const [labelText, helpText] of [
+      ['Flaky-only changes block merging', 'When the only'],
+      ['Default branch', 'Its approved'],
+    ] as const) {
+      const label = [...container.querySelectorAll('label, span')].find(
+        (l) => l.textContent === labelText,
+      )
+      const help = [...container.querySelectorAll('p, span')].find((p) =>
+        p.textContent?.startsWith(helpText),
+      )
+      expect(rect(help ?? null).top - rect(label).bottom).toBeLessThanOrEqual(4)
+    }
   })
 })

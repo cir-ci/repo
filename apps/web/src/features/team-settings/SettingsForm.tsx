@@ -9,7 +9,6 @@ import {
   SettingsRow,
   SettingsSection,
   Text,
-  TextField,
 } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
@@ -30,9 +29,9 @@ import {
 import styles from './TeamSettings.module.css'
 
 /**
- * The General page below the name, icon and colour (which save at once): the settings that change
- * how builds are judged or where links point, saved together with one Save (and Discard):
- * address, default branch, repository, comparison, merge gate, sites.
+ * The General page below the display settings (name, address, default branch, icon and colour, which save on their own): the settings that change
+ * how builds are judged, saved together with one Save (and Discard): repository, comparison,
+ * merge gate, sites.
  */
 export function SettingsForm(props: SettingsForm.Props) {
   // The page owns the save and its confirmation: saving refetches the settings, which remounts
@@ -43,7 +42,6 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [unlinking, setUnlinking] = useState(false)
   const s = props.settings
   const percent = () => String(Number((s.diffThreshold * 100).toFixed(4)))
-  const [branch, setBranch] = useState(s.defaultBranch)
   const [threshold, setThreshold] = useState(percent)
   const [retention, setRetention] = useState(String(s.retentionDays))
   // Fields the person has left, or all of them after a try to save: only then are problems shown.
@@ -52,13 +50,10 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [flaky, setFlaky] = useState<FlakyChoice>(choiceOf(s.flakyBlocksMerge))
   const [autoApprove, setAutoApprove] = useState(s.autoApproveDefaultBranch)
   const [hosting, setHosting] = useState(s.staticHostingEnabled)
-  const [slug, setSlug] = useState(s.slug)
   const disabled = !props.canManage
   // Save and Discard wait for a change, like the other settings pages. The form remounts on the
   // saved settings, so "changed" is always against what is stored.
   const dirty =
-    slug !== s.slug ||
-    branch !== s.defaultBranch ||
     threshold !== percent() ||
     retention !== String(s.retentionDays) ||
     blockMerge !== s.blockMergeOnChanges ||
@@ -66,15 +61,7 @@ export function SettingsForm(props: SettingsForm.Props) {
     autoApprove !== s.autoApproveDefaultBranch ||
     hosting !== s.staticHostingEnabled
 
-  const found = settingsProblems(
-    {
-      slug,
-      defaultBranch: branch,
-      diffThresholdPercent: threshold,
-      retentionDays: retention,
-    },
-    s.slug,
-  )
+  const found = settingsProblems({ diffThresholdPercent: threshold, retentionDays: retention })
   // What the server refused, by field, when it says which (otherwise the banner below says it).
   const served = save.error instanceof HttpError ? save.error.fields : {}
   const shown = (field: SettingsField) =>
@@ -97,8 +84,6 @@ export function SettingsForm(props: SettingsForm.Props) {
     save.mutate(
       buildSettingsPatch(
         {
-          slug,
-          defaultBranch: branch,
           diffThresholdPercent: threshold,
           retentionDays: retention,
           autoApprove,
@@ -109,11 +94,9 @@ export function SettingsForm(props: SettingsForm.Props) {
         props.sitesConfigured === true,
       ),
       {
-        onSuccess: (result) => {
+        onSuccess: () => {
           setSaved(true)
           toast('Settings saved')
-          // The address in the bar is the old one, which no longer works.
-          if (result.settings.slug !== props.team) props.onRenamed(result.settings.slug)
         },
       },
     )
@@ -124,8 +107,6 @@ export function SettingsForm(props: SettingsForm.Props) {
     setFlaky(choiceOf(s.flakyBlocksMerge))
     setAutoApprove(s.autoApproveDefaultBranch)
     setHosting(s.staticHostingEnabled)
-    setSlug(s.slug)
-    setBranch(s.defaultBranch)
     setThreshold(percent())
     setRetention(String(s.retentionDays))
     setTouched(new Set())
@@ -141,57 +122,6 @@ export function SettingsForm(props: SettingsForm.Props) {
 
   return (
     <form onSubmit={submit} noValidate className={styles.form}>
-      <SettingsSection title="Address and branch">
-        <SettingsRow>
-          <div className={styles.fields}>
-            <TextField
-              name="slug"
-              label="Slug"
-              value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value)
-                edited()
-              }}
-              onBlur={touch('slug')}
-              disabled={disabled}
-              error={shown('slug')}
-              description={
-                <>
-                  Used in addresses and in <Text variant="mono">circi admin</Text> commands.
-                </>
-              }
-            />
-            <div id="default-branch">
-              <TextField
-                name="defaultBranch"
-                label="Default branch"
-                value={branch}
-                onChange={(e) => {
-                  setBranch(e.target.value)
-                  edited()
-                }}
-                onBlur={touch('defaultBranch')}
-                disabled={disabled}
-                error={shown('defaultBranch')}
-                description="Its approved builds are the baselines."
-              />
-            </div>
-          </div>
-        </SettingsRow>
-        {slug.trim() !== s.slug ? (
-          <SettingsRow>
-            <Banner tone="warning">
-              Links with{' '}
-              <Text variant="mono">
-                /{props.workspace}/{s.slug}
-              </Text>{' '}
-              in them stop working, including bookmarks and the links in existing pull request
-              comments. New builds post the new address. The CI token keeps working.
-            </Banner>
-          </SettingsRow>
-        ) : null}
-      </SettingsSection>
-
       <div className={styles.group}>
         <SettingsSection
           title="Repository"
@@ -378,7 +308,5 @@ export namespace SettingsForm {
     /** Whether to show "Settings saved." (also held by the page). */
     saved: boolean
     onSavedChange: (saved: boolean) => void
-    /** The team's slug changed: the page moves to the new address. */
-    onRenamed: (slug: string) => void
   }
 }
