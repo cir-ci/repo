@@ -1,0 +1,95 @@
+.root {
+  --stack-ring: var(--circi-surface-raised);
+  --stack-step: calc(var(--stack-overlap) + var(--stack-gap));
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  position: relative;
+}
+
+.root[data-ring='chrome'] {
+  --stack-ring: var(--circi-surface-chrome);
+}
+
+/* A spread stack reaches past its box; it is drawn above what follows. */
+.root[data-spread='true']:hover,
+.root[data-spread='true']:focus-within {
+  z-index: 1;
+}
+
+.item {
+  display: inline-flex;
+  flex: none;
+  position: relative;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--stack-ring);
+  transform: translateX(0);
+}
+
+.root[data-shape='rounded'] .item {
+  border-radius: var(--circi-radius-control);
+}
+
+.item + .item {
+  margin-inline-start: calc(-1 * var(--stack-overlap));
+}
+
+/* A link around an avatar takes the item's shape, so its focus ring does too. */
+.item > a {
+  display: inline-flex;
+  border-radius: inherit;
+}
+
+.item :focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 1px;
+}
+
+/* A focused item is drawn above its neighbours, so its ring is whole. */
+.item:focus-within {
+  z-index: 1;
+}
+
+/*
+ * The spread moves each item by its index times overlap + gap, with an overshoot that settles.
+ * Only transforms move, so the row does not reflow; the last items reach into the space after the stack.
+ */
+.root[data-spread='true'] .item {
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.root[data-spread='true']:hover .item,
+.root[data-spread='true']:focus-within .item {
+  transform: translateX(calc(var(--i) * var(--stack-step)));
+}
+
+/* Reduced motion: it still spreads, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .root[data-spread='true'] .item {
+    transition: none;
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: var(--stack-size);
+  min-width: var(--stack-size);
+  padding: 0 5px;
+  border-radius: calc(var(--stack-size) / 2);
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: default;
+}
+
+/* The item's ring follows the chip's pill shape. */
+.root .item:has(> .chip),
+.root .item:has(> * > .chip) {
+  border-radius: calc(var(--stack-size) / 2);
+}

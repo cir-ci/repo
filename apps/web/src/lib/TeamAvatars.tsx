@@ -1,60 +1,74 @@
 import type { Team } from '@circi/api'
-import { Avatar, Tooltip } from '@circi/ui'
+import { Avatar, AvatarStack, Tooltip } from '@circi/ui'
 import type { NavigateOptions } from '@tanstack/react-router'
+import { Fragment } from 'react'
 
 import { useClientLink } from '#lib/use-client-link.ts'
-
-import styles from './TeamAvatars.module.css'
 
 /** How many avatars the stack draws before a "+N" chip stands for the rest. */
 const LIMIT = 8
 
 /**
- * Teams as a stack of small overlapping avatars. Each is a link to `link(team)` (client-side
- * navigation) with the team's name as its accessible name and tooltip (`note` adds to the
- * tooltip); past eight, a "+N" chip whose tooltip lists the rest.
+ * Teams as a stack of small overlapping avatars (`AvatarStack`): the one team stack of the
+ * dashboard. With `link`, each is a link to `link(team)` (client-side navigation) named by the
+ * team; with a `note`, or by default for links, the team's name (plus the note) is its tooltip.
+ * Without `link` the avatars are plain. Past `limit`, a "+N" chip whose tooltip lists the rest
+ * (`overflow={false}`: no chip, for a stack followed by its own count). Other props go to the
+ * stack: `aria-hidden` makes it decoration.
  */
 export function TeamAvatars<T extends TeamAvatars.Item>({
   teams,
   link,
   note,
+  tooltips = link !== undefined,
+  overflow = true,
   limit = LIMIT,
+  ...rest
 }: TeamAvatars.Props<T>) {
   const clientLink = useClientLink()
   const shown = teams.slice(0, limit)
-  const rest = teams.slice(limit)
+  const hidden = overflow ? teams.slice(limit) : []
+  const text = (team: T) => (note ? `${team.name}: ${note(team)}` : team.name)
   return (
-    <span className={styles.root}>
-      {shown.map((team) => (
-        <Tooltip key={team.slug} content={note ? `${team.name}: ${note(team)}` : team.name}>
-          <a className={styles.item} aria-label={team.name} {...clientLink(link(team))}>
-            <Avatar
-              type="team"
-              slug={team.slug}
-              name={team.name}
-              color={team.color}
-              icon={team.icon}
-              size={20}
-            />
-          </a>
-        </Tooltip>
-      ))}
-      {rest.length > 0 ? (
-        <Tooltip
-          content={rest
-            .map((team) => (note ? `${team.name}: ${note(team)}` : team.name))
-            .join(', ')}
-        >
-          <span
-            className={styles.more}
-            tabIndex={0}
-            aria-label={`${rest.length} more: ${rest.map((team) => team.name).join(', ')}`}
-          >
-            +{rest.length}
-          </span>
-        </Tooltip>
-      ) : null}
-    </span>
+    <AvatarStack
+      shape="rounded"
+      {...rest}
+      more={{
+        count: hidden.length,
+        ...(link === undefined
+          ? {}
+          : { label: `${hidden.length} more: ${hidden.map((team) => team.name).join(', ')}` }),
+        ...(tooltips ? { tooltip: hidden.map(text).join(', ') } : {}),
+      }}
+    >
+      {shown.map((team) => {
+        const avatar = (
+          <Avatar
+            type="team"
+            slug={team.slug}
+            name={team.name}
+            color={team.color}
+            icon={team.icon}
+            size={20}
+          />
+        )
+        const item =
+          link === undefined ? (
+            <span>{avatar}</span>
+          ) : (
+            <a aria-label={team.name} {...clientLink(link(team))}>
+              {avatar}
+            </a>
+          )
+        return tooltips ? (
+          <Tooltip key={team.id ?? team.slug} content={text(team)}>
+            {item}
+          </Tooltip>
+        ) : (
+          <Fragment key={team.id ?? team.slug}>{item}</Fragment>
+        )
+      })}
+    </AvatarStack>
   )
 }
 
@@ -64,14 +78,23 @@ export namespace TeamAvatars {
     name: string
     color: Team.Color
     icon: string | null
+    /** What tells teams apart when slugs repeat (several workspaces); the slug when left out. */
+    id?: string
   }
 
-  export interface Props<T extends Item = Item> {
+  export interface Props<T extends Item = Item> extends Omit<
+    AvatarStack.Props,
+    'children' | 'more' | 'shape'
+  > {
     teams: readonly T[]
-    /** Where a team's avatar goes. */
-    link: (team: T) => NavigateOptions
+    /** Where a team's avatar goes; without it the avatars are not links. */
+    link?: (team: T) => NavigateOptions
     /** Extra words after the name in the tooltip ("web: off"). */
     note?: (team: T) => string
+    /** A tooltip with each team's name; on when `link` is given. */
+    tooltips?: boolean
+    /** The "+N" chip for the teams past `limit`; true. */
+    overflow?: boolean
     /** Avatars drawn before the "+N" chip; 8 when left out. */
     limit?: number
   }
