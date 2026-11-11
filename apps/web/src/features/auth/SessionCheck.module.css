@@ -1,0 +1,23 @@
+/*
+ * The logo alone is centred, exactly where index.html's loading screen (src/boot.css) draws it, so
+ * the hand-over from that screen to this one doesn't move it. The late note hangs below the logo
+ * without taking part in the centring.
+ */
+.mark {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.note {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 16px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.note p {
+  margin: 0;
+}
