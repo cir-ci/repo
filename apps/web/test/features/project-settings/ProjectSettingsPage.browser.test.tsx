@@ -200,7 +200,11 @@ describe('ProjectSettingsPage', () => {
     const { router } = await show()
     await page.getByRole('textbox', { name: 'URL Slug' }).fill('taken')
     await page.getByRole('button', { name: 'Save URL Slug' }).click()
-    await expect.element(page.getByText(/is already taken/)).toBeVisible()
+    // The failure toasts too; the field's own error is the alert (the toast isn't one).
+    const alert = page.getByRole('alert')
+    await expect.element(alert).toMatchTextContent(/is already taken/)
+    await expect.poll(() => page.getByText(/is already taken/).elements()).toHaveLength(2)
+    expect(alert.elements()).toHaveLength(1)
     expect(router.state.location.pathname).toBe('/acme/web/settings/general')
   })
 

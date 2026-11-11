@@ -240,7 +240,11 @@ describe('creating an account', () => {
     await page.getByRole('textbox', { name: 'Name' }).fill('Lior')
     await page.getByRole('textbox', { name: 'Email' }).fill('dana@acme.dev')
     await page.getByRole('dialog').getByRole('button', { name: 'Create account' }).click()
-    await expect.element(page.getByText('That email is taken')).toBeVisible()
+    // The failure toasts too ("Couldn't create the account: That email is taken"), so look in the dialog.
+    const dialog = page.getByRole('dialog', { name: 'Create account' })
+    await expect.element(dialog.getByText(/That email is taken/)).toBeVisible()
+    await expect.poll(() => page.getByText(/That email is taken/).elements()).toHaveLength(2)
+    expect(dialog.getByText(/That email is taken/).elements()).toHaveLength(1)
   })
 })
 

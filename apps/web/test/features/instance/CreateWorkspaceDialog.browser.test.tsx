@@ -46,6 +46,10 @@ describe('CreateWorkspaceDialog', () => {
     await page.getByRole('textbox', { name: 'Name' }).fill('Acme Mobile')
     await page.getByRole('textbox', { name: "Owner's email" }).fill('nobody@acme.dev')
     await submit().click()
-    await expect.element(page.getByText('No account has that email')).toBeVisible()
+    // The failure toasts too, so look in the dialog for the form's own copy.
+    const dialog = page.getByRole('dialog', { name: 'Create workspace' })
+    await expect.element(dialog.getByText(/No account has that email/)).toBeVisible()
+    await expect.poll(() => page.getByText(/No account has that email/).elements()).toHaveLength(2)
+    expect(dialog.getByText(/No account has that email/).elements()).toHaveLength(1)
   })
 })

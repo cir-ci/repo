@@ -88,7 +88,13 @@ describe('ConnectForm', () => {
     await page.getByLabelText('Account email').fill('a@acme.test')
     await page.getByLabelText('API token').fill('nope')
     await page.getByRole('button', { name: 'Connect Token chat' }).click()
-    await expect.element(page.getByText('Token chat did not accept that token')).toBeVisible()
+    // The failure toasts too; the form's own copy is the banner (an alert, which the toast isn't).
+    const banner = page.getByRole('alert')
+    await expect.element(banner).toHaveTextContent('Token chat did not accept that token')
+    await expect
+      .poll(() => page.getByText(/Token chat did not accept that token/).elements())
+      .toHaveLength(2)
+    expect(banner.elements()).toHaveLength(1)
   })
 
   it('offers the install too when the integration has OAuth', async () => {
