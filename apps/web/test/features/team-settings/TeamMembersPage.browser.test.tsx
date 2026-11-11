@@ -92,53 +92,37 @@ function show(options: { canManage?: boolean; members?: ReturnType<typeof member
   })
 }
 
-const tabs = () =>
-  page
-    .getByRole('navigation', { name: 'Web App settings' })
-    .getByRole('link')
-    .elements()
-    .map((el) => el.textContent)
-
-describe('a team settings page: header and tabs', () => {
-  it('shows the team header with a way back, the member count and every tab', async () => {
+describe('a team settings page: way back, title and breadcrumb', () => {
+  it('has a back link to the team hub, its own title and no tab strip', async () => {
     await show()
-    await expect.element(page.getByRole('link', { name: 'Teams' }).last()).toBeVisible()
     await expect
-      .element(page.getByRole('link', { name: 'Teams' }).last())
-      .toHaveAttribute('href', '/workspaces/acme/settings/teams')
-    await expect.element(page.getByText('3 members').first()).toBeVisible()
-    expect(tabs()).toEqual([
-      'General',
-      'Members',
-      'CI token',
-      'Reviews and triage',
-      'Webhooks',
-      'Ignore regions',
-      'Sites',
-    ])
-    await expect
-      .element(page.getByRole('link', { name: 'Members', exact: true }))
-      .toHaveAttribute('aria-current', 'page')
-    await expect
-      .element(page.getByRole('link', { name: 'Sites' }))
-      .toHaveAttribute('href', '/acme/web/settings/sites')
+      .element(page.getByRole('link', { name: 'Web App' }).last())
+      .toHaveAttribute('href', '/acme/web/settings')
+    await expect.element(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible()
+    expect(page.getByRole('navigation', { name: 'Web App settings' }).elements()).toHaveLength(0)
+    expect(page.getByRole('link', { name: 'CI token' }).elements()).toHaveLength(0)
   })
 
-  it('names the team in the breadcrumb: workspace, Settings, Teams, the team', async () => {
+  it('names the team in the breadcrumb: workspace, Settings, Teams, the team (to its hub), the page', async () => {
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.element(crumbs.getByRole('link', { name: 'Teams' })).toBeVisible()
-    await expect.element(crumbs.getByText('Web App')).toBeVisible()
+    await expect
+      .element(crumbs.getByRole('link', { name: 'Teams' }))
+      .toHaveAttribute('href', '/workspaces/acme/settings/teams')
+    await expect
+      .element(crumbs.getByRole('link', { name: 'Web App' }))
+      .toHaveAttribute('href', '/acme/web/settings')
+    await expect.element(crumbs.getByText('Members')).toBeVisible()
   })
 
-  it('gives people who only belong to the team the Members and Ignore regions tabs', async () => {
+  it('shows people who only belong to the team the same page, without the manager pages in the way', async () => {
     await show({ canManage: false })
-    await expect.element(page.getByRole('navigation', { name: 'Web App settings' })).toBeVisible()
-    expect(tabs()).toEqual(['Members', 'Ignore regions'])
+    await expect.element(page.getByRole('heading', { name: 'Members', level: 1 })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Add members' }).elements()).toHaveLength(0)
   })
 })
 
-describe('a team Members tab', () => {
+describe('a team Members page', () => {
   it("lists each person's name, email and workspace role", async () => {
     await show()
     const list = page.getByRole('list', { name: 'Team members' })

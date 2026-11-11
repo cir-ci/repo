@@ -33,7 +33,7 @@ import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 import styles from './TeamMembersPage.module.css'
 
 /**
- * A team's Members tab (the canvas's TeamMembers boards): everyone in the team with their
+ * A team's Members page (the canvas's TeamMembers boards): everyone in the team with their
  * workspace role. Owners and admins add workspace members and remove people; everyone can leave.
  * Each change is a one-off action confirmed in its own dialog, so none of it waits for a Save.
  */

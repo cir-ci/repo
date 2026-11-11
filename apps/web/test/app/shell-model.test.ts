@@ -241,7 +241,7 @@ describe('isOutsideFrame', () => {
 })
 
 describe('team settings pages', () => {
-  it('lists the pages in the tab order', () => {
+  it('lists the pages in order', () => {
     expect(TEAM_SETTINGS_PAGES.map((p) => p.key)).toEqual([
       'general',
       'members',
@@ -253,7 +253,9 @@ describe('team settings pages', () => {
     ])
   })
   it.each([
-    ['/acme/web/settings', 'general'],
+    // The bare address is the hub, not a page.
+    ['/acme/web/settings', undefined],
+    ['/acme/web/settings/general', 'general'],
     ['/acme/web/settings/members', 'members'],
     ['/acme/web/settings/token', 'token'],
     ['/acme/web/settings/reviews', 'reviews'],

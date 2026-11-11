@@ -30,7 +30,7 @@ import styles from './TeamsSettingsPage.module.css'
 /**
  * Workspace settings, Teams (the canvas's SettingsTeams board): every team of the workspace the
  * person can see, with its people and whether they are in it. A row opens the team's settings
- * (its header and tabs); people who can't change settings land on its Members tab. Owners and
+ * (its settings hub, which lists the pages the person has). Owners and
  * admins create teams here.
  */
 export function TeamsSettingsPage() {
@@ -82,9 +82,7 @@ export function TeamsSettingsPage() {
             <li key={team.slug}>
               <ListRow
                 {...clientLink({
-                  to: canManage
-                    ? '/$workspace/$team/settings'
-                    : '/$workspace/$team/settings/members',
+                  to: '/$workspace/$team/settings',
                   params: { workspace: owner.slug, team: team.slug },
                 })}
                 leading={

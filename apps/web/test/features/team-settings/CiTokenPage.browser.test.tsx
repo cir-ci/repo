@@ -40,7 +40,7 @@ const show = () =>
     route: '/$workspace/$team/settings/token',
     url: '/acme/web/settings/token',
     announcer: true,
-    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
+    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings'],
   })
 
 describe('CiTokenPage', () => {
@@ -141,10 +141,10 @@ describe('CiTokenPage', () => {
     await expect.element(page.getByRole('alert')).toHaveTextContent('could not issue a token')
   })
 
-  it("sends members to the team's Members tab instead of showing the token", async () => {
+  it("sends members to the team's settings hub instead of showing the token", async () => {
     api(info({ canManage: false }), { ...settings(), canManage: false })
     const { router } = await show()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
     expect(page.getByText('circi_AbC1…').elements()).toHaveLength(0)
   })
 

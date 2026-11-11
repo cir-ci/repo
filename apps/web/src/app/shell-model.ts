@@ -420,9 +420,9 @@ export function switchWorkspacePath(
 
 const GLOBAL_ROOTS = new Set(['inbox', 'account', 'instance', 'integrations', '_sso'])
 
-/** The settings pages of a team, in the order of its tabs `path` is what follows `/settings`. */
+/** The settings pages of a team, in the order of its hub: `path` is what follows `/settings` (the bare `/settings` is the hub itself). */
 export const TEAM_SETTINGS_PAGES = [
-  { key: 'general', label: 'General', path: '' },
+  { key: 'general', label: 'General', path: '/general' },
   { key: 'members', label: 'Members', path: '/members' },
   { key: 'token', label: 'CI token', path: '/token' },
   { key: 'reviews', label: 'Reviews and triage', path: '/reviews' },
@@ -433,11 +433,11 @@ export const TEAM_SETTINGS_PAGES = [
 
 export type TeamSettingsKey = (typeof TEAM_SETTINGS_PAGES)[number]['key']
 
-/** Which team settings page an address is (General for the bare `/settings`), if it is one. */
+/** Which team settings page an address is (none for the hub, the bare `/settings`), if it is one. */
 export function teamSettingsKey(pathname: string): TeamSettingsKey | undefined {
   const parts = pathname.split('/').filter(Boolean)
   if (parts[0] === 'workspaces' || parts[0] === 'account' || parts[0] === 'instance')
     return undefined
   if (parts[2] !== 'settings') return undefined
-  return TEAM_SETTINGS_PAGES.find((p) => p.path === (parts[3] ? `/${parts[3]}` : ''))?.key
+  return TEAM_SETTINGS_PAGES.find((p) => p.path === `/${parts[3]}`)?.key
 }

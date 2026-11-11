@@ -60,6 +60,7 @@ describe('the app router', () => {
 
   it.each([
     ['/acme/web/settings', '/$workspace/$team/settings'],
+    ['/acme/web/settings/general', '/$workspace/$team/settings/general'],
     ['/acme/web/settings/token', '/$workspace/$team/settings/token'],
     ['/acme/web/settings/reviews', '/$workspace/$team/settings/reviews'],
     ['/acme/web/settings/webhooks', '/$workspace/$team/settings/webhooks'],

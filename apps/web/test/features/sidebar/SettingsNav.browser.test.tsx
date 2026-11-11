@@ -136,7 +136,7 @@ describe('SettingsNav', () => {
     ])
   })
 
-  it("marks the team while any page of its settings is open, and not the others or All teams", async () => {
+  it('marks the team while any page of its settings is open, and not the others or All teams', async () => {
     await show()
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))

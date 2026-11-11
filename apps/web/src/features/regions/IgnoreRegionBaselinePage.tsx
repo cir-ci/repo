@@ -20,6 +20,10 @@ export function IgnoreRegionBaselinePage() {
       page="Ignore regions"
       width="wide"
       managersOnly={false}
+      back={{
+        label: 'Ignore regions',
+        link: { to: '/$workspace/$team/settings/ignore-regions', params: { workspace, team } },
+      }}
     >
       {() => <BaselineBody workspace={workspace} team={team} name={_splat ?? ''} inSettings />}
     </TeamSettingsFrame>

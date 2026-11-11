@@ -118,7 +118,9 @@ export function settingsSections({
         path: `/${enc(workspace)}/${enc(team)}/settings${sub}`,
         icon,
       })
-      if (canManage) sections.push(t('general', 'General', '', 'team'))
+      // The team's hub, then its pages (each opens inside settings, under the hub).
+      sections.push(t('hub', 'Team settings', '', 'team'))
+      if (canManage) sections.push(t('general', 'General', '/general', 'team'))
       sections.push(t('members', 'Members', '/members', 'person'))
       if (canManage) sections.push(t('reviews', 'Review rules', '/reviews', 'eye'))
       if (canManage) sections.push(t('webhooks', 'Webhooks', '/webhooks', 'sliders'))

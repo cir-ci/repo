@@ -47,22 +47,19 @@ const show = (canManage = true) => {
     announcer: true,
     otherRoutes: [
       '/$workspace/$team/settings',
-      '/$workspace/$team/settings/members',
       '/$workspace/$team/settings/ignore-regions',
       '/$workspace/$team/sites',
     ],
   })
 }
 
-describe('team settings, Sites tab', () => {
-  it('shows the team’s sites inside the settings frame, and its tab points inside settings', async () => {
+describe('team settings, Sites page', () => {
+  it('shows the team’s sites inside the settings frame, with its way back inside settings', async () => {
     const { router } = await show()
     await expect.element(page.getByRole('heading', { name: 'Storybook' })).toBeVisible()
-    const tab = page
-      .getByRole('navigation', { name: 'Web App settings' })
-      .getByRole('link', { name: 'Sites' })
-    await expect.element(tab).toHaveAttribute('href', '/acme/web/settings/sites')
-    await expect.element(tab).toHaveAttribute('aria-current', 'page')
+    await expect
+      .element(page.getByRole('link', { name: 'Web App' }).last())
+      .toHaveAttribute('href', '/acme/web/settings')
     expect(router.state.location.pathname).toBe('/acme/web/settings/sites')
     // No link anywhere on the page leaves settings for the team's own Sites page.
     const hrefs = page
@@ -72,9 +69,9 @@ describe('team settings, Sites tab', () => {
     expect(hrefs).not.toContain('/acme/web/sites')
   })
 
-  it('sends a member to the Members tab, not out of settings', async () => {
+  it("sends a member to the team's settings hub, not out of settings", async () => {
     const { router } = await show(false)
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
   })
 })
 
@@ -138,13 +135,10 @@ describe('team settings, Ignore regions, one screenshot', () => {
       ],
     })
     await expect.element(page.getByText('Baseline from build #148 on main')).toBeVisible()
+    // Its way back is the Ignore regions overview, still inside settings.
     await expect
-      .element(
-        page.getByRole('navigation', { name: 'Web App settings' }).getByRole('link', {
-          name: 'Ignore regions',
-        }),
-      )
-      .toHaveAttribute('aria-current', 'page')
+      .element(page.getByRole('link', { name: 'Ignore regions' }).last())
+      .toHaveAttribute('href', '/acme/web/settings/ignore-regions')
     const hrefs = page
       .getByRole('link')
       .elements()

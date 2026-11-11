@@ -25,7 +25,7 @@ const show = (manageable = true) =>
   renderPage(<TeamsSettingsPage />, {
     route: '/workspaces/$workspace/settings/teams',
     url: '/workspaces/acme/settings/teams',
-    otherRoutes: ['/$workspace/$team/settings', '/$workspace/$team/settings/members'],
+    otherRoutes: ['/$workspace/$team/settings'],
     api: {
       'GET /api/teams': { body: { teams } },
       'GET /api/capabilities': { body: caps(manageable) },
@@ -122,12 +122,12 @@ describe('Settings, Teams', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
   })
 
-  it('opens the Members tab for people who only belong to teams, who also get no New team button', async () => {
+  it('opens the settings hub for people who only belong to teams, who also get no New team button', async () => {
     const { router } = await show(false)
     await expect.element(page.getByRole('list', { name: 'Teams' })).toBeVisible()
     expect(page.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
     await page.getByRole('link', { name: /web-app/ }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings/members')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
   })
 
   it('offers New team to owners and admins', async () => {

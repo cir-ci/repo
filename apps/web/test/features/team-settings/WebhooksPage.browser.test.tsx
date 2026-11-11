@@ -45,7 +45,7 @@ const show = () =>
     route: '/$workspace/$team/settings/webhooks',
     url: '/acme/web/settings/webhooks',
     announcer: true,
-    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
+    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings'],
   })
 // Add webhook is the page header's button; the empty state has none of its own.
 const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click()
@@ -359,10 +359,10 @@ describe('WebhooksPage', () => {
     await expect.element(toastNamed('Webhook removed')).toBeVisible()
   })
 
-  it("sends members to the team's Members tab instead of showing the webhooks", async () => {
+  it("sends members to the team's settings hub instead of showing the webhooks", async () => {
     api({ canManage: false, webhooks: [hook('h1', 'https://a.test/hook')] })
     const { router } = await show()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
     expect(page.getByText('https://a.test/hook').elements()).toHaveLength(0)
   })
 })

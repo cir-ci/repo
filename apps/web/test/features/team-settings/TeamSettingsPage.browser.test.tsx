@@ -57,12 +57,12 @@ const github = (link: unknown) => ({
 
 const show = () =>
   renderPage(<TeamSettingsPage />, {
-    route: '/$workspace/$team/settings',
-    url: '/acme/web/settings',
+    route: '/$workspace/$team/settings/general',
+    url: '/acme/web/settings/general',
     announcer: true,
     otherRoutes: [
       '/$workspace/$team',
-      '/$workspace/$team/settings/members',
+      '/$workspace/$team/settings',
       '/workspaces/$workspace/settings',
       '/workspaces/$workspace/settings/teams',
     ],
@@ -80,7 +80,7 @@ describe('TeamSettingsPage', () => {
     hangingFetch()
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.poll(() => crumbs.element().textContent).toBe('acmeSettingsTeamsweb')
+    await expect.poll(() => crumbs.element().textContent).toBe('acmeSettingsTeamswebGeneral')
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
   })
 
@@ -94,15 +94,16 @@ describe('TeamSettingsPage', () => {
     await expect
       .element(crumbs.getByRole('link', { name: 'Teams' }))
       .toHaveAttribute('href', '/workspaces/acme/settings/teams')
-    await expect.element(crumbs.getByText('Web App')).toBeVisible()
-    // The team header: back to Teams, the name and the tabs, General open.
+    // The team is a crumb that goes up to its hub; the page is the current crumb (the heading).
     await expect
-      .element(
-        page
-          .getByRole('navigation', { name: 'Web App settings' })
-          .getByRole('link', { name: 'General' }),
-      )
-      .toHaveAttribute('aria-current', 'page')
+      .element(crumbs.getByRole('link', { name: 'Web App' }))
+      .toHaveAttribute('href', '/acme/web/settings')
+    await expect.element(heading('General')).toBeVisible()
+    // A way back to the hub at the top of the column, and no tabs.
+    await expect
+      .element(page.getByRole('link', { name: 'Web App' }).last())
+      .toHaveAttribute('href', '/acme/web/settings')
+    expect(page.getByRole('navigation', { name: 'Web App settings' }).elements()).toHaveLength(0)
     expect(document.title).toBe('General · web · CirCI')
   })
 
@@ -148,7 +149,7 @@ describe('TeamSettingsPage', () => {
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
     expect(fake.of('PATCH')[0]?.body).toMatchObject({ slug: 'web-app' })
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings/general')
   })
 
   it('follows a slug rename: the sidebar refreshes', async () => {
@@ -188,7 +189,7 @@ describe('TeamSettingsPage', () => {
     await page.getByRole('textbox', { name: 'Slug' }).fill('taken')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText(/is already taken/)).toBeVisible()
-    expect(router.state.location.pathname).toBe('/acme/web/settings')
+    expect(router.state.location.pathname).toBe('/acme/web/settings/general')
   })
 
   it('saves what was edited, announces it and shows a confirmation', async () => {
@@ -457,10 +458,10 @@ describe('TeamSettingsPage', () => {
     expect(page.getByRole('dialog', { name: 'Settings saved' }).elements()).toHaveLength(0)
   })
 
-  it("sends members to the team's Members tab, inside settings, instead of showing the settings", async () => {
+  it("sends members to the team's settings hub, inside settings, instead of showing the settings", async () => {
     api({ canManage: false })
     const { router } = await show()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
     expect(page.getByRole('textbox', { name: 'Name' }).elements()).toHaveLength(0)
   })
 
