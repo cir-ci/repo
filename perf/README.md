@@ -21,7 +21,10 @@ once, brings the stack up if it is not running (or restarts it when `--engine` d
 running one), runs the scenarios and writes the results. The stack stays up afterwards, so a second
 run is quick; `pnpm perf:down` removes it.
 
-Options: `--label NAME`, `--engine js|js-workers|native` (default: `$CIRCI_DIFF_ENGINE`, else leave the stack
+Options: `--shots N` (screenshots per build, default 10: beyond the generated ten they repeat under new
+names, `home-1` and so on, reusing the same files; every one is diffed, but a repeated file is uploaded
+once per build, so "uploaded MB" is lower than N distinct screenshots would send; a different N starts the
+stack afresh, since its baseline build is seeded with them), `--label NAME`, `--engine js|js-workers|native` (default: `$CIRCI_DIFF_ENGINE`, else leave the stack
 as it is), `--levels 1,5,20` (concurrent builds), `--iterations 3` (builds per VU per level),
 `--dashboard-vus 50`, `--ramp 20` and `--hold 40` (seconds), `--bench-iterations 15`, `--quick`,
 `--skip-bench`, `--skip-upload`, `--skip-dashboard`.

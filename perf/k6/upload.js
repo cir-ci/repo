@@ -12,7 +12,8 @@ import { Counter, Rate, Trend } from 'k6/metrics'
 
 const state = JSON.parse(open(__ENV.PERF_STATE))
 const fixtures = __ENV.PERF_FIXTURES
-const manifest = JSON.parse(open(`${fixtures}/manifest.json`))
+// The run's manifest (`--shots` repeats the generated screenshots under new names), else the fixtures'.
+const manifest = JSON.parse(open(__ENV.PERF_MANIFEST || `${fixtures}/manifest.json`))
 
 const VUS = Number(__ENV.VUS || 1)
 const ITERATIONS = Number(__ENV.ITERATIONS || 3)
@@ -42,6 +43,12 @@ const shotsTotal = new Counter('screenshots_total')
 const shotsDiffed = new Counter('screenshots_diffed')
 const uploadedBytes = new Counter('uploaded_bytes')
 const errors = new Rate('errors')
+// Uploads sent again after a network error or a 5xx, as @circi/cli does (3 attempts, 0.5 s then 1 s
+// apart): counted, so a run shows how often the client had to retry.
+const uploadRetries = new Counter('upload_retries')
+const UPLOAD_ATTEMPTS = 3
+// A network error has status 0; it and a 5xx are retried, as the CLI retries them.
+const retryable = (r) => r.status === 0 || r.status >= 500
 
 export const options = {
   scenarios: {
@@ -106,16 +113,25 @@ export default function () {
 
   for (let i = 0; i < uploads.length; i += UPLOAD_LANES) {
     const lane = uploads.slice(i, i + UPLOAD_LANES)
-    const responses = http.batch(
-      lane.map((u) => {
-        const file = unique.find((f) => f.sha256 === u.sha256)
-        const body = encoding.b64decode(blobs[blobOf.get(file.file)])
-        const headers = { ...u.headers }
-        delete headers['content-length']
-        if (u.auth === 'token') Object.assign(headers, auth)
-        return [u.method, u.url, body, { headers, tags: { name: 'upload_file' } }]
-      }),
-    )
+    const request = (u) => {
+      const file = unique.find((f) => f.sha256 === u.sha256)
+      const body = encoding.b64decode(blobs[blobOf.get(file.file)])
+      const headers = { ...u.headers }
+      delete headers['content-length']
+      if (u.auth === 'token') Object.assign(headers, auth)
+      return [u.method, u.url, body, { headers, tags: { name: 'upload_file' } }]
+    }
+    const responses = http.batch(lane.map(request))
+    for (let attempt = 1; attempt < UPLOAD_ATTEMPTS; attempt += 1) {
+      const again = lane.map((u, j) => j).filter((j) => retryable(responses[j]))
+      if (again.length === 0) break
+      sleep((250 * 2 ** attempt) / 1000)
+      uploadRetries.add(again.length)
+      const retried = http.batch(again.map((j) => request(lane[j])))
+      again.forEach((j, k) => {
+        responses[j] = retried[k]
+      })
+    }
     lane.forEach((u, j) => {
       tUpload.add(responses[j].timings.duration)
       uploadedBytes.add(unique.find((f) => f.sha256 === u.sha256).size)

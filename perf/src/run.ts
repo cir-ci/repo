@@ -12,12 +12,12 @@ import {
   REPO_ROOT,
   RESULTS_DIR,
   SEED_FILE,
-  MANIFEST_FILE,
+  RUN_MANIFEST_FILE,
   isEngine,
 } from './config.ts'
-import { ensureFixtures } from './fixtures.ts'
+import { ensureFixtures, withShots } from './fixtures.ts'
 import { Sampler, type Usage } from './sampler.ts'
-import { isUp, readStack, up } from './stack.ts'
+import { down, isUp, readStack, up } from './stack.ts'
 
 const exec = promisify(execFile)
 
@@ -40,6 +40,9 @@ const dashboardVus = Number(option('--dashboard-vus', '50'))
 const ramp = Number(option('--ramp', quick ? '5' : '20'))
 const hold = Number(option('--hold', quick ? '10' : '40'))
 const benchIterations = Number(option('--bench-iterations', quick ? '5' : '15'))
+// Screenshots per build (the 10 generated, repeated under new names beyond that).
+const shots = Number(option('--shots', '10'))
+if (!(Number.isInteger(shots) && shots >= 1)) throw new Error('--shots must be at least 1')
 const requestedEngine = option('--engine', process.env.CIRCI_DIFF_ENGINE ?? '')
 const label = option('--label', requestedEngine || 'run')
 
@@ -127,12 +130,12 @@ interface UploadRun {
 
 function uploadTable(runs: UploadRun[]): string {
   const head =
-    '| concurrent builds | done / failed | builds/min | screenshots/s | diffed/s | finalize to done med / p95 / max (ms) | create p95 | upload p95 | finalize p95 | status p95 | uploaded MB | errors |'
+    '| concurrent builds | done / failed | builds/min | screenshots/s | diffed/s | finalize to done med / p95 / max (ms) | create p95 | upload p95 | finalize p95 | status p95 | uploaded MB | upload retries | errors |'
   const rows = runs.map((r) => {
     const s = r.summary
     const seconds = s.state.testRunDurationMs / 1000
     const done = value(s, 'builds_done', 'count')
-    return `| ${r.vus} | ${done} / ${value(s, 'builds_failed', 'count')} | ${((done / seconds) * 60).toFixed(1)} | ${(value(s, 'screenshots_total', 'count') / seconds).toFixed(2)} | ${(value(s, 'screenshots_diffed', 'count') / seconds).toFixed(2)} | ${ms(value(s, 'finalize_to_done', 'med'))} / ${ms(value(s, 'finalize_to_done', 'p(95)'))} / ${ms(value(s, 'finalize_to_done', 'max'))} | ${ms(value(s, 'req_create_build', 'p(95)'))} | ${ms(value(s, 'req_upload_file', 'p(95)'))} | ${ms(value(s, 'req_finalize', 'p(95)'))} | ${ms(value(s, 'req_status_poll', 'p(95)'))} | ${(value(s, 'uploaded_bytes', 'count') / 1_048_576).toFixed(0)} | ${(value(s, 'errors', 'rate') * 100).toFixed(1)}% |`
+    return `| ${r.vus} | ${done} / ${value(s, 'builds_failed', 'count')} | ${((done / seconds) * 60).toFixed(1)} | ${(value(s, 'screenshots_total', 'count') / seconds).toFixed(2)} | ${(value(s, 'screenshots_diffed', 'count') / seconds).toFixed(2)} | ${ms(value(s, 'finalize_to_done', 'med'))} / ${ms(value(s, 'finalize_to_done', 'p(95)'))} / ${ms(value(s, 'finalize_to_done', 'max'))} | ${ms(value(s, 'req_create_build', 'p(95)'))} | ${ms(value(s, 'req_upload_file', 'p(95)'))} | ${ms(value(s, 'req_finalize', 'p(95)'))} | ${ms(value(s, 'req_status_poll', 'p(95)'))} | ${(value(s, 'uploaded_bytes', 'count') / 1_048_576).toFixed(0)} | ${value(s, 'upload_retries', 'count')} | ${(value(s, 'errors', 'rate') * 100).toFixed(1)}% |`
   })
   return [
     head,
@@ -204,11 +207,17 @@ const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':
 const outDir = join(RESULTS_DIR, `${stamp}-${label}`)
 await mkdir(outDir, { recursive: true })
 
-const manifest = await ensureFixtures(log)
-const current = readStack()
+const manifest = withShots(await ensureFixtures(log), shots)
+let current = readStack()
+// The baseline build was seeded with the stack's screenshots: another count needs a fresh stack.
+if (current && current.shots !== shots) {
+  log(`The stack has ${current.shots} screenshots per build, this run ${shots}: starting it afresh`)
+  await down()
+  current = undefined
+}
 if (!isUp() || (engine && current?.engine !== engine)) {
   log(`Bringing the stack up${engine ? ` with CIRCI_DIFF_ENGINE=${engine}` : ''}`)
-  await up(engine ?? current?.engine ?? undefined)
+  await up(engine ?? current?.engine ?? undefined, shots)
 }
 const stack = readStack()
 if (!stack) throw new Error('The stack is not running')
@@ -259,6 +268,7 @@ if (!flag('--skip-upload')) {
       {
         PERF_STATE: SEED_FILE,
         PERF_FIXTURES: join(PERF_DIR, 'fixtures'),
+        PERF_MANIFEST: RUN_MANIFEST_FILE,
         VUS: String(vus),
         ITERATIONS: String(iterations),
         OFFSET: String(offset),
@@ -357,6 +367,6 @@ sections.push(
 await writeFile(join(outDir, 'summary.md'), `${sections.join('\n\n')}\n`)
 await writeFile(
   join(outDir, 'meta.json'),
-  `${JSON.stringify({ label, engine: effectiveEngine, levels, iterations, dashboardVus, ramp, hold, benchIterations, manifest: MANIFEST_FILE }, null, 2)}\n`,
+  `${JSON.stringify({ label, engine: effectiveEngine, levels, iterations, dashboardVus, ramp, hold, benchIterations, shots, manifest: RUN_MANIFEST_FILE }, null, 2)}\n`,
 )
 log(`Done. ${join(outDir, 'summary.md')}`)

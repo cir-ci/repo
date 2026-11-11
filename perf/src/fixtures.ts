@@ -306,6 +306,27 @@ export async function generateFixtures(options: {
   return manifest
 }
 
+/**
+ * The manifest with `count` screenshots per build: the generated ones repeated under new names
+ * (`home`, …, then `home-1`, …), each copy reusing its original's files. The server diffs every
+ * screenshot by name, so the diff work is real; it stores files by hash, so a repeated file is
+ * uploaded once per build, and "uploaded MB" understates what distinct screenshots would send.
+ */
+export function withShots(manifest: Manifest, count: number): Manifest {
+  if (count === manifest.shots.length) return manifest
+  const base = manifest.shots
+  const shots: Shot[] = Array.from({ length: count }, (_, i) => {
+    const original = base[i % base.length]!
+    const copy = Math.floor(i / base.length)
+    return { ...original, name: copy === 0 ? original.name : `${original.name}-${copy}` }
+  })
+  return {
+    ...manifest,
+    shots,
+    diffedPerBuild: shots.filter((s) => ['reencoded', 'small', 'large'].includes(s.kind)).length,
+  }
+}
+
 export async function readManifest(): Promise<Manifest> {
   // The file is written by generateFixtures above.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

@@ -11,6 +11,8 @@ export const MANIFEST_FILE = join(FIXTURES_DIR, 'manifest.json')
 export const STATE_DIR = join(PERF_DIR, '.state')
 export const STACK_FILE = join(STATE_DIR, 'stack.json')
 export const SEED_FILE = join(STATE_DIR, 'seed.json')
+/** The manifest the stack was seeded with and k6 uploads (the fixtures', expanded by `--shots`). */
+export const RUN_MANIFEST_FILE = join(STATE_DIR, 'manifest.json')
 export const RESULTS_DIR = join(PERF_DIR, 'results')
 export const SERVER_BUNDLE = join(REPO_ROOT, 'apps', 'server', 'dist', 'main.mjs')
 

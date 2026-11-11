@@ -12,12 +12,13 @@ import {
   REPO_ROOT,
   SERVER_BUNDLE,
   STACK_FILE,
+  RUN_MANIFEST_FILE,
   STATE_DIR,
   URL_BASE,
   isEngine,
   serverEnv,
 } from './config.ts'
-import { ensureFixtures } from './fixtures.ts'
+import { ensureFixtures, withShots } from './fixtures.ts'
 import { seed } from './seed.ts'
 
 const exec = promisify(execFile)
@@ -25,6 +26,8 @@ const exec = promisify(execFile)
 /** What `perf:stack up` records so the runner and `down` can find the processes. */
 export interface StackState {
   engine: DiffEngine | null
+  /** Screenshots per build the stack was seeded with (`--shots`). */
+  shots: number
   serverPid: number
   workerPid: number
   startedAt: string
@@ -119,7 +122,7 @@ async function waitGone(pids: number[]): Promise<void> {
  * its own compose project, then the built server (`serve`) and worker (`worker`) as two
  * processes, so the CPU and memory of each can be told apart. The first start also seeds.
  */
-export async function up(engine: DiffEngine | undefined): Promise<StackState> {
+export async function up(engine: DiffEngine | undefined, shots?: number): Promise<StackState> {
   await ensureBuilt()
   const previous = readStack()
   if (previous) {
@@ -135,8 +138,11 @@ export async function up(engine: DiffEngine | undefined): Promise<StackState> {
   const serverPid = spawnDetached('server', ['serve', '--no-migrate'], engine)
   const workerPid = spawnDetached('worker', ['worker', '--no-migrate'], engine)
   await waitFor('the server', async () => (await fetch(`${URL_BASE}/readyz`)).ok)
+  const manifest = withShots(await ensureFixtures(log), shots ?? 10)
+  writeFileSync(RUN_MANIFEST_FILE, `${JSON.stringify(manifest, null, 2)}\n`)
   const state: StackState = {
     engine: engine ?? null,
+    shots: manifest.shots.length,
     serverPid,
     workerPid,
     startedAt: new Date().toISOString(),
@@ -146,7 +152,6 @@ export async function up(engine: DiffEngine | undefined): Promise<StackState> {
     `Server pid ${serverPid} and worker pid ${workerPid} on ${URL_BASE}, diff engine: ${engine ?? 'default'}`,
   )
 
-  const manifest = await ensureFixtures(log)
   await seed(manifest, { log: (line) => log(line) })
   return state
 }
@@ -171,7 +176,12 @@ if (import.meta.main) {
     throw new Error(`--engine must be js, js-workers or native, got "${requested}"`)
   }
   const engine = requested && isEngine(requested) ? requested : undefined
-  if (command === 'up') await up(engine)
+  const shotsAt = rest.indexOf('--shots')
+  const shots = shotsAt >= 0 ? Number(rest[shotsAt + 1]) : undefined
+  if (shots !== undefined && !(Number.isInteger(shots) && shots >= 1)) {
+    throw new Error('--shots must be a whole number of screenshots per build, at least 1')
+  }
+  if (command === 'up') await up(engine, shots)
   else if (command === 'down') await down()
   else if (command === 'status') console.log(isUp() ? JSON.stringify(readStack(), null, 2) : 'down')
   else throw new Error(`Unknown command "${command}": use up, down or status`)
