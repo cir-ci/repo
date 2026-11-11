@@ -24,3 +24,13 @@
   align-items: center;
   color: var(--circi-text-tertiary);
 }
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupTitle {
+  margin: 0;
+}

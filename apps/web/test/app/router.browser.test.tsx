@@ -24,7 +24,7 @@ describe('the app router', () => {
     expect(general.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings/general')
   })
 
-  it('keeps the old Instance Workspaces address as a redirect route', async () => {
+  it('has the All workspaces page at /instance/workspaces', async () => {
     const router = await open('/instance/workspaces')
     expect(router.state.matches.at(-1)?.routeId).toBe('/instance/workspaces')
   })

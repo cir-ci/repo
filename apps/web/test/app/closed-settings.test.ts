@@ -95,16 +95,12 @@ describe('settings is a closed area', () => {
     expect(crossings).toEqual([])
   })
 
-  it('the old Instance Workspaces page has no link left: only its redirect route and the purge that leaves a dead workspace name it', () => {
-    const allowed = new Set([
-      'features/instance/routes.ts',
-      'features/workspace-settings/DeletedWorkspaceSection.tsx',
-    ])
-    const links = all
-      .filter(({ rel }) => !allowed.has(rel))
+  it('the All workspaces page is named only by settings files and the entry points into settings', () => {
+    const outside = all
+      .filter(({ rel }) => !SETTINGS_FILES.some((re) => re.test(rel)) && !ENTRY_POINTS.has(rel))
       .filter(({ source }) => /['"`]\/instance\/workspaces['"`]/.test(source))
       .map(({ rel }) => rel)
-    expect(links).toEqual([])
+    expect(outside).toEqual([])
   })
 
   it('the settings nav and the hub only point at settings pages, the bare address included', () => {
@@ -113,7 +109,7 @@ describe('settings is a closed area', () => {
       'features/workspace-settings/WorkspaceSettingsHubPage.tsx',
       'features/workspace-settings/WorkspaceBackLink.tsx',
       'features/workspace-settings/WorkspaceSettingsEntry.tsx',
-      'features/instance/WorkspacesRedirect.tsx',
+      'features/instance/WorkspacesPage.tsx',
     ]
     const found = all.filter(({ rel }) => navFiles.includes(rel))
     expect(found.map(({ rel }) => rel).toSorted()).toEqual(navFiles.toSorted())

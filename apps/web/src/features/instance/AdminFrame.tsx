@@ -36,18 +36,21 @@ export function AdminFrame({
       {...(action ? { actions: action } : {})}
       {...(find ? { find } : {})}
       {...(status && !phone ? { after: status } : {})}
-      forbidden={
-        isForbidden(error) ? (
-          <EmptyState tone="failed" icon={<WarningIcon size={32} />} title="Instance admins only">
-            Only instance admins can see this page. Ask one to make you an instance admin.
-          </EmptyState>
-        ) : null
-      }
+      forbidden={isForbidden(error) ? <InstanceAdminsOnly /> : null}
       {...rest}
     >
       {phone ? status : null}
       {children}
     </PageFrame>
+  )
+}
+
+/** What someone who isn't an instance admin sees in place of an Instance page. */
+export function InstanceAdminsOnly() {
+  return (
+    <EmptyState tone="failed" icon={<WarningIcon size={32} />} title="Instance admins only">
+      Only instance admins can see this page. Ask one to make you an instance admin.
+    </EmptyState>
   )
 }
 

@@ -1,15 +1,4 @@
-import {
-  Avatar,
-  Badge,
-  Button,
-  ChevronRightIcon,
-  EmptyState,
-  LayersIcon,
-  ListRow,
-  NoResults,
-  PlusIcon,
-  Text,
-} from '@circi/ui'
+import { Avatar, Badge, Button, EmptyState, LayersIcon, PlusIcon } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -19,14 +8,10 @@ import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLin
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
-import { FindField } from '#lib/FindField.tsx'
-import { PageFrame } from '#lib/PageFrame.tsx'
+import { SettingsList, SettingsListPage, SettingsListRow } from '#lib/SettingsListPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
-import { useClientLink } from '#lib/use-client-link.ts'
 
 import { findTeams } from './teams-list.ts'
-
-import styles from './TeamsSettingsPage.module.css'
 
 /**
  * Workspace settings, Teams (the canvas's SettingsTeams board): every team of the workspace the
@@ -37,7 +22,6 @@ import styles from './TeamsSettingsPage.module.css'
 export function TeamsSettingsPage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/teams' })
   useDocumentTitle('Teams', workspace)
-  const clientLink = useClientLink()
   const query = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
@@ -47,13 +31,17 @@ export function TeamsSettingsPage() {
   const shown = findTeams(inWorkspace, search)
 
   return (
-    <PageFrame
+    <SettingsListPage
       crumbs={settingsCrumbsFor(
         { slug: workspace, name: inWorkspace[0]?.workspace.name ?? workspace },
         [workspaceSettingsCrumb(workspace)],
       )}
       title="Teams"
-      find={<FindField noun="teams" value={search} onChange={setSearch} />}
+      noun="teams"
+      singular="team"
+      search={search}
+      onSearch={setSearch}
+      count={shown.length}
       actions={
         canManage ? (
           <Button
@@ -68,55 +56,50 @@ export function TeamsSettingsPage() {
       loading={query.isPending}
       error={query.error}
       onRetry={() => void query.refetch()}
-    >
-      <WorkspaceBackLink workspace={workspace} name={inWorkspace[0]?.workspace.name ?? workspace} />
-      {shown.length === 0 && search.trim() ? (
-        <NoResults noun="team" query={search} onClear={() => setSearch('')} size="section" />
-      ) : shown.length === 0 ? (
+      back={
+        <WorkspaceBackLink
+          workspace={workspace}
+          name={inWorkspace[0]?.workspace.name ?? workspace}
+        />
+      }
+      empty={
         <EmptyState icon={<LayersIcon />} size="section" title="No teams yet">
           {canManage
             ? 'Create a team to start uploading screenshots.'
             : 'Ask an owner or admin to create one.'}
         </EmptyState>
-      ) : (
-        <ul aria-label="Teams" className={styles.list}>
-          {shown.map(({ team, workspace: owner }) => (
-            <li key={team.slug}>
-              <ListRow
-                {...clientLink({
-                  to: '/$workspace/$team/settings',
-                  params: { workspace: owner.slug, team: team.slug },
-                })}
-                leading={
-                  <Avatar
-                    type="team"
-                    aria-hidden
-                    slug={team.slug}
-                    name={team.name}
-                    color={team.color}
-                    icon={team.icon}
-                    size={24}
-                  />
-                }
-                trailing={
-                  <span className={styles.trailing}>
-                    <MemberStack count={team.memberCount} people={team.memberPreview} />
-                    <Badge shape="tag">{team.youAreMember ? 'Member' : 'Not a member'}</Badge>
-                    <ChevronRightIcon size={12} />
-                  </span>
-                }
-              >
-                <span className={styles.names}>
-                  <Text truncate>{team.name}</Text>
-                  <Text variant="mono" tone="tertiary" truncate>
-                    {owner.slug}/{team.slug}
-                  </Text>
-                </span>
-              </ListRow>
-            </li>
-          ))}
-        </ul>
-      )}
-    </PageFrame>
+      }
+    >
+      <SettingsList label="Teams">
+        {shown.map(({ team, workspace: owner }) => (
+          <SettingsListRow
+            key={team.slug}
+            link={{
+              to: '/$workspace/$team/settings',
+              params: { workspace: owner.slug, team: team.slug },
+            }}
+            leading={
+              <Avatar
+                type="team"
+                aria-hidden
+                slug={team.slug}
+                name={team.name}
+                color={team.color}
+                icon={team.icon}
+                size={24}
+              />
+            }
+            name={team.name}
+            detail={`${owner.slug}/${team.slug}`}
+            trailing={
+              <>
+                <MemberStack count={team.memberCount} people={team.memberPreview} />
+                <Badge shape="tag">{team.youAreMember ? 'Member' : 'Not a member'}</Badge>
+              </>
+            }
+          />
+        ))}
+      </SettingsList>
+    </SettingsListPage>
   )
 }
