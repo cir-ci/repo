@@ -19,6 +19,19 @@
   margin-top: 24px;
 }
 
+/* A wide page: the field is a label column (240px) and its input side by side, so it takes the
+   row's room (the 280px for the stacked layout left the input 16px), the button beside it at the
+   input's height rather than below a label. */
+@container settings (min-width: 900px) {
+  .field {
+    flex: 1 1 480px;
+  }
+
+  .submit {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 559.98px) {
   .field,
   .submit {
