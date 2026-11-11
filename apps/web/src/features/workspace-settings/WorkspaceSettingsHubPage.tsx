@@ -19,7 +19,7 @@ import { workspacesQuery } from '#features/instance/api/admin.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { workspaceAuthQuery } from '#features/members/api.ts'
 import { SettingsBackLink } from '#features/team-settings/SettingsBackLink.tsx'
-import { workspacesCrumb } from '#lib/crumbs.ts'
+import { instanceCrumb, workspacesCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -97,7 +97,7 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
 
   return (
     <PageFrame
-      crumbs={[{ label: 'Instance' }, workspacesCrumb()]}
+      crumbs={[instanceCrumb(), workspacesCrumb()]}
       title={name}
       loading={!data && !error}
       error={error}

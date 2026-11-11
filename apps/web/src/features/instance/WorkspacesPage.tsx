@@ -5,6 +5,7 @@ import { useState } from 'react'
 
 import { formatBytes } from '#features/workspace-settings/api.ts'
 import { hubSubtitle } from '#features/workspace-settings/hub-model.ts'
+import { instanceCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
 import { SettingsList, SettingsListPage, SettingsListRow } from '#lib/SettingsListPage.tsx'
@@ -34,7 +35,7 @@ export function WorkspacesPage() {
   return (
     <>
       <SettingsListPage
-        crumbs={[{ label: 'Instance' }]}
+        crumbs={[instanceCrumb()]}
         title="Workspaces"
         noun="workspaces"
         singular="workspace"

@@ -1,10 +1,12 @@
 import { EmptyState, Text, WarningIcon } from '@circi/ui'
 import type { ReactNode } from 'react'
 
+import { instanceCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { isForbidden } from './api/admin.ts'
+import { InstanceBackLink } from './InstanceBackLink.tsx'
 
 /**
  * The frame every Instance page shares: the header (Instance, then the page's name as the `<h1>`,
@@ -30,7 +32,7 @@ export function AdminFrame({
   ) : null
   return (
     <PageFrame
-      crumbs={[{ label: 'Instance' }]}
+      crumbs={[instanceCrumb()]}
       title={title}
       error={error}
       {...(action ? { actions: action } : {})}
@@ -39,6 +41,7 @@ export function AdminFrame({
       forbidden={isForbidden(error) ? <InstanceAdminsOnly /> : null}
       {...rest}
     >
+      <InstanceBackLink />
       {phone ? status : null}
       {children}
     </PageFrame>

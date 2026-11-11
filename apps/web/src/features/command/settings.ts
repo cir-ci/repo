@@ -57,6 +57,13 @@ const ACCOUNT: SettingsSection[] = [
 
 const INSTANCE: SettingsSection[] = [
   {
+    id: 'overview',
+    label: 'Instance',
+    area: 'Instance',
+    path: '/instance/overview',
+    icon: 'settings',
+  },
+  {
     id: 'workspaces',
     label: 'All workspaces',
     area: 'Instance',

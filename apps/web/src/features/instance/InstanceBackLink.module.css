@@ -1,0 +1,6 @@
+/* The way back above a page's content. */
+.root {
+  display: flex;
+  /* The column puts 40px between its children: a way back belongs to what follows it. */
+  margin-bottom: -16px;
+}

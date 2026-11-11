@@ -1098,8 +1098,27 @@ describe('settings is closed', () => {
     expect(member.map((s) => s.label)).not.toContain('All workspaces')
     const admin = settingsSections({ workspace: 'acme', canManage: true, instanceAdmin: true })
     expect(admin.map((s) => s.label)).toEqual(
-      expect.arrayContaining(['Health', 'General', 'All workspaces']),
+      expect.arrayContaining(['Instance', 'Health', 'General', 'All workspaces']),
     )
+    // The Instance hub is the entry of the Instance area, for instance admins only.
+    expect(admin.find((s) => s.label === 'Instance')).toMatchObject({
+      area: 'Instance',
+      path: '/instance/overview',
+    })
+    expect(member.map((s) => s.label)).not.toContain('Instance')
+  })
+
+  it('finds the Instance hub by its name inside and outside settings', () => {
+    const inside = buildList(
+      input({ pathname: '/instance/health', instanceAdmin: true, inSettings: true }),
+      typed({ query: 'instance' }),
+    )
+    expect(labels(inside)).toContain('Instance')
+    const outside = buildList(
+      input({ pathname: '/acme/web', routeWorkspace: 'acme', instanceAdmin: true }),
+      typed({ query: 'instance' }),
+    )
+    expect(labels(outside)).toContain('Settings · Instance')
   })
 
   it('lists a section outside settings only when the query names it', () => {

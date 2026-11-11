@@ -57,6 +57,11 @@ export function settingsCrumbsFor(workspace: Named, trail: ReadonlyArray<Crumb> 
   return [{ label: workspace.name }, ...trail]
 }
 
+/** The Instance crumb of an instance page: the Instance hub. */
+export function instanceCrumb(): Crumb {
+  return { label: 'Instance', link: { to: '/instance/overview' } }
+}
+
 /** The instance's Workspaces list, the parent of a workspace's settings hub (instance admins). */
 export function workspacesCrumb(): Crumb {
   return { label: 'Workspaces', link: { to: '/instance/workspaces' } }
