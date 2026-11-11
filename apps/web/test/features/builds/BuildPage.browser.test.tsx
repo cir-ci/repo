@@ -30,7 +30,9 @@ async function hasText(locator: Locator, pattern: RegExp) {
   expect(locator.element().textContent).toMatch(pattern)
 }
 
-const viewerTitle = () => page.getByRole('heading', { level: 2 })
+// The first: a toast's title is a level-2 heading too, after the viewer's in the page. Without
+// .first() an open toast makes this match two, and each check waits for the toast to close (6s).
+const viewerTitle = () => page.getByRole('heading', { level: 2 }).first()
 
 const filed = (snapshotName: string | null) => ({
   id: `i-${snapshotName}`,
@@ -573,8 +575,10 @@ describe('approving and rejecting', () => {
     await page.getByRole('button', { name: 'Approve', exact: true }).click()
     await expect.element(toastNamed('Approved b')).toBeVisible()
     await expect.element(viewerTitle()).toHaveTextContent('b')
-    // Everything is decided, so there is nothing left for Approve all to do.
-    expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
+    // Everything is decided, so there is nothing left for Approve all to do (once the build reloads).
+    await expect
+      .poll(() => page.getByRole('button', { name: /^Approve all/ }).elements())
+      .toHaveLength(0)
   })
 
   it('approves every undecided snapshot with the button, leaving a rejected one alone', async () => {

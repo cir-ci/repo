@@ -203,7 +203,10 @@ describe('New project dialog', () => {
 
     // Done closes it for good: the token is gone from the page, and the project opens.
     await page.getByRole('button', { name: 'Done' }).click()
-    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+    // Named: the creation toast is a dialog too, and stays a few seconds.
+    await expect
+      .element(page.getByRole('dialog', { name: 'Project created' }))
+      .not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('circi_secret_token_value')
     expect(router.state.location.pathname).toBe('/acme/checkout-flows')
   })

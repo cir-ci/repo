@@ -211,7 +211,12 @@ describe('BaselinesPage on a phone', () => {
       .getByText('Differed across 2 runs of one commit')
       .element()
       .getBoundingClientRect()
-    const age = page.getByText('2d').first().element().getBoundingClientRect()
+    // The age label (whatever it reads today: the item's date is fixed, the clock isn't).
+    const age = page
+      .getByText(/^\d+[mhdw]$/)
+      .first()
+      .element()
+      .getBoundingClientRect()
     // Right after the name and the build, at the row's end, just before the age.
     expect(chip.right).toBeLessThanOrEqual(age.left + 1)
     expect(chip.right).toBeGreaterThan(rowBox.right - 80)
