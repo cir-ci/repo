@@ -55,9 +55,10 @@ export function Shell() {
     content = <SessionCheck />
   } else if (!user) {
     // The sign-in and setup pages are their own full-viewport layout (no logo bar); the page
-    // provides the `main#content` the skip link points at.
+    // provides the `main#content` the skip link points at. While its code loads, the same logo
+    // screen as the session check, so a refresh never goes blank between the two.
     content = (
-      <Suspense fallback={null}>
+      <Suspense fallback={<SessionCheck />}>
         <LoginPage />
       </Suspense>
     )
@@ -89,7 +90,7 @@ function SetupGate({ user }: { user: SessionUser }) {
   if (isPending && arriving) return <SessionCheck />
   if (caps?.setupPending || holding) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<SessionCheck />}>
         <SetupContinue />
       </Suspense>
     )
