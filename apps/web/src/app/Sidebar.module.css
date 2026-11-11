@@ -23,12 +23,6 @@
   color: var(--circi-text-secondary);
 }
 
-.pin {
-  flex: none;
-  margin-left: 4px;
-  color: var(--circi-text-tertiary);
-}
-
 /* Pinned to the bottom when there's room, and never closer than 24px to the last section. */
 .footer {
   margin-top: auto;

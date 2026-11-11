@@ -366,6 +366,9 @@ describe('Shell, wide', () => {
         .map((el) => el.getAttribute('href'))
     expect(names('Pinned')).toEqual(['/acme/web-app'])
     expect(names('Projects')).toEqual(['/acme/api', '/acme/storybook'])
+    // Being under Pinned says it: the entry carries no pin of its own (only its tile is drawn).
+    const pinnedEntry = nav.getByRole('region', { name: 'Pinned' }).getByRole('link').element()
+    expect(pinnedEntry.querySelector('svg.lucide-pin')).toBeNull()
   })
 
   it('marks the current page with aria-current', async () => {

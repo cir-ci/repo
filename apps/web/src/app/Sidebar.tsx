@@ -11,7 +11,6 @@ import {
   ListChecksIcon,
   ListFilterIcon,
   NavSection,
-  PinIcon,
   ReviewIcon,
   SearchIcon,
   Tooltip,
@@ -195,7 +194,7 @@ const counted = (n: number | undefined, nouns: readonly [string, string]) => {
     : { count, countTone: 'accent' as const, countLabel: noun(count, nouns) }
 }
 
-/** A project: its tile and name; the open one expands to its pages. A pinned project shows a pin. */
+/** A project: its tile and name; the open one expands to its pages. Pinned ones are under Pinned, with no mark of their own. */
 function ProjectEntry({ workspace, project, open, section }: ProjectEntry.Props) {
   const params = { workspace, project: project.slug }
   const triage = countOrUndefined(project.triage)
@@ -220,7 +219,6 @@ function ProjectEntry({ workspace, project, open, section }: ProjectEntry.Props)
             size={18}
           />
         }
-        trailing={project.pinned ? <PinIcon size={12} className={styles.pin} /> : undefined}
         {...(open ? {} : triageProps)}
       >
         {project.name}
