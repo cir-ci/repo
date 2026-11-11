@@ -1,0 +1,15 @@
+/* A page while its code loads: the shape of `PanelHeader` (44px, 16px in, a hairline under) above
+   the rows every list shows while its data loads, so the two loads read as one. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.spacer {
+  flex: 1;
+}

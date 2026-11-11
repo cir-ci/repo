@@ -16,6 +16,7 @@ import { sitesRoutes } from '#features/sites/routes.ts'
 import { triageRoutes } from '#features/triage/routes.ts'
 import { viewsRoutes } from '#features/views/routes.ts'
 import { workspaceSettingsRoutes } from '#features/workspace-settings/routes.ts'
+import { PageSkeleton } from '#lib/PageSkeleton.tsx'
 
 import { rootRoute } from './root-route.ts'
 import { WorkspaceRedirect } from './WorkspaceRedirect.tsx'
@@ -62,10 +63,21 @@ const routeTree = rootRoute.addChildren([
 ])
 
 /** The router; tests pass a memory `history` so they don't touch the address bar. */
+/**
+ * Every page is loaded lazily (lazyRouteComponent): while one loads, the current page stays for
+ * 300ms, then the shared skeleton shows, for at least 300ms so it doesn't flicker.
+ */
+export const PENDING = {
+  defaultPendingComponent: PageSkeleton,
+  defaultPendingMs: 300,
+  defaultPendingMinMs: 300,
+} as const
+
 export function createAppRouter(options: { history?: RouterHistory } = {}) {
   return createRouter({
     routeTree,
     defaultPreload: 'intent',
+    ...PENDING,
     scrollRestoration: true,
     ...(options.history ? { history: options.history } : {}),
   })
