@@ -244,7 +244,8 @@ async function call(
   const res = await fetch(`${URLS.server}/api${path}`, {
     method,
     headers: {
-      'content-type': 'application/json',
+      // A JSON type only with a body: the server refuses an empty body declared as JSON.
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       origin: URLS.web,
       cookie: await cookieFor(who),
     },
@@ -403,32 +404,40 @@ async function seedProjectHistory(p: SeedProject, steps: Step[], world: World): 
   return built
 }
 
-/** What people did with a build: asked for reviews, commented, decided. */
+/**
+ * What people did with a build: asked for reviews, commented, decided. Each is tolerant: whether a
+ * build has changes to review is decided by the server's diff, so a step the history meant as a
+ * change can come out with none; that call is skipped and logged rather than stopping the seed.
+ */
 async function interact(p: SeedProject, step: Step, number: number, world: World): Promise<void> {
   const base = `${projectPath(p)}/builds/${number}`
   for (const reviewer of step.requests) {
     // eslint-disable-next-line no-await-in-loop -- a few calls, in the order they happened
-    await call(step.author, 'POST', `${base}/review-requests`, {
-      reviewerId: idOf(reviewer, world),
-    })
+    await tolerant(`review request on ${base}`, () =>
+      call(step.author, 'POST', `${base}/review-requests`, { reviewerId: idOf(reviewer, world) }),
+    )
   }
   let lastThread: string | undefined
   for (const c of step.comments) {
     // eslint-disable-next-line no-await-in-loop -- replies need their thread's ID
-    const made = await call(c.by, 'POST', `${base}/comments`, {
-      body: c.body,
-      ...(c.snapshot ? { snapshotName: c.snapshot } : {}),
-      ...(c.region ? { region: c.region, regionSide: 'current' } : {}),
-      ...(c.reply && lastThread ? { parentId: lastThread } : {}),
+    await tolerant(`comment on ${base}`, async () => {
+      const made = await call(c.by, 'POST', `${base}/comments`, {
+        body: c.body,
+        ...(c.snapshot ? { snapshotName: c.snapshot } : {}),
+        ...(c.region ? { region: c.region, regionSide: 'current' } : {}),
+        ...(c.reply && lastThread ? { parentId: lastThread } : {}),
+      })
+      if (!c.reply) lastThread = stringIn(asRecord(made).comment ?? made, 'id')
     })
-    if (!c.reply) lastThread = stringIn(asRecord(made).comment ?? made, 'id')
   }
   for (const r of step.reviews) {
     // eslint-disable-next-line no-await-in-loop -- as above
-    await call(r.by, 'POST', `${base}/review`, {
-      state: r.state,
-      ...(r.reason ? { reason: r.reason } : {}),
-    })
+    await tolerant(`review of ${base}`, () =>
+      call(r.by, 'POST', `${base}/review`, {
+        state: r.state,
+        ...(r.reason ? { reason: r.reason } : {}),
+      }),
+    )
   }
 }
 
@@ -529,7 +538,7 @@ async function seedActivity(world: World): Promise<void> {
       '--org',
       'acme',
       '--project',
-      'api',
+      'api-server',
       '--url',
       'http://localhost:4010/hooks/chat-bridge',
       '--events',

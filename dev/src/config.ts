@@ -157,7 +157,8 @@ export const PROJECTS: readonly SeedProject[] = [
   {
     workspace: 'acme',
     name: 'API',
-    slug: 'api',
+    // `api` itself is a reserved slug (it would shadow the server's /api paths).
+    slug: 'api-server',
     color: 'plum',
     icon: 'server',
     members: ['owner', 'priya', 'daniel', 'tomas'],

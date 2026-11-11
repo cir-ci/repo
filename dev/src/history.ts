@@ -364,7 +364,7 @@ function webApp(): Step[] {
 
 function api(): Step[] {
   const t = timeline(
-    'api',
+    'api-server',
     pagesOf('#8a4fff', [
       'docs/overview',
       'docs/auth',
@@ -777,7 +777,7 @@ function portfolio(): Step[] {
 /** Every project's builds. The seed reads the project's own list oldest first. */
 export const HISTORY: Record<string, Step[]> = {
   'web-app': webApp(),
-  api: api(),
+  'api-server': api(),
   storybook: storybook(),
   'design-system': designSystem(),
   'marketing-site': marketing(),
