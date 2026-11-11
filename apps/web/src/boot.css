@@ -1,18 +1,21 @@
 /*
  * The loading screen in index.html, drawn before the app's script has loaded: the sign-in page's
  * ground and logo, the same as `SessionCheck`, so a refresh never shows a blank screen. React
- * replaces it when it mounts.
+ * replaces it when it mounts. Linked from index.html, so it applies before the first paint; the
+ * token variables arrive a moment later (boot.ts), so each colour has a plain fallback until then.
  */
 .circi-boot {
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 100vh;
+  /* The whole window, whatever the body's margin before the reset loads. */
+  position: fixed;
+  inset: 0;
   padding: 48px 16px;
   background:
-    radial-gradient(800px 480px at 50% -10%, var(--circi-glow), transparent 70%),
-    var(--circi-surface-chrome);
+    radial-gradient(800px 480px at 50% -10%, var(--circi-glow, transparent), transparent 70%),
+    var(--circi-surface-chrome, Canvas);
 }
 
 .circi-boot img {
@@ -20,5 +23,5 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon, transparent) 50%, transparent);
 }
