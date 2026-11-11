@@ -81,6 +81,12 @@ export default defineConfig({
   resolve: {
     conditions: ['@circi/source'],
   },
+  // Build output is never test input. A build running beside the tests (the gate runs them in
+  // parallel) rewrites thousands of files there, the Rust crate's target/ above all, and a watcher
+  // that sees them can reload a browser test's page mid-run ("Cannot find vitest-iframe").
+  server: {
+    watch: { ignored: ['**/target/**', '**/dist/**', '**/.turbo/**', '**/perf/.state/**'] },
+  },
   test: {
     testTimeout: 30_000,
     // `beforeAll(createTestDb)` under parallel workers is where the 10 s default used to time out.
@@ -212,6 +218,10 @@ export default defineConfig({
           name,
           setupFiles,
           include: ['test/**/*.browser.test.tsx'],
+          // One retry: under a full gate the browser runner itself sometimes loses a test's frame
+          // ("Frame was detached", "Cannot find vitest-iframe"), a different test each time and never
+          // an assertion. A retried test is still listed in the report, so a real flake stays visible.
+          retry: 1,
           browser: {
             enabled: true,
             headless: true,
