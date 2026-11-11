@@ -129,19 +129,51 @@
   }
 }
 
-/* A wide page: the label and its detail in a 240px column, the control beside it. */
+/* A wide page: a row whose control is a field you type or choose in (text, number, date, select)
+   puts its label and detail in a 240px column, the field beside it. A row whose control is an
+   action or a switch (Delete workspace, Configure, an email notification) is not a field: its text
+   takes the room and the control stays at the right edge, as on a narrow page. */
 @container settings (min-width: 900px) {
-  .root[data-layout='labelled'] {
+  .root[data-layout='labelled']:has(
+      > .control
+        :is(
+          input:not([type='checkbox'], [type='radio']),
+          textarea,
+          select,
+          [role='combobox'],
+          [role='spinbutton']
+        )
+    ) {
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr);
     gap: 8px 24px;
   }
 
-  .root[data-layout='labelled'] > .text {
+  .root[data-layout='labelled']:has(
+      > .control
+        :is(
+          input:not([type='checkbox'], [type='radio']),
+          textarea,
+          select,
+          [role='combobox'],
+          [role='spinbutton']
+        )
+    )
+    > .text {
     flex: none;
   }
 
-  .root[data-layout='labelled'] > .control {
+  .root[data-layout='labelled']:has(
+      > .control
+        :is(
+          input:not([type='checkbox'], [type='radio']),
+          textarea,
+          select,
+          [role='combobox'],
+          [role='spinbutton']
+        )
+    )
+    > .control {
     margin-left: 0;
     justify-content: flex-start;
   }
