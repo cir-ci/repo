@@ -150,9 +150,18 @@
     grid-row: 1;
   }
 
+  /* The field takes its row whatever width a page gave it for the stacked layout (a compact 136px
+     would leave the control no room beside the 240px label); the number box itself stays compact,
+     at the start of its column: a few digits, the unit and the steppers. */
+  :global([data-form]) .root:not([data-hide-label]) {
+    width: auto;
+  }
+
   :global([data-form]) .group {
     grid-column: 2;
     grid-row: 1;
+    justify-self: start;
+    width: 160px;
   }
 
   :global([data-form]) .description {
