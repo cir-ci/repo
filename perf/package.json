@@ -1,0 +1,17 @@
+{
+  "name": "@circi/perf",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Performance suite: k6 scenarios, a diff microbenchmark and a runner (see README.md)",
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "dependencies": {
+    "@circi/diff": "workspace:*",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

@@ -1,0 +1,22 @@
+# The database of the performance stack. Project `circi-perf`, host port 54349: nothing here
+# touches the dev environment (`circi-dev`, :54329). Started and stopped by src/stack.ts.
+# Default Postgres settings (fsync on): a production-like database, unlike the e2e one.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: circi
+      POSTGRES_PASSWORD: perf
+      POSTGRES_DB: circi
+    ports:
+      - '127.0.0.1:${PERF_POSTGRES_PORT:-54349}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U circi -d circi']
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  pgdata:

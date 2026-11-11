@@ -19,32 +19,35 @@
     },
     "//#format:check": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e,dev,docs,deploy}/**",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev,docs,deploy,perf}/**",
         "$TURBO_ROOT$/*.{json,ts,yaml,md}",
         "!**/node_modules/**",
         "!**/dist/**",
-        "!$TURBO_ROOT$/e2e/.artifacts/**"
+        "!$TURBO_ROOT$/e2e/.artifacts/**",
+        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**"
       ],
       "outputs": []
     },
     "//#lint": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e,dev}/**/*.{ts,tsx,json,css}",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev,perf}/**/*.{ts,tsx,js,json,css}",
         "$TURBO_ROOT$/.oxlintrc.json",
         "$TURBO_ROOT$/*.{ts,json}",
         "!**/node_modules/**",
         "!**/dist/**",
-        "!$TURBO_ROOT$/e2e/.artifacts/**"
+        "!$TURBO_ROOT$/e2e/.artifacts/**",
+        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**"
       ],
       "outputs": []
     },
     "//#typecheck": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e,dev}/**/*.{ts,tsx,json,css,d.ts}",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev,perf}/**/*.{ts,tsx,js,json,css,d.ts}",
         "$TURBO_ROOT$/*.{ts,json}",
         "!**/node_modules/**",
         "!**/dist/**",
-        "!$TURBO_ROOT$/e2e/.artifacts/**"
+        "!$TURBO_ROOT$/e2e/.artifacts/**",
+        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**"
       ],
       "outputs": []
     },
@@ -55,6 +58,7 @@
         "$TURBO_ROOT$/vitest.config.ts",
         "$TURBO_ROOT$/package.json",
         "!$TURBO_ROOT$/e2e/.artifacts/**",
+        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**",
         "!**/node_modules/**",
         "!**/dist/**",
         "!**/coverage/**",

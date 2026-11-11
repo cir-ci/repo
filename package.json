@@ -29,7 +29,12 @@
     "gate:full": "E2E_ENV_FINGERPRINT=$(node e2e/src/stack/env-fingerprint.ts) turbo run //#format:check //#lint //#typecheck //#test:node //#test:ui //#test:web-browser build //#e2e:api //#e2e:browser",
     "e2e:api": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:api",
     "e2e:browser": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:browser",
-    "e2e:fingerprint": "node e2e/src/stack/env-fingerprint.ts"
+    "e2e:fingerprint": "node e2e/src/stack/env-fingerprint.ts",
+    "perf": "node perf/src/run.ts",
+    "perf:fixtures": "node perf/src/fixtures.ts",
+    "perf:stack": "node perf/src/stack.ts up",
+    "perf:down": "node perf/src/stack.ts down",
+    "perf:bench": "node perf/bench/diff.ts"
   },
   "devDependencies": {
     "@circi/testing": "workspace:*",

@@ -3,6 +3,7 @@ packages:
   - packages/*
   - e2e
   - dev
+  - perf
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:

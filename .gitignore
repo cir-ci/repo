@@ -26,3 +26,11 @@ ds-bundle/
 
 # Claude Code agent worktrees
 /.claude/worktrees/
+
+# performance suite (perf/): fixtures, stack state and raw results; only a validation summary is kept
+/perf/fixtures/
+/perf/.state/
+/perf/results/*
+!/perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation
+/perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation/*
+!/perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation/summary.md
