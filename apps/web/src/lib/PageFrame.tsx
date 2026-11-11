@@ -4,11 +4,14 @@ import type { ReactNode } from 'react'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
+import { useScrollToHash } from '#lib/scroll-to-hash.ts'
 
 /**
  * The frame of a settings-style page: its header (`PageHeading`: crumbs, then `title` as the
  * `<h1>`), one `SettingsPage` column (720px, or 1040px with `width="wide"`), and the column's
  * states: `forbidden`, the error, the delayed skeleton, or `children`.
+ * An address with a hash (`#retention`) scrolls to the setting with that ID once it renders, and
+ * flashes it (`useScrollToHash`).
  * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `TeamSettingsFrame`) only compute
  * the crumbs.
  */
@@ -28,6 +31,7 @@ export function PageFrame({
   forbidden,
   children,
 }: PageFrame.Props) {
+  useScrollToHash()
   return (
     <>
       <PageHeading

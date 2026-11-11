@@ -1,0 +1,27 @@
+/* A setting a link points at: it stops below the sticky header, then flashes. */
+.target {
+  scroll-margin-top: calc(var(--circi-page-top, 0px) + 16px);
+}
+
+.flash {
+  animation: flash 1600ms ease-out;
+}
+
+@keyframes flash {
+  0%,
+  30% {
+    background: var(--circi-accent-subtle);
+  }
+
+  100% {
+    background: transparent;
+  }
+}
+
+/* No fade: the tint stays until the helper removes the class. */
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+    background: var(--circi-accent-subtle);
+  }
+}
