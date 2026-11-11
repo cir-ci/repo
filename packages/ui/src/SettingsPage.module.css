@@ -1,12 +1,18 @@
 /* The container the rows and fields measure: the width the panel gives the page. */
 .frame {
   container: settings / inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
 }
 
+/* The page fills the panel's height, so a page-sized empty state can centre in it and what comes
+   after it (a footer note) sits at the bottom. */
 .root {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 40px;
   box-sizing: border-box;
