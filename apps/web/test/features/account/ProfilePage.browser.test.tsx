@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { ProfilePage } from '#features/account/ProfilePage.tsx'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const now = Date.now()
 const session = (id: string, agent: string, minutesAgo: number) => ({
@@ -190,27 +191,96 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('saves a changed name when the field is left, with a Saved note and no Save button', async () => {
+  it('saves a changed display name with its ✓, with a Name saved toast', async () => {
     const calls = fakeFetch({
       ...signedIn,
       'GET /api/auth/list-sessions': sessions,
       'POST /api/auth/update-user': { status: true },
     })
-    await renderPage(<ProfilePage />, { announcer: true })
-    expect(page.getByRole('button', { name: 'Save name' }).elements()).toHaveLength(0)
-    await page.getByRole('textbox', { name: 'Name' }).fill('Ada King')
+    await renderPage(<ProfilePage />)
+    // Nothing differs yet, so there is no ✓ and no Save button.
+    expect(page.getByRole('button', { name: 'Save Display Name' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
+    await page.getByRole('textbox', { name: 'Display Name' }).fill('  Ada King ')
     expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
+    await page.getByRole('button', { name: 'Save Display Name' }).click()
+    await expect
+      .poll(() => calls.find((c) => c.path.endsWith('update-user'))?.body)
+      .toEqual({ name: 'Ada King' })
+    await expect.element(toastNamed('Name saved')).toBeInTheDocument()
+  })
+
+  it('saves the display name on Enter', async () => {
+    const calls = fakeFetch({
+      ...signedIn,
+      'GET /api/auth/list-sessions': sessions,
+      'POST /api/auth/update-user': { status: true },
+    })
+    await renderPage(<ProfilePage />)
+    await page.getByRole('textbox', { name: 'Display Name' }).fill('Ada King')
     await userEvent.keyboard('{Enter}')
     await expect
       .poll(() => calls.find((c) => c.path.endsWith('update-user'))?.body)
-      .toEqual({
-        name: 'Ada King',
-      })
-    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveAttribute('readonly')
+      .toEqual({ name: 'Ada King' })
   })
 
-  it('puts the picture and the name in one row; the avatar opens where the picture comes from', async () => {
+  it('does nothing when the display name field is left; Escape puts the saved name back', async () => {
+    const calls = fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+    await renderPage(<ProfilePage />)
+    const field = page.getByRole('textbox', { name: 'Display Name' })
+    await field.fill('Ada King')
+    await page.getByRole('textbox', { name: 'Email' }).click()
+    expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
+    await expect.element(field).toHaveValue('Ada King')
+    await expect.element(page.getByRole('button', { name: 'Save Display Name' })).toBeVisible()
+    await field.click()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(field).toHaveValue('Ada Lovelace')
+    await expect
+      .element(page.getByRole('button', { name: 'Save Display Name' }))
+      .not.toBeInTheDocument()
+    expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
+  })
+
+  it('shows the ✓ only while the display name differs from the saved one', async () => {
+    fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+    await renderPage(<ProfilePage />)
+    const field = page.getByRole('textbox', { name: 'Display Name' })
+    await expect.element(field).toHaveValue('Ada Lovelace')
+    const check = page.getByRole('button', { name: 'Save Display Name' })
+    expect(check.elements()).toHaveLength(0)
+    await field.fill('Ada')
+    await expect.element(check).toBeVisible()
+    await field.fill('Ada Lovelace')
+    await expect.element(check).not.toBeInTheDocument()
+  })
+
+  it('has one Display Settings section: the picture, the display name and the read-only email in one row', async () => {
+    await page.viewport(1000, 900)
+    fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+    await renderPage(<ProfilePage />)
+    const section = page.getByRole('region', { name: 'Display Settings' })
+    await expect.element(section).toBeVisible()
+    await expect.element(section.getByRole('button', { name: 'Change picture' })).toBeVisible()
+    const field = section.getByRole('textbox', { name: 'Display Name' })
+    const email = section.getByRole('textbox', { name: 'Email' })
+    await expect.element(field).toHaveValue('Ada Lovelace')
+    await expect.element(email).toHaveValue('ada@example.com')
+    await expect.element(email).toHaveAttribute('readonly')
+    expect(page.getByRole('region', { name: 'Name and picture' }).elements()).toHaveLength(0)
+
+    const picture = section
+      .getByRole('button', { name: 'Change picture' })
+      .element()
+      .getBoundingClientRect()
+    const nameBox = field.element().getBoundingClientRect()
+    const emailBox = email.element().getBoundingClientRect()
+    expect(picture.right).toBeLessThanOrEqual(nameBox.left)
+    expect(nameBox.right).toBeLessThanOrEqual(emailBox.left)
+    expect(Math.abs(nameBox.top - emailBox.top)).toBeLessThan(2)
+  })
+
+  it('opens where the picture comes from from the avatar', async () => {
     fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
     await renderPage(<ProfilePage />)
     const button = page.getByRole('button', { name: 'Change picture' })
@@ -222,23 +292,28 @@ describe('ProfilePage', () => {
     await expect.element(button).toHaveFocus()
   })
 
-  it('shows why the name could not be saved, in line', async () => {
+  it('shows why the display name could not be saved, in line', async () => {
     fakeFetch({
       ...signedIn,
       'GET /api/auth/list-sessions': sessions,
       'POST /api/auth/update-user': json({ message: 'Name is too long' }, 400),
     })
     await renderPage(<ProfilePage />)
-    await page.getByRole('textbox', { name: 'Name' }).fill('Ada King')
-    await page.getByRole('textbox', { name: 'Email' }).click()
+    await page.getByRole('textbox', { name: 'Display Name' }).fill('Ada King')
+    await page.getByRole('button', { name: 'Save Display Name' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+    // What was typed stays, with its ✓, to try again.
+    await expect
+      .element(page.getByRole('textbox', { name: 'Display Name' }))
+      .toHaveValue('Ada King')
+    await expect.element(page.getByRole('button', { name: 'Save Display Name' })).toBeVisible()
   })
 
-  it('does not send an empty name', async () => {
+  it('does not send an empty display name', async () => {
     const calls = fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
     await renderPage(<ProfilePage />)
-    await page.getByRole('textbox', { name: 'Name' }).fill('   ')
-    await page.getByRole('textbox', { name: 'Email' }).click()
+    await page.getByRole('textbox', { name: 'Display Name' }).fill('   ')
+    await page.getByRole('button', { name: 'Save Display Name' }).click()
     await expect.element(page.getByText('Enter your name')).toBeVisible()
     expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
   })

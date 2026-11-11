@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { WorkspaceGeneralPage } from '#features/workspace-settings/WorkspaceGeneralPage.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const ROUTE = {
   route: '/workspaces/$workspace/settings',
@@ -27,9 +28,15 @@ const settings = (canManage = true) => ({
   ],
 })
 const openPicture = () => page.getByRole('button', { name: 'Change picture' }).click()
-const name = () => page.getByRole('textbox', { name: 'Name' })
-const slug = () => page.getByRole('textbox', { name: 'URL slug' })
+const name = () => page.getByRole('textbox', { name: 'Display Name' })
+const slug = () => page.getByRole('textbox', { name: 'URL Slug' })
+// The ✓ beside each identity field, there only while its text differs from what is saved.
+const saveName = () => page.getByRole('button', { name: 'Save Display Name' })
+const saveSlug = () => page.getByRole('button', { name: 'Save URL Slug' })
+// Save changes belongs to the build settings below (merge gate and triage defaults).
 const save = () => page.getByRole('button', { name: 'Save changes' })
+const flaky = () => page.getByRole('checkbox', { name: /Flaky-only changes block merging/ })
+const SLUG_HELP = 'Where the workspace lives in CirCI. Changing it breaks existing links.'
 
 describe('WorkspaceGeneralPage', () => {
   it('keeps the picture in a popover on the avatar: Upload for a manager, no Remove without one', async () => {
@@ -107,7 +114,70 @@ describe('WorkspaceGeneralPage', () => {
     expect(api.of('PUT')).toHaveLength(0)
   })
 
-  it('shows the name, address, merge defaults and a danger zone', async () => {
+  it('has one Display Settings section: the picture, the display name and the URL slug on one row', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    const section = page.getByRole('region', { name: 'Display Settings' })
+    await expect.element(section).toBeVisible()
+    await expect.element(section.getByRole('button', { name: 'Change picture' })).toBeVisible()
+    await expect.element(section.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
+    await expect.element(section.getByRole('textbox', { name: 'URL Slug' })).toBeVisible()
+    // The merge gate defaults are their own sections, not part of this one.
+    expect(section.getByRole('checkbox').elements()).toHaveLength(0)
+    // The old sections and the Address form are gone.
+    expect(page.getByRole('region', { name: 'Name and picture' }).elements()).toHaveLength(0)
+    expect(page.getByRole('region', { name: 'Address' }).elements()).toHaveLength(0)
+    expect(page.getByRole('form', { name: 'Address' }).elements()).toHaveLength(0)
+
+    const picture = page
+      .getByRole('button', { name: 'Change picture' })
+      .element()
+      .getBoundingClientRect()
+    const nameBox = name().element().getBoundingClientRect()
+    const slugBox = slug().element().getBoundingClientRect()
+    // The picture comes first; the two fields sit side by side, level with each other.
+    expect(picture.right).toBeLessThanOrEqual(nameBox.left)
+    expect(nameBox.right).toBeLessThanOrEqual(slugBox.left)
+    expect(Math.abs(nameBox.top - slugBox.top)).toBeLessThan(2)
+    // And the picture is on the fields' row, not above or below it.
+    expect(picture.top).toBeLessThan(nameBox.bottom)
+    expect(picture.bottom).toBeGreaterThan(nameBox.top)
+  })
+
+  it('shows the ✓ on a field only while its text differs from what is saved', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(name()).toHaveValue('Acme Inc')
+    expect(saveName().elements()).toHaveLength(0)
+    expect(saveSlug().elements()).toHaveLength(0)
+
+    await name().fill('Acme Corp')
+    await expect.element(saveName()).toBeVisible()
+    await expect.element(saveName()).toBeEnabled()
+    // Only the field that was edited gets one.
+    expect(saveSlug().elements()).toHaveLength(0)
+
+    // Back to the saved text, and the ✓ goes away.
+    await name().fill('Acme Inc')
+    await expect.element(saveName()).not.toBeInTheDocument()
+
+    // Spaces around the saved text are not a change either.
+    await name().fill(' Acme Inc ')
+    await expect.element(saveName()).not.toBeInTheDocument()
+    await slug().fill('acme-co')
+    await expect.element(saveSlug()).toBeVisible()
+    expect(saveName().elements()).toHaveLength(0)
+  })
+
+  it('shows the name, slug, merge defaults and a danger zone', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
@@ -121,9 +191,10 @@ describe('WorkspaceGeneralPage', () => {
       .element(page.getByRole('checkbox', { name: /Flaky-only changes block merging/ }))
       .toBeChecked()
     await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeEnabled()
-    // Nothing to save yet, in the address form or the merge gate defaults.
-    for (const button of page.getByRole('button', { name: 'Save changes' }).elements())
-      expect(button).toBeDisabled()
+    // Nothing to save yet: no ✓ on either field, and the build settings' Save changes is off.
+    expect(saveName().elements()).toHaveLength(0)
+    expect(saveSlug().elements()).toHaveLength(0)
+    await expect.element(save()).toBeDisabled()
     // The merge gate default says who follows it and who overrides it.
     await expect.element(page.getByText('1 team inherits this, 1 overrides it')).toBeVisible()
     await expect.element(page.getByText('marketing-site: off')).toBeVisible()
@@ -179,23 +250,44 @@ describe('WorkspaceGeneralPage', () => {
     expect(api.of('DELETE')[0]?.body).toEqual({ confirm: 'acme' })
   })
 
-  it('warns that links break when the address changes, and Discard undoes the edit', async () => {
+  it('replaces the slug description with the warning about links while it is edited', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByText(SLUG_HELP)).toBeVisible()
+    expect(page.getByText(/stop working, including bookmarks/).elements()).toHaveLength(0)
     await slug().fill('acme-co')
+    const warning = page.getByText(/stop working, including bookmarks/)
+    await expect.element(warning).toBeVisible()
+    await expect.element(warning).toHaveTextContent('Links with /acme/ in them stop working')
+    await expect.element(warning).toHaveTextContent('New builds post the new address.')
+    await expect.element(page.getByText(SLUG_HELP)).not.toBeInTheDocument()
+    // Back to the saved text: the description is back too.
+    await slug().fill('acme')
+    await expect.element(page.getByText(SLUG_HELP)).toBeVisible()
+    await expect.element(warning).not.toBeInTheDocument()
+  })
+
+  it('puts the saved slug back on Escape, and the ✓ and the warning go away', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await slug().fill('acme-co')
+    await expect.element(saveSlug()).toBeVisible()
     await expect.element(page.getByText(/stop working, including bookmarks/)).toBeVisible()
-    await page
-      .getByRole('form', { name: 'Address' })
-      .getByRole('button', { name: 'Discard' })
-      .click()
+    await userEvent.keyboard('{Escape}')
     await expect.element(slug()).toHaveValue('acme')
+    await expect.element(saveSlug()).not.toBeInTheDocument()
     await expect
       .element(page.getByText(/stop working, including bookmarks/))
       .not.toBeInTheDocument()
+    expect(api.of('PATCH')).toHaveLength(0)
   })
 
   it('refuses a bad address without asking the server', async () => {
@@ -206,7 +298,7 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('Not Valid')
-    await save().first().click()
+    await saveSlug().click()
     await expect
       .element(page.getByText(/lowercase letters, digits or single hyphens/))
       .toBeVisible()
@@ -228,10 +320,25 @@ describe('WorkspaceGeneralPage', () => {
     })
     const { router } = await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('acme-co')
-    await save().first().click()
+    await saveSlug().click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme-co/settings')
     expect(api.of('PATCH')[0]?.body).toEqual({ slug: 'acme-co' })
     await expect.element(slug()).toHaveValue('acme-co')
+    await expect.element(toastNamed('URL slug saved')).toBeInTheDocument()
+  })
+
+  it('saves the slug on Enter too', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PATCH /api/workspaces/acme': { body: { name: 'Acme Inc', slug: 'acme' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await slug().fill('acme-co')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => api.of('PATCH')).toHaveLength(1)
+    expect(api.of('PATCH')[0]?.body).toEqual({ slug: 'acme-co' })
   })
 
   it('shows why a save was refused', async () => {
@@ -243,31 +350,75 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('taken')
-    await save().first().click()
+    await saveSlug().click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('That address is taken')
   })
 
-  it('saves the name by itself when the field is left, with a Saved note', async () => {
+  it('saves the name with its ✓, and nothing else, with a Name saved toast', async () => {
     await page.viewport(1000, 900)
     const api = fakeApi({
       'GET /api/workspaces/acme': { body: general() },
       'GET /api/workspaces/acme/settings': { body: settings() },
       'PATCH /api/workspaces/acme': { body: { name: 'Acme Corp', slug: 'acme' } },
     })
-    await renderPage(<WorkspaceGeneralPage />, { ...ROUTE, announcer: true })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect.element(name()).toHaveValue('Acme Inc')
-    await name().fill('Acme Corp')
+    await name().fill('  Acme Corp  ')
     expect(api.of('PATCH')).toHaveLength(0)
-    await slug().click()
+    await saveName().click()
     await expect.poll(() => api.of('PATCH')).toHaveLength(1)
-    // Only the name: the address waits for its own Save.
+    // Only the name, trimmed: the slug is its own field.
     expect(api.of('PATCH')[0]?.body).toEqual({ name: 'Acme Corp' })
-    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    await expect.element(toastNamed('Name saved')).toBeInTheDocument()
+  })
+
+  it('saves the name on Enter', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PATCH /api/workspaces/acme': { body: { name: 'Acme Corp', slug: 'acme' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await name().fill('Acme Corp')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => api.of('PATCH')).toHaveLength(1)
+    expect(api.of('PATCH')[0]?.body).toEqual({ name: 'Acme Corp' })
+  })
+
+  it('does nothing when the name field is left: the ✓ stays and nothing is sent', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PATCH /api/workspaces/acme': { body: { name: 'Acme Corp', slug: 'acme' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await name().fill('Acme Corp')
+    await slug().click()
+    await expect.element(slug()).toHaveFocus()
+    expect(api.of('PATCH')).toHaveLength(0)
+    await expect.element(name()).toHaveValue('Acme Corp')
+    await expect.element(saveName()).toBeVisible()
+  })
+
+  it('puts the saved name back on Escape', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await name().fill('Acme Corp')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(name()).toHaveValue('Acme Inc')
+    await expect.element(saveName()).not.toBeInTheDocument()
+    expect(api.of('PATCH')).toHaveLength(0)
   })
 
   it('keeps an address being typed when the name is saved, and shows a failed name in line', async () => {
     await page.viewport(1000, 900)
-    fakeApi({
+    const api = fakeApi({
       'GET /api/workspaces/acme': { body: general() },
       'GET /api/workspaces/acme/settings': { body: settings() },
       'PATCH /api/workspaces/acme': { status: 400, body: { error: 'Name is too long' } },
@@ -275,8 +426,12 @@ describe('WorkspaceGeneralPage', () => {
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('acme-co')
     await name().fill('Acme Corp')
-    await slug().click()
+    await saveName().click()
+    await expect.poll(() => api.of('PATCH')).toHaveLength(1)
+    // The failure shows on the name field, in line, and what was typed stays with its ✓.
     await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+    await expect.element(name()).toHaveValue('Acme Corp')
+    await expect.element(saveName()).toBeVisible()
     await expect.element(slug()).toHaveValue('acme-co')
     await expect.element(page.getByText(/stop working, including bookmarks/)).toBeVisible()
   })
@@ -289,7 +444,7 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await name().fill('  ')
-    await slug().click()
+    await saveName().click()
     await expect.element(page.getByText('Enter a name')).toBeVisible()
     expect(api.of('PATCH')).toHaveLength(0)
   })
@@ -329,7 +484,7 @@ describe('WorkspaceGeneralPage on a phone', () => {
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await userEvent.type(slug(), '-2')
+    await flaky().click()
     const footer = save().first().element().parentElement
     expect(footer).not.toBeNull()
     expect(getComputedStyle(footer!).position).toBe('sticky')
@@ -351,12 +506,12 @@ describe('WorkspaceGeneralPage on a phone', () => {
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await userEvent.type(slug(), '-2')
+    await flaky().click()
     const footer = save().first().element().parentElement
     expect(getComputedStyle(footer!).position).not.toBe('sticky')
   })
 
-  it('shows one Save and Discard at a time: none until a form has a change, then only its own', async () => {
+  it('shows one Save and Discard, only once the build settings have a change; a field edit brings its ✓ and no bar', async () => {
     await page.viewport(390, 844)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
@@ -365,7 +520,14 @@ describe('WorkspaceGeneralPage on a phone', () => {
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect.element(slug()).toBeVisible()
     expect(shownSaves()).toHaveLength(0)
+    // Editing a field brings its own ✓ (the identity fields have no Save bar).
     await userEvent.type(slug(), '-2')
+    await expect.element(saveSlug()).toBeVisible()
+    expect(shownSaves()).toHaveLength(0)
+    await userEvent.keyboard('{Escape}')
+    await expect.element(saveSlug()).not.toBeInTheDocument()
+    // A change in the build settings shows the one bar.
+    await flaky().click()
     await expect.poll(() => shownSaves().length).toBe(1)
     expect(
       page
@@ -375,7 +537,7 @@ describe('WorkspaceGeneralPage on a phone', () => {
     ).toHaveLength(1)
   })
 
-  it("shows every form's buttons, disabled until it has a change, on a desktop", async () => {
+  it('shows the build settings form with Save changes disabled until it has a change, on a desktop', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
@@ -383,7 +545,12 @@ describe('WorkspaceGeneralPage on a phone', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect.element(slug()).toBeVisible()
-    await expect.poll(() => save().elements().length).toBeGreaterThan(1)
-    for (const el of save().elements()) expect(el.getBoundingClientRect().height).toBeGreaterThan(0)
+    // One form with buttons now (merge gate and triage defaults share it); the identity fields have a ✓ instead.
+    await expect.poll(() => save().elements().length).toBe(1)
+    expect(save().element().getBoundingClientRect().height).toBeGreaterThan(0)
+    await expect.element(save()).toBeDisabled()
+    await expect.element(page.getByRole('button', { name: 'Discard' })).toBeDisabled()
+    await flaky().click()
+    await expect.element(save()).toBeEnabled()
   })
 })
