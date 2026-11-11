@@ -159,12 +159,10 @@ describe('settings form layout', () => {
       ['Flaky-only changes block merging', 'When the only'],
       ['Default branch', 'Its approved'],
     ] as const) {
-      const label = [...container.querySelectorAll('label, span')].find(
-        (l) => l.textContent === labelText,
-      )
-      const help = [...container.querySelectorAll('p, span')].find((p) =>
-        p.textContent?.startsWith(helpText),
-      )
+      // The innermost element holding the text (whatever its tag: a label, a div, a p).
+      const all = [...container.querySelectorAll('*')]
+      const label = all.filter((el) => el.textContent === labelText).at(-1)
+      const help = all.filter((el) => el.textContent?.startsWith(helpText)).at(-1)
       expect(rect(help ?? null).top - rect(label).bottom).toBeLessThanOrEqual(4)
     }
   })
