@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { circiTokensCss } from '@circi/ui/tokens-css'
@@ -37,6 +40,46 @@ function serviceWorker(): Plugin {
   }
 }
 
+/**
+ * The Lucide icon files the app draws statically: the names `@circi/ui`'s `icons.ts` imports from
+ * `lucide-react`, mapped to their `dist/esm/icons/<kebab>.mjs` through Lucide's own index (which
+ * lists every alias). The project icon picker's ~1,700 icons load one by one through
+ * `lucide-react/dynamic`; some of them are the same files, which is fine (they join the group).
+ */
+function staticLucideIconFiles(): Set<string> {
+  const ui = new URL('../../packages/ui/', import.meta.url)
+  const source = readFileSync(new URL('src/icons.ts', ui), 'utf8')
+  const names = new Set<string>()
+  for (const [, list] of source.matchAll(/import\s*\{([^}]*)\}\s*from\s*'lucide-react'/g)) {
+    for (const part of list!.split(',')) {
+      const name = part.trim().split(/\s+as\s+/)[0]
+      if (name && !name.startsWith('type ')) names.add(name)
+    }
+  }
+  const lucide = dirname(
+    createRequire(new URL('package.json', ui)).resolve('lucide-react/package.json'),
+  )
+  const index = readFileSync(join(lucide, 'dist/esm/lucide-react.mjs'), 'utf8')
+  const files = new Set<string>()
+  for (const [, exports, file] of index.matchAll(/export \{([^}]*)\} from '\.\/icons\/([^']+)'/g)) {
+    if (
+      exports!.split(',').some((e) =>
+        names.has(
+          e
+            .trim()
+            .split(/\s+as\s+/)
+            .pop()!,
+        ),
+      )
+    )
+      files.add(file!)
+  }
+  return files
+}
+
+const staticIcons = staticLucideIconFiles()
+const lucideIcon = /lucide-react[\\/]dist[\\/]esm[\\/]icons[\\/]([^\\/]+)$/
+
 export default defineConfig({
   plugins: [circiTokensCss(), react(), serviceWorker()],
   resolve: {
@@ -61,6 +104,13 @@ export default defineConfig({
     emptyOutDir: true,
     // The largest chunk is React DOM (~220 kB); anything bigger means a split regressed.
     chunkSizeWarningLimit: 250,
+    modulePreload: {
+      // ProjectGlyph's ~1,700 icon imports would each list their dependencies (Lucide's shared
+      // helpers, already loaded) in a preload table that was most of that chunk's weight; an icon is
+      // one small file, so there is nothing to preload.
+      resolveDependencies: (filename, deps, { hostId }) =>
+        /ProjectGlyph/.test(hostId) ? [] : deps,
+    },
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -69,6 +119,21 @@ export default defineConfig({
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
+            // The ~90 icons the app draws statically would be one tiny file each; the picker's
+            // per-icon dynamic imports stay separate files.
+            {
+              name: 'icons',
+              test: (id) => {
+                const file = lucideIcon.exec(id)?.[1]
+                return file !== undefined && staticIcons.has(file)
+              },
+            },
+            {
+              name: 'base-ui',
+              test: /node_modules[\\/]@base-ui[\\/]/,
+              entriesAware: true,
+              entriesAwareMergeThreshold: 60_000,
+            },
           ],
         },
       },
