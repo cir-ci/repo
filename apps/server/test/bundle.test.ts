@@ -50,6 +50,18 @@ describe('the server bundle', () => {
     }
   })
 
+  it("doesn't hold main.mjs open with a top-level await while lazy chunks import it back", () => {
+    // Lazily imported chunks (better-auth's permission check among them) import main.mjs for the
+    // code they share. A top-level await in main.mjs on the CLI would deadlock such an import
+    // ("unsettled top-level await", exit 13): issuing a CI token hung that way.
+    const chunks = readdirSync(out).filter((f) => f.endsWith('.mjs') && f !== 'main.mjs')
+    const importsMain = chunks.filter((f) =>
+      /^(?:import|export)\b[^;]*"\.\/main\.mjs";$/m.test(readFileSync(join(out, f), 'utf8')),
+    )
+    expect(importsMain.length).toBeGreaterThan(0)
+    expect(readFileSync(join(out, 'main.mjs'), 'utf8')).not.toMatch(/^await /m)
+  })
+
   it('has source maps that lead to our TypeScript, one level above the bundle (/app/apps/... in the image)', () => {
     const map: { sources: string[] } = JSON.parse(readFileSync(join(out, 'main.mjs.map'), 'utf8'))
     const ours = map.sources.filter((s) => !s.includes('node_modules'))
