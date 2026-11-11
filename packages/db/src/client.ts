@@ -49,11 +49,24 @@ export function createDb(options: {
   url: string
   poolMax?: number
   applicationName?: string
+  /**
+   * Told when Postgres drops a pooled connection (a restart, a failover, the network). Without a
+   * listener node-postgres re-throws that `error` event and the process exits; with one the error
+   * is reported here, the query on that connection fails as usual, and the pool replaces the
+   * connection.
+   */
+  onConnectionError?: (err: Error) => void
 }): DbHandle {
   const pool = new Pool({
     connectionString: options.url,
     max: options.poolMax ?? 10,
     application_name: options.applicationName ?? 'circi',
+  })
+  const connectionError = (err: Error) => options.onConnectionError?.(err)
+  // An idle connection's error comes to the pool; a checked-out one's to the client itself.
+  pool.on('error', connectionError)
+  pool.on('connect', (client) => {
+    client.on('error', connectionError)
   })
   const db = drizzle({ client: pool, schema })
   const listeners = new Set<() => Promise<void>>()

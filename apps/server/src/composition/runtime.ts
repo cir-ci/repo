@@ -26,7 +26,12 @@ export function createLogger(config: Pick<Config, 'logLevel' | 'env'>): Logger {
 export function createRuntime(env: Record<string, string | undefined> = process.env): Runtime {
   const config = loadConfig(env)
   const logger = createLogger(config)
-  const db = createDb({ url: config.database.url, poolMax: config.database.poolMax })
+  const db = createDb({
+    url: config.database.url,
+    poolMax: config.database.poolMax,
+    // A dropped connection is logged, not fatal: the pool reconnects (readyz reports the outage).
+    onConnectionError: (err) => logger.warn({ err }, 'lost a database connection'),
+  })
   const mailer = config.smtp ? createSmtpMailer(config.smtp) : undefined
   const auth = createAuth({
     db: db.db,
