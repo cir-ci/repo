@@ -572,7 +572,6 @@ describe('Shell, settings', () => {
     expect(names).toEqual([
       'General',
       'Members',
-      'Teams',
       'Sign-in and domains',
       'Integrations',
       'Storage and retention',
@@ -599,14 +598,21 @@ describe('Shell, settings', () => {
       .toHaveAttribute('aria-current', 'page')
   })
 
-  it("lists no team in the nav: a team's settings sit under Teams, which stays marked", async () => {
+  it("lists the teams in their own section: a team's settings keep its entry marked", async () => {
     await page.viewport(1280, 800)
     await renderShell('/acme/web-app/settings')
     const nav = page.getByRole('navigation', { name: 'Settings' })
     await expect.element(nav.getByRole('region', { name: 'Workspace · Acme' })).toBeVisible()
     expect(nav.getByRole('region', { name: /^Team · / }).elements()).toHaveLength(0)
+    const teams = nav.getByRole('region', { name: 'Teams' })
+    expect(
+      teams
+        .getByRole('link')
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(['web-app', 'storybook', 'api', 'All teams'])
     await expect
-      .element(nav.getByRole('link', { name: 'Teams' }))
+      .element(teams.getByRole('link', { name: 'web-app' }))
       .toHaveAttribute('aria-current', 'page')
   })
 
@@ -890,10 +896,13 @@ describe('Shell, narrow', () => {
       'Appearance',
       'General',
       'Members',
-      'Teams',
       'Sign-in and domains',
       'Integrations',
       'Storage and retention',
+      'web-app',
+      'storybook',
+      'api',
+      'All teams',
       'Accounts',
       'Workspaces',
       'Instance settings',

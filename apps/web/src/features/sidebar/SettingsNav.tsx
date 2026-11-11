@@ -22,7 +22,6 @@ import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
-import { currentSection } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
@@ -35,9 +34,9 @@ import styles from './SettingsNav.module.css'
 
 /**
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
- * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, Teams, ...) and, for the people
- * who run the instance, Instance. A team's own settings are not listed here: Teams opens them (a
- * team header with tabs). The workspace is the one in the address, else the last chosen. On a
+ * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Teams
+ * (each team the person may see, opening its settings hub, then All teams) and, for the people
+ * who run the instance, Instance. A team stays selected on every page of its settings. The workspace is the one in the address, else the last chosen. On a
  * phone it is the body of the settings sections sheet (`SettingsSections`): no Back row (the
  * header's Close is the way out) and no Hide button.
  */
@@ -52,8 +51,6 @@ export function SettingsNav() {
     useSettingsReturnStore((s) => s.app),
     model?.teams,
   )
-  // A team's settings (`/<workspace>/<team>/settings/...`) belong to the Teams entry.
-  const teamsSelected = currentSection(pathname) === 'team-settings'
   // Settings only owners and admins can change are left out for everyone else (their pages send them away).
   const canManage = model?.canManage === true
 
@@ -125,17 +122,6 @@ export function SettingsNav() {
           >
             Members
           </NavLink>
-          <NavLink
-            to="/workspaces/$workspace/settings/teams"
-            params={{ workspace: workspace.slug }}
-            icon={<LayersIcon />}
-            selected={
-              teamsSelected ||
-              pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/teams`
-            }
-          >
-            Teams
-          </NavLink>
           {canManage ? (
             <NavLink
               to="/workspaces/$workspace/settings/sign-in"
@@ -166,6 +152,45 @@ export function SettingsNav() {
               Storage and retention
             </NavLink>
           ) : null}
+        </NavSection>
+      ) : null}
+      {workspace ? (
+        <NavSection label="Teams">
+          {(model?.teams ?? []).map((team) => {
+            const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(team.slug)}/settings`
+            return (
+              <NavLink
+                key={team.slug}
+                to="/$workspace/$team/settings"
+                params={{ workspace: workspace.slug, team: team.slug }}
+                icon={
+                  <Avatar
+                    type="team"
+                    aria-hidden
+                    slug={team.slug}
+                    name={team.name}
+                    color={team.color}
+                    icon={team.icon}
+                    size={18}
+                  />
+                }
+                // Every page of the team's settings belongs to its entry: the hub and the pages below it.
+                selected={pathname === base || pathname.startsWith(`${base}/`)}
+              >
+                {team.name}
+              </NavLink>
+            )
+          })}
+          <NavLink
+            to="/workspaces/$workspace/settings/teams"
+            params={{ workspace: workspace.slug }}
+            icon={<LayersIcon />}
+            selected={
+              pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/teams`
+            }
+          >
+            All teams
+          </NavLink>
         </NavSection>
       ) : null}
       {caps?.instanceAdmin ? (
