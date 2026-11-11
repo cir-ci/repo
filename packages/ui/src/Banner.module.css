@@ -23,11 +23,16 @@
   --banner-color: var(--circi-state-review);
 }
 
+.root[data-tone='flaky'] {
+  --banner-color: var(--circi-state-flaky);
+}
+
 .root[data-tone='danger'] {
   --banner-color: var(--circi-state-failed);
 }
 
 .icon {
+  display: inline-flex;
   flex: none;
   margin-block: 2px;
   color: var(--banner-color);

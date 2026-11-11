@@ -1053,14 +1053,7 @@ describe('Shell, narrow', () => {
         .getByRole('link')
         .elements()
         .map((el) => el.textContent)
-      expect(names).toEqual(
-        expect.arrayContaining([
-          'Insights',
-          'Failing on main',
-          'Acme settings',
-          'Account settings',
-        ]),
-      )
+      expect(names).toEqual(expect.arrayContaining(['Insights', 'Failing on main', 'Settings']))
       // What the Teams menu and the team page's tabs now hold is not repeated here.
       expect(list.getByRole('link', { name: 'Baselines' }).elements()).toHaveLength(0)
       expect(list.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
@@ -1514,7 +1507,7 @@ describe('Shell, phone', () => {
       .elements()
       .map((el) => el.textContent)
     // The teams are in the Teams tab's sheet, and Baselines and Sites in the team page's tabs.
-    expect(rows).toEqual(['Insights', 'Failing on main', 'Acme settings', 'Account settings'])
+    expect(rows).toEqual(['Insights', 'Failing on main', 'Settings'])
     for (const row of sheet.getByRole('link').elements()) {
       expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
     }
@@ -1523,20 +1516,18 @@ describe('Shell, phone', () => {
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
   })
 
-  it('has the account and workspace settings in More, and settings is left only by its Close', async () => {
+  it('has one Settings entry in More, and settings is left only by its Close', async () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/inbox')
     await tabs().getByRole('button', { name: 'More' }).click()
-    await page
-      .getByRole('dialog', { name: 'More' })
-      .getByRole('link', { name: 'Account settings' })
-      .click()
-    await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
+    await page.getByRole('dialog', { name: 'More' }).getByRole('link', { name: 'Settings' }).click()
+    await expect.poll(() => router.state.location.pathname).toMatch(/^\/workspaces\/acme\/settings/)
     // Settings has its own navigation: no tab bar, a Close in the header, the list in a sheet.
     expect(tabs().elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Settings sections' }).click()
     const sections = page.getByRole('dialog', { name: 'Settings sections' })
     await expect.element(sections.getByRole('link', { name: 'Profile' })).toBeVisible()
+    await expect.element(sections.getByRole('link', { name: 'General' }).first()).toBeVisible()
     expect(sections.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await userEvent.keyboard('{Escape}')
     await page.getByRole('button', { name: /^Close settings/ }).click()

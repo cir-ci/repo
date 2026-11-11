@@ -1,4 +1,4 @@
-import { BuildingIcon, InsightsIcon, ListFilterIcon, LogOutIcon, Sheet, UserIcon } from '@circi/ui'
+import { InsightsIcon, ListFilterIcon, LogOutIcon, SettingsIcon, Sheet } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -20,7 +20,7 @@ import styles from './PhoneMore.module.css'
 /**
  * The phone's More sheet (the last bottom tab; canvas: Phone, Insights, Teams, search and
  * navigation), what the tabs don't reach: the workspace switcher at the top, then Insights, the
- * pinned views, and the settings entry points: the workspace's and the account's, with Sign out.
+ * pinned views, and one Settings entry (the workspace's settings, or the account's without one), with Sign out.
  * Teams live in the Teams tab's sheet, and a team's Baselines and Sites in the tabs on its pages.
  * Rows are 48px links; choosing one closes the sheet.
  */
@@ -86,17 +86,17 @@ export function PhoneMore() {
             ))
           : null}
         <div className={styles.rule} role="presentation" />
-        {workspace ? (
-          <SheetRow
-            onGo={go}
-            href={workspaceSettingsPath(workspace.slug, model?.canManage, caps?.instanceAdmin)}
-            icon={<BuildingIcon />}
-          >
-            {`${workspace.name} settings`}
-          </SheetRow>
-        ) : null}
-        <SheetRow onGo={go} href="/account/profile" icon={<UserIcon />}>
-          Account settings
+        {/* One way into settings, as on the desktop's menu: the workspace's, else the account's. */}
+        <SheetRow
+          onGo={go}
+          href={
+            workspace
+              ? workspaceSettingsPath(workspace.slug, model?.canManage, caps?.instanceAdmin)
+              : '/account/profile'
+          }
+          icon={<SettingsIcon />}
+        >
+          Settings
         </SheetRow>
         <button
           type="button"

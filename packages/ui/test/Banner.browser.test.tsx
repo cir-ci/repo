@@ -42,4 +42,18 @@ describe('Banner', () => {
     const svg = page.getByRole('status').element().querySelector('svg')
     expect(svg?.getAttribute('aria-hidden')).toBe('true')
   })
+
+  it('draws the flaky tone in the flaky colour with the flaky glyph, hidden from assistive tech', async () => {
+    await render(<Banner tone="flaky">Flaky on main</Banner>)
+    const status = page.getByRole('status')
+    await expect.element(status).toHaveAttribute('data-tone', 'flaky')
+    const glyph = status.element().querySelector('[data-status="flaky"]')
+    expect(glyph).not.toBeNull()
+    expect(glyph?.getAttribute('aria-hidden')).toBe('true')
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--circi-state-flaky)'
+    document.body.append(probe)
+    expect(getComputedStyle(glyph!).color).toBe(getComputedStyle(probe).color)
+    probe.remove()
+  })
 })

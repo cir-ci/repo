@@ -128,7 +128,7 @@ export function TeamPage() {
         <GitAttentionBanner attention={data?.gitAttention} />
         {flaky && flaky.flaky.length > 0 ? (
           <Banner
-            tone="warning"
+            tone="flaky"
             title={`These screenshots are flaky on ${data?.team.defaultBranch ?? 'the default branch'}:`}
           >
             {flaky.flaky.map((f, index) => (

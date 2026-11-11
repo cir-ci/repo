@@ -222,6 +222,9 @@ describe('TeamPage', () => {
     await show()
     const banner = page.getByRole('status').filter({ hasText: 'are flaky on' })
     await expect.element(banner).toBeVisible()
+    // Drawn in the flaky colour, with the flaky glyph.
+    await expect.element(banner).toHaveAttribute('data-tone', 'flaky')
+    expect(banner.element().querySelector('[data-status="flaky"]')).not.toBeNull()
     await expect
       .poll(() => banner.element().textContent)
       .toMatch(
