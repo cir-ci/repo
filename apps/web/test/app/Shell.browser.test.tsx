@@ -701,7 +701,7 @@ describe('Shell, menus', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/instance/accounts')
   })
 
-  it('opens the workspace switcher with arrows, marks the current workspace, and has Workspace settings', async () => {
+  it('opens the workspace switcher with arrows, marks the current workspace, and has Settings', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/acme/web-app')
     const trigger = page.getByRole('button', { name: 'Workspace: Acme' })
@@ -709,7 +709,7 @@ describe('Shell, menus', () => {
     trigger.element().focus()
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(page.getByRole('menu')).toBeVisible()
-    await page.getByRole('menuitem', { name: 'Workspace settings' }).click()
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
   })
 

@@ -69,7 +69,7 @@ export function WorkspaceSwitcher({
         })),
         { type: 'separator' },
         {
-          label: 'Workspace settings',
+          label: 'Settings',
           icon: <SlidersIcon />,
           onSelect: () => void navigate({ href: workspaceSettingsPath(current.slug, canManage) }),
         },

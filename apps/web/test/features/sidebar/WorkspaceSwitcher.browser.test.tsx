@@ -61,7 +61,9 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(page.getByRole('menu')).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'Acme' })).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'Globex' })).toBeVisible()
-    await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Settings', exact: true }))
+      .toBeVisible()
   })
 
   it('is still a menu with one workspace: it lists it, with settings and New workspace', async () => {
@@ -69,11 +71,13 @@ describe('WorkspaceSwitcher', () => {
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
     await expect.element(page.getByRole('menu')).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'Acme' })).toBeVisible()
-    await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Settings', exact: true }))
+      .toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'New workspace' })).toBeVisible()
   })
 
-  it("opens Members from Workspace settings for people who can't change the settings", async () => {
+  it("opens Members from Settings for people who can't change the settings", async () => {
     const { router } = await renderPage(
       <WorkspaceSwitcher
         workspaces={[acme]}
@@ -88,7 +92,7 @@ describe('WorkspaceSwitcher', () => {
       },
     )
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
-    await page.getByRole('menuitem', { name: 'Workspace settings' }).click()
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
     await expect
       .poll(() => router.state.location.pathname)
       .toBe('/workspaces/acme/settings/members')
@@ -131,7 +135,7 @@ describe('WorkspaceSwitcher', () => {
     const { ready } = show()
     const { router } = await ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
-    await page.getByRole('menuitem', { name: 'Workspace settings' }).click()
+    await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
   })
 })
