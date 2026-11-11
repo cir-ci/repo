@@ -257,8 +257,13 @@ function WorkspaceEntry({ workspace, pathname }: WorkspaceEntry.Props) {
           size={20}
         />
       }
-      // Every page of the workspace's settings belongs to its entry: the hub and the pages below it.
-      selected={pathname === base || pathname.startsWith(`${base}/`)}
+      // Every page of the workspace's settings belongs to its entry: the hub and the pages below
+      // it, except the teams list, which belongs to "All teams" (one selected entry per page).
+      selected={
+        (pathname === base || pathname.startsWith(`${base}/`)) &&
+        pathname !== `${base}/teams` &&
+        !pathname.startsWith(`${base}/teams/`)
+      }
     >
       {workspace.name}
     </NavLink>

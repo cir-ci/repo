@@ -60,6 +60,14 @@ function show(
   })
 }
 
+/** The names of the entries the nav marks as the current page. */
+const selected = () =>
+  page
+    .getByRole('link')
+    .elements()
+    .filter((el) => el.getAttribute('aria-current') === 'page')
+    .map((el) => el.textContent)
+
 const names = (locator: ReturnType<typeof page.getByRole>) =>
   locator.elements().map((el) => el.textContent)
 
@@ -268,6 +276,117 @@ describe('SettingsNav', () => {
       await expect
         .element(page.getByRole('link', { name: 'Globex' }))
         .not.toHaveAttribute('aria-current')
+    })
+  })
+
+  describe('selects exactly one entry on every settings page', () => {
+    it.each([
+      [
+        'the teams list',
+        '/workspaces/$workspace/settings/teams',
+        '/workspaces/acme/settings/teams',
+        ['All teams'],
+      ],
+      [
+        'the workspace hub',
+        '/workspaces/$workspace/settings',
+        '/workspaces/acme/settings',
+        ['Acme'],
+      ],
+      [
+        'General',
+        '/workspaces/$workspace/settings/general',
+        '/workspaces/acme/settings/general',
+        ['Acme'],
+      ],
+      [
+        'Members',
+        '/workspaces/$workspace/settings/members',
+        '/workspaces/acme/settings/members',
+        ['Acme'],
+      ],
+      [
+        'Sign-in',
+        '/workspaces/$workspace/settings/sign-in',
+        '/workspaces/acme/settings/sign-in',
+        ['Acme'],
+      ],
+      [
+        'Integrations',
+        '/workspaces/$workspace/settings/integrations',
+        '/workspaces/acme/settings/integrations',
+        ['Acme'],
+      ],
+      [
+        'Storage',
+        '/workspaces/$workspace/settings/storage',
+        '/workspaces/acme/settings/storage',
+        ['Acme'],
+      ],
+      ['a team hub', '/$workspace/$team/settings', '/acme/web/settings', ['Web App']],
+      [
+        'a team page',
+        '/$workspace/$team/settings/reviews',
+        '/acme/web/settings/reviews',
+        ['Web App'],
+      ],
+      ['All workspaces', '/instance/workspaces', '/instance/workspaces', ['All workspaces']],
+      ['an account page', '/account/profile', '/account/profile', ['Profile']],
+      ['an instance page', '/instance/health', '/instance/health', ['Health']],
+    ])('for an instance admin on %s', async (_name, route, url, expected) => {
+      await show({ instanceAdmin: true, route, url })
+      await expect.element(page.getByRole('link', { name: 'All teams' })).toBeVisible()
+      await expect.poll(selected).toEqual(expected)
+    })
+
+    it.each([
+      [
+        'the teams list',
+        '/workspaces/$workspace/settings/teams',
+        '/workspaces/acme/settings/teams',
+        ['All teams'],
+      ],
+      [
+        'General',
+        '/workspaces/$workspace/settings/general',
+        '/workspaces/acme/settings/general',
+        ['General'],
+      ],
+      [
+        'Members',
+        '/workspaces/$workspace/settings/members',
+        '/workspaces/acme/settings/members',
+        ['Members'],
+      ],
+      [
+        'Sign-in',
+        '/workspaces/$workspace/settings/sign-in',
+        '/workspaces/acme/settings/sign-in',
+        ['Sign-in and domains'],
+      ],
+      [
+        'Integrations',
+        '/workspaces/$workspace/settings/integrations',
+        '/workspaces/acme/settings/integrations',
+        ['Integrations'],
+      ],
+      [
+        'Storage',
+        '/workspaces/$workspace/settings/storage',
+        '/workspaces/acme/settings/storage',
+        ['Storage and retention'],
+      ],
+      ['a team hub', '/$workspace/$team/settings', '/acme/web/settings', ['Web App']],
+      [
+        'a team page',
+        '/$workspace/$team/settings/reviews',
+        '/acme/web/settings/reviews',
+        ['Web App'],
+      ],
+    ])('for an owner or admin on %s', async (_name, route, url, expected) => {
+      await show({ route, url })
+      await expect.element(page.getByRole('link', { name: 'All teams' })).toBeVisible()
+      await expect.poll(selected).toEqual(expected)
     })
   })
 
