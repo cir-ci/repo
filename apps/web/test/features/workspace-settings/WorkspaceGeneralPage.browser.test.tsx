@@ -9,7 +9,11 @@ import { toastNamed } from '#test/support/toast.ts'
 const ROUTE = {
   route: '/workspaces/$workspace/settings',
   url: '/workspaces/acme/settings',
-  otherRoutes: ['/workspaces/$workspace/settings/members'],
+  otherRoutes: [
+    '/workspaces/$workspace/settings/members',
+    '/$workspace/$team/settings',
+    '/$workspace/$team/settings/reviews',
+  ],
 }
 const general = (canManage = true, over: object = {}) => ({
   canManage,
@@ -19,14 +23,35 @@ const general = (canManage = true, over: object = {}) => ({
   picture: null,
   ...over,
 })
-const settings = (canManage = true) => ({
+const team = (slug: string, name: string, over: object = {}) => ({
+  slug,
+  name,
+  color: 'slate',
+  icon: null,
+  flakyBlocksMerge: null,
+  assignTriageToOnCall: null,
+  ...over,
+})
+const settings = (canManage = true, teams?: object[]) => ({
   canManage,
-  settings: { flakyBlocksMerge: true, retentionDays: 90 },
-  teams: [
-    { slug: 'web', name: 'Web app', flakyBlocksMerge: null },
-    { slug: 'marketing', name: 'marketing-site', flakyBlocksMerge: false },
+  settings: { flakyBlocksMerge: true, assignTriageToOnCall: false, retentionDays: 90 },
+  teams: teams ?? [
+    team('web', 'Web app'),
+    team('marketing', 'marketing-site', { flakyBlocksMerge: false }),
   ],
 })
+const open = async (teams: object[]) => {
+  await page.viewport(1000, 900)
+  fakeApi({
+    'GET /api/workspaces/acme': { body: general() },
+    'GET /api/workspaces/acme/settings': { body: settings(true, teams) },
+  })
+  return renderPage(<WorkspaceGeneralPage />, ROUTE)
+}
+const merge = () => page.getByRole('region', { name: 'Merge gate defaults' })
+const triage = () => page.getByRole('region', { name: 'Triage defaults' })
+const inherit = (n: number) =>
+  Array.from({ length: n }, (_, i) => team(`team-${i + 1}`, `Team ${i + 1}`))
 const openPicture = () => page.getByRole('button', { name: 'Change picture' }).click()
 const name = () => page.getByRole('textbox', { name: 'Display Name' })
 const slug = () => page.getByRole('textbox', { name: 'URL Slug' })
@@ -195,9 +220,86 @@ describe('WorkspaceGeneralPage', () => {
     expect(saveName().elements()).toHaveLength(0)
     expect(saveSlug().elements()).toHaveLength(0)
     await expect.element(save()).toBeDisabled()
-    // The merge gate default says who follows it and who overrides it.
-    await expect.element(page.getByText('1 team inherits this, 1 overrides it')).toBeVisible()
-    await expect.element(page.getByText('marketing-site: off')).toBeVisible()
+    // The merge gate default says who follows it and who sets their own, as team avatars.
+    await expect.element(page.getByRole('link', { name: 'Web app' }).first()).toBeVisible()
+    await expect.element(page.getByText('inherits this').first()).toBeVisible()
+    await expect.element(page.getByRole('link', { name: 'marketing-site' }).first()).toBeVisible()
+    await expect.element(page.getByText('sets its own').first()).toBeVisible()
+  })
+
+  describe('teams under the defaults', () => {
+    it('shows each inheriting team as an avatar link named after it, with its name in a tooltip', async () => {
+      await open([team('web', 'Web app'), team('docs', 'Docs')])
+      await expect.element(merge().getByRole('link', { name: 'Web app' })).toBeVisible()
+      await expect.element(merge().getByRole('link', { name: 'Docs' })).toBeVisible()
+      await expect.element(merge().getByText('inherit this')).toBeVisible()
+      await merge().getByRole('link', { name: 'Docs' }).hover()
+      await expect.element(page.getByRole('tooltip')).toHaveTextContent('Docs')
+    })
+
+    it('goes to the team’s General settings from the merge gate defaults', async () => {
+      const { router } = await open([team('web', 'Web app')])
+      await merge().getByRole('link', { name: 'Web app' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
+    })
+
+    it('goes to the team’s Reviews and triage settings from the triage defaults', async () => {
+      const { router } = await open([team('web', 'Web app')])
+      await triage().getByRole('link', { name: 'Web app' }).click()
+      await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/reviews')
+    })
+
+    it('says "inherits this" for one team', async () => {
+      await open([team('web', 'Web app')])
+      await expect.element(merge().getByText('inherits this')).toBeVisible()
+    })
+
+    it('says no team inherits when every team sets its own', async () => {
+      await open([
+        team('web', 'Web app', { flakyBlocksMerge: true, assignTriageToOnCall: false }),
+        team('docs', 'Docs', { flakyBlocksMerge: false, assignTriageToOnCall: true }),
+      ])
+      await expect.element(merge().getByText('No team inherits this')).toBeVisible()
+      await expect.element(triage().getByText('No team inherits this')).toBeVisible()
+      await expect.element(merge().getByText('set their own')).toBeVisible()
+    })
+
+    it('shows the first eight avatars and a +N chip whose tooltip lists the rest', async () => {
+      await open(inherit(11))
+      expect(merge().getByRole('link').elements()).toHaveLength(8)
+      const more = merge().getByText('+3')
+      await expect.element(more).toBeVisible()
+      await more.hover()
+      await expect.element(page.getByRole('tooltip')).toHaveTextContent('Team 9, Team 10, Team 11')
+    })
+
+    it('shows no chip for eight teams or fewer', async () => {
+      await open(inherit(8))
+      expect(merge().getByRole('link').elements()).toHaveLength(8)
+      expect(
+        merge()
+          .getByText(/^\+\d+$/)
+          .elements(),
+      ).toHaveLength(0)
+    })
+
+    it('shows the teams that set their own as avatars with their value in the tooltip', async () => {
+      await open([
+        team('web', 'Web app'),
+        team('marketing', 'marketing-site', { flakyBlocksMerge: false }),
+        team('docs', 'Docs', { flakyBlocksMerge: true }),
+      ])
+      await expect.element(merge().getByText('set their own')).toBeVisible()
+      await expect.element(merge().getByRole('link', { name: 'marketing-site' })).toBeVisible()
+      await merge().getByRole('link', { name: 'marketing-site' }).hover()
+      await expect.element(page.getByRole('tooltip')).toHaveTextContent('marketing-site: off')
+      // Triage has no overrides here, so it has no "set their own".
+      expect(
+        triage()
+          .getByText(/set their own|sets its own/)
+          .elements(),
+      ).toHaveLength(0)
+    })
   })
 
   it('keeps the danger zone in its own section, after the others', async () => {

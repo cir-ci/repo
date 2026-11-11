@@ -1,4 +1,8 @@
-import { DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL, DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
+import {
+  DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL,
+  DEFAULT_FLAKY_BLOCKS_MERGE,
+  type TeamColor,
+} from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import { teams, workspaceSettings } from '#schema/index.ts'
@@ -52,6 +56,8 @@ export async function listTeamFlakyOverrides(
   {
     slug: string
     name: string
+    color: TeamColor
+    icon: string | null
     flakyBlocksMerge: boolean | null
     assignTriageToOnCall: boolean | null
   }[]
@@ -60,6 +66,8 @@ export async function listTeamFlakyOverrides(
     .select({
       slug: teams.slug,
       name: teams.name,
+      color: teams.color,
+      icon: teams.icon,
       flakyBlocksMerge: teams.flakyBlocksMerge,
       assignTriageToOnCall: teams.assignTriageToOnCall,
     })

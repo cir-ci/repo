@@ -108,23 +108,25 @@ describe('slugConfirmed', () => {
 })
 
 describe('inheritance', () => {
-  it('counts the teams that follow the default and names the ones that override it', () => {
-    expect(
-      inheritance([
-        { name: 'Web', flakyBlocksMerge: null },
-        { name: 'Docs', flakyBlocksMerge: null },
-        { name: 'marketing-site', flakyBlocksMerge: false },
-      ]),
-    ).toEqual({
-      summary: '2 teams inherit this, 1 overrides it',
-      overrides: ['marketing-site: off'],
+  it('splits the teams that follow the default from the ones that override it, with their value', () => {
+    const web = { name: 'Web', flakyBlocksMerge: null }
+    const docs = { name: 'Docs', flakyBlocksMerge: null }
+    const marketing = { name: 'marketing-site', flakyBlocksMerge: false }
+    expect(inheritance([web, docs, marketing])).toEqual({
+      inheriting: [web, docs],
+      overriding: [{ ...marketing, value: 'off' }],
     })
   })
-  it('has nothing to say about overrides when every team follows the default', () => {
-    expect(inheritance([{ name: 'Web', flakyBlocksMerge: null }])).toEqual({
-      summary: '1 team inherits this',
-      overrides: [],
+  it('reads the triage field when asked', () => {
+    const team = { name: 'Web', flakyBlocksMerge: null, assignTriageToOnCall: true }
+    expect(inheritance([team], 'assignTriageToOnCall')).toEqual({
+      inheriting: [],
+      overriding: [{ ...team, value: 'on' }],
     })
+  })
+  it('has no overrides when every team follows the default', () => {
+    const web = { name: 'Web', flakyBlocksMerge: null }
+    expect(inheritance([web])).toEqual({ inheriting: [web], overriding: [] })
   })
 })
 

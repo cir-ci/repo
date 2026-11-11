@@ -1,0 +1,40 @@
+.root {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.item,
+.more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--circi-surface-raised);
+}
+
+.item + .item,
+.item + .more {
+  margin-left: -4px;
+}
+
+.item:focus-visible,
+.more:focus-visible {
+  position: relative;
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 1px;
+}
+
+.more {
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: default;
+}

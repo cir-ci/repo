@@ -1,9 +1,11 @@
 import type { Workspace } from '@circi/api'
 import { Banner, Button, Checkbox, SettingsRow, SettingsSection } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
+import type { NavigateOptions } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { workspaceSettingsQuery, useSaveWorkspaceSettings } from '#features/members/api.ts'
+import { TeamAvatars } from '#lib/TeamAvatars.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { inheritance } from './model.ts'
@@ -28,8 +30,6 @@ function Defaults({ workspace, data }: Defaults.Props) {
   const [flaky, setFlaky] = useState(saved)
   const [assign, setAssign] = useState(savedAssign)
   const dirty = flaky !== saved || assign !== savedAssign
-  const { summary, overrides } = inheritance(data.teams)
-  const triage = inheritance(data.teams, 'assignTriageToOnCall')
   return (
     <>
       <SettingsSection
@@ -49,7 +49,15 @@ function Defaults({ workspace, data }: Defaults.Props) {
           />
         </SettingsRow>
         {data.teams.length > 0 ? (
-          <SettingsRow detail={summary} value={overrides.join(', ') || undefined} />
+          <SettingsRow>
+            <Followers
+              split={inheritance(data.teams)}
+              link={(team) => ({
+                to: '/$workspace/$team/settings',
+                params: { workspace, team: team.slug },
+              })}
+            />
+          </SettingsRow>
         ) : null}
       </SettingsSection>
       <SettingsSection title="Triage defaults">
@@ -66,7 +74,15 @@ function Defaults({ workspace, data }: Defaults.Props) {
           />
         </SettingsRow>
         {data.teams.length > 0 ? (
-          <SettingsRow detail={triage.summary} value={triage.overrides.join(', ') || undefined} />
+          <SettingsRow>
+            <Followers
+              split={inheritance(data.teams, 'assignTriageToOnCall')}
+              link={(team) => ({
+                to: '/$workspace/$team/settings/reviews',
+                params: { workspace, team: team.slug },
+              })}
+            />
+          </SettingsRow>
         ) : null}
       </SettingsSection>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
@@ -105,9 +121,44 @@ function Defaults({ workspace, data }: Defaults.Props) {
   )
 }
 
+/**
+ * "<teams> inherit this" and, when some teams have their own value, "<teams> set their own": each
+ * team an avatar that links to the team's setting.
+ */
+function Followers({ split, link }: Followers.Props) {
+  const { inheriting, overriding } = split
+  return (
+    <div className={styles.followers}>
+      <span className={styles.followGroup}>
+        {inheriting.length === 0 ? (
+          'No team inherits this'
+        ) : (
+          <>
+            <TeamAvatars teams={inheriting} link={link} />
+            {inheriting.length === 1 ? 'inherits this' : 'inherit this'}
+          </>
+        )}
+      </span>
+      {overriding.length > 0 ? (
+        <span className={styles.followGroup}>
+          <TeamAvatars teams={overriding} link={link} note={(team) => team.value} />
+          {overriding.length === 1 ? 'sets its own' : 'set their own'}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 export namespace BuildSettings {
   export interface Props {
     workspace: string
+  }
+}
+
+namespace Followers {
+  export interface Props {
+    split: ReturnType<typeof inheritance<Workspace.TeamOverride>>
+    link: (team: Workspace.TeamOverride) => NavigateOptions
   }
 }
 

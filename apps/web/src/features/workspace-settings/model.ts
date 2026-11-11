@@ -71,33 +71,24 @@ function isWebAddress(value: string): boolean {
   }
 }
 
-const teamCount = (n: number) => `${n} ${n === 1 ? 'team' : 'teams'}`
-
 /**
- * How the teams relate to the merge gate default: "2 teams inherit this, 1 overrides it", and the
- * overriding teams with their own setting ("marketing-site: off").
+ * Which teams follow a workspace default and which set their own: `field` is the team's own value
+ * (null: it follows the default). Each overriding team carries its value as "on" or "off".
  */
-export function inheritance(
-  teams: readonly {
-    name: string
-    flakyBlocksMerge?: boolean | null
-    assignTriageToOnCall?: boolean | null
-  }[],
+export function inheritance<
+  T extends { flakyBlocksMerge?: boolean | null; assignTriageToOnCall?: boolean | null },
+>(
+  teams: readonly T[],
   field: 'flakyBlocksMerge' | 'assignTriageToOnCall' = 'flakyBlocksMerge',
-): {
-  summary: string
-  overrides: string[]
-} {
-  const overriding = teams.filter((t) => (t[field] ?? null) !== null)
-  const inherit = teams.length - overriding.length
-  const first = `${teamCount(inherit)} ${inherit === 1 ? 'inherits' : 'inherit'} this`
-  return {
-    summary:
-      overriding.length === 0
-        ? first
-        : `${first}, ${overriding.length} ${overriding.length === 1 ? 'overrides' : 'override'} it`,
-    overrides: overriding.map((t) => `${t.name}: ${t[field] ? 'on' : 'off'}`),
+): { inheriting: T[]; overriding: (T & { value: 'on' | 'off' })[] } {
+  const inheriting: T[] = []
+  const overriding: (T & { value: 'on' | 'off' })[] = []
+  for (const team of teams) {
+    const own = team[field] ?? null
+    if (own === null) inheriting.push(team)
+    else overriding.push({ ...team, value: own ? 'on' : 'off' })
   }
+  return { inheriting, overriding }
 }
 
 /** Whether what was typed is the workspace's address (surrounding spaces don't count; case does). */

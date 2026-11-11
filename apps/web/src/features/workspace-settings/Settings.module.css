@@ -260,3 +260,18 @@
     flex: 1 1 0;
   }
 }
+
+.followers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+}
+
+.followGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

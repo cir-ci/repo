@@ -117,6 +117,9 @@ export namespace Workspace {
   export interface TeamOverride {
     slug: string
     name: string
+    /** How the team's avatar looks. */
+    color: Team.Color
+    icon: string | null
     flakyBlocksMerge: boolean | null
     /** Null: follows the workspace's default. */
     assignTriageToOnCall: boolean | null
