@@ -17,6 +17,7 @@ import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useYourTeams } from '#features/sidebar/use-your-teams.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
+import { TeamAvatars } from '#lib/TeamAvatars.tsx'
 
 import {
   countOrUndefined,
@@ -28,8 +29,6 @@ import {
   teamsTabLabel,
   type YourTeam,
 } from './shell-model.ts'
-
-import styles from './PhoneTabs.module.css'
 
 /**
  * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Teams, Reviews, Triage and
@@ -129,26 +128,20 @@ export function PhoneTabs() {
   )
 }
 
-/** The Teams tab's icon: your first few teams' tiles, overlapping; the folder before any is known. */
+/** The Teams tab's icon: your first few teams' tiles, overlapping and still; the folder before any is known. */
 function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
   const shown = teams.slice(0, TEAM_STACK_LIMIT)
   if (shown.length === 0) return <FolderOpenIcon />
   return (
-    <span className={styles.stack}>
-      {shown.map((t) => (
-        <span key={`${t.workspace.slug}/${t.slug}`} className={styles.tile}>
-          <Avatar
-            type="team"
-            aria-hidden
-            slug={t.slug}
-            name={t.name}
-            color={t.color}
-            icon={t.icon}
-            size={20}
-          />
-        </span>
-      ))}
-    </span>
+    <TeamAvatars
+      aria-hidden="true"
+      teams={shown.map((t) => ({ ...t, id: `${t.workspace.slug}/${t.slug}` }))}
+      limit={TEAM_STACK_LIMIT}
+      overflow={false}
+      overlap={8}
+      ring="chrome"
+      spread={false}
+    />
   )
 }
 

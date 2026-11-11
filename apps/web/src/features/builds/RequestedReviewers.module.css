@@ -4,12 +4,3 @@
   align-items: center;
   min-width: 0;
 }
-
-.avatars {
-  display: inline-flex;
-}
-
-/* The board's stack: each avatar overlaps the one before it. */
-.avatars > * + * {
-  margin-inline-start: -4px;
-}

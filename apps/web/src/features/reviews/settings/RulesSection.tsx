@@ -1,6 +1,7 @@
 import type { ReviewRule, Triage } from '@circi/api'
 import {
   Avatar,
+  AvatarStack,
   Banner,
   Checkbox,
   CheckboxGroup,
@@ -154,7 +155,7 @@ export function RulesSection(props: RulesSection.Props) {
               {props.rotation.members.length > 0 ? (
                 <>
                   <span>Rotate through</span>
-                  <span className={styles.stack}>
+                  <AvatarStack size={24}>
                     {props.rotation.members.map((m) => {
                       const p = person(m.id, m.name)
                       return (
@@ -167,7 +168,7 @@ export function RulesSection(props: RulesSection.Props) {
                         />
                       )
                     })}
-                  </span>
+                  </AvatarStack>
                   <Text tone="secondary">one per build</Text>
                 </>
               ) : (

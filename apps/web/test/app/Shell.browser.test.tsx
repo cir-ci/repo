@@ -1037,6 +1037,9 @@ describe('Shell, narrow', () => {
       const boxes = [...tiles()].map((el) => el.getBoundingClientRect())
       expect(boxes[1]!.left).toBeLessThan(boxes[0]!.right)
       expect(boxes[2]!.left).toBeLessThan(boxes[1]!.right)
+      // Decoration, and still: no spreading on a phone.
+      const stack = tiles()[0]!.closest('[aria-hidden="true"]')!
+      expect(stack.getAttribute('data-spread')).toBe('false')
     })
 
     it('truncates a long team name instead of growing the tab', async () => {

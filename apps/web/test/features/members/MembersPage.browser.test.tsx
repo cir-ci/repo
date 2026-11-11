@@ -94,6 +94,11 @@ describe('MembersPage', () => {
     await expect.element(page.getByText('2 teams')).toBeVisible()
     await expect.element(page.getByText('0 teams')).toBeVisible()
     expect(document.querySelectorAll('[data-type="team"]')).toHaveLength(2)
+    // The stack is decoration (the count says it), and its avatars are not links.
+    for (const el of document.querySelectorAll('[data-type="team"]')) {
+      expect(el.closest('[aria-hidden="true"]')).not.toBeNull()
+      expect(el.closest('a')).toBeNull()
+    }
   })
 
   it('shows a skeleton while loading, announces it, and the header names the workspace after', async () => {

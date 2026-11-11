@@ -61,20 +61,6 @@
   flex: 1;
 }
 
-/* Overlapping avatars of the people a rotation goes through. */
-.stack {
-  display: inline-flex;
-}
-
-.stack > * + * {
-  margin-left: -4px;
-}
-
-.stack > * {
-  box-shadow: 0 0 0 2px var(--circi-surface-raised);
-  border-radius: 50%;
-}
-
 .chain {
   display: flex;
   flex-wrap: wrap;

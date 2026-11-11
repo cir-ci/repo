@@ -1,4 +1,4 @@
-import { Avatar, Text } from '@circi/ui'
+import { Avatar, AvatarStack, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { activityQuery } from '#features/builds/api/discussion.ts'
@@ -19,11 +19,11 @@ export function RequestedReviewers({ workspace, team, number }: RequestedReviewe
   if (!label) return null
   return (
     <span className={styles.root}>
-      <span className={styles.avatars}>
+      <AvatarStack>
         {people.slice(0, 3).map((p) => (
           <Avatar key={p.id} type="user" {...p} size={20} />
         ))}
-      </span>
+      </AvatarStack>
       <Text variant="small" tone="secondary" title={people.map((p) => p.name).join(', ')}>
         {label}
       </Text>
