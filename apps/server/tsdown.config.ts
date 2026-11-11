@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 import { defineConfig } from 'tsdown'
@@ -5,6 +6,10 @@ import { defineConfig } from 'tsdown'
 import { failOnUnresolvedImport, sourceConditionNames } from '../../tsdown.shared.ts'
 
 const repoRoot = resolve(import.meta.dirname, '../..')
+
+// The native pixel comparison (packages/diff/native, built by `@circi/diff`'s build script) loads
+// from next to the bundle. Absent on a machine without Rust: the JS engine runs then.
+const nativeDiff = join(repoRoot, 'packages/diff/native/circi-diff.node')
 
 // One bundle for the Docker image. What stays external is exactly this package's `dependencies`
 // (sharp, pg and the AWS SDK: see deploy/README.md for why); everything else, our workspace
@@ -16,7 +21,10 @@ export default defineConfig({
   sourcemap: true,
   // The server-rendered pages' stylesheet: pages.ts reads it next to itself in the source and next
   // to the bundle here (the image copies all of dist).
-  copy: ({ outDir }) => [{ from: 'src/http/lib/standalone-page.css', to: outDir }],
+  copy: ({ outDir }) => [
+    { from: 'src/http/lib/standalone-page.css', to: outDir },
+    ...(existsSync(nativeDiff) ? [{ from: nativeDiff, to: outDir }] : []),
+  ],
   outputOptions: {
     // Stack traces resolve `sources` against the bundle's own folder, which is /app/dist in the
     // image but apps/server/dist in the repo. Write them relative to the repo root, one level up

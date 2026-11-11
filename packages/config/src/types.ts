@@ -108,6 +108,8 @@ export interface Config {
   emailLogin: boolean
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
   staticSites?: Config.StaticSites
+  /** Pixel comparison engine of the diff step (`CIRCI_DIFF_ENGINE`, default `js`). */
+  diffEngine: 'js' | 'native'
   /** Hours a file nobody uses waits before it is deleted (`GC_GRACE_HOURS`). */
   gcGraceHours: number
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */

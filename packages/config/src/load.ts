@@ -253,6 +253,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     webhookTimeoutMs: Math.round(e.WEBHOOK_TIMEOUT_SECONDS * 1000),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
+    diffEngine: e.CIRCI_DIFF_ENGINE,
     gcGraceHours: e.GC_GRACE_HOURS,
     workspaceCreation: e.WORKSPACE_CREATION,
   }

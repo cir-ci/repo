@@ -22,6 +22,13 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
+  it('picks the diff engine: js unless CIRCI_DIFF_ENGINE=native', () => {
+    expect(loadConfig(base).diffEngine).toBe('js')
+    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: '' }).diffEngine).toBe('js')
+    expect(loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'native' }).diffEngine).toBe('native')
+    expect(() => loadConfig({ ...base, CIRCI_DIFF_ENGINE: 'rust' })).toThrow(ConfigError)
+  })
+
   it('keeps the production waits unless asked: job retries 2 s up to 5 min, webhook 10 s, GitHub 15 s', () => {
     const c = loadConfig(base)
     expect(c.jobRetry).toEqual({ baseMs: 2_000, maxMs: 300_000 })

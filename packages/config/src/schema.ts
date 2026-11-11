@@ -62,6 +62,8 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(1).max(5000).default(200),
   ),
+  /** Pixel comparison of the diff step: pixelmatch in JavaScript, or the Rust addon (falls back to js when it can't load). */
+  CIRCI_DIFF_ENGINE: z.preprocess(emptyToUndefined, z.enum(['js', 'native']).default('js')),
   GC_GRACE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
   UPLOAD_TIMEOUT_MINUTES: z.preprocess(
     emptyToUndefined,

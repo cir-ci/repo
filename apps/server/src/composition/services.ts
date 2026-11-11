@@ -91,6 +91,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
         authSecret: rt.config.authSecret,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
+        diffEngine: rt.config.diffEngine,
         gcGraceHours: rt.config.gcGraceHours,
         retryBackoff: rt.config.jobRetry,
         webhookTimeoutMs: rt.config.webhookTimeoutMs,

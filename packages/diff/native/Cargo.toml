@@ -1,0 +1,24 @@
+[package]
+name = "circi-diff-native"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Native pixelmatch (OKLab HyAB, anti-aliasing detection) for @circi/diff"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+rayon = "1"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

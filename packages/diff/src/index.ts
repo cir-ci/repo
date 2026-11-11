@@ -1,5 +1,8 @@
-import pixelmatch from 'pixelmatch'
 import sharp, { type Metadata } from 'sharp'
+
+import { comparePixels, type DiffEngine } from '#src/engine.ts'
+
+export { type DiffEngine, nativeEngineStatus, resolveDiffEngine } from '#src/engine.ts'
 
 /**
  * Image work for the worker (PLAN §7.3): validate screenshots, diff two of them, and make
@@ -51,6 +54,11 @@ export namespace diffImages {
     threshold?: number
     /** Rectangles (in pixels) that are blanked in both images first: clocks, ads, avatars… */
     ignore?: readonly diffImages.IgnoreRegion[]
+    /**
+     * Which pixel comparison runs (default `js`). `native` uses the Rust addon when it loads and
+     * the JS one otherwise; use `resolveDiffEngine` once at startup to learn which and to warn.
+     */
+    engine?: DiffEngine
   }
 
   export interface Result {
@@ -141,30 +149,29 @@ export async function diffImages(
   ])
   // What the mask is about to hide: a second pass over the rectangles only, not a full diff.
   const tolerance = options.pixelTolerance ?? 0.1
-  const ignoredRegions: number[] = []
-  let ignoredChangedPixels = 0
-  for (const [index, region] of (options.ignore ?? []).entries()) {
-    const a = crop(baseRaw, width, height, region)
-    const b = crop(headRaw, width, height, region)
-    if (a.width === 0 || a.height === 0) continue
-    const hidden = pixelmatch(a.data, b.data, undefined, a.width, a.height, {
-      threshold: tolerance,
-      includeAA: false,
-    })
-    if (hidden > 0) {
-      ignoredChangedPixels += hidden
-      ignoredRegions.push(index)
-    }
-  }
+  const engine = options.engine ?? 'js'
+  const hiddenPerRegion = await Promise.all(
+    (options.ignore ?? []).map(async (region) => {
+      const a = crop(baseRaw, width, height, region)
+      const b = crop(headRaw, width, height, region)
+      if (a.width === 0 || a.height === 0) return 0
+      const { changedPixels } = await comparePixels(engine, a.data, b.data, a.width, a.height, {
+        threshold: tolerance,
+        withOutput: false,
+      })
+      return changedPixels
+    }),
+  )
+  const ignoredRegions = hiddenPerRegion.flatMap((hidden, index) => (hidden > 0 ? [index] : []))
+  const ignoredChangedPixels = hiddenPerRegion.reduce((sum, hidden) => sum + hidden, 0)
   for (const region of options.ignore ?? []) {
     blank(baseRaw, width, height, region)
     blank(headRaw, width, height, region)
   }
-  const output = new Uint8Array(width * height * 4)
-  const changedPixels = pixelmatch(baseRaw, headRaw, output, width, height, {
-    threshold: options.pixelTolerance ?? 0.1,
-    includeAA: false,
+  const { changedPixels, output } = await comparePixels(engine, baseRaw, headRaw, width, height, {
+    threshold: tolerance,
     alpha: 0.15,
+    withOutput: true,
   })
   const score = changedPixels / (width * height)
   const changed = sizeChanged || score > (options.threshold ?? 0)
@@ -181,7 +188,7 @@ export async function diffImages(
     ignoredChangedPixels,
     ignoredRegions,
   }
-  if (changed) {
+  if (changed && output) {
     result.diffPng = await sharp(output, { raw: { width, height, channels: 4 } })
       .png({ compressionLevel: 9 })
       .toBuffer()

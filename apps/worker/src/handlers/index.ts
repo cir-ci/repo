@@ -37,7 +37,14 @@ const build: Handler = {
     const buildId = buildIdOf(job)
     if (!buildId) throw new Error('job payload has no buildId')
     const started = Date.now()
-    const result = await processBuild({ db: deps.db, storage: deps.storage }, buildId)
+    const result = await processBuild(
+      {
+        db: deps.db,
+        storage: deps.storage,
+        ...(deps.diffEngine ? { diffEngine: deps.diffEngine } : {}),
+      },
+      buildId,
+    )
     return { result: { ms: Date.now() - started, ...result } }
   },
   done: 'build processed',

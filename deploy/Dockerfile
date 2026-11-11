@@ -31,11 +31,22 @@ COPY packages/testing/package.json packages/testing/
 COPY packages/vitest/package.json packages/vitest/
 COPY e2e/package.json e2e/
 
+# The native pixel comparison (packages/diff/native), compiled for the image's own architecture.
+# glibc-linked like the node:slim runtime; CIRCI_DIFF_ENGINE=native uses it, the default js ignores it.
+FROM rust:1-slim-bookworm AS native
+WORKDIR /native
+COPY packages/diff/native/Cargo.toml packages/diff/native/Cargo.lock packages/diff/native/build.rs ./
+COPY packages/diff/native/src src
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    cargo build --release --locked
+
 FROM manifests AS build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
 COPY tsconfig.base.json tsconfig.json tsdown.shared.ts ./
 COPY apps apps
 COPY packages packages
+# tsdown copies it next to the server bundle (apps/server/tsdown.config.ts), where @circi/diff looks.
+COPY --from=native /native/target/release/libcirci_diff_native.so packages/diff/native/circi-diff.node
 # Only what the image ships: the server bundle (inlines the workspace packages from source) and the
 # dashboard. The CLI, @circi/vitest and the design system's own build are not part of the image.
 RUN pnpm --filter @circi/server --filter @circi/web build

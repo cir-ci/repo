@@ -17,6 +17,7 @@ import {
 } from '@circi/db/repositories'
 import {
   InvalidImageError,
+  type DiffEngine,
   type diffImages,
   type makeThumbnail,
   type readPngInfo,
@@ -40,6 +41,8 @@ export namespace processBuild {
       makeThumbnail: typeof makeThumbnail
       readPngInfo: typeof readPngInfo
     }
+    /** Pixel comparison engine passed to `diffImages` (default `js`). */
+    diffEngine?: DiffEngine
     /** Parallel image operations per build. Each holds a few decoded screenshots in memory. */
     concurrency?: number
   }
@@ -172,6 +175,7 @@ export async function processBuild(
       ])
       const res = await diff.diffImages(basePng, headPng, {
         threshold: project.diffThreshold,
+        ...(deps.diffEngine ? { engine: deps.diffEngine } : {}),
         ...(ignored.has(pair.name) ? { ignore: ignored.get(pair.name) ?? [] } : {}),
       })
       let diffFileSha256: string | null = null

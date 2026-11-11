@@ -1,5 +1,6 @@
 import type { RetryBackoff } from '@circi/core'
 import type { Database, ListenFn } from '@circi/db'
+import { type DiffEngine, resolveDiffEngine } from '@circi/diff'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
 import { type GithubApp } from '@circi/integrations/github'
@@ -64,6 +65,8 @@ export namespace startWorker {
     concurrency?: number
     /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
     uploadTimeoutMinutes?: number
+    /** Pixel comparison engine (`CIRCI_DIFF_ENGINE`, default `js`); `native` falls back to `js` with a warning when the addon can't load. */
+    diffEngine?: DiffEngine
     /** How long a file waits, once nothing uses it, before it's deleted (default 24 hours). */
     gcGraceHours?: number
     /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
@@ -94,9 +97,16 @@ export namespace startWorker {
 export async function startWorker(deps: startWorker.Deps): Promise<startWorker.Running> {
   await deps.ping?.()
   await deps.storage.healthCheck()
-  const lanes = startLanes(deps)
+  // Once, here: a native engine that can't load is warned about now and the JS one runs.
+  const diffEngine = resolveDiffEngine(deps.diffEngine ?? 'js', (message) =>
+    deps.logger.warn(message),
+  )
+  const lanes = startLanes({ ...deps, diffEngine })
   const stopSweeps = startSweeps(deps)
-  deps.logger.info({ storage: deps.storage.kind, lanes: deps.concurrency ?? 2 }, 'worker started')
+  deps.logger.info(
+    { storage: deps.storage.kind, lanes: deps.concurrency ?? 2, diffEngine },
+    'worker started',
+  )
   return {
     async stop() {
       stopSweeps()

@@ -71,6 +71,7 @@ services:
       STATIC_SITES_MAX_MB: ${STATIC_SITES_MAX_MB:-}
       UPLOAD_TIMEOUT_MINUTES: ${UPLOAD_TIMEOUT_MINUTES:-}
       GC_GRACE_HOURS: ${GC_GRACE_HOURS:-}
+      CIRCI_DIFF_ENGINE: ${CIRCI_DIFF_ENGINE:-}
       STORAGE_DRIVER: fs
       STORAGE_PATH: /var/lib/circi/files
     ports:
