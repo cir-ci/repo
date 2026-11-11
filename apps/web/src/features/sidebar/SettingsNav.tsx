@@ -9,7 +9,6 @@ import {
   LayersIcon,
   NavItem,
   NavSection,
-  ServerIcon,
   ShieldCheckIcon,
   SunIcon,
   Avatar,
@@ -109,9 +108,13 @@ export function SettingsNav() {
           <NavLink
             to="/instance/overview"
             icon={
-              <span className={styles.instanceTile} aria-hidden>
-                <ServerIcon size={13} />
-              </span>
+              <Avatar
+                type="instance"
+                aria-hidden
+                seed={window.location.host}
+                name="Instance"
+                size={18}
+              />
             }
             // Every Instance page belongs to this entry (the hub, Accounts, Instance settings, Health,
             // ...) except All workspaces, which belongs to the Workspaces section.

@@ -15,18 +15,6 @@
   min-width: 0;
 }
 
-/* The same rounded tile as a workspace's avatar, with the server glyph in it. */
-.tile {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--circi-radius-panel);
-  background: var(--circi-surface-highest);
-  color: var(--circi-tile-text);
-}
-
 .names {
   display: flex;
   flex-direction: column;

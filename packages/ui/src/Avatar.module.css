@@ -13,16 +13,17 @@
   user-select: none;
 }
 
-.root[data-type='user'] {
+.root[data-type='user'],
+.root[data-type='instance'] {
   border-radius: 50%;
 }
 
 /* Teams and workspaces are rounded squares; the radius grows with the size. */
-.root:not([data-type='user']) {
+.root:not([data-type='user'], [data-type='instance']) {
   border-radius: var(--circi-radius-control);
 }
 
-.root:not([data-type='user'])[data-size='16'] {
+.root:not([data-type='user'], [data-type='instance'])[data-size='16'] {
   border-radius: var(--circi-radius-inline);
 }
 

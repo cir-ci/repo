@@ -1,4 +1,5 @@
 import {
+  Avatar,
   ActivityIcon,
   BuildingIcon,
   ServerIcon,
@@ -67,9 +68,7 @@ export function InstanceHubPage() {
     >
       <div className={styles.head}>
         <div className={styles.identity}>
-          <span className={styles.tile} aria-hidden>
-            <ServerIcon size={22} />
-          </span>
+          <Avatar type="instance" aria-hidden seed={window.location.host} name={name} size={40} />
           <div className={styles.names}>
             <span className={styles.name}>{name}</span>
             {subtitle ? (

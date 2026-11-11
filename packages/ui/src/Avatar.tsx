@@ -23,10 +23,12 @@ const TeamGlyph = lazy(() => import('./TeamGlyph.tsx'))
  * - `user`: a round "beam" face.
  * - `team`: a rounded square holding a "marble" in shades of the team's `color`, with its icon on top.
  * - `workspace`: a rounded square holding a "bauhaus" pattern in the brand's tones.
+ * - `instance`: a round "ring" in the brand's tones, drawn from the instance's address.
  */
 export function Avatar(props: Avatar.Props) {
   if (props.type === 'user') return <UserAvatar {...props} />
   if (props.type === 'team') return <TeamAvatar {...props} />
+  if (props.type === 'instance') return <InstanceAvatar {...props} />
   return <WorkspaceAvatar {...props} />
 }
 
@@ -91,6 +93,23 @@ function WorkspaceAvatar({ type, slug, name, picture, size = 20, ...rest }: Avat
         aria-hidden="true"
         role="presentation"
         data-avatar="bauhaus"
+      />
+    </Frame>
+  )
+}
+
+function InstanceAvatar({ type, seed, name, size = 20, ...rest }: Avatar.InstanceProps) {
+  const { scheme, ref } = useAvatarScheme()
+  return (
+    <Frame type={type} name={name} size={size} picture={null} fallbackRef={ref} {...rest}>
+      <BoringAvatar
+        variant="ring"
+        name={seed}
+        colors={workspacePalette(scheme)}
+        size="100%"
+        aria-hidden="true"
+        role="presentation"
+        data-avatar="ring"
       />
     </Frame>
   )
@@ -174,5 +193,12 @@ export namespace Avatar {
     size?: 16 | 20 | 24 | 28 | 40 | 48
   }
 
-  export type Props = UserProps | TeamProps | WorkspaceProps
+  export interface InstanceProps extends Base {
+    type: 'instance'
+    /** What the ring is drawn from: the instance's address (its host), so it stays the same. */
+    seed: string
+    size?: 16 | 18 | 20 | 24 | 28 | 40 | 48
+  }
+
+  export type Props = UserProps | TeamProps | WorkspaceProps | InstanceProps
 }
