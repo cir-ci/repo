@@ -74,9 +74,38 @@ export function tabMenuItems(tab: Tab, closedCount: number): Menu.Entry[] {
 }
 
 /**
+ * Puts the highlight under the tab `tabId` (hidden with none). `animate` false jumps there without
+ * the glide (the first placement, a resize).
+ */
+function placeIndicator(
+  strip: HTMLElement | null,
+  mark: HTMLElement | null,
+  tabId: string | null,
+  animate: boolean,
+): void {
+  if (!strip || !mark) return
+  const tab = tabId
+    ? strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(tabId)}"]`)
+    : null
+  if (!tab) {
+    mark.style.opacity = '0'
+    return
+  }
+  if (!animate) mark.dataset['still'] = ''
+  mark.style.opacity = '1'
+  mark.style.left = `${tab.offsetLeft}px`
+  mark.style.width = `${tab.offsetWidth}px`
+  if (!animate) {
+    // Applied without the transition, then the transition is back for the next move.
+    void mark.offsetWidth
+    delete mark.dataset['still']
+  }
+}
+
+/**
  * The active tab's highlight, one element behind the tabs that glides to the active tab (its left
  * and width; the CSS transition does the motion). It is placed without motion the first time, and
- * follows the tab as tabs open, close or the window resizes.
+ * follows the tab at once when the strip resizes (the window, tabs shrinking as more open).
  */
 function useActiveIndicator(
   list: RefObject<HTMLDivElement | null>,
@@ -85,42 +114,23 @@ function useActiveIndicator(
 ) {
   const indicator = useRef<HTMLSpanElement>(null)
   const placed = useRef(false)
-  // Where the highlight goes: under the active tab. `animate` false jumps there without the glide.
-  const place = useRef((_animate: boolean) => {})
-  place.current = (animate: boolean) => {
-    const strip = list.current
-    const mark = indicator.current
-    if (!strip || !mark) return
-    const tab =
-      count > 0 ? strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`) : null
-    if (!tab) {
-      mark.style.opacity = '0'
-      return
-    }
-    if (!animate) mark.dataset['still'] = ''
-    mark.style.opacity = '1'
-    mark.style.left = `${tab.offsetLeft}px`
-    mark.style.width = `${tab.offsetWidth}px`
-    if (!animate) {
-      // Applied without the transition, then the transition is back for the next move.
-      void mark.offsetWidth
-      delete mark.dataset['still']
-    }
-  }
+  const target = useRef<string | null>(null)
+  const skipReport = useRef(true)
   // A switch glides (the first placement doesn't: nothing to glide from).
   useLayoutEffect(() => {
-    place.current(placed.current)
+    target.current = count > 0 ? activeId : null
+    placeIndicator(list.current, indicator.current, target.current, placed.current)
     placed.current = true
-  }, [activeId, count])
-  // A resize (the window, tabs shrinking) moves it at once. One observer for the strip's life: a
-  // new observer reports at once, and that report would cancel a glide in progress.
+  }, [list, activeId, count])
+  // One observer for the strip's life: a new observer reports at once, and acting on that report
+  // would cancel a glide in progress, so the first report is skipped.
   useLayoutEffect(() => {
     const strip = list.current
     if (!strip) return undefined
-    let first = true
+    skipReport.current = true
     const resized = new ResizeObserver(() => {
-      if (first) first = false
-      else place.current(false)
+      if (skipReport.current) skipReport.current = false
+      else placeIndicator(strip, indicator.current, target.current, false)
     })
     resized.observe(strip)
     return () => resized.disconnect()
