@@ -32,6 +32,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   baseline: { number: 11, branch: 'main' },
   reviewer: { id: 'u1', name: 'Me', image: null },
   requestedBy: { id: 'u2', name: 'Ada Lovelace', image: null },
+  requestedByName: 'Ada Lovelace',
   build: {
     number: 12,
     name: 'default',
@@ -46,6 +47,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
   largestChanges: [],
+  flakyChanges: 0,
   ...over,
 })
 

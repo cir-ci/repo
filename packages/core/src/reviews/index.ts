@@ -1,7 +1,7 @@
 export { REVIEW_SOURCES, type ReviewSource } from './review-sources.ts'
 export { SNOOZE_KINDS, TRIAGE_KINDS, type SnoozeKind, type TriageKind } from './triage.ts'
 export { deriveReviewStatus } from './review-status.ts'
-export { isOverdue, isSnoozed, overdueBy, reviewDueAt } from './review-target.ts'
+export { isAwaited, isOverdue, isSnoozed, overdueBy, reviewDueAt } from './review-target.ts'
 export {
   RULE_KINDS,
   globMatches,

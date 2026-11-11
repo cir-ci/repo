@@ -224,7 +224,8 @@ function CommentView({ comment, members, workspace, project, build, children }: 
   const edit = useEditComment(workspace, project, build)
   const remove = useDeleteComment(workspace, project, build)
   const [deleting, setDeleting] = useState(false)
-  const name = comment.author?.name ?? 'Someone who has left'
+  // The live name while the account resolves (so renames show), else the name kept on the comment.
+  const name = comment.author?.name ?? comment.authorName ?? 'Someone who has left'
   const deleted = comment.deletedAt !== null
   return (
     <div className={styles.comment}>

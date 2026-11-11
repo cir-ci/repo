@@ -41,16 +41,38 @@ export function reviewDueAt(from: Date, targetHours: number | null): Date | null
 }
 
 /**
- * Whether a request is overdue at `now`: strictly after its due time (exactly due is still on
- * time). Never without a due time, and not while it is snoozed.
+ * Whether a review is still awaited: its request is open and the build has no decision yet. Once
+ * it is answered (the request closed, or the build approved or rejected) its target no longer
+ * matters, so it is never overdue.
  */
-export function isOverdue(dueAt: Date | null, now: Date, snoozed = false): boolean {
-  return dueAt !== null && !snoozed && now.getTime() > dueAt.getTime()
+export function isAwaited(request: { state: string }, build: { reviewStatus: string }): boolean {
+  return request.state === 'open' && build.reviewStatus === 'pending'
+}
+
+/**
+ * Whether a request is overdue at `now`: strictly after its due time (exactly due is still on
+ * time). Never without a due time, not while it is snoozed, and not once it is answered
+ * (`answered`: see `isAwaited`).
+ */
+export function isOverdue(
+  dueAt: Date | null,
+  now: Date,
+  snoozed = false,
+  answered = false,
+): boolean {
+  return dueAt !== null && !snoozed && !answered && now.getTime() > dueAt.getTime()
 }
 
 /** How many milliseconds past its due time a request is; 0 when it is not overdue. */
-export function overdueBy(dueAt: Date | null, now: Date, snoozed = false): number {
-  return dueAt !== null && isOverdue(dueAt, now, snoozed) ? now.getTime() - dueAt.getTime() : 0
+export function overdueBy(
+  dueAt: Date | null,
+  now: Date,
+  snoozed = false,
+  answered = false,
+): number {
+  return dueAt !== null && isOverdue(dueAt, now, snoozed, answered)
+    ? now.getTime() - dueAt.getTime()
+    : 0
 }
 
 /**

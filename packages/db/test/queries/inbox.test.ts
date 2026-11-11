@@ -71,6 +71,28 @@ describe('listInbox', () => {
     expect((await tab(owner.id, 'for-you')).items[0]?.alsoInReviews).toBe(true)
   })
 
+  it('shows a request as overdue only while its build is undecided', async () => {
+    const { project, owner, teammate, build } = await setup()
+    const decided = await seedBuild(t.db, project.id, { reviewStatus: 'approved' })
+    for (const b of [build, decided]) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await seedReviewRequest(t.db, {
+        buildId: b.id,
+        reviewerId: owner.id,
+        requestedById: teammate.id,
+        dueAt: new Date(now.getTime() - 3_600_000),
+      })
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await seedNotification(t.db, { userId: owner.id, buildId: b.id })
+    }
+    const items = (await tab(owner.id, 'for-you')).items
+    const overdue = (buildId: string) =>
+      items.find((i) => i.build?.number === (buildId === build.id ? build.number : decided.number))
+        ?.request?.overdueByMs
+    expect(overdue(build.id)).toBeGreaterThan(0)
+    expect(overdue(decided.id)).toBe(0)
+  })
+
   it('keeps project-wide notices to Everything', async () => {
     const { owner } = await setup()
     await seedNotification(t.db, { userId: owner.id, kind: 'flaky_detected' })

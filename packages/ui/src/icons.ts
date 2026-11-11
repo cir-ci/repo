@@ -1,6 +1,7 @@
 import type { LucideIcon, LucideProps } from 'lucide-react'
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   ChevronDown,
   ChartColumn,
@@ -84,6 +85,7 @@ function icon(Glyph: LucideIcon, name: string) {
  */
 export const AddCircleIcon = icon(CirclePlus, 'AddCircleIcon')
 export const ArrowBackIcon = icon(ArrowLeft, 'ArrowBackIcon')
+export const ArrowRightIcon = icon(ArrowRight, 'ArrowRightIcon')
 export const CheckIcon = icon(Check, 'CheckIcon')
 export const CancelIcon = icon(CircleX, 'CancelIcon')
 export const CheckCircleIcon = icon(CircleCheck, 'CheckCircleIcon')

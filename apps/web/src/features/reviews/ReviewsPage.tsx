@@ -1,5 +1,15 @@
 import type { Review, Undo } from '@circi/api'
-import { Button, Kbd, PanePlaceholder, PullRequestIcon, Text } from '@circi/ui'
+import {
+  AlarmClockIcon,
+  Button,
+  CloseIcon,
+  IconButton,
+  Kbd,
+  PanePlaceholder,
+  PullRequestIcon,
+  Text,
+  Tooltip,
+} from '@circi/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -28,9 +38,9 @@ import { useListNavigation } from '#lib/use-list-navigation.ts'
 import {
   firstName,
   groupRequests,
+  isProcessing,
   isWaitingOnOther,
   requestName,
-  isProcessing,
   requestFields,
   reviewsQuery,
   useApproveRequest,
@@ -47,6 +57,15 @@ import { ReviewList } from './ReviewList.tsx'
 import styles from './Reviews.module.css'
 
 const ROUTE = '/workspaces/$workspace/reviews' as const
+
+/** An icon button with its tooltip. A menu trigger passes its props (and ref) through it to the button. */
+function TipButton({ label, ...props }: IconButton.Props) {
+  return (
+    <Tooltip content={label}>
+      <IconButton label={label} {...props} />
+    </Tooltip>
+  )
+}
 
 /**
  * Reviews, Linear style: the list of review requests (340px) beside the selected one. The
@@ -95,12 +114,6 @@ export function ReviewsPage() {
   const selected = items.find((r) => r.id === review)
   const waiting = selected !== undefined && isWaitingOnOther(selected, userId)
   const can = {
-    approve:
-      !waiting &&
-      tab !== 'created' &&
-      tab !== 'reviewed' &&
-      selected !== undefined &&
-      !isProcessing(selected.build),
     snooze: tab === 'for-you',
     unsnooze: tab === 'snoozed',
   }
@@ -230,16 +243,6 @@ export function ReviewsPage() {
   const failed = [approve, snooze, unsnooze, dismiss, requestReview, nudge].find(
     (m) => m.error,
   )?.error
-  const buildLink = selected
-    ? clientLink({
-        to: '/$workspace/$project/builds/$number',
-        params: {
-          workspace: selected.workspace.slug,
-          project: selected.project.slug,
-          number: String(selected.build.number),
-        },
-      })
-    : undefined
   const back = clientLink(searchFor({}))
 
   return (
@@ -268,34 +271,6 @@ export function ReviewsPage() {
                       : `Nudge ${firstName(selected.reviewer.name)}`}
                   </Button>
                 </>
-              ) : null}
-              {can.snooze ? (
-                <SnoozeMenu
-                  open={snoozeOpen}
-                  onOpenChange={setSnoozeOpen}
-                  onSnooze={(choice) => doSnooze(selected, choice)}
-                  trigger={
-                    <Button size="sm" aria-keyshortcuts="h">
-                      Snooze
-                    </Button>
-                  }
-                />
-              ) : null}
-              {buildLink ? (
-                <Button size="sm" {...buildLink}>
-                  Open review
-                </Button>
-              ) : null}
-              {tab !== 'created' && tab !== 'reviewed' && !waiting ? (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={!can.approve}
-                  loading={approve.isPending}
-                  onClick={() => doApprove(selected)}
-                >
-                  Approve all
-                </Button>
               ) : null}
             </>
           ) : undefined
@@ -349,15 +324,22 @@ export function ReviewsPage() {
                       Unsnooze
                     </Button>
                   ) : null}
-                  {waiting ? null : (
-                    <Button size="sm" aria-keyshortcuts="shift+r" onClick={() => setPicking(true)}>
-                      Request review
-                    </Button>
-                  )}
+                  {can.snooze ? (
+                    <SnoozeMenu
+                      open={snoozeOpen}
+                      onOpenChange={setSnoozeOpen}
+                      onSnooze={(choice) => doSnooze(selected, choice)}
+                      trigger={
+                        <TipButton label="Snooze" aria-keyshortcuts="h">
+                          <AlarmClockIcon size={16} />
+                        </TipButton>
+                      }
+                    />
+                  ) : null}
                   {tab === 'reviewed' || waiting ? null : (
-                    <Button size="sm" onClick={() => doDismiss(selected)}>
-                      Dismiss
-                    </Button>
+                    <TipButton label="Dismiss" onClick={() => doDismiss(selected)}>
+                      <CloseIcon size={16} />
+                    </TipButton>
                   )}
                 </ReviewDetail>
               ) : items.length > 0 ? (

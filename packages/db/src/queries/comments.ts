@@ -16,6 +16,8 @@ export interface CommentItem {
   body: string
   /** Null when the author's account was deleted. */
   author: { id: string; name: string; image: string | null } | null
+  /** The author's name when it was written; shown when `author` is null. Null for comments from before names were kept. */
+  authorName: string | null
   createdAt: Date
   editedAt: Date | null
   deletedAt: Date | null
@@ -43,6 +45,7 @@ export async function listBuildComments(db: Database, buildId: string): Promise<
       c.authorId && authorName !== null
         ? { id: c.authorId, name: authorName, image: authorImage }
         : null,
+    authorName: c.authorName,
     createdAt: c.createdAt,
     editedAt: c.editedAt,
     deletedAt: c.deletedAt,

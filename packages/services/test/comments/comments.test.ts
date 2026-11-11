@@ -141,6 +141,23 @@ describe('matchMentions', () => {
 })
 
 describe('comment structure and permissions', () => {
+  it("keeps the author's name on the comment, for when the account is gone", async () => {
+    const { owner, build } = await setup()
+    const comment = await addComment(t.db, { buildId: build.id, authorId: owner.id, body: 'hi' })
+    const [author] = await t.db
+      .select({ name: schema.user.name })
+      .from(schema.user)
+      .where(eq(schema.user.id, owner.id))
+    expect(comment.authorName).toBe(author?.name)
+    await t.db.delete(schema.user).where(eq(schema.user.id, owner.id))
+    const [after] = await t.db
+      .select()
+      .from(schema.comments)
+      .where(eq(schema.comments.id, comment.id))
+    expect(after?.authorId).toBeNull()
+    expect(after?.authorName).toBe(author?.name)
+  })
+
   it('stores a region comment and a reply that inherits the snapshot', async () => {
     const { owner, build } = await setup()
     const top = await addComment(t.db, {

@@ -1,6 +1,7 @@
 import {
   addTestMember,
   createTestDb,
+  seedFlipFlops,
   seedBuild,
   seedDiff,
   seedProject,
@@ -166,6 +167,78 @@ describe('listReviewRequests', () => {
     })
     const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'snoozed', now })
     expect(item?.overdueByMs).toBe(0)
+  })
+
+  it('shows overdue only while the review is awaited', async () => {
+    const { owner, build } = await setup()
+    // Closed by a decision: its target no longer matters, in the Reviewed tab or anywhere.
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      dueAt: hoursFromNow(-5),
+      state: 'done',
+      closedAt: hoursFromNow(-1),
+    })
+    const [reviewed] = await listReviewRequests(t.db, { userId: owner.id, tab: 'reviewed', now })
+    expect(reviewed?.dueAt).not.toBeNull()
+    expect(reviewed?.overdueByMs).toBe(0)
+
+    // Still open but the build was decided meanwhile (say, by someone else): not awaited either.
+    const decided = await seedBuild(t.db, build.projectId, { reviewStatus: 'approved' })
+    await seedReviewRequest(t.db, {
+      buildId: decided.id,
+      reviewerId: owner.id,
+      dueAt: hoursFromNow(-5),
+    })
+    // Undecided and open: overdue.
+    const waiting = await seedBuild(t.db, build.projectId)
+    await seedReviewRequest(t.db, {
+      buildId: waiting.id,
+      reviewerId: owner.id,
+      dueAt: hoursFromNow(-5),
+    })
+    const open = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(open.map((i) => [i.build.number, i.overdueByMs])).toEqual(
+      expect.arrayContaining([
+        [decided.number, 0],
+        [waiting.number, 5 * 3_600_000],
+      ]),
+    )
+  })
+
+  it('keeps the names the people had when asked, for when an account is gone', async () => {
+    const { owner, teammate, build } = await setup()
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+    })
+    const [before] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(before?.requestedBy?.id).toBe(teammate.id)
+    expect(before?.requestedByName).toBe(before?.requestedBy?.name)
+    const kept = before?.requestedByName
+    expect(kept).toBeTruthy()
+
+    await t.db.delete(schema.user).where(eq(schema.user.id, teammate.id))
+    const [after] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(after?.requestedBy).toBeNull()
+    expect(after?.requestedByName).toBe(kept)
+  })
+
+  it('counts the changed screenshots that are flaky on the default branch', async () => {
+    const { project, owner, build } = await setup()
+    await t.db
+      .update(schema.projects)
+      .set({ flakyAfterChanges: 2 })
+      .where(eq(schema.projects.id, project.id))
+    await seedFlipFlops(t.db, project.id, 'clock', ['A', 'B', 'A', 'B'])
+    await seedReviewRequest(t.db, { buildId: build.id, reviewerId: owner.id })
+    await seedDiff(t.db, { buildId: build.id, name: 'clock', status: 'changed' })
+    await seedDiff(t.db, { buildId: build.id, name: 'hero', status: 'changed' })
+    // An unchanged flaky screenshot doesn't count.
+    await seedDiff(t.db, { buildId: build.id, name: 'other', status: 'unchanged' })
+    const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(item?.flakyChanges).toBe(1)
   })
 
   it("never shows another workspace's requests", async () => {

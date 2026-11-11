@@ -66,6 +66,8 @@ describe('review requests', () => {
         overdueByMs: 0,
         reviewer: { id: lou.id, name: 'Lou' },
         requestedBy: { id: acme.owner.id },
+        requestedByName: expect.any(String),
+        flakyChanges: 0,
         build: { number: 2, branch: 'main' },
         project: { slug: 'web' },
         workspace: { slug: acme.workspaceSlug },
@@ -95,7 +97,14 @@ describe('review requests', () => {
     expect(await list('all-open')).toMatchObject({ requests: [] })
     const reviewed = await list('reviewed', louCookie)
     expect(reviewed.requests).toMatchObject([
-      { id: requestId, state: 'done', decision: 'rejected', closedAt: expect.any(String) },
+      {
+        id: requestId,
+        state: 'done',
+        decision: 'rejected',
+        closedAt: expect.any(String),
+        // Answered: never overdue, whatever the target was.
+        overdueByMs: 0,
+      },
     ])
     expect((await list('reviewed')).requests).toEqual([])
   })

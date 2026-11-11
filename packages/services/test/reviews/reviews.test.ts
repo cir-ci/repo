@@ -99,6 +99,32 @@ describe('requestReview', () => {
     })
   })
 
+  it('keeps the names of the reviewer and of who asked on the request', async () => {
+    const { owner, teammate, build } = await setup()
+    const { request } = await requestReview(t.db, {
+      buildId: build.id,
+      reviewerId: teammate.id,
+      requestedById: owner.id,
+    })
+    const [ids] = await t.db
+      .select({ owner: schema.user.name })
+      .from(schema.user)
+      .where(eq(schema.user.id, owner.id))
+    const [mate] = await t.db
+      .select({ name: schema.user.name })
+      .from(schema.user)
+      .where(eq(schema.user.id, teammate.id))
+    expect(request.requestedByName).toBe(ids?.owner)
+    expect(request.reviewerName).toBe(mate?.name)
+
+    // A later rename doesn't rewrite what was kept; a deleted asker leaves the name behind.
+    await t.db.update(schema.user).set({ name: 'Renamed' }).where(eq(schema.user.id, owner.id))
+    await t.db.delete(schema.user).where(eq(schema.user.id, owner.id))
+    const [row] = await requestsOf(build.id)
+    expect(row?.requestedById).toBeNull()
+    expect(row?.requestedByName).toBe(ids?.owner)
+  })
+
   it('has no due time for a project without a review target', async () => {
     const { project, owner, teammate, build } = await setup()
     await t.db

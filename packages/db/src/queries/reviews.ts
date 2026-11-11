@@ -1,4 +1,4 @@
-import { isSnoozed, overdueBy } from '@circi/core'
+import { isAwaited, isSnoozed, overdueBy } from '@circi/core'
 import {
   aliasedTable,
   and,
@@ -33,6 +33,8 @@ import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
+import { flakyVerdictsFor } from './flaky.ts'
+
 /**
  * The review requests a person sees on the Reviews page, across the workspaces they belong
  * to (PLAN §8: workspace isolation). The tabs show open requests, except `reviewed`: the ones
@@ -57,7 +59,7 @@ export namespace listReviewRequests {
     createdAt: Date
     /** When the project's review target runs out; null when the project has none. */
     dueAt: Date | null
-    /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
+    /** Milliseconds past `dueAt`; 0 when on time, snoozed, answered or without a target. */
     overdueByMs: number
     snoozedUntil: Date | null
     snoozeKind: SnoozeKind | null
@@ -72,6 +74,8 @@ export namespace listReviewRequests {
     reviewer: { id: string; name: string; image: string | null }
     /** Null when whoever asked has since left. */
     requestedBy: { id: string; name: string; image: string | null } | null
+    /** Who asked, by the name they had when asking; shown when `requestedBy` is null. Null when the system asked. */
+    requestedByName: string | null
     build: {
       number: number
       name: string
@@ -88,6 +92,8 @@ export namespace listReviewRequests {
     changes: Changes
     /** The (up to two) changed screenshots with the highest diff score, biggest first. */
     largestChanges: LargestChange[]
+    /** How many of the build's changed screenshots are flaky on the project's default branch. */
+    flakyChanges: number
   }
 
   /**
@@ -153,7 +159,13 @@ export async function listReviewRequests(
         conclusion: builds.conclusion,
         reviewStatus: builds.reviewStatus,
       },
-      project: { id: projects.id, slug: projects.slug, name: projects.name },
+      project: {
+        id: projects.id,
+        slug: projects.slug,
+        name: projects.name,
+        defaultBranch: projects.defaultBranch,
+        flakyAfterChanges: projects.flakyAfterChanges,
+      },
       workspace: { slug: workspace.slug, name: workspace.name },
     })
     .from(reviewRequests)
@@ -199,6 +211,10 @@ export async function listReviewRequests(
   const buildIds = [...new Set(rows.map((r) => r.request.buildId))]
   const { changes, largest } = await loadChanges(db, buildIds)
   const baselines = await loadBaselines(db, buildIds)
+  const flakyChanges = await loadFlakyChanges(
+    db,
+    rows.map((r) => ({ buildId: r.request.buildId, project: r.project })),
+  )
   const history = await loadHistory(
     db,
     rows.map((r) => ({ ...r.request, ...r.build, projectId: r.project.id })),
@@ -212,7 +228,7 @@ export async function listReviewRequests(
       state: r.request.state,
       createdAt: r.request.createdAt,
       dueAt: r.request.dueAt,
-      overdueByMs: overdueBy(r.request.dueAt, input.now, asleep),
+      overdueByMs: overdueBy(r.request.dueAt, input.now, asleep, !isAwaited(r.request, r.build)),
       snoozedUntil: r.request.snoozedUntil,
       snoozeKind: r.request.snoozeKind,
       closedAt: r.request.closedAt,
@@ -221,11 +237,13 @@ export async function listReviewRequests(
       baseline: baselines.get(r.request.buildId) ?? null,
       reviewer: r.reviewer,
       requestedBy: askerOf(r.request.requestedById, askers),
+      requestedByName: r.request.requestedByName,
       build: r.build,
       project: { slug: r.project.slug, name: r.project.name },
       workspace: r.workspace,
       changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
       largestChanges: largest.get(r.request.buildId) ?? [],
+      flakyChanges: flakyChanges.get(r.request.buildId) ?? 0,
     }
   })
 }
@@ -279,6 +297,41 @@ export async function loadChanges(db: Database, buildIds: string[]) {
     largest.set(t.buildId, list)
   }
   return { changes, largest }
+}
+
+/**
+ * Per build, how many of its changed screenshots are flaky in its project: the same verdicts
+ * (`flakyVerdictsFor`) as the project's flaky list, Triage and the merge gate.
+ */
+async function loadFlakyChanges(
+  db: Database,
+  rows: {
+    buildId: string
+    project: { id: string; defaultBranch: string; flakyAfterChanges: number }
+  }[],
+) {
+  const result = new Map<string, number>()
+  const projectList = [...new Map(rows.map((r) => [r.project.id, r.project])).values()]
+  if (projectList.length === 0) return result
+  const verdicts = await flakyVerdictsFor(db, projectList)
+  const flakyOf = new Map(
+    projectList.map((p) => [p.id, new Set(verdicts.get(p.id)?.flaky.map((f) => f.name) ?? [])]),
+  )
+  const changed = await db
+    .select({ buildId: screenshotDiffs.buildId, name: screenshotDiffs.name })
+    .from(screenshotDiffs)
+    .where(
+      and(
+        inArray(screenshotDiffs.buildId, [...new Set(rows.map((r) => r.buildId))]),
+        eq(screenshotDiffs.status, 'changed'),
+      ),
+    )
+  const projectOf = new Map(rows.map((r) => [r.buildId, r.project.id]))
+  for (const c of changed) {
+    const flaky = flakyOf.get(projectOf.get(c.buildId) ?? '')
+    if (flaky?.has(c.name)) result.set(c.buildId, (result.get(c.buildId) ?? 0) + 1)
+  }
+  return result
 }
 
 function askerOf(id: string | null, askers: Map<string, { name: string; image: string | null }>) {

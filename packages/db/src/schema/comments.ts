@@ -40,6 +40,8 @@ export const comments = pgTable(
     body: text('body').notNull(),
     /** Null when the author's account was deleted. */
     authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+    /** The author's display name when the comment was written; shown once the account is gone. */
+    authorName: text('author_name'),
     /** The comment this replies to; threads are one level deep. */
     parentId: uuid('parent_id').references((): AnyPgColumn => comments.id, {
       onDelete: 'cascade',

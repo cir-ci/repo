@@ -64,6 +64,7 @@ describe('comment routes', () => {
         mine: false,
         canDelete: false,
         author: { name: 'Owner 1' },
+        authorName: 'Owner 1',
       },
       {
         id: reply.json().id,

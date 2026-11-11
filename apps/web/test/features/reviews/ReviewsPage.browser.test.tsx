@@ -1,3 +1,4 @@
+import { AppFrame } from '@circi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
@@ -15,6 +16,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { pageHeader } from '#test/support/header.ts'
 import { menuItemNames } from '#test/support/menu.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
@@ -35,6 +37,8 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
   baseline: { number: 11, branch: 'main' },
   reviewer: { id: 'me', name: 'Me' },
   requestedBy: { id: 'u2', name: 'Ada Lovelace' },
+  requestedByName: 'Ada Lovelace',
+  flakyChanges: 0,
   build: {
     number,
     branch: `feature-${number}`,
@@ -227,7 +231,9 @@ describe('ReviewsPage', () => {
     await expect.poll(() => router.state.location.search).toMatchObject({ review: 'r2' })
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByRole('heading', { name: 'Build #13' })).toBeVisible()
-    await expect.element(panel.getByText('Needs review').first()).toBeVisible()
+    // The status is an icon with a label next to the title, not a tag bar.
+    await expect.element(panel.getByRole('img', { name: 'Needs review' })).toBeVisible()
+    expect(panel.getByText('Needs review', { exact: true }).elements()).toHaveLength(0)
     await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
     await expect.element(panel.getByText('Screenshots')).toBeVisible()
     await expect.element(panel.getByText('4 changed')).toBeVisible()
@@ -236,9 +242,14 @@ describe('ReviewsPage', () => {
     await expect
       .element(thumb)
       .toHaveAttribute('href', expect.stringMatching(/builds\/13\?.*shot=checkout/))
-    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Snooze' })).toBeVisible()
-    await expect.element(page.getByRole('link', { name: 'Open review' })).toBeVisible()
+    // Go to review is the page's one primary button; Approve all and the header's Open review are gone.
+    const go = panel.getByRole('link', { name: 'Go to review' })
+    await expect.element(go).toBeVisible()
+    await expect.element(go).toHaveAttribute('href', expect.stringMatching(/builds\/13$/))
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('link', { name: 'Open review' })).not.toBeInTheDocument()
+    expectOnePrimaryPerArea()
+    expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(1)
   })
 
   it('opens with the review in the address already selected', async () => {
@@ -334,39 +345,6 @@ describe('ReviewsPage', () => {
     await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()
   })
 
-  it('approves, moves to the next item and refetches the inbox and the sidebar', async () => {
-    let approved = false
-    const api = fakeApi({
-      'GET /api/reviews': () => ({
-        body: {
-          tab: 'for-you',
-          requests: approved ? [request('r2', 13)] : [request('r1', 12), request('r2', 13)],
-        },
-      }),
-      'POST /api/projects/acme/web/builds/12/review': () => {
-        approved = true
-        return { body: { build: { number: 12, reviewStatus: 'approved' } } }
-      },
-    })
-    const { queryClient } = await show('/workspaces/acme/reviews?review=r1')
-    // Keep inbox and sidebar entries in the cache, as if those had been open.
-    await queryClient.prefetchQuery({ queryKey: ['inbox', 'for-you'], queryFn: () => ({}) })
-    await queryClient.prefetchQuery({
-      queryKey: ['sidebar', 'acme'],
-      queryFn: () => ({ projects: [] }),
-    })
-    await page.getByRole('button', { name: 'Approve all' }).click()
-
-    await expect.element(page.getByRole('link', { name: /Build #12/ })).not.toBeInTheDocument()
-    await expect
-      .element(page.getByRole('link', { name: /Build #13/ }).first())
-      .toHaveAttribute('aria-current', 'true')
-    expect(api.of('POST')[0]?.body).toEqual({ state: 'approved' })
-    // The Inbox entry is cleared server-side: its list is fetched again.
-    expect(queryClient.getQueryState(['inbox', 'for-you'])?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated).toBe(true)
-  })
-
   it('opens the snooze menu with H and sends the choice', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
@@ -451,6 +429,151 @@ describe('ReviewsPage', () => {
     await show('/workspaces/acme/reviews?review=r1')
     await page.getByRole('button', { name: 'Dismiss' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
+    await expect.element(toastNamed(/Dismissed/)).toBeVisible()
+  })
+
+  it('has no Request review button, and Dismiss and Snooze are icon buttons in the title row', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show('/workspaces/acme/reviews?review=r1')
+    const title = page.getByRole('heading', { name: 'Build #12' })
+    await expect.element(title).toBeVisible()
+    await expect
+      .element(page.getByRole('button', { name: 'Request review' }))
+      .not.toBeInTheDocument()
+    const row = title.element().parentElement!
+    const dismiss = page.getByRole('button', { name: 'Dismiss' })
+    const snooze = page.getByRole('button', { name: 'Snooze' })
+    expect(row.contains(dismiss.element())).toBe(true)
+    expect(row.contains(snooze.element())).toBe(true)
+    // Icons, not words: the buttons hold an svg and no text.
+    for (const b of [dismiss, snooze]) {
+      expect(b.element().textContent).toBe('')
+      expect(b.element().querySelector('svg')).not.toBeNull()
+    }
+    // The tooltip names the button when it is focused.
+    await userEvent.hover(dismiss)
+    await expect.element(page.getByRole('tooltip')).toHaveTextContent('Dismiss')
+  })
+
+  it('snoozes from the icon button, with the same options and a toast', async () => {
+    const api = fakeApi({
+      'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
+      'POST /api/projects/acme/web/review-requests/r1/snooze': {
+        body: {
+          id: 'r1',
+          snoozeKind: 'tomorrow',
+          snoozedUntil: '2026-11-09T09:00:00.000Z',
+          undo: { id: 'su1', expiresAt: '2099-01-01T00:00:00.000Z' },
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    await page.getByRole('button', { name: 'Snooze' }).click()
+    await page.getByRole('menuitem', { name: 'Tomorrow' }).click()
+    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ kind: 'tomorrow' })
+    await expect.element(toastNamed(/Snoozed/)).toBeVisible()
+  })
+
+  it("shows the flaky tag by the branch only when the build's changes include flaky screenshots", async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [request('r1', 12, { flakyChanges: 2 }), request('r2', 13)],
+        },
+      },
+    })
+    const { router } = await show('/workspaces/acme/reviews?review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByText('Flaky')).toBeVisible()
+    await expect
+      .element(panel.getByText('Flaky'))
+      .toHaveAttribute('title', '2 changed screenshots known to be flaky')
+    await router.navigate({
+      to: '/workspaces/$workspace/reviews',
+      params: { workspace: 'acme' },
+      search: { tab: 'for-you', review: 'r2' },
+    })
+    await expect.element(panel.getByRole('heading', { name: 'Build #13' })).toBeVisible()
+    expect(panel.getByText('Flaky').elements()).toHaveLength(0)
+  })
+
+  it('names the requester from the kept name once their account is gone', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [request('r1', 12, { requestedBy: null, requestedByName: 'Ada Lovelace' })],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByText('Requested by')).toBeVisible()
+    await expect.element(panel.getByText('Ada Lovelace', { exact: false }).first()).toBeVisible()
+    expect(panel.getByText('Someone who has left').elements()).toHaveLength(0)
+  })
+
+  it('shows the live name, not the kept one, while the person still resolves', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [
+            request('r1', 12, {
+              requestedBy: { id: 'u2', name: 'Ada King', image: null },
+              requestedByName: 'Ada Lovelace',
+            }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByText('Ada King', { exact: false }).first()).toBeVisible()
+    expect(panel.getByText('Ada Lovelace').elements()).toHaveLength(0)
+  })
+
+  it('hides the review target row once the review is answered', async () => {
+    const due = '2026-11-08T08:00:00.000Z'
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'reviewed',
+          requests: [
+            request('r1', 12, {
+              state: 'done',
+              dueAt: due,
+              closedAt: '2026-11-08T12:00:00.000Z',
+              decision: 'approved',
+              build: { ...request('r1', 12).build, reviewStatus: 'approved' },
+            }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?tab=reviewed&review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('heading', { name: 'Build #12' })).toBeVisible()
+    expect(panel.getByText('Review target').elements()).toHaveLength(0)
+    expect(page.getByText(/Overdue/).elements()).toHaveLength(0)
+  })
+
+  it('shows the review target while the review is awaited', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [
+            request('r1', 12, { dueAt: '2026-11-08T08:00:00.000Z', overdueByMs: 3 * 3600_000 }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByText('Review target')).toBeVisible()
+    await expect.element(panel.getByText(/Overdue 3h, target/)).toBeVisible()
   })
 
   it('has no Approve or Snooze on the Created by you tab', async () => {
@@ -478,7 +601,7 @@ const made = (over: Record<string, unknown> = {}) =>
   })
 
 describe('ReviewsPage requests you made', () => {
-  it('says who it waits on and offers Nudge, not Approve all, Request review or Dismiss', async () => {
+  it('says who it waits on and offers Nudge, not Dismiss or Snooze', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'created', requests: [made()] } },
       'POST /api/projects/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
@@ -486,19 +609,17 @@ describe('ReviewsPage requests you made', () => {
     await show('/workspaces/acme/reviews?tab=created&review=r1')
     await expect.element(page.getByText(/Waiting on Dana Levi · requested/)).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve all' })).not.toBeInTheDocument()
-    await expect
-      .element(page.getByRole('button', { name: 'Request review' }))
-      .not.toBeInTheDocument()
     await expect.element(page.getByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('button', { name: 'Snooze' })).not.toBeInTheDocument()
     await page.getByRole('button', { name: 'Nudge Dana' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
     await expect.element(page.getByRole('button', { name: 'Nudged' })).toBeDisabled()
   })
 
-  it('keeps Approve all on a request that is yours to decide', async () => {
+  it('has Go to review, and no Nudge, on a request that is yours to decide', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
     await show('/workspaces/acme/reviews?review=r1')
-    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: 'Go to review' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: /Nudge/ })).not.toBeInTheDocument()
   })
 
@@ -668,5 +789,96 @@ describe('right-click menu on a review', () => {
     await page.getByRole('menuitem', { name: 'Nudge Dana' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
     await expect.element(toastNamed('Nudged Dana Levi')).toBeVisible()
+  })
+})
+
+/** The page in the app's frame, as it runs: the panel is what bounds the panes. */
+const showFramed = (url: string, viewport: [number, number]) =>
+  renderPage(
+    <AppFrame sidebar={<span>Side</span>} compactBar={<span>Bar</span>}>
+      <ReviewsPage />
+    </AppFrame>,
+    {
+      viewport,
+      route: '/workspaces/$workspace/reviews',
+      url,
+      announcer: true,
+      otherRoutes: ['/$workspace/$project/builds/$number'],
+      validateSearch: validateReviewsSearch,
+    },
+  )
+
+const many = (n: number) => Array.from({ length: n }, (_, i) => request(`r${i + 1}`, i + 1))
+const scroller = (el: Element) => el.closest('[data-scroll-area]')!
+
+describe('ReviewsPage scrolling and layout', () => {
+  it('scrolls the list and the details and changes each on their own, never the window', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: many(40) } } })
+    await showFramed('/workspaces/acme/reviews?review=r1', [1400, 500])
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('heading', { name: 'Build #1' })).toBeVisible()
+    const list = document.getElementById('reviews-list')!
+    const details = scroller(panel.getByRole('heading', { name: 'Details' }).element())
+    const changes = scroller(panel.getByRole('link', { name: 'Go to review' }).element())
+    expect(new Set([list, details, changes]).size, 'three scroll containers').toBe(3)
+    for (const el of [list, details, changes]) {
+      expect(['auto', 'scroll']).toContain(getComputedStyle(el).overflowY)
+    }
+    // The list overflows its own box, and the window doesn't grow with it.
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight)
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    const headerTop = pageHeader().getBoundingClientRect().top
+    list.scrollTop = 300
+    await expect.poll(() => list.scrollTop).toBeGreaterThan(0)
+    expect(window.scrollY).toBe(0)
+    expect(pageHeader().getBoundingClientRect().top).toBe(headerTop)
+    // The tabs stay at the top of the list column while the list scrolls.
+    const tabs = page.getByRole('group', { name: 'Which reviews' }).element()
+    expect(tabs.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      list.getBoundingClientRect().top + 1,
+    )
+  })
+
+  it('puts the details at half the width with the changes to their right on a wide pane', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await showFramed('/workspaces/acme/reviews?review=r1', [1500, 800])
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
+    const details = panel.getByRole('heading', { name: 'Details' }).element()
+    const go = panel.getByRole('link', { name: 'Go to review' }).element()
+    const a = details.closest('[data-scroll-area]')!.getBoundingClientRect()
+    const b = go.closest('[data-scroll-area]')!.getBoundingClientRect()
+    expect(b.left).toBeGreaterThanOrEqual(a.right - 1)
+    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(2)
+    // Go to review is the first thing in the changes column.
+    expect(go.getBoundingClientRect().top - b.top).toBeLessThan(40)
+  })
+
+  it('keeps the window still when the pane is narrow beside the sidebar, the pane scrolling as one', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await showFramed('/workspaces/acme/reviews?review=r1', [900, 420])
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('link', { name: 'Go to review' })).toBeVisible()
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    const body = panel
+      .getByRole('heading', { name: 'Details' })
+      .element()
+      .closest('[class*="detailBody"]')!
+    expect(body.scrollHeight).toBeGreaterThan(body.clientHeight)
+    expect(getComputedStyle(body).overflowY).toBe('auto')
+  })
+
+  it('stacks the details and the changes on a narrow pane (a phone frame lets the window scroll, as before)', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await showFramed('/workspaces/acme/reviews?review=r1', [390, 700])
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
+    const details = panel.getByRole('heading', { name: 'Details' }).element()
+    await expect.element(panel.getByRole('link', { name: 'Go to review' })).toBeVisible()
+    const go = panel.getByRole('link', { name: 'Go to review' }).element()
+    expect(go.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      details.closest('[data-scroll-area]')!.getBoundingClientRect().bottom - 1,
+    )
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 })

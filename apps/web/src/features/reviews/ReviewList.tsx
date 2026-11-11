@@ -10,6 +10,7 @@ import {
   ListRow,
   ListChecksIcon,
   NoResults,
+  ScrollArea,
   SegmentedControl,
   SendIcon,
   StatusIcon,
@@ -102,7 +103,12 @@ export function ReviewList({
           }}
         />
       </div>
-      <div className={styles.scroll} id="reviews-list" ref={listRef}>
+      <ScrollArea
+        rootClassName={styles.scrollRoot}
+        className={styles.scroll}
+        id="reviews-list"
+        ref={listRef}
+      >
         {groups.length === 0 && hasRequests && find.trim() !== '' ? (
           <NoResults noun="review" query={find} onClear={() => onFind('')} size="section" />
         ) : groups.length === 0 ? (
@@ -201,7 +207,7 @@ export function ReviewList({
             </section>
           ))
         )}
-      </div>
+      </ScrollArea>
     </aside>
   )
 }

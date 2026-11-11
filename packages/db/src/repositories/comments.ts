@@ -8,6 +8,10 @@ import type { Comment } from '#src/types.ts'
 
 export async function insertComment(db: Database, input: insertComment.Input): Promise<Comment> {
   const region = input.region
+  const [author] = await db
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.id, input.authorId))
   const [row] = await db
     .insert(comments)
     .values({
@@ -20,6 +24,7 @@ export async function insertComment(db: Database, input: insertComment.Input): P
       regionSide: input.regionSide ?? 'current',
       body: input.body,
       authorId: input.authorId,
+      authorName: author?.name ?? null,
       parentId: input.parentId ?? null,
     })
     .returning()

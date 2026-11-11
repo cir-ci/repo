@@ -6,6 +6,18 @@
   min-height: 0;
 }
 
+/* With the sidebar beside the panel the list and the review scroll in their own boxes and the
+   window doesn't: the row is exactly what the window has left under the sticky page header
+   (the frame's 8px margins and the panel's borders take the 18px). Under 820px (a phone, or the
+   sidebar stacked above) the page flows with the window as before. */
+@media (min-width: 820px) {
+  .layout {
+    flex: none;
+    height: calc(100dvh - 18px - var(--circi-page-top, 0px));
+    min-height: 320px;
+  }
+}
+
 .sub {
   display: flex;
   flex: none;
@@ -40,14 +52,16 @@
   font-weight: 500;
 }
 
+/* The list scrolls in its own container (`ScrollArea`), under the tabs; the window doesn't. */
+.scrollRoot {
+  flex: 1 1 0;
+}
+
 .scroll {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 16px;
-  min-height: 0;
   padding: 8px;
-  overflow-y: auto;
 }
 
 .items {
@@ -100,18 +114,44 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
+  container-type: inline-size;
 }
 
+/* Wide: the title row, then the Details and the changes side by side, each scrolling on its own. */
 .detailBody {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   box-sizing: border-box;
-  width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 28px 32px 48px;
+  min-height: 0;
+  padding: 28px 32px 0;
+}
+
+.cols {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  min-height: 0;
+}
+
+.col {
+  min-height: 0;
+}
+
+.colScroll {
+  padding-bottom: 32px;
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.changes > :first-child {
+  align-self: flex-start;
 }
 
 .back {
@@ -125,6 +165,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 28px;
 }
 
 .title {
@@ -154,8 +201,16 @@
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.flaky {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--circi-state-flaky);
 }
 
 .person {
@@ -172,7 +227,7 @@
 
 .thumbs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -252,7 +307,45 @@
   }
 
   .detailBody {
-    padding: 20px 16px 32px;
+    padding: 20px 16px 0;
+  }
+}
+
+/* A narrow pane (a phone, or the list beside it at a middling width): the Details and the changes
+   stack and the pane scrolls as one; the changes keep their own scroll box. */
+@container (max-width: 700px) {
+  .detailBody {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .detailBody > * + * {
+    margin-top: 20px;
+  }
+
+  .cols {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .cols .col {
+    flex: none;
+  }
+
+  .cols .colScroll {
+    flex: none;
+    padding-bottom: 0;
+  }
+
+  .cols .col:last-child .colScroll {
+    max-height: 420px;
+  }
+
+  .detailBody::after {
+    display: block;
+    height: 32px;
+    content: '';
   }
 }
 

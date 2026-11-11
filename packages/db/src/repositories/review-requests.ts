@@ -21,6 +21,7 @@ import {
   projectMembers,
   projects,
   reviewRequests,
+  user,
 } from '#schema/index.ts'
 import type { SnoozeKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -81,6 +82,20 @@ export async function openReviewRequest(
         ),
       )
     if (!reviewer) throw new ValidationError('The reviewer must be a member of this project')
+    // Names are kept on the row: they are what is shown once an account is gone.
+    const names = new Map(
+      (
+        await tx
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(
+            inArray(
+              user.id,
+              input.requestedById ? [input.reviewerId, input.requestedById] : [input.reviewerId],
+            ),
+          )
+      ).map((u) => [u.id, u.name]),
+    )
 
     const [created] = await tx
       .insert(reviewRequests)
@@ -88,6 +103,8 @@ export async function openReviewRequest(
         buildId: input.buildId,
         reviewerId: input.reviewerId,
         requestedById: input.requestedById,
+        reviewerName: names.get(input.reviewerId) ?? '',
+        requestedByName: input.requestedById ? (names.get(input.requestedById) ?? null) : null,
         dueAt: input.dueAt,
       })
       .onConflictDoNothing({

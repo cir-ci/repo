@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isOverdue, isSnoozed, overdueBy, reviewDueAt } from '#src/index.ts'
+import { isAwaited, isOverdue, isSnoozed, overdueBy, reviewDueAt } from '#src/index.ts'
 
 const due = new Date('2026-01-02T12:00:00.000Z')
 const at = (ms: number) => new Date(due.getTime() + ms)
@@ -70,6 +70,24 @@ describe('isOverdue and overdueBy', () => {
   it('is not overdue while snoozed', () => {
     expect(isOverdue(due, at(1), true)).toBe(false)
     expect(overdueBy(due, at(1), true)).toBe(0)
+  })
+
+  it('is never overdue once answered', () => {
+    expect(isOverdue(due, at(1), false, true)).toBe(false)
+    expect(overdueBy(due, at(3_600_000), false, true)).toBe(0)
+  })
+})
+
+describe('isAwaited', () => {
+  it('holds while the request is open and the build undecided', () => {
+    expect(isAwaited({ state: 'open' }, { reviewStatus: 'pending' })).toBe(true)
+  })
+
+  it('does not once the request closed or the build was decided', () => {
+    expect(isAwaited({ state: 'done' }, { reviewStatus: 'pending' })).toBe(false)
+    expect(isAwaited({ state: 'dismissed' }, { reviewStatus: 'pending' })).toBe(false)
+    expect(isAwaited({ state: 'open' }, { reviewStatus: 'approved' })).toBe(false)
+    expect(isAwaited({ state: 'open' }, { reviewStatus: 'rejected' })).toBe(false)
   })
 })
 

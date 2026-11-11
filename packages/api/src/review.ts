@@ -41,7 +41,7 @@ export namespace Review {
     createdAt: string
     /** When the project's review target runs out; null when the project has none. */
     dueAt: string | null
-    /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
+    /** Milliseconds past `dueAt`; 0 when on time, snoozed, answered or without a target. */
     overdueByMs: number
     snoozedUntil: string | null
     snoozeKind: SnoozeKind | null
@@ -55,6 +55,8 @@ export namespace Review {
     reviewer: { id: string; name: string; image: string | null }
     /** Null when whoever asked has since left. */
     requestedBy: { id: string; name: string; image: string | null } | null
+    /** Who asked, by the name they had when asking; what to show when `requestedBy` is null. Null when the system asked. */
+    requestedByName: string | null
     build: {
       number: number
       /** The build's name; "default" for a project's only build per commit. */
@@ -79,6 +81,8 @@ export namespace Review {
       sha256: string | null
       thumbnail: string | null
     }[]
+    /** How many of the build's changed screenshots are flaky on the project's default branch. */
+    flakyChanges: number
   }
 
   /** `GET /api/reviews?tab=…`: one tab of the Reviews page, most urgent first. */

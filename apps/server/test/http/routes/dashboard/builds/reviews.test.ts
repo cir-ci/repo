@@ -204,11 +204,12 @@ describe('the build page facts', () => {
     if (!other) throw new Error('no second user')
     const later = new Date(Date.now() + 7_200_000)
     await fx.db.insert(schema.reviewRequests).values([
-      { buildId: build.id, reviewerId: acme.owner.id, dueAt: later },
+      { buildId: build.id, reviewerId: acme.owner.id, reviewerName: 'Owner', dueAt: later },
       // A snoozed request is not counted down.
       {
         buildId: build.id,
         reviewerId: other.id,
+        reviewerName: other.name,
         dueAt: new Date(Date.now() - 1000),
         snoozeKind: 'next_push',
       },

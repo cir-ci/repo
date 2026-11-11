@@ -29,6 +29,10 @@ export const reviewRequests = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     /** Null when the person who asked has since been deleted. */
     requestedById: text('requested_by_id').references(() => user.id, { onDelete: 'set null' }),
+    /** The reviewer's display name when the request was made; shown once the account is gone. */
+    reviewerName: text('reviewer_name').notNull(),
+    /** Who asked, by name, when the request was made; null when the system asked. Outlives the account. */
+    requestedByName: text('requested_by_name'),
     state: text('state').$type<ReviewRequestState>().notNull().default('open'),
     /** When the project's review target runs out; null when it had none. Fixed at request time. */
     dueAt: timestamp('due_at', { withTimezone: true }),

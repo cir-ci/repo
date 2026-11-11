@@ -31,6 +31,8 @@ export namespace Comment {
     body: string
     /** Null when the author has since left. */
     author: Author | null
+    /** The author's name when it was written; what to show when `author` is null. */
+    authorName?: string | null
     createdAt: string
     editedAt: string | null
     deletedAt: string | null

@@ -1,4 +1,4 @@
-import { overdueBy } from '@circi/core'
+import { isAwaited, overdueBy } from '@circi/core'
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
 
 import {
@@ -247,7 +247,12 @@ export async function listInbox(
         request: request
           ? {
               dueAt: request.dueAt,
-              overdueByMs: overdueBy(request.dueAt, input.now, request.snoozed),
+              overdueByMs: overdueBy(
+                request.dueAt,
+                input.now,
+                request.snoozed,
+                r.build === null || !isAwaited({ state: 'open' }, r.build),
+              ),
             }
           : null,
         project: r.n.buildId === null ? null : r.project,

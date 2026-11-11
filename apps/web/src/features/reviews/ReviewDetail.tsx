@@ -1,5 +1,15 @@
 import type { Review } from '@circi/api'
-import { Avatar, SettingsRow, SettingsSection, StatusChip, visuallyHidden } from '@circi/ui'
+import { isAwaited } from '@circi/core'
+import {
+  ArrowRightIcon,
+  Avatar,
+  Button,
+  ScrollArea,
+  SettingsRow,
+  SettingsSection,
+  StatusIcon,
+  visuallyHidden,
+} from '@circi/ui'
 import type { MouseEventHandler, ReactNode } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
@@ -19,13 +29,23 @@ import {
 
 import styles from './Reviews.module.css'
 
-/** The selected review: its status, title, meta line, the Details box and the largest changes. */
+/** The one face every request by someone who has left shares (the same as a comment's). */
+const LEFT_MEMBER_ID = 'left-member'
+
+/**
+ * The selected review: the status icon and title with its actions, the meta line, then the Details
+ * beside the largest changes (each scrolls on its own; stacked on a narrow pane).
+ */
 export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewDetail.Props) {
   const clientLink = useClientLink()
   const projectMark = useProjectMark(r.workspace.slug)
   const { status, label } = requestStatus(r)
   const overdue = overdueLabel(r.overdueByMs)
   const counts = changeSummary(r.changes)
+  // The live person when they still resolve (so renames show), else the name kept on the request.
+  const asker =
+    r.requestedBy ??
+    (r.requestedByName ? { id: LEFT_MEMBER_ID, name: r.requestedByName, image: null } : null)
   const buildLink = (shot?: string) =>
     clientLink({
       to: '/$workspace/$project/builds/$number',
@@ -43,109 +63,134 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         Back to reviews
       </a>
       <div className={styles.head}>
-        <StatusChip status={status}>{label}</StatusChip>
-        <h2 className={styles.title}>Build #{r.build.number}</h2>
+        <div className={styles.titleRow}>
+          <StatusIcon status={status} label={label} size={18} />
+          <h2 className={styles.title}>Build #{r.build.number}</h2>
+          {children ? <div className={styles.actions}>{children}</div> : null}
+        </div>
         <span className={styles.meta}>
           {projectMark(r.project.slug, r.project.name)}
           <span>{r.project.name}</span>
           <span aria-hidden="true">·</span>
           <span className={styles.mono}>{requestRef(r.build)}</span>
-          {r.requestedBy ? (
+          {r.flakyChanges > 0 ? (
+            <span
+              className={styles.flaky}
+              title={`${plural(r.flakyChanges, 'changed screenshot')} known to be flaky`}
+            >
+              <StatusIcon status="flaky" size={12} decorative />
+              Flaky
+            </span>
+          ) : null}
+          {asker ? (
             <>
               <span aria-hidden="true">·</span>
-              <Avatar type="user" {...r.requestedBy} size={16} />
+              <Avatar type="user" {...asker} size={16} />
               <span>
-                {r.requestedBy.name}, <RelativeTime iso={r.createdAt} />
+                {asker.name}, <RelativeTime iso={r.createdAt} />
               </span>
             </>
           ) : null}
         </span>
-        {children ? <div className={styles.actions}>{children}</div> : null}
       </div>
 
-      <SettingsSection title="Details">
-        <SettingsRow label="Requested by">
-          {r.requestedBy ? (
-            <span className={styles.person}>
-              <Avatar type="user" {...r.requestedBy} size={20} />
-              {r.requestedBy.name}
-            </span>
-          ) : (
-            'Someone who has left'
-          )}
-        </SettingsRow>
-        <SettingsRow label="Reviewer">{r.reviewer.name}</SettingsRow>
-        {decisionLabel(r) && r.closedAt ? (
-          <SettingsRow label="Decision">
-            <span>
-              {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
-            </span>
-          </SettingsRow>
-        ) : null}
-        {r.dueAt ? (
-          <SettingsRow label="Review target">
-            {/* One inline span: the control is a flex row, which would add a gap after the text. */}
-            <span>
-              {overdue ? `${overdue}, target ` : 'Due '}
-              <RelativeTime iso={r.dueAt} />
-            </span>
-          </SettingsRow>
-        ) : null}
-        <SettingsRow label="Branch">
-          <span className={styles.mono}>{requestRef(r.build)}</span>
-        </SettingsRow>
-        {baselineLabel(r) ? (
-          <SettingsRow label="Compared with">
-            <span className={styles.mono}>{baselineLabel(r)}</span>
-          </SettingsRow>
-        ) : null}
-        {r.build.prNumber === null ? null : (
-          <SettingsRow label="Pull request">#{r.build.prNumber}</SettingsRow>
-        )}
-        <SettingsRow label="Commit">
-          <span className={styles.mono}>{r.build.commitSha.slice(0, 7)}</span>
-        </SettingsRow>
-        <SettingsRow label="Screenshots">
-          <span className={styles.counts}>
-            {counts.length === 0 ? (
-              <span>No changes</span>
-            ) : (
-              counts.map((c) => <span key={c}>{c}</span>)
+      <div className={styles.cols}>
+        <ScrollArea rootClassName={styles.col} className={styles.colScroll}>
+          <SettingsSection title="Details">
+            <SettingsRow label="Requested by">
+              {asker ? (
+                <span className={styles.person}>
+                  <Avatar type="user" {...asker} size={20} />
+                  {asker.name}
+                </span>
+              ) : (
+                'Assigned automatically'
+              )}
+            </SettingsRow>
+            <SettingsRow label="Reviewer">{r.reviewer.name}</SettingsRow>
+            {decisionLabel(r) && r.closedAt ? (
+              <SettingsRow label="Decision">
+                <span>
+                  {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
+                </span>
+              </SettingsRow>
+            ) : null}
+            {r.dueAt && isAwaited(r, r.build) ? (
+              <SettingsRow label="Review target">
+                {/* One inline span: the control is a flex row, which would add a gap after the text. */}
+                <span>
+                  {overdue ? `${overdue}, target ` : 'Due '}
+                  <RelativeTime iso={r.dueAt} />
+                </span>
+              </SettingsRow>
+            ) : null}
+            <SettingsRow label="Branch">
+              <span className={styles.mono}>{requestRef(r.build)}</span>
+            </SettingsRow>
+            {baselineLabel(r) ? (
+              <SettingsRow label="Compared with">
+                <span className={styles.mono}>{baselineLabel(r)}</span>
+              </SettingsRow>
+            ) : null}
+            {r.build.prNumber === null ? null : (
+              <SettingsRow label="Pull request">#{r.build.prNumber}</SettingsRow>
             )}
-            <span>{r.changes.unchanged} same</span>
-          </span>
-        </SettingsRow>
-      </SettingsSection>
+            <SettingsRow label="Commit">
+              <span className={styles.mono}>{r.build.commitSha.slice(0, 7)}</span>
+            </SettingsRow>
+            <SettingsRow label="Screenshots">
+              <span className={styles.counts}>
+                {counts.length === 0 ? (
+                  <span>No changes</span>
+                ) : (
+                  counts.map((c) => <span key={c}>{c}</span>)
+                )}
+                <span>{r.changes.unchanged} same</span>
+              </span>
+            </SettingsRow>
+          </SettingsSection>
+        </ScrollArea>
 
-      {r.largestChanges.length > 0 ? (
-        <SettingsSection title="Largest changes" bare>
-          <ul className={styles.thumbs}>
-            {r.largestChanges.map((c) => {
-              const link = buildLink(c.name)
-              const sha = c.thumbnail ?? c.sha256
-              return (
-                <li key={c.name}>
-                  <a className={styles.thumb} href={link.href} onClick={link.onClick}>
-                    <span className={styles.shot}>
-                      {sha ? <img src={fileUrl(sha)} alt="" loading="lazy" /> : null}
-                    </span>
-                    <span className={styles.thumbCaption}>
-                      <span className={styles.thumbName}>
-                        <span style={visuallyHidden}>Open {c.name} in build: </span>
-                        {c.name}
-                      </span>
-                      <span className={styles.mono}>{scoreLabel(c.score)}</span>
-                    </span>
-                  </a>
-                </li>
-              )
-            })}
-          </ul>
-        </SettingsSection>
-      ) : null}
+        <ScrollArea rootClassName={styles.col} className={styles.colScroll}>
+          <div className={styles.changes}>
+            <Button variant="primary" {...buildLink()}>
+              Go to review
+              <ArrowRightIcon size={16} />
+            </Button>
+            {r.largestChanges.length > 0 ? (
+              <SettingsSection title="Largest changes" bare>
+                <ul className={styles.thumbs}>
+                  {r.largestChanges.map((c) => {
+                    const link = buildLink(c.name)
+                    const sha = c.thumbnail ?? c.sha256
+                    return (
+                      <li key={c.name}>
+                        <a className={styles.thumb} href={link.href} onClick={link.onClick}>
+                          <span className={styles.shot}>
+                            {sha ? <img src={fileUrl(sha)} alt="" loading="lazy" /> : null}
+                          </span>
+                          <span className={styles.thumbCaption}>
+                            <span className={styles.thumbName}>
+                              <span style={visuallyHidden}>Open {c.name} in build: </span>
+                              {c.name}
+                            </span>
+                            <span className={styles.mono}>{scoreLabel(c.score)}</span>
+                          </span>
+                        </a>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </SettingsSection>
+            ) : null}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   )
 }
+
+const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 
 export namespace ReviewDetail {
   export interface Props {
@@ -153,7 +198,7 @@ export namespace ReviewDetail {
     /** Where the phone's "Back to reviews" link goes: the page without the selection. */
     backHref: string
     onBack: MouseEventHandler<HTMLElement>
-    /** Secondary actions under the meta line (request a review, dismiss). */
+    /** The icon buttons in the title row (snooze, dismiss). */
     children?: ReactNode
   }
 }
