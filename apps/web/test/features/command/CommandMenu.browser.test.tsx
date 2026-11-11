@@ -1106,7 +1106,8 @@ describe('row actions', () => {
     await expect.element(toast().getByText('Marked as read')).toBeVisible()
     // The earlier "Snoozed" toast is still open beside it: Undo the notice's own.
     await toastNamed('Marked as read').getByRole('button', { name: 'Undo' }).click()
-    await expect.element(toast().getByText('Undone')).toBeVisible()
+    // The first Undo's "Undone" may still be open beside this one.
+    await expect.element(toast().getByText('Undone').first()).toBeVisible()
     expect(posts(calls)).toEqual([
       [
         '/api/projects/acme/web/triage/assign',

@@ -53,6 +53,7 @@ const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Ad
 
 describe('WebhooksPage', () => {
   it('has Add webhook once, in the page header, even with no webhooks', async () => {
+    api()
     await show()
     const add = page.getByRole('button', { name: 'Add webhook' })
     await expect.element(add).toBeVisible()

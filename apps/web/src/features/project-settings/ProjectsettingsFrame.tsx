@@ -18,7 +18,7 @@ import { PageFrame } from '#lib/PageFrame.tsx'
 
 import { SettingsBackLink } from './SettingsBackLink.tsx'
 
-import styles from './ProjectsettingsHub.module.css'
+import styles from './ProjectSettingsHub.module.css'
 
 /**
  * What every project settings page shares: the breadcrumb (Workspace, Settings, Projects, the project, the
@@ -28,10 +28,10 @@ import styles from './ProjectsettingsHub.module.css'
  * the project's settings hub for everyone else (settings is a closed area: never out to the app)
  * (`managersOnly={false}` keeps a page that members may read).
  *
- * Without a `page` it is the project's hub (`ProjectsettingsHubPage`): the project's name is its title, with
+ * Without a `page` it is the project's hub (`ProjectSettingsHubPage`): the project's name is its title, with
  * its tile and member count above the rows.
  */
-export function ProjectsettingsFrame({
+export function ProjectSettingsFrame({
   workspace,
   project,
   page,
@@ -41,7 +41,7 @@ export function ProjectsettingsFrame({
   find,
   actions,
   children,
-}: ProjectsettingsFrame.Props) {
+}: ProjectSettingsFrame.Props) {
   const { data, error, refetch } = useQuery(settingsQuery(workspace, project))
   // The settings carry neither the workspace's name nor the member count, but the projects list (cached by the sidebar) does.
   const { data: overview } = useQuery(projectsQuery())
@@ -123,7 +123,7 @@ export function ProjectsettingsFrame({
   )
 }
 
-export namespace ProjectsettingsFrame {
+export namespace ProjectSettingsFrame {
   export interface Props {
     workspace: string
     project: string

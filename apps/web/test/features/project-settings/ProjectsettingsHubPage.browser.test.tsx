@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { ProjectsettingsHubPage } from '#features/project-settings/ProjectsettingsHubPage.tsx'
+import { ProjectSettingsHubPage } from '#features/project-settings/ProjectSettingsHubPage.tsx'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { overview, sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -63,7 +63,7 @@ const PAGES = [
 ]
 
 const show = (viewport?: [number, number]) =>
-  renderPage(<ProjectsettingsHubPage />, {
+  renderPage(<ProjectSettingsHubPage />, {
     route: '/$workspace/$project/settings',
     url: '/acme/web/settings',
     announcer: true,
@@ -80,7 +80,7 @@ const rows = (group: string) =>
 
 const rowOf = (name: string) => page.getByRole('link', { name: new RegExp(`^${name}`) })
 
-describe('ProjectsettingsHubPage', () => {
+describe('ProjectSettingsHubPage', () => {
   it('has a back link to Projects, the project name as its title and its size as the subtitle', async () => {
     api()
     await show()

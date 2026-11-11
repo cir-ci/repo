@@ -44,7 +44,7 @@ export function TextField({
       </div>
       <Input {...input} className={styles.control} data-size={size} />
       {error ? (
-        <Field.Error match className={styles.error}>
+        <Field.Error match role="alert" className={styles.error}>
           {error}
         </Field.Error>
       ) : description ? (

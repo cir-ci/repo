@@ -13,14 +13,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import type { ProjectsettingsKey } from '#app/shell-model.ts'
+import type { ProjectSettingsKey } from '#app/shell-model.ts'
 import { ignoreRegionsQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { rulesQuery } from '#features/reviews/settings/api.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { hubGroups } from './hub-model.ts'
-import { ProjectsettingsFrame } from './ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
 
 const PATHS = {
   general: '/$workspace/$project/settings/general',
@@ -30,9 +30,9 @@ const PATHS = {
   webhooks: '/$workspace/$project/settings/webhooks',
   'ignore-regions': '/$workspace/$project/settings/ignore-regions',
   sites: '/$workspace/$project/settings/sites',
-} as const satisfies Record<ProjectsettingsKey, string>
+} as const satisfies Record<ProjectSettingsKey, string>
 
-const ICONS: Record<ProjectsettingsKey, ReactNode> = {
+const ICONS: Record<ProjectSettingsKey, ReactNode> = {
   general: <SlidersIcon />,
   members: <UsersIcon />,
   token: <KeyIcon />,
@@ -43,16 +43,16 @@ const ICONS: Record<ProjectsettingsKey, ReactNode> = {
 }
 
 /**
- * A project's settings hub (the canvas's ProjectsettingsHub board): the project's name and size, then one
+ * A project's settings hub (the canvas's ProjectSettingsHub board): the project's name and size, then one
  * row for each settings page the person has, in groups (Project, Reviews, Connections), each with a
  * one-line summary of what is set. Members of the project who can't change its settings get Members
  * and Ignore regions. Every summary comes from data the dashboard already reads: the projects list,
  * the project's settings (webhooks), the sidebar (sites), the rules and the ignore regions.
  */
-export function ProjectsettingsHubPage() {
+export function ProjectSettingsHubPage() {
   const { workspace, project } = useParams({ from: '/$workspace/$project/settings' })
   return (
-    <ProjectsettingsFrame workspace={workspace} project={project} managersOnly={false}>
+    <ProjectSettingsFrame workspace={workspace} project={project} managersOnly={false}>
       {(data) => (
         <Hub
           workspace={workspace}
@@ -61,7 +61,7 @@ export function ProjectsettingsHubPage() {
           webhookCount={data.webhooks.length}
         />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

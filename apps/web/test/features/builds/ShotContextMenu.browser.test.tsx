@@ -44,6 +44,8 @@ describe('right-click menu on a screenshot row', () => {
     await expect.element(page.getByRole('menuitem', { name: 'Open' })).toBeVisible()
     expect(menuItemNames()).not.toContain('View baseline')
     await page.getByRole('menuitem', { name: 'Open' }).click()
+    // The Unchanged group starts collapsed.
+    await page.getByRole('button', { name: /^Unchanged/ }).click()
     await row(/pricing/).click({ button: 'right' })
     await expect.element(page.getByRole('menuitem', { name: 'Open' })).toBeVisible()
     expect(menuItemNames()).not.toContain('Approve')

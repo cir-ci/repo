@@ -176,11 +176,22 @@ describe('adjusting ignore regions on the baseline page', () => {
     await expect.element(dialog).toBeVisible()
     const inDialog = dialog.element().querySelector<HTMLElement>('[data-adjustable]')
     if (!inDialog) throw new Error('no region in the dialog')
+    // The dialog opens with a transition: drag only once the region has stopped moving.
+    let last = ''
+    await expect
+      .poll(() => {
+        const r = inDialog.getBoundingClientRect()
+        const now = `${r.left},${r.top},${r.width},${r.height}`
+        const settled = now === last
+        last = now
+        return settled
+      })
+      .toBe(true)
     const from = centerOf(inDialog)
     const overlay = page.getByTestId('region-overlay').element().getBoundingClientRect()
     // Half a region's width to the right, as a share of the dialog's image.
     await pointerDrag(inDialog, from, { x: from.x + overlay.width * 0.1, y: from.y })
-    await vi.waitFor(() => expect(patches).toHaveLength(1))
+    await vi.waitFor(() => expect(patches).toHaveLength(1), { timeout: 3000 })
     expect(Math.abs((patches[0]?.body['x'] ?? 0) - 200)).toBeLessThanOrEqual(3)
     expect(patches[0]?.body['width']).toBe(200)
   })

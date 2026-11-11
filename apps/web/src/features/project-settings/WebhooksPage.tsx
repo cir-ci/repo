@@ -25,7 +25,7 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { DeliveriesTable } from './DeliveriesTable.tsx'
-import { ProjectsettingsFrame } from './ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
 import { useWebhookTest } from './use-webhook-test.ts'
 import { deliveryAnswer, eventDescription, hookStatus, webhookProblems } from './webhook-events.ts'
 
@@ -38,7 +38,7 @@ export function WebhooksPage() {
   const [adding, setAdding] = useState(false)
   const { data: settings } = useQuery(settingsQuery(workspace, project))
   return (
-    <ProjectsettingsFrame
+    <ProjectSettingsFrame
       workspace={workspace}
       project={project}
       page="Webhooks"
@@ -66,7 +66,7 @@ export function WebhooksPage() {
           canManage={data.canManage}
         />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

@@ -28,7 +28,7 @@ import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { addCandidates, addLabel, removalText, ROLE_LABEL } from './members-model.ts'
-import { ProjectsettingsFrame } from './ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
 
 import styles from './ProjectMembersPage.module.css'
 
@@ -44,7 +44,7 @@ export function ProjectMembersPage() {
   const [adding, setAdding] = useState(false)
   const [find, setFind] = useFindParam()
   return (
-    <ProjectsettingsFrame
+    <ProjectSettingsFrame
       workspace={workspace}
       project={project}
       page="Members"
@@ -74,7 +74,7 @@ export function ProjectMembersPage() {
           onAdding={setAdding}
         />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

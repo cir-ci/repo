@@ -16,7 +16,7 @@ import {
   PROJECT_SETTINGS_PAGES,
   projectPageOf,
   projectsections,
-  projectsettingsKey,
+  projectSettingsKey,
   projectsTabLabel,
   switchWorkspacePath,
   workspaceSettingsPath,
@@ -298,7 +298,7 @@ describe('project settings pages', () => {
     ['/account/appearance', undefined],
     ['/instance/settings', undefined],
   ] as const)('%s is %s', (path, key) => {
-    expect(projectsettingsKey(path)).toBe(key)
+    expect(projectSettingsKey(path)).toBe(key)
   })
 })
 

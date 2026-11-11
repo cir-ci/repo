@@ -1,4 +1,4 @@
-import type { ProjectsettingsKey } from '#app/shell-model.ts'
+import type { ProjectSettingsKey } from '#app/shell-model.ts'
 import { memberCountLabel } from '#features/projects/AvatarStack.tsx'
 
 /** What the hub knows about a project without opening its pages; `undefined` while a number loads. */
@@ -14,7 +14,7 @@ export interface HubFacts {
 }
 
 export interface HubRow {
-  key: ProjectsettingsKey
+  key: ProjectSettingsKey
   label: string
   detail: string
   /** The short summary on the right; undefined until known. */
@@ -32,7 +32,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const countOrNone = (n: number | undefined, one: string, many: string) =>
   n === undefined ? undefined : n === 0 ? 'None' : plural(n, one, many)
 
-const row = (key: ProjectsettingsKey, label: string, detail: string, value?: string): HubRow => ({
+const row = (key: ProjectSettingsKey, label: string, detail: string, value?: string): HubRow => ({
   key,
   label,
   detail,

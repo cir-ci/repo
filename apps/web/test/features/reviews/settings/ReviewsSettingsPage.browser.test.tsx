@@ -454,8 +454,12 @@ describe('ReviewsSettingsPage opened at a setting', () => {
     await expect
       .element(page.getByRole('combobox', { name: /^Assign new items to whoever is on triage/ }))
       .toHaveFocus()
-    const rect = document.getElementById('assign-on-call')?.getBoundingClientRect()
-    expect(rect?.top).toBeGreaterThanOrEqual(0)
-    expect(rect?.bottom).toBeLessThanOrEqual(window.innerHeight)
+    // The scroll is smooth: wait for it to settle with the setting inside the window.
+    await expect
+      .poll(() => {
+        const rect = document.getElementById('assign-on-call')?.getBoundingClientRect()
+        return rect !== undefined && rect.top >= 0 && rect.bottom <= window.innerHeight
+      })
+      .toBe(true)
   })
 })

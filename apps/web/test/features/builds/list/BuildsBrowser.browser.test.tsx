@@ -860,12 +860,19 @@ describe('right-click menu on a build row', () => {
     await rowOf(7).click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Reject' }).click()
     await expect.element(page.getByRole('dialog')).toBeVisible()
+    // The reason is required by default.
+    await page
+      .getByRole('dialog')
+      .getByRole('textbox', { name: 'Reason' })
+      .fill('Header is clipped')
     await page
       .getByRole('dialog')
       .getByRole('button', { name: /Reject/ })
       .click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
-    expect(fake.of('POST')[0]).toMatchObject({ body: { buildIds: ['b7'], decision: 'rejected' } })
+    expect(fake.of('POST')[0]).toMatchObject({
+      body: { buildIds: ['b7'], decision: 'rejected', reason: 'Header is clipped' },
+    })
   })
 
   it("filters the list by the row's branch", async () => {

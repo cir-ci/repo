@@ -6,16 +6,16 @@ import { useSaveSettings } from '#features/projects/api/index.ts'
 import { DeleteProjectsection } from '#features/projects/DeleteProjectsection.tsx'
 import { ProjectIdentity } from '#features/projects/ProjectIdentity.tsx'
 
-import { ProjectsettingsFrame } from './ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
 import { SettingsForm } from './SettingsForm.tsx'
 
 /** A project's General settings. Owners and admins edit; members look. */
-export function ProjectsettingsPage() {
+export function ProjectSettingsPage() {
   const { workspace, project } = useParams({ from: '/$workspace/$project/settings/general' })
   const save = useSaveSettings(workspace, project)
   const [saved, setSaved] = useState(false)
   return (
-    <ProjectsettingsFrame workspace={workspace} project={project} page="General">
+    <ProjectSettingsFrame workspace={workspace} project={project} page="General">
       {(data, name) => (
         <>
           <GitAttentionBanner attention={data.github.link?.attention} />
@@ -57,6 +57,6 @@ export function ProjectsettingsPage() {
           />
         </>
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }

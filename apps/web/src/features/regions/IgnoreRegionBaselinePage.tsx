@@ -1,7 +1,7 @@
 import { useParams } from '@tanstack/react-router'
 
 import { BaselineBody } from '#features/baselines/BaselinePage.tsx'
-import { ProjectsettingsFrame } from '#features/project-settings/ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from '#features/project-settings/ProjectSettingsFrame.tsx'
 
 import { BASELINE_ROUTE } from './routes.ts'
 
@@ -14,7 +14,7 @@ export function IgnoreRegionBaselinePage() {
     from: BASELINE_ROUTE,
   })
   return (
-    <ProjectsettingsFrame
+    <ProjectSettingsFrame
       workspace={workspace}
       project={project}
       page="Ignore regions"
@@ -31,6 +31,6 @@ export function IgnoreRegionBaselinePage() {
       {() => (
         <BaselineBody workspace={workspace} project={project} name={_splat ?? ''} inSettings />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }

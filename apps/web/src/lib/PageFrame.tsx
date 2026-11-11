@@ -12,7 +12,7 @@ import { useScrollToHash } from '#lib/scroll-to-hash.ts'
  * states: `forbidden`, the error, the delayed skeleton, or `children`.
  * An address with a hash (`#retention`) scrolls to the setting with that ID once it renders, and
  * flashes it (`useScrollToHash`).
- * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `ProjectsettingsFrame`) only compute
+ * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `ProjectSettingsFrame`) only compute
  * the crumbs.
  */
 export function PageFrame({

@@ -2,7 +2,7 @@ import { Badge, EmptyState, ListRow, SquareDashedIcon } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { ProjectsettingsFrame } from '#features/project-settings/ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from '#features/project-settings/ProjectSettingsFrame.tsx'
 import { ignoreRegionsQuery } from '#features/projects/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -19,14 +19,14 @@ import styles from './IgnoreRegionsPage.module.css'
 export function IgnoreRegionsPage() {
   const { workspace, project } = useParams({ from: OVERVIEW_ROUTE })
   return (
-    <ProjectsettingsFrame
+    <ProjectSettingsFrame
       workspace={workspace}
       project={project}
       page="Ignore regions"
       managersOnly={false}
     >
       {() => <Overview workspace={workspace} project={project} />}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

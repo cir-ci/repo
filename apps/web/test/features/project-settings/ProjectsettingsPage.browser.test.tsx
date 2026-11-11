@@ -2,7 +2,7 @@ import { PROJECT_ICON_NAMES } from '@circi/core'
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { ProjectsettingsPage } from '#features/project-settings/ProjectsettingsPage.tsx'
+import { ProjectSettingsPage } from '#features/project-settings/ProjectSettingsPage.tsx'
 import { iconLabel } from '#features/projects/appearance.ts'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -56,7 +56,7 @@ const github = (link: unknown) => ({
 })
 
 const show = () =>
-  renderPage(<ProjectsettingsPage />, {
+  renderPage(<ProjectSettingsPage />, {
     route: '/$workspace/$project/settings/general',
     url: '/acme/web/settings/general',
     announcer: true,
@@ -76,7 +76,7 @@ async function openDelete() {
   return page.getByRole('dialog', { name: 'Delete Web App?' })
 }
 
-describe('ProjectsettingsPage', () => {
+describe('ProjectSettingsPage', () => {
   it('shows its breadcrumb while loading and announces a slow load', async () => {
     hangingFetch()
     await show()
@@ -787,7 +787,7 @@ describe('ProjectsettingsPage', () => {
   })
 })
 
-describe('ProjectsettingsPage opened at a setting', () => {
+describe('ProjectSettingsPage opened at a setting', () => {
   it.each([
     ['merge-gate', /^Flaky-only changes block merging/, 'combobox'],
     ['retention', 'Keep builds for (days)', 'textbox'],
@@ -795,7 +795,7 @@ describe('ProjectsettingsPage opened at a setting', () => {
   ] as const)('#%s scrolls to its setting and focuses it', async (hash, name, role) => {
     api()
     await page.viewport(1000, 500)
-    await renderPage(<ProjectsettingsPage />, {
+    await renderPage(<ProjectSettingsPage />, {
       route: '/$workspace/$project/settings/general',
       url: `/acme/web/settings/general#${hash}`,
       announcer: true,
@@ -803,8 +803,12 @@ describe('ProjectsettingsPage opened at a setting', () => {
     })
     // Once the settings have loaded, the setting is scrolled into view and focused.
     await expect.element(page.getByRole(role, { name })).toHaveFocus()
-    const rect = document.getElementById(hash)?.getBoundingClientRect()
-    expect(rect?.top).toBeGreaterThanOrEqual(0)
-    expect(rect?.bottom).toBeLessThanOrEqual(window.innerHeight)
+    // The scroll is smooth: wait for it to settle with the setting inside the window.
+    await expect
+      .poll(() => {
+        const rect = document.getElementById(hash)?.getBoundingClientRect()
+        return rect !== undefined && rect.top >= 0 && rect.bottom <= window.innerHeight
+      })
+      .toBe(true)
   })
 })

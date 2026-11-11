@@ -308,9 +308,12 @@ describe('WorkspaceGeneralPage', () => {
 
     it('shows the first eight avatars and a +N chip whose tooltip lists the rest', async () => {
       await open(inherit(11))
+      await expect.element(merge().getByRole('link').first()).toBeVisible()
       expect(merge().getByRole('link').elements()).toHaveLength(8)
       const more = merge().getByText('+3')
       await expect.element(more).toBeVisible()
+      // Hovering the stack spreads it, which moves the chip: settle that first, then hover the chip.
+      await merge().getByRole('link').first().hover()
       await more.hover()
       await expect
         .element(page.getByRole('tooltip'))
@@ -319,6 +322,7 @@ describe('WorkspaceGeneralPage', () => {
 
     it('shows no chip for eight projects or fewer', async () => {
       await open(inherit(8))
+      await expect.element(merge().getByRole('link').first()).toBeVisible()
       expect(merge().getByRole('link').elements()).toHaveLength(8)
       expect(
         merge()
@@ -408,8 +412,8 @@ describe('WorkspaceGeneralPage', () => {
     await slug().fill('acme-co')
     const warning = page.getByText(/stop working, including bookmarks/)
     await expect.element(warning).toBeVisible()
-    await expect.element(warning).toHaveTextContent('Links with /acme/ in them stop working')
-    await expect.element(warning).toHaveTextContent('New builds post the new address.')
+    await expect.element(warning).toMatchTextContent('Links with /acme/ in them stop working')
+    await expect.element(warning).toMatchTextContent('New builds post the new address.')
     await expect.element(page.getByText(SLUG_HELP)).not.toBeInTheDocument()
     // Back to the saved text: the description is back too.
     await slug().fill('acme')

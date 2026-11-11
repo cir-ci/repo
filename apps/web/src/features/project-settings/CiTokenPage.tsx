@@ -8,7 +8,7 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 
-import { ProjectsettingsFrame } from './ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from './ProjectSettingsFrame.tsx'
 
 import styles from './CiTokenPage.module.css'
 
@@ -23,7 +23,7 @@ const EXIT_CODES = [
 export function CiTokenPage() {
   const { workspace, project } = useParams({ from: '/$workspace/$project/settings/token' })
   return (
-    <ProjectsettingsFrame workspace={workspace} project={project} page="CI token">
+    <ProjectSettingsFrame workspace={workspace} project={project} page="CI token">
       {(data, name) => (
         <TokenBody
           workspace={workspace}
@@ -32,7 +32,7 @@ export function CiTokenPage() {
           repoRef={data.github.link?.repoRef ?? null}
         />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

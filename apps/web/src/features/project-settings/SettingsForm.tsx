@@ -26,7 +26,7 @@ import {
   type SettingsField,
 } from './settings-patch.ts'
 
-import styles from './Projectsettings.module.css'
+import styles from './ProjectSettings.module.css'
 
 /**
  * The General page below the display settings (name, address, default branch, icon and colour, which save on their own): the settings that change

@@ -4,7 +4,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { ProjectsettingsFrame } from '#features/project-settings/ProjectsettingsFrame.tsx'
+import { ProjectSettingsFrame } from '#features/project-settings/ProjectSettingsFrame.tsx'
 import { projectMembersQuery } from '#features/projects/api/members.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
@@ -21,7 +21,7 @@ export function ReviewsSettingsPage() {
   // this button is not a second primary.
   const [addRequests, setAddRequests] = useState(0)
   return (
-    <ProjectsettingsFrame
+    <ProjectSettingsFrame
       workspace={workspace}
       project={project}
       page="Reviews and triage"
@@ -42,7 +42,7 @@ export function ReviewsSettingsPage() {
           addRequests={addRequests}
         />
       )}
-    </ProjectsettingsFrame>
+    </ProjectSettingsFrame>
   )
 }
 

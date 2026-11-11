@@ -510,7 +510,8 @@ describe('InboxPage on a phone', () => {
   })
 })
 
-const firstRow = () => page.getByRole('listitem').first()
+// The list's rows, not the breadcrumb's items above it.
+const firstRow = () => page.getByRole('list', { name: 'For you' }).getByRole('listitem').first()
 
 describe('right-click menu on an inbox item', () => {
   it('offers the row quick actions, with Approve all while the build awaits your review', async () => {

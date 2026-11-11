@@ -170,6 +170,7 @@ describe('WorkspaceStoragePage By project and the days field', () => {
       fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
       await renderPage(framed(width), { ...ROUTE, viewport: [width, 2400] })
       const projects = page.getByRole('region', { name: 'By project' })
+      await expect.element(projects.getByText('1 MB')).toBeVisible()
       const bytes = projects.getByText('1 MB').element()
       const retention = projects.getByText('30 days').element()
       // The bar and the size come first in the row; the days after them (never above the bar).

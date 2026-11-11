@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
+
+// The auth client is the edge to better-auth: a fake stands in for it (Ada, u1, is signed in).
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { ProjectContextMenu } from '#features/projects/ProjectContextMenu.tsx'
 import { ProjectsPage } from '#features/projects/ProjectsPage.tsx'
@@ -68,7 +73,7 @@ describe('a project row on the Projects page: right-click menu', () => {
     await page.getByText('acme/web').click({ button: 'right' })
     await page.getByRole('menuitem', { name: 'Leave project' }).click()
     const dialog = page.getByRole('alertdialog')
-    await expect.element(dialog).toHaveTextContent('Leave Web App?')
+    await expect.element(dialog).toMatchTextContent('Leave Web App?')
     expect(api.of('DELETE').filter((c) => c.path.includes('/members/'))).toHaveLength(0)
     await dialog.getByRole('button', { name: 'Leave project' }).click()
     await expect

@@ -441,10 +441,10 @@ export const PROJECT_SETTINGS_PAGES = [
   { key: 'sites', label: 'Sites', path: '/sites' },
 ] as const
 
-export type ProjectsettingsKey = (typeof PROJECT_SETTINGS_PAGES)[number]['key']
+export type ProjectSettingsKey = (typeof PROJECT_SETTINGS_PAGES)[number]['key']
 
 /** Which project settings page an address is (none for the hub, the bare `/settings`), if it is one. */
-export function projectsettingsKey(pathname: string): ProjectsettingsKey | undefined {
+export function projectSettingsKey(pathname: string): ProjectSettingsKey | undefined {
   const parts = pathname.split('/').filter(Boolean)
   if (parts[0] === 'workspaces' || parts[0] === 'account' || parts[0] === 'instance')
     return undefined

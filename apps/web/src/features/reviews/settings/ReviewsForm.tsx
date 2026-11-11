@@ -22,7 +22,7 @@ import { NotifySection } from './NotifySection.tsx'
 import { ReviewTargetSection } from './ReviewTargetSection.tsx'
 import { RotationSection } from './RotationSection.tsx'
 
-import projectstyles from '#features/project-settings/Projectsettings.module.css'
+import projectstyles from '#features/project-settings/ProjectSettings.module.css'
 
 /**
  * The settings below the rules, saved together: the review target, the automation, and triage

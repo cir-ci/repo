@@ -7,7 +7,7 @@ import { toast } from '#lib/toast.ts'
 
 import { deleteConfirmed, deletePhrase } from './delete-project.ts'
 
-import shared from '#features/project-settings/Projectsettings.module.css'
+import shared from '#features/project-settings/ProjectSettings.module.css'
 
 /**
  * The danger zone of Project General: deleting the project, after typing `workspace/project` back. Owners

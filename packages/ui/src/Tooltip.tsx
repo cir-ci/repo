@@ -15,7 +15,9 @@ export function Tooltip({ content, children, delay = 500, side = 'top', ...rest 
       <BaseTooltip.Trigger delay={delay} render={children} />
       <BaseTooltip.Portal>
         <BaseTooltip.Positioner className={styles.positioner} side={side} sideOffset={6}>
-          <BaseTooltip.Popup className={styles.popup}>{content}</BaseTooltip.Popup>
+          <BaseTooltip.Popup role="tooltip" className={styles.popup}>
+            {content}
+          </BaseTooltip.Popup>
         </BaseTooltip.Positioner>
       </BaseTooltip.Portal>
     </BaseTooltip.Root>

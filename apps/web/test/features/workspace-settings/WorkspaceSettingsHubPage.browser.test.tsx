@@ -163,7 +163,12 @@ describe('WorkspaceSettingsHubPage', () => {
       .getByRole('link')
       .elements()
       .map((el) => el.getAttribute('href'))
-    expect(hrefs.filter((h) => !h?.startsWith('/workspaces/acme/settings'))).toEqual([])
+    // Settings' own ways: the workspace's pages, and up to the instance's Workspaces list and hub.
+    expect(
+      hrefs.filter(
+        (h) => !h?.startsWith('/workspaces/acme/settings') && !h?.startsWith('/instance/'),
+      ),
+    ).toEqual([])
   })
 
   it('gives an owner or admin who only belongs to the workspace as a member Members and Projects', async () => {
@@ -185,13 +190,13 @@ describe('WorkspaceSettingsHubPage', () => {
     api({ member: false })
     await show()
     await expect.element(page.getByText("You're not a member of this workspace")).toBeVisible()
-    // Only the way back and the breadcrumb: no page rows.
+    // Only the way back and the breadcrumb (Instance, Workspaces): no page rows.
     expect(
       page
         .getByRole('link')
         .elements()
         .map((el) => el.textContent),
-    ).toEqual(['Workspaces', 'Workspaces'])
+    ).toEqual(['Instance', 'Workspaces', 'Workspaces'])
   })
 
   it('says so for an address that is no workspace', async () => {

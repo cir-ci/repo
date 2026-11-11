@@ -7,15 +7,15 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$project/settings',
   component: lazyRouteComponent(
-    () => import('./ProjectsettingsHubPage.tsx'),
-    'ProjectsettingsHubPage',
+    () => import('./ProjectSettingsHubPage.tsx'),
+    'ProjectSettingsHubPage',
   ),
 })
 
 const generalRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$project/settings/general',
-  component: lazyRouteComponent(() => import('./ProjectsettingsPage.tsx'), 'ProjectsettingsPage'),
+  component: lazyRouteComponent(() => import('./ProjectSettingsPage.tsx'), 'ProjectSettingsPage'),
 })
 
 const tokenRoute = createRoute({

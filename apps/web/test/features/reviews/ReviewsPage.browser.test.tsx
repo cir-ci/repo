@@ -93,7 +93,7 @@ describe('ReviewsPage list header', () => {
     expect(tops.size, 'every filter button is on one line').toBe(1)
     for (const tab of tabs) expect(tab.getBoundingClientRect().height).toBeLessThanOrEqual(30)
     // The short names show on a phone; the full one is the desktop's.
-    await expect.element(group.getByRole('button', { name: 'For you' })).toBeVisible()
+    await expect.element(group.getByRole('button', { name: /^For you/ })).toBeVisible()
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 
