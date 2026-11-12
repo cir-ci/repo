@@ -267,7 +267,9 @@ describe('the strip under the header', () => {
   it('shows the first-build note when there is no baseline', async () => {
     fakeBuildApi(detail({ baselineSource: 'none' }, { baseline: null }))
     await renderBuild()
-    await expect.element(page.getByText(/This is the first build/)).toBeVisible()
+    await expect
+      .element(page.getByText(/There's no approved baseline to compare with yet/))
+      .toBeVisible()
   })
 
   it('puts "N of M reviewed" at the top of the screenshot list', async () => {

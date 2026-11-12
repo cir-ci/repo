@@ -102,7 +102,7 @@ export function AppearancePage() {
       </SettingsSection>
       <SettingsSection
         title="Switch quickly"
-        description="Press ⌘K and type “theme”, or use the account menu at the bottom of the sidebar."
+        description="Press ⌘K and type "theme", or use the account menu at the bottom of the sidebar."
         bare
       />
     </Frame>

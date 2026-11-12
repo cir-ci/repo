@@ -109,11 +109,25 @@ function textCondition(text: string) {
   )
 }
 
+/**
+ * The review filter. "Pending" is what the dashboard calls Needs review: a finished build with
+ * changes still to decide. A build that failed, is still processing or has no changes also holds
+ * the default `pending` review status, but has nothing to review, so it is left out.
+ */
+function reviewStatusCondition(status: NonNullable<listBuildsForProject.Filters['reviewStatus']>) {
+  if (status !== 'pending') return eq(builds.reviewStatus, status)
+  return and(
+    eq(builds.reviewStatus, 'pending'),
+    eq(builds.status, 'complete'),
+    sql`${builds.conclusion} is distinct from 'no_changes'`,
+  )
+}
+
 export function buildFilterConditions(f: listBuildsForProject.Filters) {
   return [
     f.text === undefined ? undefined : textCondition(f.text),
     f.status ? eq(builds.status, f.status) : undefined,
-    f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
+    f.reviewStatus ? reviewStatusCondition(f.reviewStatus) : undefined,
     f.branch === undefined ? undefined : eq(builds.branch, f.branch),
     f.branchContains === undefined
       ? undefined

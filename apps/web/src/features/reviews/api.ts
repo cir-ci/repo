@@ -11,7 +11,7 @@ import type { SnoozeChoice } from '#lib/snooze.ts'
 
 /** The tabs of the page, in the order of the design board. */
 export const REVIEW_TABS: readonly { value: Review.Tab; label: string; short: string }[] = [
-  { value: 'for-you', label: 'Requested from you', short: 'For you' },
+  { value: 'for-you', label: 'Needs your review', short: 'For you' },
   { value: 'reviewed', label: 'Reviewed', short: 'Reviewed' },
   { value: 'created', label: 'Created by you', short: 'Created' },
   { value: 'all-open', label: 'All open', short: 'All open' },

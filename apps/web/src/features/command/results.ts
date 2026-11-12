@@ -34,7 +34,7 @@ const TRIAGE_NAME: Record<Search.Triage['kind'], string> = {
 }
 
 const REVIEW_TAB_NAME: Record<Search.Review['tab'], string> = {
-  'for-you': 'Requested from you',
+  'for-you': 'Needs your review',
   created: 'Created by you',
   snoozed: 'Snoozed',
 }

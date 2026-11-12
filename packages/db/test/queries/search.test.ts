@@ -166,6 +166,8 @@ describe('listBuildsForProject filters', () => {
     expect(await numbers({})).toEqual([3, 2, 1])
     expect(await numbers({ status: 'error' })).toEqual([3])
     expect(await numbers({ reviewStatus: 'approved' })).toEqual([1])
+    // "Needs review" leaves out a failed build, which holds the default pending status but has nothing to review.
+    expect(await numbers({ reviewStatus: 'pending' })).toEqual([2])
     expect(await numbers({ branch: 'feature' })).toEqual([3, 2])
     expect(await numbers({ author: 'octocat' })).toEqual([2])
     expect(await numbers({ author: mate.id })).toEqual([3])

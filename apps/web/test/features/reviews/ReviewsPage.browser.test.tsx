@@ -149,7 +149,7 @@ describe('ReviewsPage', () => {
       .element(page.getByRole('status', { name: '2 reviews waiting on you' }))
       .toBeVisible()
     await expect
-      .element(page.getByRole('button', { name: 'Requested from you 2' }))
+      .element(page.getByRole('button', { name: 'Needs your review 2' }))
       .toHaveAttribute('aria-pressed', 'true')
     // The first review is selected when the address names none (a desktop never shows an empty invitation).
     await expect.element(page.getByRole('heading', { name: 'Build #12' })).toBeVisible()
@@ -181,7 +181,7 @@ describe('ReviewsPage', () => {
     await show('/workspaces/acme/reviews?tab=reviewed&review=r1')
     // The same answer for every tab: the counts (2 waiting, 2 snoozed) come from their own lists.
     for (const name of [
-      'Requested from you 1',
+      'Needs your review 1',
       'Reviewed',
       'Created by you',
       'All open',
@@ -594,7 +594,7 @@ describe('ReviewsPage', () => {
     await show('/workspaces/acme/reviews?review=r1')
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByText('Review target')).toBeVisible()
-    await expect.element(panel.getByText(/Overdue 3h, target/)).toBeVisible()
+    await expect.element(panel.getByText('Overdue 3h', { exact: true })).toBeVisible()
   })
 
   it("keeps each Details value on its label's line in the half-width Details", async () => {
@@ -613,7 +613,7 @@ describe('ReviewsPage', () => {
     const panel = page.getByRole('region', { name: 'Selected review' })
     const label = panel.getByText('Review target')
     await expect.element(label).toBeVisible()
-    const value = panel.getByText(/Overdue 8d, target/)
+    const value = panel.getByText('Overdue 8d', { exact: true })
     await expect.element(value).toBeVisible()
     // One line: the value's middle is level with the label's (it wrapped under it before).
     expect(

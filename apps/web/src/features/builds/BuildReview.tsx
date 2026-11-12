@@ -642,10 +642,13 @@ export namespace BuildReview {
 function baselineBanner({ build, baseline }: Build.Detail) {
   if (isActive(build.status) || build.status === 'expired') return null
   if (!baseline) {
+    // Only the project's very first build is "the first build"; a later one with nothing to
+    // compare against has no approved baseline yet.
     return (
       <Banner tone="info">
-        This is the first build, so every screenshot is new. Later builds are compared with it once
-        it's approved.
+        {build.number === 1
+          ? "This is the first build, so every screenshot is new. Later builds are compared with it once it's approved."
+          : "There's no approved baseline to compare with yet, so every screenshot shows as new. Later builds are compared with this one once it's approved."}
       </Banner>
     )
   }

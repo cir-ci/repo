@@ -128,8 +128,11 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
               <SettingsRow className={styles.fact} label="Review target">
                 {/* One inline span: the control is a flex row, which would add a gap after the text. */}
                 <span>
-                  {overdue ? `${overdue}, target ` : 'Due '}
-                  <RelativeTime iso={r.dueAt} />
+                  {overdue ?? (
+                    <>
+                      Due <RelativeTime iso={r.dueAt} />
+                    </>
+                  )}
                 </span>
               </SettingsRow>
             ) : null}

@@ -42,6 +42,24 @@ const comment = (id: string, over: object = {}) => ({
 })
 
 describe('sidebar tabs', () => {
+  it('keeps the chosen tab when another screenshot is picked', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    const tabs = page.getByRole('tablist', { name: 'Build sidebar' })
+    await tabs.getByRole('tab', { name: /^Comments/ }).click()
+    await expect
+      .element(tabs.getByRole('tab', { name: /^Comments/ }))
+      .toHaveAttribute('aria-selected', 'true')
+    const list = page.getByRole('navigation', { name: 'Screenshots' })
+    await list.getByRole('link', { name: /checkout \/ address/ }).click()
+    await expect
+      .element(page.getByRole('heading', { level: 2, name: 'checkout / address' }))
+      .toBeVisible()
+    await expect
+      .element(tabs.getByRole('tab', { name: /^Comments/ }))
+      .toHaveAttribute('aria-selected', 'true')
+  })
+
   it('offers Details, Activity and Comments, and arrow keys move between them', async () => {
     fakeBuildApi(detail())
     await renderBuild()

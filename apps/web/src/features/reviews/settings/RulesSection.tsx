@@ -74,7 +74,7 @@ export function RulesSection(props: RulesSection.Props) {
   return (
     <SettingsSection
       title="Review rules"
-      description={`When a build has changes, CirCI requests review from the first matching rule's people, who are ${props.projectName}'s members. Like CODEOWNERS for screenshots.`}
+      description={`When a build has changes, CirCI requests review from the people of every matching rule (nobody twice), who are ${props.projectName}'s members. Like CODEOWNERS for screenshots.`}
       bare
     >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}

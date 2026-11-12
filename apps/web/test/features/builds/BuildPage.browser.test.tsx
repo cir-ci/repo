@@ -265,9 +265,22 @@ describe('BuildPage states', () => {
     await renderBuild()
     await expect.element(page.getByText('No baseline', { exact: true }).first()).toBeVisible()
     await expect
-      .element(page.getByText(/This is the first build, so every screenshot is new/))
+      .element(
+        page.getByText(
+          /There's no approved baseline to compare with yet, so every screenshot shows as new/,
+        ),
+      )
       .toBeVisible()
     await expect.element(page.getByRole('img', { name: /^New in this build/ })).toBeVisible()
+  })
+
+  it('says "the first build" only for a project\'s first build', async () => {
+    fakeBuildApi(detail({ number: 1 }, { baseline: null, diffs: [shot('home', 'added')] }))
+    await renderBuild()
+    await expect
+      .element(page.getByText(/This is the first build, so every screenshot is new/))
+      .toBeVisible()
+    expect(page.getByText(/no approved baseline to compare with yet/).elements()).toHaveLength(0)
   })
 
   it('warns when the baseline is a fallback', async () => {
