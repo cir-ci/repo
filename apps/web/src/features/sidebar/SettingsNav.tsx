@@ -248,6 +248,17 @@ export function SettingsNav() {
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
 
+/** Whether the address is a page inside the workspace that its own entry isn't selected for: a project's settings, or its projects list. */
+export function insideWorkspace(pathname: string, slug: string): boolean {
+  const ws = encodeURIComponent(slug)
+  const [, first, second, third] = pathname.split('/')
+  const projectSettings = first === ws && second !== undefined && third === 'settings'
+  const projectsList =
+    pathname === `/workspaces/${ws}/settings/projects` ||
+    pathname.startsWith(`/workspaces/${ws}/settings/projects/`)
+  return projectSettings || projectsList
+}
+
 /** A workspace of the instance (an instance admin's list): its tile and name, opening its settings hub. */
 function WorkspaceEntry({ workspace, pathname }: WorkspaceEntry.Props) {
   const base = `/workspaces/${encodeURIComponent(workspace.slug)}/settings`
@@ -272,6 +283,9 @@ function WorkspaceEntry({ workspace, pathname }: WorkspaceEntry.Props) {
         pathname !== `${base}/projects` &&
         !pathname.startsWith(`${base}/projects/`)
       }
+      // A page inside it that another entry is selected for (a project's settings, All projects):
+      // the workspace is still the one being viewed, so it keeps a quieter highlight.
+      within={insideWorkspace(pathname, workspace.slug)}
     >
       {workspace.name}
     </NavLink>

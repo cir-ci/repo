@@ -257,6 +257,30 @@ describe('SettingsNav', () => {
         .toBeVisible()
     })
 
+    it("highlights the workspace being viewed while one of its projects' settings is the page", async () => {
+      // The default address: /acme/web/settings/reviews, a page of the Web App project's settings.
+      await show({ instanceAdmin: true })
+      const workspaces = page.getByRole('region', { name: 'Workspaces' })
+      const acme = workspaces.getByRole('link', { name: 'Acme' })
+      await expect.element(acme).toBeVisible()
+      // Acme is the workspace being viewed: highlighted, quieter than the page itself.
+      await expect.element(acme).toHaveAttribute('data-within', '')
+      await expect.element(acme).not.toHaveAttribute('aria-current')
+      // The project is the page.
+      await expect
+        .element(
+          page.getByRole('region', { name: 'Projects' }).getByRole('link', { name: 'Web App' }),
+        )
+        .toHaveAttribute('aria-current', 'page')
+      // Another workspace isn't marked.
+      await expect
+        .element(workspaces.getByRole('link', { name: 'Globex' }))
+        .not.toHaveAttribute('data-within')
+      // The two highlights differ: the page has the accent bar, the workspace doesn't.
+      expect(getComputedStyle(acme.element()).boxShadow).toBe('none')
+      expect(getComputedStyle(acme.element()).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    })
+
     it('orders the sections by the hierarchy: Account, Instance, Workspaces, Projects', async () => {
       await show({ instanceAdmin: true })
       await expect.element(page.getByRole('region', { name: 'Projects' })).toBeVisible()

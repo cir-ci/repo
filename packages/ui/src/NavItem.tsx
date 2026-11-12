@@ -37,6 +37,7 @@ export function NavItem(props: NavItem.Props) {
     onClick: props.onClick,
     'aria-current': props.selected ? ('page' as const) : undefined,
     'data-selected': props.selected ? '' : undefined,
+    'data-within': props.within && !props.selected ? '' : undefined,
     'data-sub': props.sub ? '' : undefined,
     'data-more': props.more ? '' : undefined,
   }
@@ -67,6 +68,11 @@ export namespace NavItem {
     /** Gets the click event, so a router can `preventDefault` and navigate without a reload. */
     onClick?: MouseEventHandler<HTMLElement>
     selected?: boolean
+    /**
+     * The current page is inside this entry (a project's settings, inside its workspace): a quieter
+     * highlight than `selected`, with no accent bar and no `aria-current`, so one entry stays the page.
+     */
+    within?: boolean
     /** A sub-item: 28px tall, indented under its parent. */
     sub?: boolean
     /** A "more" row ("All projects"): 28px, 13px secondary text, no icon, its label aligned with the items' labels. */

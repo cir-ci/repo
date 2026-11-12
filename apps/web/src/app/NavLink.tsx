@@ -10,6 +10,7 @@ export function NavLink({
   icon,
   trailing,
   selected,
+  within,
   children,
   sub,
   more,
@@ -28,6 +29,7 @@ export function NavLink({
       {...(icon ? { icon } : {})}
       {...(trailing ? { trailing } : {})}
       {...(isCurrent ? { selected: true } : {})}
+      {...(within ? { within } : {})}
       {...(sub ? { sub } : {})}
       {...(more ? { more } : {})}
       {...(count === undefined ? {} : { count })}
@@ -45,6 +47,8 @@ export namespace NavLink {
     icon?: ReactNode
     trailing?: ReactNode
     selected?: boolean
+    /** The current page is inside this entry: a quieter highlight (`NavItem`'s `within`). */
+    within?: boolean
     sub?: boolean
     more?: boolean
     count?: number

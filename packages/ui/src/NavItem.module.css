@@ -31,6 +31,10 @@
   color: var(--circi-text-primary);
 }
 
+.root[data-within] {
+  background: var(--circi-action-selected);
+}
+
 .root:focus-visible {
   outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
