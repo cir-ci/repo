@@ -5,7 +5,7 @@ import type { getProjectContext } from '@circi/db/queries'
 import type { SessionMethod } from '@circi/db/repositories'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
-import type { SiteDnsResolver } from '@circi/services'
+import type { InstanceConfigStore, SiteDnsResolver } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import type { Fetcher } from '#composition/doctor.ts'
@@ -56,8 +56,10 @@ export namespace Deps {
   export interface Sites {
     /** The sites domain, e.g. `example-sites.com`. */
     host: string
-    /** Largest site accepted, in bytes. */
+    /** Largest site accepted, in bytes (the environment's or default value). */
     maxBytes: number
+    /** The largest site accepted now, read from the instance settings (they can change while running). */
+    maxBytesNow?: () => Promise<number>
     /** The full address of a site's hostname label, with the dashboard's scheme and port. */
     originFor(label: string): string
   }
@@ -73,6 +75,11 @@ export namespace Deps {
     passwordLogin?: boolean
     /** Single sign-on buttons to offer (the providers are configured in `createAuth`). */
     sso?: { id: string; name: string }[]
+    /**
+     * The instance's settings, read per request: sign-in methods, who may create workspaces, the
+     * mail server. Without it (tests that build a scope by hand) the plain values below apply.
+     */
+    instanceConfig?: InstanceConfigStore
     /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). Default off. */
     webhookAllowPrivate?: boolean
     /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */

@@ -6,7 +6,7 @@ import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 
-/** `/api/instance/settings` and `/api/instance/mail/test`: read-only, from the environment. */
+/** `/api/instance/settings` (what the page shows, from the settings service) and `/api/instance/mail/test`. */
 export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
   deps,
@@ -14,8 +14,14 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
   app.addHook('onRequest', requireInstanceAdmin())
 
   app.get('/instance/settings', async (_req, reply) => {
-    if (!deps.instance) return reply.code(501).send({ error: "Instance settings aren't available" })
-    const settings: InstanceAdmin.Settings = describeSettings(deps.instance, deps)
+    if (!deps.instance || !deps.instanceConfig) {
+      return reply.code(501).send({ error: "Instance settings aren't available" })
+    }
+    const settings: InstanceAdmin.Settings = describeSettings(
+      deps.instance,
+      deps,
+      await deps.instanceConfig.describe(),
+    )
     return settings
   })
 
@@ -23,8 +29,8 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
   app.post('/instance/mail/test', async (req): Promise<InstanceAdmin.MailTest> => {
     const to = currentUser(req).email
     const mailer = deps.instance?.mailer
-    if (!mailer) {
-      return { ok: false, to, message: "SMTP isn't configured (set SMTP_HOST and SMTP_FROM)." }
+    if (!mailer || (await mailer.configured?.()) === false) {
+      return { ok: false, to, message: "Mail isn't set up. Add a mail server first." }
     }
     try {
       await mailer.send({

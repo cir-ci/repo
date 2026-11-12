@@ -1,8 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`the route table > has not changed (method and url, sorted) 1`] = `
-"DELETE /api/auth/sign-in/email-otp
-DELETE /api/inbox/:id
+"DELETE /api/inbox/:id
 DELETE /api/instance/health/address-checklist/dismissed
 DELETE /api/projects/:workspace/:project
 DELETE /api/projects/:workspace/:project/builds/:number/comments/:id
@@ -25,7 +24,6 @@ DELETE /api/workspaces/:workspace/views/:id
 GET *
 GET /api/account/email-change
 GET /api/auth-methods
-GET /api/auth/sign-in/email-otp
 GET /api/capabilities
 GET /api/files/:sha256
 GET /api/inbox
@@ -94,7 +92,6 @@ GET /v2/project
 HEAD *
 HEAD /api/account/email-change
 HEAD /api/auth-methods
-HEAD /api/auth/sign-in/email-otp
 HEAD /api/capabilities
 HEAD /api/files/:sha256
 HEAD /api/inbox
@@ -160,8 +157,6 @@ HEAD /v1/builds/:id/status
 HEAD /v1/project
 HEAD /v1/sites/served
 HEAD /v2/project
-OPTIONS /api/auth/sign-in/email-otp
-PATCH /api/auth/sign-in/email-otp
 PATCH /api/instance/accounts/:id
 PATCH /api/projects/:workspace/:project/appearance
 PATCH /api/projects/:workspace/:project/builds/:number/comments/:id
@@ -172,7 +167,6 @@ PATCH /api/workspaces/:workspace
 PATCH /api/workspaces/:workspace/auth
 PATCH /api/workspaces/:workspace/settings
 PATCH /api/workspaces/:workspace/views/:id
-POST /api/auth/sign-in/email-otp
 POST /api/inbox/:id/read
 POST /api/inbox/:id/snooze
 POST /api/inbox/:id/unsnooze
@@ -237,7 +231,6 @@ POST /v2/baseline
 POST /v2/builds
 POST /v2/uploads/:buildId/:sha256
 POST /webhooks/:kind
-PUT /api/auth/sign-in/email-otp
 PUT /api/inbox/preferences
 PUT /api/instance/health/address-checklist/dismissed
 PUT /api/projects/:workspace/:project/github
@@ -251,7 +244,5 @@ PUT /api/workspaces/:workspace/picture
 PUT /api/workspaces/:workspace/pinned-projects/:project
 PUT /api/workspaces/:workspace/views/order
 PUT /v1/files/:sha256
-PUT /v2/builds/:id
-QUERY /api/auth/sign-in/email-otp
-TRACE /api/auth/sign-in/email-otp"
+PUT /v2/builds/:id"
 `;

@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream'
 
-import { ValidationError } from '@circi/core'
+import { INSTANCE_LIMIT_BOUNDS, ValidationError } from '@circi/core'
 import { servedCommitForBranch } from '@circi/db/queries'
 import { publishSite } from '@circi/services'
 import {
@@ -51,7 +51,15 @@ const uploadQuery = z.object({
 export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post(
     '/sites',
-    { bodyLimit: (deps.sites?.maxBytes ?? 0) + 1024 * 1024 },
+    {
+      // The archive is compressed and the limit is on what it unpacks to, which `ingestTarball` enforces; this one only
+      // bounds the upload. With a setting that can change, the largest value it may have.
+      bodyLimit:
+        (deps.sites?.maxBytesNow
+          ? INSTANCE_LIMIT_BOUNDS.staticSitesMaxMb.max * 1024 * 1024
+          : (deps.sites?.maxBytes ?? 0)) +
+        1024 * 1024,
+    },
     async (req, reply) => {
       const ctx = currentProject(req)
       const sites = deps.sites
@@ -73,7 +81,7 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
       let files: ingestTarball.File[]
       try {
         files = await ingestTarball(body, {
-          maxBytes: sites.maxBytes,
+          maxBytes: (await sites.maxBytesNow?.()) ?? sites.maxBytes,
           store: async (file, content) => {
             // Identical files (same hash) are stored once.
             if (keys.has(file.sha256)) return

@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { signInMethods } from '#http/lib/instance-config.ts'
 import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
@@ -26,18 +27,21 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   app,
   deps,
 ) => {
-  const instance = instanceAuthMethods({
-    password: deps.passwordLogin !== false,
-    email: deps.emailLogin === true,
-    providers: (deps.sso ?? []).map((p) => p.id),
-  })
+  const instanceNow = async () => {
+    const methods = await signInMethods(deps)
+    return instanceAuthMethods({
+      password: methods.password,
+      email: methods.email,
+      providers: methods.sso.map((p) => p.id),
+    })
+  }
 
   app.get('/workspaces/:workspace/auth', async (req) => {
     const found = await loadWorkspace(deps, req)
     return {
       canManage: found.canManage,
       settings: await getWorkspaceAuthSettings(deps.db, found.workspace.id),
-      instance,
+      instance: await instanceNow(),
     }
   })
 
@@ -49,7 +53,7 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     const patch = parse(body, req.body)
     return {
       settings: await updateWorkspaceSignIn(deps.db, found.workspace.id, patch, {
-        instance,
+        instance: await instanceNow(),
         currentMethod: currentUser(req).method,
       }),
     }

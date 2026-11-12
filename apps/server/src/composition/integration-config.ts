@@ -29,3 +29,32 @@ export function integrationConfig(
   built.set(config, out)
   return out
 }
+
+/**
+ * Points the live configuration at the Slack app in the instance settings (the environment's, else
+ * the one saved in the dashboard), or clears it. A new object only when it differs, so anything
+ * keyed on the old one starts afresh.
+ */
+export function applySlack(
+  live: IntegrationDefinition.InstanceConfig,
+  slack: { clientId: string; clientSecret: string; apiUrl?: string } | undefined,
+): void {
+  const now = live.slack
+  if (!slack) {
+    delete live.slack
+    return
+  }
+  if (
+    now &&
+    now.clientId === slack.clientId &&
+    now.clientSecret === slack.clientSecret &&
+    now.apiUrl === slack.apiUrl
+  ) {
+    return
+  }
+  live.slack = {
+    clientId: slack.clientId,
+    clientSecret: slack.clientSecret,
+    ...(slack.apiUrl ? { apiUrl: slack.apiUrl } : {}),
+  }
+}

@@ -1,6 +1,7 @@
 import type { InstanceAdmin } from '@circi/api'
 import { callbackUrl } from '@circi/auth'
-import { DEFAULT_PROJECT_RETENTION_DAYS } from '@circi/core'
+import type { Config } from '@circi/config'
+import type { InstanceConfig } from '@circi/services'
 
 import type { Deps } from '#http/lib/deps.ts'
 
@@ -9,45 +10,37 @@ import { githubAppSource } from './github-app.ts'
 type Instance = Deps.Instance
 type Scope = Pick<Deps.Dashboard, 'githubApp' | 'integrations'>
 
-/** The effective settings from the environment; secrets (SMTP login, client secrets, keys) never appear. */
-export function describeSettings(instance: Instance, scope: Scope): InstanceAdmin.Settings {
+/**
+ * What Instance › Settings shows: the address, the GitHub App, storage, and the settings an admin can
+ * change (`described`: their sources and locks; secrets never appear, only whether one is saved).
+ */
+export function describeSettings(
+  instance: Instance,
+  scope: Scope,
+  described: InstanceAdmin.Config,
+): InstanceAdmin.Settings {
   const { config } = instance
-  const { smtp, staticSites } = config
   return {
     publicUrl: config.publicUrl.origin,
     previousPublicHosts: config.previousPublicHosts,
-    mail: {
-      configured: smtp !== undefined,
-      from: smtp?.from ?? null,
-      host: smtp?.host ?? null,
-      port: smtp?.port ?? null,
-      secure: smtp?.secure ?? null,
-      authenticated: smtp?.auth !== undefined,
-    },
-    auth: {
-      password: config.passwordLogin,
-      email: config.emailLogin,
-      sso: config.sso.map((p) => ({ id: p.id, name: p.name })),
-    },
-    workspaceCreation: config.workspaceCreation,
-    retention: {
-      defaultProjectRetentionDays: DEFAULT_PROJECT_RETENTION_DAYS,
-      gcGraceHours: config.gcGraceHours,
-      uploadTimeoutMinutes: config.uploadTimeoutMinutes,
-    },
+    config: described,
     githubApp: {
       source: githubAppSource(scope),
       appId: scope.integrations?.config.github?.appId ?? null,
     },
-    staticSites: staticSites
-      ? { host: staticSites.host, maxMb: Math.round(staticSites.maxBytes / (1024 * 1024)) }
-      : null,
+    staticSites: config.staticSites ? { host: config.staticSites.host } : null,
     storage:
       config.storage.driver === 's3'
         ? { driver: 's3', bucket: config.storage.bucket }
         : { driver: 'fs', bucket: null },
     webhooksAllowPrivateAddresses: config.webhookAllowPrivate,
   }
+}
+
+/** The configuration with the mail server of the instance settings (the environment's, else the saved one). */
+export function withEffectiveSmtp(config: Config, effective: InstanceConfig.Effective): Config {
+  const { smtp: _env, ...rest } = config
+  return { ...rest, ...(effective.smtp ? { smtp: effective.smtp } : {}) }
 }
 
 /**
@@ -57,8 +50,11 @@ export function describeSettings(instance: Instance, scope: Scope): InstanceAdmi
 export function addressChecklist(
   instance: Instance,
   scope: Scope,
+  effective?: InstanceConfig.Effective,
 ): Omit<InstanceAdmin.AddressChecklist, 'dismissed' | 'previousHosts'> {
   const { config } = instance
+  const sso = effective?.sso ?? config.sso
+  const slack = effective ? effective.slack : config.slack
   const origin = config.publicUrl.origin
   const steps: InstanceAdmin.AddressStep[] = [
     {
@@ -83,7 +79,7 @@ export function addressChecklist(
       detail:
         "In each identity provider, change the redirect URI to the new address. A workspace's own provider (Workspace › Sign-in and domains) redirects to /api/auth/sso/callback/<provider id>.",
       values: [
-        ...config.sso.map((p) => callbackUrl(origin, p)),
+        ...sso.map((p) => callbackUrl(origin, p)),
         `${origin}/api/auth/sso/callback/<provider id>`,
       ],
     },
@@ -108,7 +104,7 @@ export function addressChecklist(
     title: 'Slack, Linear, Jira and other connected apps: change their redirect URIs',
     detail: "Each app's OAuth redirect URI is on the new address.",
     values: [
-      ...(config.slack ? [`${origin}/api/integrations/slack/callback`] : []),
+      ...(slack ? [`${origin}/api/integrations/slack/callback`] : []),
       `${origin}/api/integrations/<integration>/callback`,
     ],
   })

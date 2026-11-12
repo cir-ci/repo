@@ -5,6 +5,7 @@ import { requireSameOrigin } from '#http/hooks/same-origin.ts'
 import { refuseBlockedProvider, requireSession } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
+import { signInMethods } from '#http/lib/instance-config.ts'
 import { authRoutes } from '#http/routes/auth.ts'
 
 import { dashboardAccountEmailRoutes } from './account/email-change.ts'
@@ -19,6 +20,7 @@ import { dashboardReviewRequestRoutes } from './inbox/review-requests.ts'
 import { dashboardSearchRoutes } from './inbox/search.ts'
 import { dashboardViewRoutes } from './inbox/views.ts'
 import { dashboardInstanceAccountRoutes } from './instance/accounts.ts'
+import { dashboardInstanceConfigRoutes } from './instance/config.ts'
 import { dashboardGithubAppRoutes } from './instance/github-app.ts'
 import { dashboardInstanceHealthRoutes } from './instance/health.ts'
 import { dashboardInstanceRoutes } from './instance/notices.ts'
@@ -69,9 +71,7 @@ export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, 
     auth: deps.auth,
     db: deps.db,
     publicOrigin: deps.publicOrigin,
-    emailLogin: deps.emailLogin === true,
-    passwordLogin: deps.passwordLogin !== false,
-    sso: deps.sso ?? [],
+    methods: () => signInMethods(deps),
   })
   if (deps.authSecret) {
     await dash.register(dashboardSetupRoutes, {
@@ -109,6 +109,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardInstanceAccountRoutes, deps)
   await api.register(dashboardInstanceWorkspaceRoutes, deps)
   await api.register(dashboardInstanceSettingsRoutes, deps)
+  await api.register(dashboardInstanceConfigRoutes, deps)
   await api.register(dashboardInstanceHealthRoutes, deps)
   await api.register(dashboardSetupFinishRoutes, deps)
   await api.register(dashboardGithubAppRoutes, deps)

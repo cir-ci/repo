@@ -38,29 +38,32 @@ export const authRoutes: FastifyPluginAsync<{
   auth: Auth
   db: Database
   publicOrigin: string
-  emailLogin: boolean
-  passwordLogin: boolean
-  sso: { id: string; name: string }[]
+  /** What the sign-in page offers, read per request (the instance settings can change). */
+  methods: () => Promise<{
+    password: boolean
+    email: boolean
+    sso: { id: string; name: string }[]
+  }>
 }> = async (app, options) => {
   /** What the sign-in page can offer. Public: it's needed before anyone is signed in. */
   app.get('/api/auth-methods', async () => ({
-    password: options.passwordLogin,
-    email: options.emailLogin,
-    sso: options.sso,
+    ...(await options.methods()),
     workspaceSso: await hasWorkspaceSso(options.db),
   }))
-
-  // With email login off its endpoints disappear, rather than existing and doing nothing.
-  if (!options.emailLogin) {
-    app.all('/api/auth/email-otp/*', (_request, reply) => reply.callNotFound())
-    app.all('/api/auth/sign-in/email-otp', (_request, reply) => reply.callNotFound())
-  }
 
   app.route({
     method: ['GET', 'POST'],
     url: '/api/auth/*',
     handler: async (request, reply) => {
       const url = new URL(request.url, options.publicOrigin)
+      // With email login off its endpoints disappear, rather than existing and doing nothing.
+      if (
+        (url.pathname.startsWith('/api/auth/email-otp/') ||
+          url.pathname === '/api/auth/sign-in/email-otp') &&
+        !(await options.methods()).email
+      ) {
+        return reply.callNotFound()
+      }
       const hasBody = request.method !== 'GET' && request.body !== undefined
       // better-auth keys its rate limits and session records on `X-Forwarded-For`. Whatever the
       // client sent is replaced by the address Fastify resolved (the socket, or the forwarded

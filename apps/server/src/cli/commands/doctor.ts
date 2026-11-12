@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 import { withRuntime } from '#cli/lib/output.ts'
 import { instanceProbes } from '#composition/doctor-probes.ts'
 import { formatFinding, httpFetcher, runDoctor } from '#composition/doctor.ts'
+import { withEffectiveSmtp } from '#composition/instance-settings.ts'
 
 /** `circi admin doctor` */
 export function addDoctorCommand(admin: Command): void {
@@ -14,11 +15,12 @@ export function addDoctorCommand(admin: Command): void {
     .action(() =>
       withRuntime(async (rt) => {
         let warned = false
+        const config = withEffectiveSmtp(rt.config, await rt.instanceConfig.get())
         for (const f of await runDoctor(
-          rt.config,
+          config,
           httpFetcher,
           rt.storage,
-          instanceProbes({ db: rt.db.db, config: rt.config, mailer: rt.mailer }),
+          instanceProbes({ db: rt.db.db, config, mailer: rt.mailer }),
         )) {
           console.log(formatFinding(f))
           warned ||= f.level === 'warn' || f.level === 'fail'

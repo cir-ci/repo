@@ -22,8 +22,9 @@ export function addStorageCommands(admin: Command): void {
         for (const f of usage.files)
           console.log(`${f.kind.padEnd(10)} ${String(f.count).padStart(7)} files  ${mb(f.bytes)}`)
         console.log(`${'total'.padEnd(10)} ${mb(usage.totalBytes)}`)
+        const { limits } = await rt.instanceConfig.get()
         console.log(
-          `waiting to be deleted: ${usage.markedForDeletion.count} files, ${mb(usage.markedForDeletion.bytes)} (after the ${rt.config.gcGraceHours} h grace period)`,
+          `waiting to be deleted: ${usage.markedForDeletion.count} files, ${mb(usage.markedForDeletion.bytes)} (after the ${limits.gcGraceHours} h grace period)`,
         )
       }),
     )
@@ -74,7 +75,9 @@ export function addStorageCommands(admin: Command): void {
     .action((opts: { graceHours?: string; dryRun?: boolean }) =>
       withRuntime(async (rt) => {
         const grace =
-          opts.graceHours === undefined ? rt.config.gcGraceHours : Number(opts.graceHours)
+          opts.graceHours === undefined
+            ? (await rt.instanceConfig.get()).limits.gcGraceHours
+            : Number(opts.graceHours)
         if (!Number.isFinite(grace) || grace < 0)
           throw new UsageError('--grace-hours must be 0 or more')
         if (opts.dryRun) {

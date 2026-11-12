@@ -22,6 +22,16 @@ export interface Mailer {
   send(mail: Mailer.Mail): Promise<void>
   /** Connects and logs in to the mail server without sending anything; rejects with the reason. */
   verify?(): Promise<void>
+  /** Whether mail can be sent now (a mail server is set up). Absent: always. */
+  configured?(): Promise<boolean>
+}
+
+/** Thrown by a mailer that has no mail server to send through. */
+export class MailNotConfiguredError extends Error {
+  constructor() {
+    super("Mail isn't set up on this instance")
+    this.name = 'MailNotConfiguredError'
+  }
 }
 
 export function createSmtpMailer(options: Mailer.SmtpOptions): Mailer {
@@ -39,6 +49,37 @@ export function createSmtpMailer(options: Mailer.SmtpOptions): Mailer {
     },
     async verify() {
       await transport.verify()
+    },
+  }
+}
+
+/**
+ * A mailer that reads the mail server's settings at every send, so a change in the dashboard
+ * applies to the next mail with no restart. The transport is reused while the settings stay the
+ * same. Without settings `send` rejects with `MailNotConfiguredError`.
+ */
+export function createLiveMailer(current: () => Promise<Mailer.SmtpOptions | undefined>): Mailer {
+  let key = ''
+  let mailer: Mailer | undefined
+  async function resolve(): Promise<Mailer> {
+    const options = await current()
+    if (!options) throw new MailNotConfiguredError()
+    const next = JSON.stringify(options)
+    if (next !== key || !mailer) {
+      key = next
+      mailer = createSmtpMailer(options)
+    }
+    return mailer
+  }
+  return {
+    async send(mail) {
+      await (await resolve()).send(mail)
+    },
+    async verify() {
+      await (await resolve()).verify?.()
+    },
+    async configured() {
+      return (await current()) !== undefined
     },
   }
 }

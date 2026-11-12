@@ -2,13 +2,14 @@ import { fileURLToPath } from 'node:url'
 
 import type { Config } from '@circi/config'
 import { runMigrations } from '@circi/db'
+import { INSTANCE_CONFIG_TTL_MS } from '@circi/services'
 import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from '#http/app.ts'
 
 import { GITHUB_APP_TTL_MS, githubAppSync, useStoredGithubApp } from './github-app.ts'
-import { integrationConfig } from './integration-config.ts'
+import { applySlack, integrationConfig } from './integration-config.ts'
 import { createRuntime } from './runtime.ts'
 import { serverOptionsFor } from './server-options.ts'
 import { createShutdown } from './shutdown.ts'
@@ -32,11 +33,13 @@ export async function runServices(options: runServices.Options): Promise<void> {
   let worker: startWorker.Running | undefined
   let githubSync: githubAppSync.Sync | undefined
   let syncTimer: NodeJS.Timeout | undefined
+  let settingsTimer: NodeJS.Timeout | undefined
 
   const shutdown = createShutdown({
     logger,
     close: async () => {
       clearInterval(syncTimer)
+      clearInterval(settingsTimer)
       await app?.close()
       await worker?.stop()
       await rt.close()
@@ -54,6 +57,18 @@ export async function runServices(options: runServices.Options): Promise<void> {
       logger.info('applying database migrations')
       await runMigrations(rt.db, rt.config.migrationsFolder)
     }
+    // The Slack app from the instance settings (the environment's wins), kept in step while running.
+    const liveIntegrations = integrationConfig(rt.config)
+    const syncSettings = async () =>
+      applySlack(liveIntegrations, (await rt.instanceConfig.get()).slack)
+    await syncSettings()
+    rt.instanceConfig.subscribe((effective) => applySlack(liveIntegrations, effective.slack))
+    settingsTimer = setInterval(() => {
+      syncSettings().catch((err: unknown) =>
+        logger.warn({ err }, 'could not look for changed instance settings'),
+      )
+    }, INSTANCE_CONFIG_TTL_MS)
+    settingsTimer.unref()
     // An App created in the dashboard (the environment's wins), before anything reads the config.
     if (!rt.config.github) {
       const live = integrationConfig(rt.config)
@@ -90,15 +105,20 @@ export async function runServices(options: runServices.Options): Promise<void> {
         ...(rt.config.staticSites ? { sitesHost: rt.config.staticSites.host } : {}),
         authSecret: rt.config.authSecret,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
-        uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
+        limits: async () => {
+          const { limits } = await rt.instanceConfig.get()
+          return {
+            uploadTimeoutMinutes: limits.uploadTimeoutMinutes,
+            gcGraceHours: limits.gcGraceHours,
+            jobRetentionDays: limits.jobRetentionDays,
+            webhookTimeoutMs: Math.round(limits.webhookTimeoutSeconds * 1000),
+          }
+        },
         diffEngine: rt.config.diffEngine,
         ...(rt.config.diffThreads ? { diffThreads: rt.config.diffThreads } : {}),
-        gcGraceHours: rt.config.gcGraceHours,
-        jobRetentionDays: rt.config.jobRetentionDays,
         retryBackoff: rt.config.jobRetry,
-        webhookTimeoutMs: rt.config.webhookTimeoutMs,
         integrations: { config: integrationConfig(rt.config) },
-        ...(rt.mailer ? { mailer: rt.mailer } : {}),
+        mailer: rt.mailer,
         push: {
           subject: rt.config.vapidSubject,
           vapid: rt.config.vapid,

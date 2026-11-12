@@ -14,7 +14,14 @@ export {
 export type { AuthOptions } from './options.ts'
 export { authPlugins } from './plugins/index.ts'
 
-export { createSmtpMailer, type Mailer, signInMail, invitationMail } from './mail.ts'
+export {
+  createLiveMailer,
+  createSmtpMailer,
+  MailNotConfiguredError,
+  type Mailer,
+  signInMail,
+  invitationMail,
+} from './mail.ts'
 
 export {
   addMember,

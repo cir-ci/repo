@@ -8,6 +8,7 @@ import { loadConfig } from '@circi/config'
 import { enqueueJob, QUEUES } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
+import { createInstanceConfig } from '@circi/services'
 import { FsStorage } from '@circi/storage'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -16,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { instanceProbes } from '#composition/doctor-probes.ts'
 import { runDoctor } from '#composition/doctor.ts'
+import { instanceEnvOf } from '#composition/instance-env.ts'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
@@ -59,6 +61,11 @@ beforeAll(async () => {
       auth,
       storage: new FsStorage({ path: dir }),
       publicOrigin: ORIGIN,
+      instanceConfig: createInstanceConfig({
+        db: t.db,
+        authSecret: config.authSecret,
+        env: instanceEnvOf(config),
+      }),
       instance: { config, mailer, fetchHost },
     },
   })
@@ -316,19 +323,27 @@ describe('settings and mail', () => {
     const s = res.json<InstanceAdmin.Settings>()
     expect(s).toMatchObject({
       publicUrl: ORIGIN,
-      workspaceCreation: 'admin',
-      mail: {
-        configured: true,
-        from: 'CirCI <ci@acme.test>',
-        host: 'smtp.acme.test',
-        authenticated: true,
+      config: {
+        workspaceCreation: { value: 'admin', source: 'default', env: null },
+        // The test environment sets the mail server, so it is locked and shown as such.
+        smtp: {
+          source: 'env',
+          env: 'SMTP_HOST',
+          from: 'CirCI <ci@acme.test>',
+          host: 'smtp.acme.test',
+          // The login name is shown (it is edited); the password never is.
+          user: 'mailer-login',
+          passwordSaved: true,
+        },
+        signIn: { password: { value: true } },
+        limits: {
+          defaultProjectRetentionDays: { value: 30, source: 'default' },
+          gcGraceHours: { value: 24, source: 'default' },
+        },
       },
-      auth: { password: true },
       githubApp: { source: 'none', appId: null },
-      retention: { defaultProjectRetentionDays: 30, gcGraceHours: 24 },
     })
     expect(res.body).not.toContain('smtp-secret-do-not-leak')
-    expect(res.body).not.toContain('mailer-login')
   })
 
   it('sends a test mail to the admin, and reports failures as text', async () => {

@@ -3,8 +3,10 @@ import { resolve } from 'node:path'
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
 import { createTestDb, seedWorkspace } from '@circi/db/testing'
+import { createInstanceConfig } from '@circi/services'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { instanceEnvOf } from '#composition/instance-env.ts'
 import { serverOptionsFor, type ServerRuntime } from '#composition/server-options.ts'
 import { webDistPath } from '#composition/services.ts'
 import { createShutdown } from '#composition/shutdown.ts'
@@ -142,11 +144,19 @@ const runtimeWith = (extra: Record<string, string> = {}): ServerRuntime => {
     auth: {},
     storage: { healthCheck: async () => {} },
   } as never as Omit<ServerRuntime, 'config'>
-  return { ...fake, config: loadConfig({ ...env, ...extra }) }
+  const config = loadConfig({ ...env, ...extra })
+  // Its database is a fake that fails every read, so it answers with the environment's values.
+  const instanceConfig = createInstanceConfig({
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    db: {} as never,
+    authSecret: config.authSecret,
+    env: instanceEnvOf(config),
+  })
+  return { ...fake, config, instanceConfig }
 }
 
 describe('serverOptionsFor', () => {
-  it('wires the dashboard address and the configured sign-in methods through', () => {
+  it('wires the dashboard address and the configured sign-in methods through', async () => {
     const o = serverOptionsFor(
       runtimeWith({
         AUTH_PASSWORD_ENABLED: 'false',
@@ -156,12 +166,13 @@ describe('serverOptionsFor', () => {
       '/web',
     )
     expect(o.publicOrigin).toBe('https://ci.acme.io')
-    expect(o.dashboard).toMatchObject({
-      passwordLogin: false,
-      emailLogin: false,
-      sso: [{ id: 'github', name: 'GitHub' }],
-      webDist: '/web',
+    expect(o.dashboard).toMatchObject({ webDist: '/web' })
+    // Read per request from the instance settings; here the environment's values.
+    const effective = await o.dashboard?.instanceConfig?.get()
+    expect(effective).toMatchObject({
       workspaceCreation: 'admin',
+      signIn: { password: false },
+      sso: [{ id: 'github', name: 'GitHub' }],
     })
     expect(o.api?.githubApp).toBe(false)
     expect(o.gitWebhook?.integrations?.config.github).toBeUndefined()

@@ -20,6 +20,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { signInMethods, workspaceCreationOf } from '#http/lib/instance-config.ts'
 import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
@@ -43,14 +44,16 @@ const workspaceParams = z.object({ workspace: z.string() })
 
 /**
  * Creating workspaces and projects from the dashboard. Workspaces: instance admins, or
- * any member when `WORKSPACE_CREATION=anyone`. Projects: owners and admins of the workspace, who
+ * any member when the instance setting "Who can create workspaces" says so. Projects: owners and admins of the workspace, who
  * get the project's CI token once, in the response.
  */
 export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function canCreateWorkspace(user: { id: string; method: SessionMethod }): Promise<boolean> {
     // Someone signed in through a workspace's own provider belongs to that workspace only.
     if (typeof user.method === 'object' && 'scopedTo' in user.method) return false
-    return deps.workspaceCreation === 'anyone' || (await isInstanceAdmin(deps.db, user.id))
+    return (
+      (await workspaceCreationOf(deps)) === 'anyone' || (await isInstanceAdmin(deps.db, user.id))
+    )
   }
 
   app.get('/capabilities', async (req) => {
@@ -66,10 +69,12 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
         deps.db,
         currentUser(req).id,
         currentUser(req).method,
-        (deps.sso ?? []).map((p) => p.id),
+        (await signInMethods(deps)).sso.map((p) => p.id),
       ),
       /** Whether the instance can send mail (SMTP is set up). */
-      mailConfigured: deps.instance?.mailer !== undefined,
+      mailConfigured: deps.instance?.mailer
+        ? ((await deps.instance.mailer.configured?.()) ?? true)
+        : false,
       /** The workspace this person opened last on any device, if they can still open it. */
       lastWorkspace: await getLastWorkspaceSlug(
         deps.db,

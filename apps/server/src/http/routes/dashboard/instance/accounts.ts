@@ -19,6 +19,7 @@ import { z } from 'zod'
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { signInMethods } from '#http/lib/instance-config.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const listQuery = z.object({
@@ -88,7 +89,7 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
     const body = parse(createBody, req.body)
     if (body.signInCode) {
       if (body.password) throw new ValidationError('Give a password or a sign-in code, not both')
-      if (!deps.instance?.mailer || deps.emailLogin !== true) {
+      if (!deps.instance?.mailer || !(await signInMethods(deps)).email) {
         throw new ConflictError("Email sign-in isn't set up on this instance (it needs SMTP)")
       }
       const created = await createUser(deps.auth, {

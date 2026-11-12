@@ -12,7 +12,11 @@ export function addMailCommands(admin: Command): void {
     .requiredOption('--to <email>', 'recipient')
     .action((opts: { to: string }) =>
       withRuntime(async (rt) => {
-        if (!rt.mailer) throw new Error('SMTP is not configured (set SMTP_HOST and SMTP_FROM)')
+        if ((await rt.mailer.configured?.()) === false) {
+          throw new Error(
+            "Mail isn't set up: add a mail server in Instance settings, or set SMTP_HOST and SMTP_FROM",
+          )
+        }
         await rt.mailer.send({
           to: opts.to,
           subject: 'CirCI test mail',

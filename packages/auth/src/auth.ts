@@ -17,7 +17,8 @@ import { onSessionCreated } from './hooks/session-created.ts'
 import { beforeUserCreate, beforeUserUpdate } from './hooks/user-create.ts'
 import type { AuthOptions } from './options.ts'
 import { authPlugins } from './plugins/index.ts'
-import { socialProviders } from './plugins/sso/plugin.ts'
+import { reloadSso, socialProviders } from './plugins/sso/plugin.ts'
+import type { SsoProvider } from './plugins/sso/sso.ts'
 import { trustedOriginsFor } from './plugins/sso/trusted-issuers.ts'
 
 /**
@@ -33,7 +34,10 @@ import { trustedOriginsFor } from './plugins/sso/trusted-issuers.ts'
  *
  * This file only composes: plugins live in `plugins/`, the rules around sign-in in `hooks/`.
  */
-export function createAuth(options: AuthOptions) {
+export function createAuth(given: AuthOptions) {
+  // The providers can change while running (`reloadSso`): hooks read this array at each use.
+  const liveSso: SsoProvider[] = [...(given.sso ?? [])]
+  const options: AuthOptions = { ...given, sso: liveSso }
   const holder: AuthContextHolder = {}
   const auth = betterAuth({
     appName: 'CirCI',
@@ -57,11 +61,11 @@ export function createAuth(options: AuthOptions) {
         ssoProvider: schema.ssoProvider,
       },
     }),
-    ...(options.sso?.length ? { socialProviders: socialProviders(options.sso) } : {}),
+    ...(liveSso.length ? { socialProviders: socialProviders(liveSso) } : {}),
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: (options.sso ?? []).filter((p) => p.trustedForEmail).map((p) => p.id),
+        trustedProviders: () => liveSso.filter((p) => p.trustedForEmail).map((p) => p.id),
       },
     },
     // Changing the email address: the confirmation link goes to the NEW address (the account keeps the
@@ -74,7 +78,9 @@ export function createAuth(options: AuthOptions) {
       afterEmailVerification: (user) => afterEmailChanged(options, holder, user.id),
     },
     emailAndPassword: {
-      enabled: options.passwordLogin !== false,
+      // Always on here: the request guard refuses password sign-in while the setting is off, so
+      // switching it needs no restart.
+      enabled: true,
       disableSignUp: true,
       minPasswordLength: MIN_PASSWORD_LENGTH,
     },
@@ -108,7 +114,10 @@ export function createAuth(options: AuthOptions) {
     plugins: authPlugins(options),
   })
   holder.context = auth.$context
-  return auth
+  return Object.assign(auth, {
+    /** Replaces the single sign-on providers while running (a change in the dashboard). */
+    reloadSso: (providers: SsoProvider[]) => reloadSso(auth, liveSso, providers),
+  })
 }
 
 export namespace createAuth {

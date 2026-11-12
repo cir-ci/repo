@@ -5,7 +5,7 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import { instanceProbes } from '#composition/doctor-probes.ts'
 import { httpFetcher, runDoctor } from '#composition/doctor.ts'
-import { addressChecklist } from '#composition/instance-settings.ts'
+import { addressChecklist, withEffectiveSmtp } from '#composition/instance-settings.ts'
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import type { Deps } from '#http/lib/deps.ts'
 
@@ -19,11 +19,14 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
   /** The same checks as `circi admin doctor` (it asks other hosts, so it can take a few seconds). */
   app.get('/instance/health/checks', async (_req, reply) => {
     if (!deps.instance) return reply.code(501).send({ error: "Health checks aren't available" })
+    const config = deps.instanceConfig
+      ? withEffectiveSmtp(deps.instance.config, await deps.instanceConfig.get())
+      : deps.instance.config
     const found = await runDoctor(
-      deps.instance.config,
+      config,
       deps.instance.fetchHost ?? httpFetcher,
       deps.storage,
-      instanceProbes({ db: deps.db, config: deps.instance.config, mailer: deps.instance.mailer }),
+      instanceProbes({ db: deps.db, config, mailer: deps.instance.mailer }),
     )
     const checks: InstanceAdmin.Checks = {
       findings: found.map((f): InstanceAdmin.Finding => ({
@@ -42,7 +45,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
 
   app.get('/instance/health/address-checklist', async (_req, reply) => {
     if (!deps.instance) return reply.code(501).send({ error: "The checklist isn't available" })
-    const checklist = addressChecklist(deps.instance, deps)
+    const checklist = addressChecklist(deps.instance, deps, await deps.instanceConfig?.get())
     const dismissedFor = await getMoveChecklistDismissedFor(deps.db)
     const result: InstanceAdmin.AddressChecklist = {
       ...checklist,

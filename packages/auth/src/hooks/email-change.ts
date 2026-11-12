@@ -50,7 +50,7 @@ export async function guardEmailChange(
     return
   }
   if (ctx.path !== '/change-email') return
-  if (!options.mailer) {
+  if (!options.mailer || (await options.mailer.configured?.()) === false) {
     throw new APIError('BAD_REQUEST', {
       message: "This instance can't send email, so an instance admin has to change it",
       code: 'EMAIL_CHANGE_NEEDS_MAIL',

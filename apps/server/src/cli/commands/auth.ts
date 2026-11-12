@@ -1,5 +1,5 @@
 import { getWorkspaceBySlug, instanceAuthMethods } from '@circi/db/queries'
-import { updateWorkspaceSignIn } from '@circi/services'
+import { activeSso, emailLoginOffered, updateWorkspaceSignIn } from '@circi/services'
 import type { Command } from 'commander'
 
 import { withRuntime } from '#cli/lib/output.ts'
@@ -26,6 +26,7 @@ export function addAuthCommands(admin: Command): void {
           const workspace = await getWorkspaceBySlug(rt.db.db, opts.org)
           const value = action === 'enable'
           // This is the break-glass command, so the lockout guard doesn't apply to it.
+          const effective = await rt.instanceConfig.get()
           const settings = await updateWorkspaceSignIn(
             rt.db.db,
             workspace.id,
@@ -33,9 +34,9 @@ export function addAuthCommands(admin: Command): void {
             {
               force: true,
               instance: instanceAuthMethods({
-                password: rt.config.passwordLogin,
-                email: rt.config.emailLogin,
-                providers: rt.config.sso.map((p) => p.id),
+                password: effective.signIn.password,
+                email: emailLoginOffered(effective),
+                providers: activeSso(effective).map((p) => p.id),
               }),
             },
           )

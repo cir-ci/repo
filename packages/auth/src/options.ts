@@ -14,10 +14,21 @@ export interface AuthOptions {
    * the server only exposes them when email login is switched on.
    */
   mailer?: Mailer
-  /** Email + password sign-in is on (default). Off: only email codes and single sign-on work. */
-  passwordLogin?: boolean
-  /** Single sign-on providers the operator set up. None: sign-in is password and email only. */
+  /**
+   * Email + password sign-in is on (default). Off: only email codes and single sign-on work. A
+   * function is asked at every sign-in request, so the setting can change while running.
+   */
+  passwordLogin?: boolean | (() => boolean | Promise<boolean>)
+  /**
+   * Single sign-on providers the operator set up. None: sign-in is password and email only.
+   * These are the providers at start; `auth.reloadSso` replaces them while running.
+   */
   sso?: SsoProvider[]
+  /**
+   * Called at the start of every request to better-auth: brings settings that can change while
+   * running (the providers, the password switch) up to date, e.g. through `auth.reloadSso`.
+   */
+  refresh?: () => Promise<void>
   /**
    * Rate limiting of the sign-in endpoints, per client address. Default: on in production, off
    * otherwise (better-auth's own default). Tests that exercise the limiter switch it on.

@@ -15,6 +15,11 @@ import { guardEmailChange } from './email-change.ts'
 import { rememberOpenInvitations } from './invitations.ts'
 import { guardOwnerRemoval } from './member-removal.ts'
 
+async function passwordLoginOn(setting: AuthOptions['passwordLogin']): Promise<boolean> {
+  if (typeof setting === 'function') return setting()
+  return setting !== false
+}
+
 /** The workspace a request names, by id or slug. */
 function workspaceRef(source: unknown): { id?: string; slug?: string } | undefined {
   if (typeof source !== 'object' || source === null) return undefined
@@ -37,8 +42,17 @@ function workspaceRef(source: unknown): { id?: string; slug?: string } | undefin
  *   reason (instance admins are never refused that way). Accepting an invitation counts too,
  *   so nobody joins a workspace through a method it does not allow.
  */
-export function requestGuard(options: Pick<AuthOptions, 'db' | 'mailer'>) {
+export function requestGuard(
+  options: Pick<AuthOptions, 'db' | 'mailer' | 'passwordLogin' | 'refresh'>,
+) {
   return createAuthMiddleware(async (ctx) => {
+    await options.refresh?.()
+    if (ctx.path === '/sign-in/email' && !(await passwordLoginOn(options.passwordLogin))) {
+      throw new APIError('FORBIDDEN', {
+        message: 'Password sign-in is turned off on this instance.',
+        code: 'PASSWORD_LOGIN_OFF',
+      })
+    }
     await rememberOpenInvitations(options, ctx)
     await guardOwnerRemoval(options, ctx, async () => (await getSessionFromCtx(ctx))?.user.id)
     await guardEmailChange(options, ctx)
