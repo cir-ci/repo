@@ -1,10 +1,11 @@
-import type { Baseline } from '@circi/api'
+import type { Baseline, Snapshot } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
   filterBaselines,
   flattenGroups,
   groupBaselines,
+  historyLabel,
   namePrefix,
 } from '#features/baselines/api.ts'
 
@@ -21,6 +22,28 @@ const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> 
   approvedAt: '2026-11-08T10:00:00.000Z',
   approvedBy: null,
   ...over,
+})
+
+describe('historyLabel', () => {
+  const entry = (approvedBy: { id: string; name: string } | null): Snapshot.HistoryEntry => ({
+    build: {
+      number: 3,
+      branch: 'main',
+      status: 'complete',
+      reviewStatus: 'approved',
+      createdAt: '2026-11-08T10:00:00.000Z',
+    },
+    status: 'changed',
+    approvedBy,
+    image: null,
+  })
+
+  it('says by whom, or that it was approved automatically', () => {
+    expect(historyLabel(entry({ id: 'u1', name: 'Maya Levi' }))).toBe(
+      'Changed, approved by Maya Levi',
+    )
+    expect(historyLabel(entry(null))).toBe('Changed, approved automatically')
+  })
 })
 
 describe('baselines', () => {

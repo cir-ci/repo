@@ -63,7 +63,7 @@ describe('notes', () => {
     expect(gateNote(true)).toContain('check on the pull request')
     expect(gateNote(false)).toContain('CI job is the merge gate')
     expect(repoHelp(true)).toContain('posts a check')
-    expect(repoHelp(false)).toContain('CLI exit code')
+    expect(repoHelp(false)).toContain('--wait fails the CI job')
   })
 })
 

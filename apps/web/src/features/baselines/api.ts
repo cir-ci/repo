@@ -84,8 +84,11 @@ export const changesOf = (entries: readonly Snapshot.HistoryEntry[]): Snapshot.H
 export function historyLabel(entry: Snapshot.HistoryEntry): string {
   const kind = entry.status ?? 'unchanged'
   const review = shotReview(entry.build)
-  if (entry.approvedBy && review === 'approved' && ['changed', 'added', 'removed'].includes(kind)) {
-    return `${DIFF_LABEL[kind]}, approved by ${entry.approvedBy.name}`
+  if (review === 'approved' && ['changed', 'added', 'removed'].includes(kind)) {
+    // Nobody approved it by hand: the default branch's builds become the baseline on their own.
+    return entry.approvedBy
+      ? `${DIFF_LABEL[kind]}, approved by ${entry.approvedBy.name}`
+      : `${DIFF_LABEL[kind]}, approved automatically`
   }
   return screenshotLabel(kind, review)
 }

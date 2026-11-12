@@ -128,7 +128,7 @@ export const gateNote = (linked: boolean): string =>
 export const repoHelp = (linked: boolean): string =>
   linked
     ? 'CirCI posts a check on each pull request, and approving turns it green with no CI re-run.'
-    : 'Skip, use the CLI exit code as the gate: --wait fails the CI job until changes are approved.'
+    : 'Without one, --wait fails the CI job until changes are approved.'
 
 /** A repository a new project can be linked to: a target of one of the workspace's git integrations. */
 export interface RepoChoice {
