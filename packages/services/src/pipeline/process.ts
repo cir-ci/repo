@@ -31,7 +31,7 @@ import {
 } from '@circi/diff'
 import type { StorageDriver } from '@circi/storage'
 
-import { completeBuild } from '#src/builds/lifecycle.ts'
+import { completeBuild, failBuild } from '#src/builds/lifecycle.ts'
 
 import { mapLimit } from './concurrency.ts'
 import { createFetcher, createLoader, type Loader, storeServerFile } from './files.ts'
@@ -56,6 +56,8 @@ export namespace processBuild {
 
   export type Result =
     | { status: 'skipped'; reason: string }
+    /** A screenshot's file isn't a readable PNG: the build is an error, naming the files. */
+    | { status: 'error'; message: string }
     | { status: 'complete'; conclusion: 'no_changes' | 'changes_detected'; autoApproved: boolean }
 }
 
@@ -153,6 +155,13 @@ export async function processBuild(
       invalid.set(sha, err.message)
     }
   })
+  // A file nobody can decode is a problem with the upload, not a screenshot to review: the build
+  // ends as an error that names the files (the CLI prints it and exits 2).
+  if (invalid.size > 0) {
+    const message = unreadableMessage(head, invalid)
+    await failBuild(db, build.id, message)
+    return { status: 'error', message }
+  }
   await copyFileThumbnailsToScreenshots(db, build.id)
 
   // 4. Pixel diffs for same-name pairs with different bytes. Outcomes are collected and written
@@ -177,14 +186,7 @@ export async function processBuild(
       statuses.push('failed')
     }
     if (pair.status !== 'compare') {
-      const headInvalid = 'head' in pair ? invalid.get(pair.head.fileSha256) : undefined
-      if (headInvalid) fail(headInvalid, row.jobStatus)
-      else statuses.push(pair.status)
-      return
-    }
-    const headInvalid = invalid.get(pair.head.fileSha256)
-    if (headInvalid) {
-      fail(headInvalid, 'failed')
+      statuses.push(pair.status)
       return
     }
     try {
@@ -267,6 +269,16 @@ export async function processBuild(
     conclusion,
     autoApproved: outcome.approval === 'default-branch' || outcome.approval === 'rerun',
   }
+}
+
+/** "Couldn't read 2 screenshots: a, b (Not a readable image…)": the first few names, then a count. */
+function unreadableMessage(head: readonly Screenshot[], invalid: ReadonlyMap<string, string>) {
+  const names = [...new Set(head.filter((s) => invalid.has(s.fileSha256)).map((s) => s.name))]
+  const shown = names.slice(0, 5).join(', ')
+  const more = names.length > 5 ? ` and ${names.length - 5} more` : ''
+  const reason = [...invalid.values()][0] ?? ''
+  const noun = names.length === 1 ? 'screenshot' : 'screenshots'
+  return `Couldn't read ${names.length} ${noun}: ${shown}${more}. ${reason}`
 }
 
 /** The row's own columns as a result, so a batch update leaves what it doesn't change alone. */

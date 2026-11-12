@@ -362,21 +362,21 @@ describe('processBuild', () => {
     expect(d.a).toMatchObject({ status: 'changed', sizeChanged: true })
   })
 
-  it('marks screenshots that are not PNGs as failed instead of crashing', async () => {
+  it('ends a build with a screenshot that is not a PNG as an error naming the file', async () => {
     const { project } = await seedProject(t.db)
-    const notPng = Buffer.from('definitely not a png')
     const b = await uploadBuild(
       project.id,
       { commitSha: 'dddd001', branch: 'main' },
-      { broken: notPng },
+      { fine: await png(10, 10), broken: Buffer.from('definitely not a png') },
     )
-    expect(await processBuild({ db: t.db, storage }, b.id)).toMatchObject({
-      conclusion: 'changes_detected',
+    const result = await processBuild({ db: t.db, storage }, b.id)
+    expect(result).toMatchObject({
+      status: 'error',
+      message: expect.stringMatching(/Couldn't read 1 screenshot: broken\. Not a readable image/),
     })
-    const d = await diffsOf(b.id)
-    expect(d.broken).toMatchObject({
-      status: 'failed',
-      errorMessage: expect.stringMatching(/Not a readable image/),
+    expect(await getBuild(t.db, b.id)).toMatchObject({
+      status: 'error',
+      errorMessage: expect.stringMatching(/broken/),
     })
   })
 
