@@ -175,6 +175,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         >
           <Button
             variant="danger"
+            aria-label="Reject this screenshot"
             leading={<CancelIcon />}
             disabled={review.pending}
             onClick={review.askReject}
@@ -191,15 +192,21 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
             </>
           }
         >
-          <Button leading={<TaskDoneIcon />} disabled={review.pending} onClick={review.approve}>
+          <Button
+            aria-label="Approve this screenshot"
+            leading={<TaskDoneIcon />}
+            disabled={review.pending}
+            onClick={review.approve}
+          >
             Approve
           </Button>
         </Tooltip>
       ) : null}
       {review.canApproveAll ? (
-        <Tooltip content="Approve every screenshot that has no decision yet">
+        <Tooltip content="Approve all screenshots in this build that have no decision yet">
           <Button
             variant="primary"
+            aria-label="Approve all screenshots in this build"
             leading={<TaskDoneIcon />}
             loading={review.pending && !review.rejecting}
             disabled={review.pending}

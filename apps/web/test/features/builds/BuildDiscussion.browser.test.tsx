@@ -333,6 +333,18 @@ describe('a link to a comment', () => {
           .nth(1),
       )
       .toHaveAttribute('data-focused', '')
+    // A thread reached with the keyboard has the standard 2px focus outline.
+    const thread = page
+      .getByRole('list', { name: /^Comments/ })
+      .getByRole('listitem')
+      .nth(1)
+      .element()
+    await userEvent.keyboard('{Shift}')
+    thread.setAttribute('tabindex', '0')
+    thread.focus()
+    expect(thread.matches(':focus-visible')).toBe(true)
+    expect(getComputedStyle(thread).outlineStyle).toBe('solid')
+    expect(getComputedStyle(thread).outlineWidth).toBe('2px')
   })
 })
 

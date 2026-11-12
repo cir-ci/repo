@@ -4,7 +4,7 @@ import { shotDecision, type ShotKind } from './diff-status.ts'
 
 /**
  * Review order (docs/design-gaps.md §7): what needs a decision first, then what doesn't. Only
- * what needs no attention starts collapsed.
+ * what needs no attention starts collapsed (Flaky opens when it holds the only changes).
  */
 export const GROUP_ORDER: readonly { kind: ShotKind; title: string; open: boolean }[] = [
   { kind: 'changed', title: 'Changed', open: true },
@@ -33,10 +33,16 @@ export function groupShots(
   diffs: readonly Build.DiffItem[],
   flaky: ReadonlySet<string> = new Set(),
 ): ShotGroup[] {
-  return GROUP_ORDER.flatMap((g) => {
+  const groups = GROUP_ORDER.flatMap((g) => {
     const items = diffs.filter((d) => shotKind(d, flaky) === g.kind)
     return items.length > 0 ? [{ ...g, items }] : []
   })
+  // Flaky ones start folded away, unless they are the only changes in the build: then they are
+  // what there is to look at.
+  const onlyFlaky = !groups.some((g) => g.kind !== 'unchanged' && g.kind !== 'flaky')
+  const flakyGroup = groups.find((g) => g.kind === 'flaky')
+  if (flakyGroup && onlyFlaky) flakyGroup.open = true
+  return groups
 }
 
 /** Every screenshot in the order the list shows them, which is the order j and k walk. */

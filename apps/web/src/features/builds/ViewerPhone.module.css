@@ -13,12 +13,6 @@
   min-width: 0;
 }
 
-.row > :first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin-inline-end: 6px;
-}
-
 .spacer {
   flex: 1;
 }

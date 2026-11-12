@@ -79,6 +79,20 @@
   gap: 2px;
 }
 
+.zoom {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-control);
+  background: var(--circi-surface-chrome);
+}
+
+/* Wide enough for "150%" so the buttons beside it don't move as the zoom changes. */
+.zoomLevel {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+}
+
 .slider {
   display: inline-flex;
   align-items: center;

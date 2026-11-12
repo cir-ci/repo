@@ -59,20 +59,21 @@ export function PhoneControls({
   )
   return (
     <div className={styles.root}>
+      {options.length > 1 ? (
+        // On its own row at the full width: four views next to four icon buttons don't fit 390px.
+        <SegmentedControl
+          fill
+          label="View"
+          options={options}
+          value={view ?? ''}
+          onChange={(v) => {
+            const picked = PHONE_VIEWS.find((o) => o.value === v)
+            if (picked) onView(picked.value)
+          }}
+        />
+      ) : null}
       <div className={styles.row}>
-        {options.length > 1 ? (
-          <SegmentedControl
-            label="View"
-            options={options}
-            value={view ?? ''}
-            onChange={(v) => {
-              const picked = PHONE_VIEWS.find((o) => o.value === v)
-              if (picked) onView(picked.value)
-            }}
-          />
-        ) : (
-          <span className={styles.spacer} />
-        )}
+        <span className={styles.spacer} />
         <IconButton label="Previous screenshot" disabled={!onPrevious} onClick={onPrevious}>
           <ExpandLessIcon />
         </IconButton>

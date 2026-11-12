@@ -122,14 +122,16 @@ describe('BuildPage states', () => {
     await expect.element(list.getByRole('button', { name: /Added/ })).toHaveTextContent('Added1')
     await expect.element(page.getByRole('button', { name: 'Copy branch name' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: /^Approve all/ })).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+    await expect
+      .element(page.getByRole('button', { name: 'Approve this screenshot' }))
+      .toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Reject this screenshot' })).toBeVisible()
     await expect.element(page.getByText('0 of 3 reviewed')).toBeVisible()
     expectOnePrimaryPerArea()
     await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
     // Both images of the comparison, the baseline first.
-    await expect.element(page.getByRole('img', { name: 'Baseline', exact: true })).toBeVisible()
-    await expect.element(page.getByRole('img', { name: 'This build', exact: true })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^Baseline: / })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^This build: / })).toBeVisible()
   })
 
   it.each([
@@ -192,7 +194,7 @@ describe('BuildPage states', () => {
     await expect
       .element(page.getByText(/This is the first build, so every screenshot is new/))
       .toBeVisible()
-    await expect.element(page.getByRole('img', { name: 'New in this build' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^New in this build/ })).toBeVisible()
   })
 
   it('warns when the baseline is a fallback', async () => {
@@ -362,7 +364,7 @@ describe('view modes', () => {
     await expect
       .element(page.getByRole('button', { name: 'Side by side' }))
       .toHaveAttribute('aria-pressed', 'true')
-    await expect.element(page.getByRole('img', { name: 'This build' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^This build: / })).toBeVisible()
   })
 
   it('switches mode through the search params', async () => {
@@ -371,16 +373,16 @@ describe('view modes', () => {
     await page.getByRole('button', { name: 'Overlay' }).click()
     await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'overlay' })
     await expect
-      .element(page.getByRole('img', { name: 'checkout / payment in this build' }))
+      .element(page.getByRole('img', { name: 'This build: checkout / payment' }))
       .toBeVisible()
     await expect.element(page.getByRole('slider', { name: 'Diff layer' })).toBeVisible()
     await page.getByRole('button', { name: 'Diff', exact: true }).click()
     await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'diff' })
-    await expect.element(page.getByRole('img', { name: 'Changed pixels in red' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^Changed pixels in red/ })).toBeVisible()
     await page.getByRole('button', { name: 'Slider' }).click()
     await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'slider' })
     await expect
-      .element(page.getByRole('img', { name: 'checkout / payment in the baseline' }))
+      .element(page.getByRole('img', { name: 'Baseline: checkout / payment' }))
       .toBeVisible()
   })
 
@@ -389,7 +391,7 @@ describe('view modes', () => {
     await renderBuild('/acme/web-app/builds/7?mode=slider')
     const slider = page.getByRole('slider', { name: 'Slider position' })
     await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
-    const head = page.getByRole('img', { name: 'checkout / payment in this build' })
+    const head = page.getByRole('img', { name: 'This build: checkout / payment' })
     await expect.element(head).toHaveStyle({ clipPath: 'inset(0px 0px 0px 50%)' })
     slider.element().focus()
     await userEvent.keyboard('{ArrowRight}{ArrowRight}')
@@ -406,20 +408,27 @@ describe('zoom and stepping', () => {
   it('fits by default, then shows the real size and steps', async () => {
     fakeBuildApi(detail())
     await renderBuild()
+    // One compact control: out, the zoom (Fit by default), in.
+    const zoomGroup = page.getByRole('group', { name: 'Zoom' })
+    await expect.element(zoomGroup).toBeVisible()
+    expect(
+      zoomGroup
+        .getByRole('button')
+        .elements()
+        .map((b) => b.getAttribute('aria-label') ?? b.textContent),
+    ).toEqual(['Zoom out', 'Fit', 'Zoom in'])
+    await page.getByRole('button', { name: 'Fit', exact: true }).click()
     await expect
-      .element(page.getByRole('button', { name: 'Fit' }))
-      .toHaveAttribute('aria-pressed', 'true')
-    await page.getByRole('button', { name: '100%' }).click()
-    await expect
-      .element(page.getByRole('img', { name: 'This build' }))
+      .element(page.getByRole('img', { name: /^This build: / }))
       .toHaveStyle({ width: '400px' })
     await page.getByRole('button', { name: 'Zoom in' }).click()
-    await expect.element(page.getByText('150%')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: '150%' })).toBeVisible()
     await expect
-      .element(page.getByRole('img', { name: 'This build' }))
+      .element(page.getByRole('img', { name: /^This build: / }))
       .toHaveStyle({ width: '600px' })
-    await page.getByRole('button', { name: 'Fit' }).click()
+    await page.getByRole('button', { name: '150%' }).click()
     expect(page.getByText('150%').elements()).toHaveLength(0)
+    await expect.element(page.getByRole('button', { name: 'Fit', exact: true })).toBeVisible()
   })
 
   it('steps with the previous and next buttons, disabled at the ends', async () => {
@@ -514,7 +523,7 @@ describe('approving and rejecting', () => {
   it('approves the current snapshot with the button, says so in a toast, and moves the count', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await vi.waitFor(() =>
       expect(api.reviews).toEqual([
         body({ snapshotNames: ['checkout / payment'], decision: 'approved' }),
@@ -547,19 +556,19 @@ describe('approving and rejecting', () => {
     )
     await renderBuild()
     await expect.element(viewerTitle()).toHaveTextContent('a')
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     // b is decided, so c is next.
     await expect.element(viewerTitle()).toHaveTextContent('c')
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await vi.waitFor(() => expect(api.reviews).toHaveLength(2))
   })
 
   it('stays on the screenshot when none is left to review', async () => {
     fakeBuildApi(detail({}, { diffs: [shot('a', 'changed'), shot('b', 'changed')] }))
     await renderBuild()
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await expect.element(viewerTitle()).toHaveTextContent('b')
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await expect.element(toastNamed('Approved b')).toBeVisible()
     await expect.element(viewerTitle()).toHaveTextContent('b')
     // Everything is decided, so there is nothing left for Approve all to do (once the build reloads).
@@ -593,21 +602,21 @@ describe('approving and rejecting', () => {
   it('asks for a reason before rejecting the snapshot, and says so in a toast', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
-    await page.getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('button', { name: 'Reject this screenshot' }).click()
     const dialog = page.getByRole('dialog', { name: 'Reject checkout / payment?' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect.element(dialog).not.toBeInTheDocument()
     expect(api.reviews).toEqual([])
 
-    await page.getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('button', { name: 'Reject this screenshot' }).click()
     // The reason is required: an empty one is refused with a message and nothing is sent.
-    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject', exact: true }).click()
     await expect.element(page.getByText('Say why you are rejecting it.')).toBeVisible()
     expect(api.reviews).toEqual([])
 
     await page.getByRole('textbox', { name: 'Reason' }).fill('The button lost its focus ring')
-    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject', exact: true }).click()
     await vi.waitFor(() =>
       expect(api.reviews).toEqual([
         body({
@@ -676,7 +685,7 @@ describe('approving and rejecting', () => {
   it('takes an approval back with Undo on its toast', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await expect.element(toastNamed('Approved checkout / payment')).toBeVisible()
     await expect.element(page.getByText('1 of 3 reviewed')).toBeVisible()
     await toastNamed('Approved checkout / payment').getByRole('button', { name: 'Undo' }).click()
@@ -684,27 +693,29 @@ describe('approving and rejecting', () => {
     await expect.element(toastNamed('Undone')).toBeVisible()
     // The page shows it undecided again.
     await expect.element(page.getByText('0 of 3 reviewed')).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
+    await expect
+      .element(page.getByRole('button', { name: 'Approve this screenshot' }))
+      .toBeVisible()
   })
 
   it('takes a rejection back with Undo, after the reason was given', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
-    await page.getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('button', { name: 'Reject this screenshot' }).click()
     await page.getByRole('textbox', { name: 'Reason' }).fill('Wrong colour')
-    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject', exact: true }).click()
     await expect.element(toastNamed('Rejected checkout / payment')).toBeVisible()
     await toastNamed('Rejected checkout / payment').getByRole('button', { name: 'Undo' }).click()
     await vi.waitFor(() => expect(api.undos).toEqual(['undo-1']))
     await expect.element(toastNamed('Undone')).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Reject this screenshot' })).toBeVisible()
   })
 
   it('says why when the server refuses the undo, and leaves the decision as it is', async () => {
     const api = fakeBuildApi(detail())
     api.undoRefusal = "Someone changed this review since, so it can't be undone"
     await renderBuild()
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
     await toastNamed('Approved checkout / payment').getByRole('button', { name: 'Undo' }).click()
     await expect
       .element(toastNamed("Someone changed this review since, so it can't be undone"))

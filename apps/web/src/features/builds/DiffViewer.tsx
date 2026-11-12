@@ -317,28 +317,7 @@ export function Viewer({
                 ? { drawing: { mode: ignore.mode, onMode: ignore.onMode } }
                 : {})}
             />
-            <div className={styles.group}>
-              <SegmentedControl
-                label="Zoom"
-                options={[
-                  { value: 'fit', label: 'Fit' },
-                  { value: '100', label: '100%' },
-                ]}
-                value={zoom === 'fit' ? 'fit' : zoom === 100 ? '100' : ''}
-                onChange={(z) => setZoom(z === 'fit' ? 'fit' : 100)}
-              />
-              <IconButton label="Zoom out" onClick={() => setZoom(stepZoom(zoom, -1))}>
-                <span aria-hidden="true">−</span>
-              </IconButton>
-              <IconButton label="Zoom in" onClick={() => setZoom(stepZoom(zoom, 1))}>
-                <span aria-hidden="true">+</span>
-              </IconButton>
-              {zoomed && zoom !== 100 ? (
-                <Text variant="mono" tone="secondary" aria-live="polite">
-                  {zoomLabel(zoom)}
-                </Text>
-              ) : null}
-            </div>
+            <ZoomControl zoom={zoom} onZoom={setZoom} />
             <div className={styles.group}>
               <Tooltip
                 content={
@@ -406,6 +385,7 @@ export function Viewer({
           >
             {diff.base && phoneSingle !== 'new' ? (
               <Figure
+                name={diff.name}
                 label={baselineLabel}
                 image={diff.base}
                 size={differentSizes ? sizeLabel(diff.base) : undefined}
@@ -416,6 +396,7 @@ export function Viewer({
             ) : null}
             {diff.head && phoneSingle !== 'baseline' ? (
               <Figure
+                name={diff.name}
                 label={diff.status === 'added' ? 'New in this build' : buildCaption}
                 image={diff.head}
                 size={differentSizes ? sizeLabel(diff.head) : undefined}
@@ -445,13 +426,13 @@ export function Viewer({
             <div className={styles.frame}>
               <img
                 src={fileUrl(diff.head.sha256)}
-                alt={`${diff.name} in this build`}
+                alt={`This build: ${diff.name}`}
                 className={styles.image}
                 style={imageStyle(zoom, diff.head.width)}
               />
               <img
                 src={fileUrl(diff.diff.sha256)}
-                alt=""
+                alt={`Changed pixels: ${diff.name}`}
                 className={styles.cover}
                 style={{ opacity: opacity / 100 }}
               />
@@ -468,13 +449,13 @@ export function Viewer({
             <div className={styles.frame}>
               <img
                 src={fileUrl(diff.base.sha256)}
-                alt={`${diff.name} in the baseline`}
+                alt={`Baseline: ${diff.name}`}
                 className={styles.image}
                 style={imageStyle(zoom, diff.base.width)}
               />
               <img
                 src={fileUrl(diff.head.sha256)}
-                alt={`${diff.name} in this build`}
+                alt={`This build: ${diff.name}`}
                 className={styles.cover}
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
@@ -486,6 +467,7 @@ export function Viewer({
 
         {mode === 'diff' && diff.diff ? (
           <Figure
+            name={diff.name}
             label="Changed pixels in red"
             image={diff.diff}
             size={differentSizes ? sizeLabel(diff.diff) : undefined}
@@ -598,11 +580,38 @@ const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | un
   return width === undefined ? undefined : { width, maxWidth: 'none' }
 }
 
+/**
+ * Zoom as one compact control: out, the current zoom (a button: Fit goes to 100%, any other zoom
+ * goes back to Fit), in.
+ */
+function ZoomControl({ zoom, onZoom }: { zoom: Zoom; onZoom: (zoom: Zoom) => void }) {
+  return (
+    <div className={styles.zoom} role="group" aria-label="Zoom">
+      <IconButton label="Zoom out" onClick={() => onZoom(stepZoom(zoom, -1))}>
+        <span aria-hidden="true">−</span>
+      </IconButton>
+      <Tooltip content={zoom === 'fit' ? 'Show the real size' : 'Fit to the width'}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={styles.zoomLevel}
+          onClick={() => onZoom(zoom === 'fit' ? 100 : 'fit')}
+        >
+          {zoomLabel(zoom)}
+        </Button>
+      </Tooltip>
+      <IconButton label="Zoom in" onClick={() => onZoom(stepZoom(zoom, 1))}>
+        <span aria-hidden="true">+</span>
+      </IconButton>
+    </div>
+  )
+}
+
 /** "1280 × 960", or nothing when the image's size isn't known. */
 const sizeLabel = (image: Build.ImageRef): string | undefined =>
   image.width && image.height ? `${image.width} × ${image.height}` : undefined
 
-function Figure({ label, size, image, zoom, annotations, onEnlarge }: Figure.Props) {
+function Figure({ label, name, size, image, zoom, annotations, onEnlarge }: Figure.Props) {
   const gesture = useRegionGesture(annotations)
   const drawsOnPointer = annotations?.alwaysDraw === true
   return (
@@ -635,7 +644,7 @@ function Figure({ label, size, image, zoom, annotations, onEnlarge }: Figure.Pro
           >
             <img
               src={fileUrl(image.sha256)}
-              alt={label}
+              alt={`${label}: ${name}`}
               draggable={false}
               className={styles.image}
               style={imageStyle(zoom, image.width)}
@@ -655,6 +664,8 @@ function Figure({ label, size, image, zoom, annotations, onEnlarge }: Figure.Pro
 export namespace Figure {
   export interface Props {
     label: string
+    /** The screenshot's name, so the image's alt text says which one it is. */
+    name: string
     /** The image's size, "1280 × 960", shown on the right of the label. */
     size?: string | undefined
     image: Build.ImageRef

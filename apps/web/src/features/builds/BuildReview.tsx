@@ -57,7 +57,6 @@ import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
 import { RequestReviewPicker } from './RequestReviewPicker.tsx'
 import {
   defaultShot,
-  GROUP_ORDER,
   groupShots,
   isReviewable,
   neighbour,
@@ -125,14 +124,15 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
   if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
 
-  const [open, setOpen] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(GROUP_ORDER.map((g) => [g.kind, g.open])),
-  )
+  // What the person opened or closed; a group they haven't touched has its default (`g.open`).
+  const [open, setOpen] = useState<Record<string, boolean>>({})
   // Choosing a screenshot (or j / k reaching one) opens its group, so a selection is never hidden.
   const [openedFor, setOpenedFor] = useState<string | undefined>(undefined)
   if (selected?.id !== openedFor) {
     setOpenedFor(selected?.id)
-    if (selectedGroup && open[selectedGroup] === false) setOpen({ ...open, [selectedGroup]: true })
+    const selectedOpen =
+      open[selectedGroup ?? ''] ?? groups.find((g) => g.kind === selectedGroup)?.open
+    if (selectedGroup && selectedOpen === false) setOpen({ ...open, [selectedGroup]: true })
   }
 
   const goToShot = (shot: Build.DiffItem | undefined) => {

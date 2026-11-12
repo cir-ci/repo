@@ -166,6 +166,25 @@ describe('the Details tab', () => {
     expect(order).toEqual(order.toSorted((x, y) => x - y))
   })
 
+  it('shows the latest 3 changes of the screenshot on main, the rest behind Show all', async () => {
+    const api = fakeBuildApi(detail())
+    api.history = [
+      entry(9, 'changed', 'Maya Levi'),
+      entry(8, 'changed'),
+      entry(7, 'changed'),
+      entry(6, 'changed'),
+      entry(5, 'changed'),
+    ]
+    await renderBuild()
+    const history = page.getByRole('region', { name: /^History of / })
+    await expect.element(history.getByText('Build #9')).toBeVisible()
+    expect(history.getByRole('listitem').elements()).toHaveLength(3)
+    await history.getByRole('button', { name: 'Show all 5' }).click()
+    expect(history.getByRole('listitem').elements()).toHaveLength(5)
+    await history.getByRole('button', { name: 'Show fewer' }).click()
+    expect(history.getByRole('listitem').elements()).toHaveLength(3)
+  })
+
   it('names each open reviewer with who asked them and when', async () => {
     const api = fakeBuildApi(detail())
     api.activity = [
@@ -272,8 +291,8 @@ describe('the viewer', () => {
   it('captions the images "Baseline" and "This build", with no build, branch or commit', async () => {
     fakeBuildApi(detail())
     await renderBuild()
-    await expect.element(page.getByRole('img', { name: 'Baseline', exact: true })).toBeVisible()
-    await expect.element(page.getByRole('img', { name: 'This build', exact: true })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^Baseline: / })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: /^This build: / })).toBeVisible()
     const captions = [...document.querySelectorAll('figure small')].map((c) => c.textContent)
     expect(captions).toEqual(['Baseline', 'This build'])
   })

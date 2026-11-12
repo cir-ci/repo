@@ -19,6 +19,15 @@
   height: 24px;
 }
 
+/* A phone: the copy button is a 44px target (the row it sits in grows to fit). */
+@media (max-width: 819.98px) {
+  .root .button {
+    width: 44px;
+    height: 44px;
+    margin-block: -10px;
+  }
+}
+
 .copied {
   color: var(--circi-state-approved-text);
   font-size: 11px;

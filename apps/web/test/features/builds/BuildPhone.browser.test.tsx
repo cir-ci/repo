@@ -210,6 +210,16 @@ describe('the build page on a phone', () => {
       .elements()
       .map((el) => el.textContent)
     expect(names).toEqual(['New', 'Baseline', 'Diff', 'Slider'])
+    // At 390px every view fits inside the control (none clipped, none under another control), as 44px targets.
+    const group = views.element().getBoundingClientRect()
+    for (const button of views.getByRole('button').elements()) {
+      const box = button.getBoundingClientRect()
+      expect(box.right).toBeLessThanOrEqual(group.right + 1)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+    expect(group.right).toBeLessThanOrEqual(window.innerWidth)
+    const copy = page.getByRole('button', { name: 'Copy branch name' })
+    expect(copy.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(44)
     // New shows one image.
     expect(page.getByRole('img', { name: /^Baseline/ }).elements()).toHaveLength(0)
     await views.getByRole('button', { name: 'Baseline' }).click()
@@ -323,7 +333,7 @@ describe('the build page header on a desktop', () => {
     await page.viewport(1700, 900)
     await renderBuild()
     const title = page.getByRole('heading', { level: 1 })
-    const approve = page.getByRole('button', { name: /^Approve$/ })
+    const approve = page.getByRole('button', { name: 'Approve this screenshot' })
     await expect.element(approve).toBeVisible()
     const chip = page.getByText('Needs review', { exact: true }).first()
     // Room enough: one line, the chips just left of the buttons.

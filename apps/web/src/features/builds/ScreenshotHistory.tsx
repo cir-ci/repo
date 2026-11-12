@@ -1,5 +1,6 @@
-import { HistoryIcon, StatusIcon, Text } from '@circi/ui'
+import { Button, HistoryIcon, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import { changesOf, historyLabel } from '#features/baselines/api.ts'
 import { snapshotHistoryQuery } from '#features/triage/api.ts'
@@ -9,6 +10,9 @@ import { useClientLink } from '#lib/use-client-link.ts'
 import { screenshotStatus, shotReview } from './diff-status.ts'
 
 import styles from './Discussion.module.css'
+
+/** How many of the changes show before "Show all". */
+const SHOWN = 3
 
 /** How many recent builds of the default branch the history looks through. */
 const LOOK_BACK = 20
@@ -26,8 +30,12 @@ export function ScreenshotHistory({
 }: ScreenshotHistory.Props) {
   const clientLink = useClientLink()
   const { data } = useQuery(snapshotHistoryQuery(workspace, project, name, undefined, LOOK_BACK))
+  const [all, setAll] = useState<string | undefined>(undefined)
   if (!data) return null
   const changes = changesOf(data.default)
+  // The latest few; the rest wait behind "Show all" (for this screenshot only: another one starts short).
+  const expanded = all === name
+  const shown = expanded ? changes : changes.slice(0, SHOWN)
   return (
     <section aria-label={`History of ${name}`}>
       <Text variant="micro" tone="tertiary">
@@ -40,7 +48,7 @@ export function ScreenshotHistory({
         </Text>
       ) : (
         <ul className={styles.list}>
-          {changes.map((entry) => (
+          {shown.map((entry) => (
             <li key={entry.build.number} className={styles.event}>
               <StatusIcon
                 status={screenshotStatus(entry.status ?? 'unchanged', shotReview(entry.build))}
@@ -69,6 +77,15 @@ export function ScreenshotHistory({
           ))}
         </ul>
       )}
+      {changes.length > SHOWN ? (
+        <Button
+          variant="link"
+          aria-expanded={expanded}
+          onClick={() => setAll(expanded ? undefined : name)}
+        >
+          {expanded ? 'Show fewer' : `Show all ${changes.length}`}
+        </Button>
+      ) : null}
     </section>
   )
 }

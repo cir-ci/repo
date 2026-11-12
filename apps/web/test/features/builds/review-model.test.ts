@@ -72,6 +72,15 @@ describe('groupShots', () => {
     })
   })
 
+  it('opens Flaky when it holds the only changes', () => {
+    const only = [diff('a', 'unchanged'), diff('b', 'changed')]
+    const groups = groupShots(only, new Set(['b']))
+    expect(groups.map((g) => [g.kind, g.open])).toEqual([
+      ['flaky', true],
+      ['unchanged', false],
+    ])
+  })
+
   it('moves a changed screenshot that keeps changing on the default branch into Flaky', () => {
     const groups = groupShots(diffs, new Set(['b-changed', 'c-added']))
     expect(groups.find((g) => g.kind === 'flaky')?.items.map((d) => d.name)).toEqual(['b-changed'])

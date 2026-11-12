@@ -129,7 +129,11 @@
 .thread:focus-visible,
 .thread[data-focused] {
   border-color: var(--circi-annotation);
-  outline: none;
+}
+
+.thread:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
 }
 
 .comment {
