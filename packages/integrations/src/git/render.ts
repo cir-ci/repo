@@ -300,7 +300,14 @@ export function prCommentBody(
 export const HELP_COMMENT_MARKER = '<!-- circi:help -->'
 
 /** Why a `/circi` command did nothing. */
-export type CommandIgnoredReason = 'no_build' | 'processing' | 'failed' | 'nothing_to_review'
+export type CommandIgnoredReason =
+  | 'no_build'
+  | 'processing'
+  | 'failed'
+  | 'nothing_to_review'
+  | 'unreadable'
+  | 'conflict'
+  | 'error'
 
 /** The one short reply for a command that applied to nothing. */
 export function ignoredReply(
@@ -314,6 +321,12 @@ export function ignoredReply(
       return `The latest build failed, so there's nothing to ${command}. \`/circi rerun\` processes it again.`
     case 'nothing_to_review':
       return `Nothing to ${command}: the latest build has no visual changes, and this project doesn't require approval.`
+    case 'unreadable':
+      return `Nothing to ${command}: the only changes couldn't be read. Upload again with valid PNGs.`
+    case 'conflict':
+      return `The build changed while handling \`/circi ${command}\`. Try again.`
+    case 'error':
+      return `Couldn't ${command} the latest build. Try again, or use the dashboard.`
     default:
       return "There's no CirCI build for this pull request yet. Reply again once your tests have uploaded screenshots."
   }

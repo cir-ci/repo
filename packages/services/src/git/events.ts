@@ -1,6 +1,6 @@
 import { REVIEW_SOURCES, reviewability } from '@circi/core'
 import { openSecret } from '@circi/core/node'
-import { type Database } from '@circi/db'
+import { ConflictError, type Build, type Database } from '@circi/db'
 import { getProjectById } from '@circi/db/queries'
 import {
   clearInstallationNeedsAttention,
@@ -13,6 +13,7 @@ import {
 import {
   closeReviewRequestsForPullRequest,
   findProjectViewersByAccount,
+  listChangedSnapshotNames,
   markBuildNotificationsRead,
 } from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
@@ -44,6 +45,25 @@ export namespace handleGitEvents {
       warn(obj: object, msg: string): void
     }
   }
+}
+
+/**
+ * `reviewability`, plus the case it can't see: a build whose only changes are screenshots the
+ * server couldn't read has nothing to approve or reject, so a command on it must not report success.
+ */
+async function reviewVerdict(
+  db: Database,
+  build: Build,
+  settings: { autoApproveNoChanges: boolean },
+): Promise<reviewability.Verdict | 'unreadable'> {
+  const verdict = reviewability(build, settings)
+  if (verdict !== 'reviewable' || build.conclusion !== 'changes_detected') return verdict
+  return (await listChangedSnapshotNames(db, build.id)).length === 0 ? 'unreadable' : verdict
+}
+
+/** Why a command's review failed, as the reason the person is told. */
+function failureReason(err: unknown): CommandIgnoredReason {
+  return err instanceof ConflictError ? 'conflict' : 'error'
 }
 
 type ReviewSource = NonNullable<reviewBuild.Input['source']>
@@ -199,7 +219,8 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
           // eslint-disable-next-line no-await-in-loop -- few builds per commit
           await requeueBuild(db, build.id)
         } else {
-          const verdict = reviewability(build, {
+          // eslint-disable-next-line no-await-in-loop
+          const verdict = await reviewVerdict(db, build, {
             autoApproveNoChanges: settings?.autoApproveNoChanges ?? true,
           })
           if (verdict !== 'reviewable') {
@@ -216,7 +237,7 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
         }
         acted = true
       } catch (err) {
-        reason = 'failed'
+        reason = failureReason(err)
         input.log.info(
           { err, buildId: build.id, command: event.command },
           `${kind} command not applicable`,
@@ -257,19 +278,26 @@ async function onCheckAction(
     return
   }
   const settings = await getProjectById(db, build.projectId)
-  const verdict = reviewability(build, {
+  const verdict = await reviewVerdict(db, build, {
     autoApproveNoChanges: settings?.autoApproveNoChanges ?? true,
   })
   if (verdict !== 'reviewable') {
     await answerWith({ outcome: 'ignored', reason: verdict })
     return
   }
-  await reviewBuild(db, {
-    buildId: build.id,
-    userId,
-    state: event.action === 'approve' ? 'approved' : 'rejected',
-    source: reviewSource(kind, 'check'),
-  })
+  try {
+    await reviewBuild(db, {
+      buildId: build.id,
+      userId,
+      state: event.action === 'approve' ? 'approved' : 'rejected',
+      source: reviewSource(kind, 'check'),
+    })
+  } catch (err) {
+    // A build that moved on since the check was drawn (rerun, expired) is told so; anything else
+    // is a real failure and surfaces to the delivery's retry.
+    if (!(err instanceof ConflictError)) throw err
+    await answerWith({ outcome: 'ignored', reason: 'conflict' })
+  }
 }
 
 /** Tells the person on the host what happened; a failure to answer never undoes the work. */

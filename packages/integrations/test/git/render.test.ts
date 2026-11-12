@@ -234,6 +234,15 @@ describe('ignoredReply', () => {
     expect(ignoredReply('approve', 'failed')).toBe(
       "The latest build failed, so there's nothing to approve. `/circi rerun` processes it again.",
     )
+    expect(ignoredReply('approve', 'unreadable')).toBe(
+      "Nothing to approve: the only changes couldn't be read. Upload again with valid PNGs.",
+    )
+    expect(ignoredReply('reject', 'conflict')).toBe(
+      'The build changed while handling `/circi reject`. Try again.',
+    )
+    expect(ignoredReply('approve', 'error')).toBe(
+      "Couldn't approve the latest build. Try again, or use the dashboard.",
+    )
     expect(ignoredReply('approve', 'nothing_to_review')).toBe(
       "Nothing to approve: the latest build has no visual changes, and this project doesn't require approval.",
     )
