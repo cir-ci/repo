@@ -121,3 +121,38 @@
 .facts dd {
   margin: 0;
 }
+
+/* The settings page: its sections, one under another. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* The page's one Save bar: sticky on a phone (see `saveBar`). */
+.footer {
+  composes: saveBar from '@circi/ui/utilities.module.css';
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A write-only secret: its name, "Saved", and what can be done with it. */
+.secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.secretLabel {
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+}

@@ -17,10 +17,8 @@ import {
   groupFindings,
   isForbidden,
   lastSeen,
-  mailServer,
   pageCount,
   queueTotals,
-  signInMethods,
   slugPreview,
   sortFindings,
   stepDone,
@@ -28,7 +26,7 @@ import {
 } from '#features/instance/api/admin.ts'
 import { HttpError } from '#lib/http.ts'
 
-import { account, settingsFixture } from '../fixtures.ts'
+import { account } from '../fixtures.ts'
 
 describe('creating an account', () => {
   const draft = { ...emptyAccountDraft(), name: ' Lior ', email: ' lior@acme.dev ' }
@@ -148,36 +146,6 @@ describe('workspaces', () => {
     })
     expect(workspaceProblems({ name: '!!!', ownerEmail: 'a@b.co' }).name).toMatch(/letter or digit/)
     expect(workspaceProblems({ name: 'Acme', ownerEmail: 'a@b.co' })).toEqual({})
-  })
-})
-
-describe('instance settings', () => {
-  it('lists the sign-in methods with their variables', () => {
-    const rows = signInMethods({
-      password: true,
-      email: false,
-      sso: [{ id: 'oidc', name: 'Okta' }],
-    })
-    expect(rows.map((r) => [r.name, r.env, r.allowed])).toEqual([
-      ['Password', 'AUTH_PASSWORD_ENABLED', true],
-      ['Email code', 'AUTH_EMAIL_ENABLED', false],
-      ['Okta', 'AUTH_OIDC_*', true],
-    ])
-  })
-
-  it('writes the mail server', () => {
-    expect(mailServer(settingsFixture().mail)).toBe('smtp.acme.io:587')
-    expect(mailServer({ ...settingsFixture().mail, secure: true })).toBe('smtp.acme.io:587 (TLS)')
-    expect(
-      mailServer({
-        configured: false,
-        from: null,
-        host: null,
-        port: null,
-        secure: null,
-        authenticated: false,
-      }),
-    ).toBeNull()
   })
 })
 

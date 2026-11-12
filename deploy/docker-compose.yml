@@ -41,6 +41,9 @@ services:
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in deploy/.env (openssl rand -base64 32)}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # The SMTP_*, AUTH_*, WORKSPACE_CREATION, STATIC_SITES_MAX_MB, UPLOAD_TIMEOUT_MINUTES, GC_GRACE_HOURS,
+      # JOB_RETENTION_DAYS, WEBHOOK_TIMEOUT_SECONDS and SLACK_* variables are optional: a variable that is set
+      # wins and locks the setting in Instance > Settings; leave it empty to manage it in the dashboard.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}

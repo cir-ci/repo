@@ -99,6 +99,8 @@ Anyone you add to a workspace sees its projects, builds and screenshots, and not
 
 ### Configuration
 
+Most of the instance can be set in the dashboard (Instance › Settings), saved in the database and picked up by every process within 30 seconds, with no restart: sign-in methods, who can create workspaces, the mail server, the Slack app, single sign-on providers and the limits. The variables marked *initial value* below still work. **A variable that is set wins and locks its setting** (the dashboard shows "Set by `<VARIABLE>`" and disables the field); leave it unset to manage the setting in the dashboard. Secrets (the SMTP password, client secrets) are write-only in the dashboard and stored encrypted. Everything else is environment only.
+
 | Variable | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | (required) | Postgres connection string |
@@ -108,21 +110,21 @@ Anyone you add to a workspace sees its projects, builds and screenshots, and not
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `DATABASE_URL` and the worker | | The worker wakes on Postgres `LISTEN/NOTIFY`, so it needs a direct Postgres connection or session pooling, not a transaction pooler such as PgBouncer in transaction mode |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
-| `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Initial value, locks the setting when set. Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
+| `AUTH_PASSWORD_ENABLED` | `true` | Initial value, locks the setting when set. Email + password sign-in. The dashboard refuses to turn off the last working method |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
-| `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
-| `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
+| `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Initial value, locks the setting when set. Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
+| `GC_GRACE_HOURS` | `24` | Initial value, locks the setting when set. Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
 | `CIRCI_DIFF_ENGINE` | `native` | `native` runs the pixel comparison in the Rust addon the image ships (about twice the builds per minute under load, at the same memory; see `docs/perf/2026-11-11-diff-engines.md`); if it can't load, the worker logs a warning and uses `js`. `js` runs it on the worker's event loop. `js-workers` runs the same JavaScript comparison in a pool of worker threads, off the event loop, with no native module; a thread that fails falls back to `js` for that call, with one warning |
 | `CIRCI_DIFF_THREADS` | cores - 1 | Threads of the `js-workers` engine (at least 1) |
-| `JOB_RETENTION_DAYS` | `14` | Finished background jobs (done or failed) are deleted after this many days; `0` keeps them |
-| `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
+| `JOB_RETENTION_DAYS` | `14` | Initial value, locks the setting when set. Finished background jobs (done or failed) are deleted after this many days; `0` keeps them |
+| `UPLOAD_TIMEOUT_MINUTES` | `60` | Initial value, locks the setting when set. Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `JOB_RETRY_BASE_SECONDS`, `JOB_RETRY_MAX_SECONDS` | `2`, `300` | Wait before a failed job (webhook, git check, email) is retried, doubling each time up to the maximum; mostly for tests |
-| `WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS` | `10`, `15` | How long a webhook receiver, and one GitHub API request, may take to answer |
-| `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
-| `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |
-| `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
-| `WORKSPACE_CREATION` | `admin` | Who may create workspaces in the dashboard: `admin` (instance admins) or `anyone` (every signed-in account) |
+| `WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS` | `10`, `15` | Initial value, locks the setting when set. How long a webhook receiver, and one GitHub API request, may take to answer |
+| `AUTH_SSO_ENABLED` | `true` | Initial value, locks the setting when set. Set `false` to hide single sign-on even with providers configured |
+| `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Initial value, locks the setting when set. Single sign-on providers, see above |
+| `AUTH_EMAIL_ENABLED` | `true` | Initial value, locks the setting when set. Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
+| `WORKSPACE_CREATION` | `admin` | Initial value, locks the setting when set. Who may create workspaces in the dashboard: `admin` (instance admins) or `anyone` (every signed-in account) |
 | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES` | `false` | Allow webhooks to private/loopback addresses (they are refused by default) |
 | `BETTER_AUTH_SECRET` | (required) | Signs sessions and cookies; 32+ characters (`openssl rand -base64 32`). Changing it signs everyone out |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |

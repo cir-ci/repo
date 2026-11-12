@@ -6,6 +6,9 @@ import { instancePath } from '#lib/api-paths.ts'
 import { getJson, HttpError, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import { formatRelative } from '#lib/relative-time.ts'
+import { toast } from '#lib/toast.ts'
+
+import type { SaveRequest } from '../config-model.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 
@@ -151,55 +154,6 @@ export const workspaceBody = (draft: WorkspaceDraft) => ({
   name: draft.name.trim(),
   ownerEmail: draft.ownerEmail.trim(),
 })
-
-/** One row of the sign-in methods list. */
-export interface MethodRow {
-  key: string
-  name: string
-  description: string
-  env: string
-  allowed: boolean
-}
-
-/** The sign-in methods the instance allows, each with the variable that controls it. */
-export function signInMethods(auth: InstanceAdmin.Settings['auth']): MethodRow[] {
-  return [
-    {
-      key: 'password',
-      name: 'Password',
-      description: 'Email and password.',
-      env: 'AUTH_PASSWORD_ENABLED',
-      allowed: auth.password,
-    },
-    {
-      key: 'email',
-      name: 'Email code',
-      description: 'A code mailed to the address.',
-      env: 'AUTH_EMAIL_ENABLED',
-      allowed: auth.email,
-    },
-    ...auth.sso.map((p) => ({
-      key: `sso-${p.id}`,
-      name: p.name,
-      description: 'Single sign-on for the whole instance.',
-      env: `AUTH_${p.id.toUpperCase()}_*`,
-      allowed: true,
-    })),
-  ]
-}
-
-/** "smtp.acme.io:587 (TLS)", or null without SMTP. */
-export function mailServer(mail: InstanceAdmin.Settings['mail']): string | null {
-  if (!mail.host) return null
-  const port = mail.port ? `:${mail.port}` : ''
-  return `${mail.host}${port}${mail.secure ? ' (TLS)' : ''}`
-}
-
-export const WORKSPACE_CREATION_TEXT: Record<InstanceAdmin.Settings['workspaceCreation'], string> =
-  {
-    admin: 'Instance admins only',
-    anyone: 'Every signed-in account',
-  }
 
 /** How serious a doctor finding is, as a word and a badge state (a note is a neutral tag). */
 export const FINDING_LEVEL: Record<
@@ -539,5 +493,57 @@ export function useSendTestMail() {
   return useMutation({
     meta: { what: 'send the test email' },
     mutationFn: () => post<InstanceAdmin.MailTest>(instancePath('mail', 'test'), {}),
+  })
+}
+
+/**
+ * Saves the changes of the settings form: one request per changed group, in order (the mail
+ * server first: email codes need it). It stops at the first refusal; what was saved before it
+ * stays saved, and the page reads the settings again either way.
+ */
+export function useSaveInstanceConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'save' },
+    mutationFn: (requests: SaveRequest[]) =>
+      requests.reduce<Promise<unknown>>(
+        (done, r) =>
+          done.then(() => send<InstanceAdmin.Config>(r.method, instancePath(...r.path), r.body)),
+        Promise.resolve(),
+      ),
+    // Here, not at the call: saving makes the page read the settings again and the form can remount.
+    onSuccess: () => toast('Instance settings saved'),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.instanceSettings() }),
+  })
+}
+
+/** Removes the mail server or the Slack app saved here. */
+export function useRemoveInstanceConfig(group: 'smtp' | 'slack') {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'remove it' },
+    mutationFn: () => send<InstanceAdmin.Config>('DELETE', instancePath('config', group)),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.instanceSettings() }),
+  })
+}
+
+/** Adds or changes a single sign-on provider of the instance. */
+export function useSaveSsoProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'save the provider' },
+    mutationFn: (input: { id: InstanceAdmin.SsoProvider['id']; body: InstanceAdmin.SsoInput }) =>
+      send<InstanceAdmin.Config>('PUT', instancePath('config', 'sso', input.id), input.body),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.instanceSettings() }),
+  })
+}
+
+export function useRemoveSsoProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    meta: { what: 'remove the provider' },
+    mutationFn: (id: InstanceAdmin.SsoProvider['id']) =>
+      send<InstanceAdmin.Config>('DELETE', instancePath('config', 'sso', id)),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.instanceSettings() }),
   })
 }

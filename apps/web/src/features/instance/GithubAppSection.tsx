@@ -97,12 +97,7 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
                 />
                 {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
                 <div>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={create.isPending}
-                    disabled={Boolean(data.blocked)}
-                  >
+                  <Button type="submit" loading={create.isPending} disabled={Boolean(data.blocked)}>
                     Create GitHub App
                   </Button>
                 </div>
