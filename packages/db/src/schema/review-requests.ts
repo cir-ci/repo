@@ -14,7 +14,7 @@ import {
 /**
  * Someone asked to review a build. A request stays `open` until the build is reviewed (`done`),
  * a newer build on the same branch replaces it (`superseded`) or a person drops it
- * (`dismissed`). A closed request is history: asking the same person again makes a new row.
+ * or its pull request closes (`dismissed`). A closed request is history: asking the same person again makes a new row.
  */
 
 export const reviewRequests = pgTable(

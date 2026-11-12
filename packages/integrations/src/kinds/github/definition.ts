@@ -77,7 +77,32 @@ function events(
       },
     ]
   }
+  if (event === 'installation') {
+    const installation = str(asRecord(p.installation).id)
+    if (!installation) return []
+    const connection = { externalId: installation }
+    if (p.action === 'deleted' || p.action === 'suspend') {
+      return [{ type: 'connection', connection, state: 'revoked', reason: REVOKED }]
+    }
+    if (p.action === 'created' || p.action === 'unsuspend') {
+      return [{ type: 'connection', connection, state: 'restored' }]
+    }
+    return []
+  }
   if (event === 'pull_request') {
+    if (p.action === 'closed') {
+      const number = Number(asRecord(p.pull_request).number)
+      const repo = repoOf(p)
+      if (!Number.isInteger(number) || !repo) return []
+      return [
+        {
+          type: 'pull_request_closed',
+          repo,
+          number,
+          merged: asRecord(p.pull_request).merged === true,
+        },
+      ]
+    }
     if (p.action !== 'opened' && p.action !== 'reopened' && p.action !== 'synchronize') return []
     const pr = asRecord(p.pull_request)
     const author = asRecord(pr.user)

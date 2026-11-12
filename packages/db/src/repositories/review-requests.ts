@@ -157,6 +157,25 @@ export async function closeReviewRequestsForBuild(
 }
 
 /**
+ * Closes the open requests on the builds of a pull request as `dismissed` (it was closed or
+ * merged, so nobody needs to look any more). Returns the ones it closed.
+ */
+export async function closeReviewRequestsForPullRequest(
+  db: Database,
+  input: { projectId: string; prNumber: number },
+): Promise<ReviewRequest[]> {
+  const ofPullRequest = db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(and(eq(builds.projectId, input.projectId), eq(builds.prNumber, input.prNumber)))
+  return db
+    .update(reviewRequests)
+    .set({ state: 'dismissed', closedAt: sql`now()` })
+    .where(and(eq(reviewRequests.state, 'open'), inArray(reviewRequests.buildId, ofPullRequest)))
+    .returning()
+}
+
+/**
  * Closes the open requests on builds older than `beforeNumber` on the same branch of a project as
  * `superseded` (a newer build replaced them). Returns the ones it closed.
  */

@@ -183,6 +183,24 @@ export namespace IntegrationDefinition {
         head?: { sha?: string; branch?: string }
       }
     | {
+        /** A pull or merge request was closed, merged or not: its review requests no longer matter. */
+        type: 'pull_request_closed'
+        repo: GitRepo
+        number: number
+        merged: boolean
+      }
+    | {
+        /**
+         * The host says the connection (an App installation) was removed or suspended (`revoked`,
+         * with the reason to show) or works again (`restored`). Nothing about its projects changes:
+         * they keep their repositories and the connection shows "needs attention" until it works.
+         */
+        type: 'connection'
+        connection: { externalId: string }
+        state: 'revoked' | 'restored'
+        reason?: string
+      }
+    | {
         /** `/circi approve|reject|rerun` in a comment on a pull request. */
         type: 'command'
         repo: GitRepo

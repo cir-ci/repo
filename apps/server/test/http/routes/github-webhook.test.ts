@@ -276,6 +276,62 @@ const requireApproval = (value: boolean) =>
     .set({ autoApproveNoChanges: !value })
     .where(eq(schema.projects.id, acme.project.id))
 
+describe('GitHub webhook: pull requests closing and the installation', () => {
+  async function openRequest(buildId: string) {
+    const [row] = await t.db
+      .insert(schema.reviewRequests)
+      .values({ buildId, reviewerId: acme.owner.id, reviewerName: 'Owner' })
+      .returning()
+    return row?.id ?? ''
+  }
+  const requestState = async (id: string) =>
+    (await t.db.select().from(schema.reviewRequests).where(eq(schema.reviewRequests.id, id)))[0]
+      ?.state
+
+  const closed = (pr: number, merged: boolean) => ({
+    action: 'closed',
+    pull_request: { number: pr, merged, user: { id: Number(GITHUB_ID), login: 'ann' } },
+    installation: { id: 99 },
+    repository: { full_name: 'acme/web' },
+  })
+
+  it('closing a pull request closes the open review requests on its builds, merged or not', async () => {
+    const build = await changedBuild(60)
+    const other = await changedBuild(61)
+    const request = await openRequest(build.id)
+    const unrelated = await openRequest(other.id)
+    expect((await deliver('pull_request', closed(60, false))).statusCode).toBe(200)
+    expect(await requestState(request)).toBe('dismissed')
+    expect(await requestState(unrelated)).toBe('open')
+    // The build's own review state is untouched.
+    expect(await reviewState(build.id)).toBe('pending')
+    await deliver('pull_request', closed(61, true))
+    expect(await requestState(unrelated)).toBe('dismissed')
+  })
+
+  const attention = async () =>
+    (await t.db.select().from(schema.integrations).where(eq(schema.integrations.externalId, '99')))[0]
+
+  it('removing or suspending the installation flags the connection, restoring it clears the flag', async () => {
+    const hook = (action: string) => ({ action, installation: { id: 99 } })
+    await deliver('installation', hook('deleted'))
+    expect(await attention()).toMatchObject({ needsAttention: true })
+    expect((await attention())?.needsAttentionReason).toMatch(/GitHub App was removed/)
+    await deliver('installation', hook('unsuspend'))
+    expect(await attention()).toMatchObject({ needsAttention: false, needsAttentionReason: null })
+    await deliver('installation', hook('suspend'))
+    expect(await attention()).toMatchObject({ needsAttention: true })
+    await deliver('installation', hook('created'))
+    expect(await attention()).toMatchObject({ needsAttention: false })
+  })
+
+  it('ignores an installation the instance does not know', async () => {
+    const res = await deliver('installation', { action: 'deleted', installation: { id: 5 } })
+    expect(res.statusCode).toBe(200)
+    expect(await attention()).toMatchObject({ needsAttention: false })
+  })
+})
+
 describe('GitHub webhook: which builds can be approved', () => {
   it('approves a no-change build that awaits approval from a comment and from the button alike', async () => {
     await requireApproval(true)

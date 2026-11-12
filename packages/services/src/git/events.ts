@@ -3,12 +3,18 @@ import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import { getProjectById } from '@circi/db/queries'
 import {
+  clearInstallationNeedsAttention,
   findBuildByCheckRun,
   findGitProjects,
   latestBuildsForPr,
   linkBuildsToPullRequest,
+  markInstallationNeedsAttention,
 } from '@circi/db/queue'
-import { findProjectViewersByAccount } from '@circi/db/repositories'
+import {
+  closeReviewRequestsForPullRequest,
+  findProjectViewersByAccount,
+  markBuildNotificationsRead,
+} from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
 import type { CommandIgnoredReason } from '@circi/integrations/git'
 
@@ -64,6 +70,10 @@ export async function handleGitEvents(db: Database, input: handleGitEvents.Input
     // oxlint-disable-next-line no-await-in-loop -- events of one delivery are handled in order
     if (event.type === 'pull_request') await onPullRequest(db, input, event)
     // oxlint-disable-next-line no-await-in-loop
+    else if (event.type === 'pull_request_closed') await onPullRequestClosed(db, input, event)
+    // oxlint-disable-next-line no-await-in-loop
+    else if (event.type === 'connection') await onConnection(db, input, event)
+    // oxlint-disable-next-line no-await-in-loop
     else if (event.type === 'command') await onCommand(db, input, event)
     // oxlint-disable-next-line no-await-in-loop
     else await onCheckAction(db, input, event)
@@ -104,6 +114,51 @@ async function onPullRequest(
         provider: kind,
       })
     }
+  }
+}
+
+/**
+ * A closed or merged pull request ends the review requests on its builds (as dismissed, with
+ * their "please review" notices): nobody needs to look at a pull request that is gone. The builds
+ * keep their own review state.
+ */
+async function onPullRequestClosed(
+  db: Database,
+  input: handleGitEvents.Input,
+  event: Of<'pull_request_closed'>,
+) {
+  const projects = await findGitProjects(db, input.definition.id, event.repo.connection, event.repo.ref)
+  for (const project of projects) {
+    // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several projects
+    await db.transaction(async (tx) => {
+      const closed = await closeReviewRequestsForPullRequest(tx, {
+        projectId: project.id,
+        prNumber: event.number,
+      })
+      for (const request of closed) {
+        // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
+        await markBuildNotificationsRead(tx, {
+          userId: request.reviewerId,
+          buildId: request.buildId,
+          kinds: ['review_requested', 'review_re_requested', 'review_overdue'],
+        })
+      }
+    })
+  }
+}
+
+/** The host removed, suspended or restored the connection: show or clear "needs attention". */
+async function onConnection(db: Database, input: handleGitEvents.Input, event: Of<'connection'>) {
+  const kind = input.definition.id
+  if (event.state === 'revoked') {
+    await markInstallationNeedsAttention(
+      db,
+      kind,
+      event.connection.externalId,
+      event.reason ?? 'The connection was removed on the host.',
+    )
+  } else {
+    await clearInstallationNeedsAttention(db, kind, event.connection.externalId)
   }
 }
 
