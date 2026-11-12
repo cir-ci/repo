@@ -151,8 +151,13 @@ describe('ReviewsPage', () => {
     await expect
       .element(page.getByRole('button', { name: 'Requested from you 2' }))
       .toHaveAttribute('aria-pressed', 'true')
-    // Nothing is selected until one is chosen.
-    await expect.element(page.getByText('Select a review')).toBeVisible()
+    // The first review is selected when the address names none (a desktop never shows an empty invitation).
+    await expect.element(page.getByRole('heading', { name: 'Build #12' })).toBeVisible()
+    await expect.element(page.getByText('Select a review')).not.toBeInTheDocument()
+    // "Reviews" is the crumb's; the list has no heading repeating it.
+    expect(
+      page.getByRole('complementary', { name: 'Reviews' }).getByText('Reviews', { exact: true }).elements(),
+    ).toHaveLength(0)
   })
 
   it('has the five tabs of the board, and Reviewed shows the decision', async () => {
@@ -302,7 +307,7 @@ describe('ReviewsPage', () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [] } } })
     await show()
     await expectEmptyState('Nothing waiting on you', {
-      body: 'When a build needs your review, it shows up here and in the sidebar count.',
+      body: 'Your review queue: builds waiting for you to approve or reject appear here.',
       tone: 'success',
     })
     // An empty list leaves the panel blank: no "Select a review", no hint.
@@ -675,7 +680,8 @@ describe('ReviewsPage requests you made', () => {
         },
       },
     })
-    await show()
+    // A link to a review that is no longer in the list shows the invitation.
+    await show('/workspaces/acme/reviews?review=gone')
     await expect.element(page.getByRole('link', { name: /Build #12 · storybook/ })).toBeVisible()
     await expect.element(page.getByText('Select a review')).toBeVisible()
     await expect

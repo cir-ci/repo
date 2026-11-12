@@ -2,7 +2,6 @@ import type { Inbox, Undo } from '@circi/api'
 import {
   AlarmClockIcon,
   Avatar,
-  Badge,
   Button,
   ContextMenu,
   EmptyState,
@@ -355,7 +354,7 @@ export function InboxPage() {
 const EMPTY: Record<Inbox.Tab, { icon?: ReactNode; title: string; text: string }> = {
   'for-you': {
     title: "You're all caught up",
-    text: 'Reviews, mentions and decisions for you appear here.',
+    text: 'Notifications about requests, mentions and decisions appear here.',
   },
   everything: {
     icon: <InboxIcon />,
@@ -411,7 +410,6 @@ function Row({
       }
       trailing={
         <span className={styles.trailing}>
-          {item.alsoInReviews ? <Badge shape="tag">Also in Reviews</Badge> : null}
           <Text variant="small" tone="secondary">
             <RelativeTime iso={item.createdAt} />
           </Text>
@@ -427,6 +425,7 @@ function Row({
         <span className={styles.rowMeta}>
           {detail ? <span>{detail}</span> : null}
           {item.project ? <span>{item.project.name}</span> : null}
+          {item.build ? <span className={styles.buildNumber}>#{item.build.number}</span> : null}
         </span>
       }
     />

@@ -87,8 +87,17 @@ export function notificationText(item: NotificationWords): { title: string; deta
   const who = item.actor?.name ?? 'Someone'
   const build = item.build ? ` build #${item.build.number}` : ' a build'
   const kinds: Record<NotificationKind, { title: string; detail?: string | undefined }> = {
-    review_requested: { title: `${who} requested your review of${build}` },
-    review_re_requested: { title: `${who} asked you to review${build} again` },
+    // With no person behind it (they left, or a review rule asked), say what happened.
+    review_requested: {
+      title: item.actor
+        ? `${who} requested your review of${build}`
+        : `A review rule asked you to review${build}`,
+    },
+    review_re_requested: {
+      title: item.actor
+        ? `${who} asked you to review${build} again`
+        : `A review rule asked you to review${build} again`,
+    },
     mentioned: { title: `${who} mentioned you on${build}`, detail: text(item.payload['snippet']) },
     build_approved: { title: `${who} approved${build}` },
     build_rejected: { title: `${who} rejected${build}`, detail: text(item.payload['reason']) },

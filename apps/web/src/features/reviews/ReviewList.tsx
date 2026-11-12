@@ -14,6 +14,7 @@ import {
   SegmentedControl,
   SendIcon,
   StatusIcon,
+  visuallyHidden,
   type Menu,
 } from '@circi/ui'
 import type { MouseEventHandler, ReactNode } from 'react'
@@ -64,18 +65,16 @@ export function ReviewList({
 
   return (
     <aside className={styles.sub} aria-label="Reviews">
-      <div className={styles.subTop}>
-        <span>Reviews</span>
-        {pending > 0 ? (
-          <span
-            role="status"
-            className={styles.count}
-            aria-label={`${pending} ${pending === 1 ? 'review' : 'reviews'} waiting on you`}
-          >
-            {pending}
-          </span>
-        ) : null}
-      </div>
+      {/* The page's crumb already says "Reviews": the count is for screen readers, and the tab shows it. */}
+      {pending > 0 ? (
+        <span
+          role="status"
+          style={visuallyHidden}
+          aria-label={`${pending} ${pending === 1 ? 'review' : 'reviews'} waiting on you`}
+        >
+          {pending}
+        </span>
+      ) : null}
       <div className={styles.tabs}>
         <SegmentedControl
           label="Which reviews"
@@ -218,7 +217,7 @@ const EMPTY: Record<
 > = {
   'for-you': {
     title: 'Nothing waiting on you',
-    text: () => 'When a build needs your review, it shows up here and in the sidebar count.',
+    text: () => 'Your review queue: builds waiting for you to approve or reject appear here.',
   },
   created: {
     icon: <SendIcon />,

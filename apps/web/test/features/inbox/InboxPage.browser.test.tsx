@@ -7,6 +7,7 @@ import { PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { pageHeader } from '#test/support/header.ts'
 import { menuItemNames } from '#test/support/menu.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
@@ -52,7 +53,7 @@ const show = (url = '/inbox') =>
   })
 
 describe('InboxPage', () => {
-  it('words each row, tags builds also in Reviews and flags unread ones', async () => {
+  it('words each row (no Also in Reviews chip, the build number in the meta line) and flags unread ones', async () => {
     fakeApi({
       'GET /api/inbox': list([
         item('n1', { alsoInReviews: true }),
@@ -75,7 +76,8 @@ describe('InboxPage', () => {
     await show()
     const rows = page.getByRole('list', { name: 'For you' })
     await expect.element(rows.getByText('Ada requested your review of build #12')).toBeVisible()
-    await expect.element(rows.getByText('Also in Reviews')).toBeVisible()
+    expect(rows.getByText('Also in Reviews').elements()).toHaveLength(0)
+    await expect.element(rows.getByText('#12')).toBeVisible()
     await expect.element(rows.getByText('Unread.')).toBeInTheDocument()
     await expect.element(rows.getByText('Ada rejected build #13')).toBeVisible()
     await expect.element(rows.getByText('Logo moved')).toBeVisible()
@@ -282,10 +284,18 @@ describe('InboxPage', () => {
     })
     await show()
     await expect.element(page.getByRole('button', { name: /Approve all/ })).toBeVisible()
+    // "Open review" is the primary action; Approve all (it approves unseen) is secondary.
+    await expect
+      .element(page.getByRole('link', { name: 'Open review' }))
+      .toHaveAttribute('data-variant', 'primary')
+    await expect
+      .element(page.getByRole('button', { name: /Approve all/ }))
+      .not.toHaveAttribute('data-variant', 'primary')
+    expectOnePrimaryPerArea()
     await userEvent.keyboard('{Shift>}A{/Shift}')
     await expect.poll(() => api.of('POST')[0]?.body).toEqual({ state: 'approved' })
     await expectEmptyState("You're all caught up", {
-      body: 'Reviews, mentions and decisions for you appear here.',
+      body: 'Notifications about requests, mentions and decisions appear here.',
       tone: 'success',
     })
     // The list is empty, so the pane has nothing to invite a choice of.
@@ -350,7 +360,7 @@ describe('InboxPage', () => {
     fakeApi({ 'GET /api/inbox': list([]) })
     await show()
     await expectEmptyState("You're all caught up", {
-      body: 'Reviews, mentions and decisions for you appear here.',
+      body: 'Notifications about requests, mentions and decisions appear here.',
       tone: 'success',
       centred: true,
     })

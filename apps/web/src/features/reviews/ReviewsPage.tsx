@@ -26,6 +26,7 @@ import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { copyLinkItem, menuEntries, openInNewTabItem, snoozeItems } from '#lib/row-menu.ts'
+import { usePhone } from '#lib/use-phone.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
@@ -110,8 +111,10 @@ export function ReviewsPage() {
   const requests = findIn(inThisWorkspace, find, requestFields)
   const groups = groupRequests(requests, tab, userId)
   const items = groups.flatMap((g) => g.items)
-  // No review in the address means none is selected: the panel invites a choice.
-  const selected = items.find((r) => r.id === review)
+  // No review in the address: a desktop shows the first one (the pane is never an empty invitation
+  // while there is something to read); a phone's list and review take turns, so it shows none.
+  const phone = usePhone()
+  const selected = items.find((r) => r.id === review) ?? (review || phone ? undefined : items[0])
   const waiting = selected !== undefined && isWaitingOnOther(selected, userId)
   const can = {
     snooze: tab === 'for-you',

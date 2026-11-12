@@ -97,6 +97,23 @@
   font-weight: 400;
 }
 
+.buildNumber {
+  flex: none !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A phone: the title wraps to two lines (the build number sits in the line below, never cut). */
+@media (max-width: 819.98px) {
+  .rowTitle {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
 .rowMeta {
   display: flex;
   gap: 10px;

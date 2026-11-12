@@ -96,6 +96,7 @@ export function InboxPane({
           {link ? (
             <Button
               size="sm"
+              variant="primary"
               aria-keyshortcuts="Enter"
               href={link.href}
               onClick={(event) => {
@@ -109,7 +110,6 @@ export function InboxPane({
           {canApprove ? (
             <Button
               size="sm"
-              variant="primary"
               loading={approving}
               aria-keyshortcuts="shift+a"
               onClick={() => onApprove(item)}

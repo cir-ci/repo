@@ -36,19 +36,6 @@
   border-right: 1px solid var(--circi-line-subtle);
 }
 
-.subTop {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 16px 0;
-  font-weight: 500;
-}
-
-.count {
-  color: var(--circi-text-tertiary);
-  font-weight: 400;
-}
-
 .tabs {
   padding: 8px 12px;
   border-bottom: 1px solid var(--circi-line-subtle);

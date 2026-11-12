@@ -71,9 +71,12 @@ describe('notificationText', () => {
     ).toBeUndefined()
   })
 
-  it('says "Someone" when the person has left', () => {
+  it('says what happened when no person is behind a review request', () => {
     expect(notificationText(item({ actor: null })).title).toBe(
-      'Someone requested your review of build #12',
+      'A review rule asked you to review build #12',
+    )
+    expect(notificationText(item({ actor: null, kind: 'review_re_requested' })).title).toBe(
+      'A review rule asked you to review build #12 again',
     )
   })
 })
