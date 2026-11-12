@@ -41,14 +41,14 @@ describe('API', () => {
     expect((await get(`/api/projects/${acme.workspaceSlug}/web/builds/99`)).statusCode).toBe(404)
   })
 
-  it('serves files by hash with permanent caching', async () => {
+  it('serves files by hash cached for an hour', async () => {
     const home = (await buildDetail(acmeCookie))
       .json()
       .diffs.find((d: { name: string }) => d.name === 'home')
     const res = await get(`/api/files/${home.head.sha256}`)
     expect(res.statusCode).toBe(200)
     expect(res.headers['content-type']).toBe('image/png')
-    expect(res.headers['cache-control']).toBe('private, max-age=31536000, immutable')
+    expect(res.headers['cache-control']).toBe('private, max-age=3600')
     expect(sha(res.rawPayload)).toBe(home.head.sha256)
     const cached = await app.inject({
       method: 'GET',
