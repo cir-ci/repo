@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { isConnectionRevoked, type GitProvider } from '#src/git/provider.ts'
-import { type CheckReport, PR_COMMENT_MARKER } from '#src/git/render.ts'
+import { type CheckReport, HELP_COMMENT_MARKER, PR_COMMENT_MARKER } from '#src/git/render.ts'
 
 /**
  * The contract every git host adapter keeps. A provider's test file builds a harness (the adapter
@@ -10,6 +10,10 @@ import { type CheckReport, PR_COMMENT_MARKER } from '#src/git/render.ts'
  */
 export interface ProviderHarness {
   provider: GitProvider
+  /** A plain reply on the pull request (the help comment), as the host's client offers it. */
+  reply(prNumber: number, body: string): Promise<void>
+  /** How many comments the fake host lists per page (default 100, as the real hosts do). */
+  pageSize?: number
   externalId: string
   /** A repository the fake host knows. */
   repo: string
@@ -23,6 +27,8 @@ export interface ProviderHarness {
     comments(): string[]
     /** Deletes every comment, as a person might. */
     deleteComments(): void
+    /** A comment a person wrote on the pull request (it may quote the marker). */
+    seedHumanComment(body: string): void
     /** Makes the host answer that the connection is gone. */
     revoke(): void
   }
@@ -96,6 +102,36 @@ export function runGitProviderContract(name: string, make: () => ProviderHarness
       )
       expect(next).not.toBe(id)
       expect(h.host.comments()).toEqual([`${PR_COMMENT_MARKER} again`])
+    })
+
+    it("never adopts or edits a person's comment that quotes the marker", async () => {
+      const h = make()
+      h.host.seedHumanComment(`> ${PR_COMMENT_MARKER}\nquoting the bot`)
+      const id = await h.provider.upsertComment(h.externalId, h.repo, h.prNumber, commentBody(1))
+      expect(h.host.comments()).toEqual([`> ${PR_COMMENT_MARKER}\nquoting the bot`, commentBody(1)])
+      const again = await h.provider.upsertComment(h.externalId, h.repo, h.prNumber, commentBody(2))
+      expect(again).toBe(id)
+      expect(h.host.comments()).toEqual([`> ${PR_COMMENT_MARKER}\nquoting the bot`, commentBody(2)])
+    })
+
+    it('finds its comment on a pull request with more than a page of comments', async () => {
+      const h = make()
+      for (let i = 0; i < (h.pageSize ?? 100) * 2 + 5; i++) h.host.seedHumanComment(`comment ${i}`)
+      const id = await h.provider.upsertComment(h.externalId, h.repo, h.prNumber, commentBody(1))
+      const again = await h.provider.upsertComment(h.externalId, h.repo, h.prNumber, commentBody(2))
+      expect(again).toBe(id)
+      expect(h.host.comments()).toHaveLength((h.pageSize ?? 100) * 2 + 6)
+      expect(h.host.comments().at(-1)).toBe(commentBody(2))
+    })
+
+    it('keeps one help comment per pull request, edited in place for every reply', async () => {
+      const h = make()
+      await h.reply(h.prNumber, 'first')
+      await h.reply(h.prNumber, 'second')
+      const help = h.host.comments().filter((c) => c.includes(HELP_COMMENT_MARKER))
+      expect(help).toHaveLength(1)
+      expect(help[0]).toContain('second')
+      expect(h.host.comments()).toHaveLength(1)
     })
 
     it('accepts a correctly signed webhook and nothing else', () => {

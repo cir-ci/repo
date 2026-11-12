@@ -2,7 +2,7 @@ import { asRecord } from '@circi/core'
 import { z } from 'zod'
 
 import { headerValue } from '#src/git/provider.ts'
-import { parseCommand } from '#src/git/render.ts'
+import { ignoredReply, parseCommand } from '#src/git/render.ts'
 import {
   connectFailure,
   derivedWebhookSecret,
@@ -167,7 +167,7 @@ export const bitbucket = defineIntegration({
             ? `Done: ${event.command === 'rerun' ? 'rerunning' : event.command === 'approve' ? 'approved' : 'rejected'} the latest CirCI build${event.command === 'rerun' ? 's' : ''}.`
             : input.outcome === 'refused'
               ? LINK_HELP(ctx.publicOrigin)
-              : `Nothing to ${event.command} on this pull request.`
+              : ignoredReply(event.command, input.reason)
         await providerOf(ctx).reply(
           connection.externalId,
           event.repo.ref,

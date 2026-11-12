@@ -2,7 +2,7 @@ import { asRecord, INSTALLATION_ID_RE } from '@circi/core'
 import { z } from 'zod'
 
 import { headerValue } from '#src/git/provider.ts'
-import { parseCommand } from '#src/git/render.ts'
+import { ignoredReply, parseCommand } from '#src/git/render.ts'
 import { connectFailure, revokedAttention, str, stubbed } from '#src/git/support.ts'
 import { defineIntegration } from '#src/sdk/define.ts'
 import type { IntegrationDefinition } from '#src/sdk/definition.ts'
@@ -182,10 +182,24 @@ export const github = defineIntegration({
         const { event, connection } = input
         const repo = event.repo?.ref
         if (!app || !repo) return
+        const help = LINK_HELP(ctx.publicOrigin)
         if (event.type === 'check_action') {
+          if (input.outcome === 'acted') return
+          // The check itself says why (a build with no pull request has no comment to put it in).
+          await app.noteOnCheckRun(
+            connection.externalId,
+            repo,
+            event.checkRunId,
+            input.outcome === 'refused'
+              ? { title: 'Not allowed', summary: help }
+              : {
+                  title: 'Nothing to decide',
+                  summary: ignoredReply(event.action, input.reason),
+                },
+          )
           const pr = input.prNumber
           if (input.outcome === 'refused' && pr !== undefined) {
-            await app.reply(connection.externalId, repo, pr, LINK_HELP(ctx.publicOrigin))
+            await app.reply(connection.externalId, repo, pr, help)
           }
           return
         }
@@ -193,9 +207,15 @@ export const github = defineIntegration({
         if (input.outcome === 'acted') {
           await app.react(connection.externalId, repo, event.commentId, '+1')
         } else if (input.outcome === 'refused') {
-          await app.reply(connection.externalId, repo, event.number, LINK_HELP(ctx.publicOrigin))
+          await app.reply(connection.externalId, repo, event.number, help)
         } else {
           await app.react(connection.externalId, repo, event.commentId, '-1')
+          await app.reply(
+            connection.externalId,
+            repo,
+            event.number,
+            ignoredReply(event.command, input.reason),
+          )
         }
       },
     },

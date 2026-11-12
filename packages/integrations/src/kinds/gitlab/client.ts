@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 
 import { type GitProvider, headerValue, ProviderApiError } from '#src/git/provider.ts'
-import { PR_COMMENT_MARKER } from '#src/git/render.ts'
+import { HELP_COMMENT_MARKER, PR_COMMENT_MARKER } from '#src/git/render.ts'
 import { apiMessage, createHttpClient } from '#src/http.ts'
 
 /**
@@ -214,17 +214,35 @@ export class GitlabProvider implements GitProvider {
     existingId?: string,
     credentials?: string,
   ): Promise<string> {
-    const creds = parseGitlabCredentials(credentials)
+    return this.#writeNote(
+      parseGitlabCredentials(credentials),
+      repo,
+      prNumber,
+      PR_COMMENT_MARKER,
+      body,
+      existingId,
+    )
+  }
+
+  async #writeNote(
+    creds: GitlabCredentials,
+    repo: string,
+    prNumber: number,
+    marker: string,
+    body: string,
+    existingId?: string,
+  ): Promise<string> {
     const notes = `/projects/${encodeURIComponent(repo)}/merge_requests/${prNumber}/notes`
-    let id = existingId
-    if (!id) id = await this.#findNote(creds, notes)
+    const id = existingId ?? (await this.#findNote(creds, notes, marker))
     if (id) {
       try {
         await this.#call(creds, 'PUT', `${notes}/${id}`, { body })
         return id
       } catch (err) {
-        // Deleted by someone: write a new one.
-        if (!(err instanceof GitlabApiError) || err.status !== 404) throw err
+        // Deleted, or not ours to edit: write a new one.
+        if (!(err instanceof GitlabApiError) || (err.status !== 404 && err.status !== 403)) {
+          throw err
+        }
       }
     }
     const created = await this.#call(creds, 'POST', notes, { body })
@@ -233,14 +251,26 @@ export class GitlabProvider implements GitProvider {
     return createdId
   }
 
-  async #findNote(creds: GitlabCredentials, notes: string): Promise<string | undefined> {
-    for (let page = 1; page <= 5; page++) {
+  /** The token's own note carrying `marker` (never one a person wrote that quotes it). */
+  async #findNote(
+    creds: GitlabCredentials,
+    notes: string,
+    marker: string,
+  ): Promise<string | undefined> {
+    const me = asId(field(await this.#call(creds, 'GET', '/user'), 'id'))
+    if (!me) return undefined
+    for (let page = 1; page <= 30; page++) {
       // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
       const data = await this.#call(creds, 'GET', `${notes}?per_page=100&page=${page}`)
       if (!Array.isArray(data)) return undefined
       const found = data.find((n: unknown) => {
         const body = field(n, 'body')
-        return typeof body === 'string' && body.includes(PR_COMMENT_MARKER)
+        return (
+          typeof body === 'string' &&
+          body.includes(marker) &&
+          field(n, 'system') !== true &&
+          asId(field(field(n, 'author'), 'id')) === me
+        )
       })
       if (found) return asId(field(found, 'id'))
       if (data.length < 100) return undefined
@@ -248,13 +278,17 @@ export class GitlabProvider implements GitProvider {
     return undefined
   }
 
-  /** A plain note on a merge request. */
+  /**
+   * A reply on a merge request. All replies share one help note per merge request, edited in
+   * place (created the first time), so a refused command never piles up notes.
+   */
   async reply(repo: string, prNumber: number, body: string, credentials?: string): Promise<void> {
-    await this.#call(
+    await this.#writeNote(
       parseGitlabCredentials(credentials),
-      'POST',
-      `/projects/${encodeURIComponent(repo)}/merge_requests/${prNumber}/notes`,
-      { body },
+      repo,
+      prNumber,
+      HELP_COMMENT_MARKER,
+      `${HELP_COMMENT_MARKER}\n${body}`,
     )
   }
 

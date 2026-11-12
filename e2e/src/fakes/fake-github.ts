@@ -34,6 +34,8 @@ export namespace FakeGithub {
 
   export interface Comment {
     id: number
+    /** Written by the App through the API (the default), or by a person (`seedComment`). */
+    author?: 'app' | 'user'
     repo: string
     prNumber: number
     body: string
@@ -288,10 +290,15 @@ export async function startFakeGithub(
         const repo = m[1] ?? ''
         const prNumber = Number(m[2])
         if (method === 'GET') {
+          const per = Number(url.searchParams.get('per_page') ?? '30')
+          const page = Number(url.searchParams.get('page') ?? '1')
           return sendJson(
             res,
             200,
-            comments.filter((c) => c.repo === repo && c.prNumber === prNumber).map(wireComment),
+            comments
+              .filter((c) => c.repo === repo && c.prNumber === prNumber)
+              .slice((page - 1) * per, page * per)
+              .map((c) => wireComment(c, appId)),
           )
         }
         if (method === 'POST') {
@@ -303,7 +310,7 @@ export async function startFakeGithub(
             reactions: [],
           }
           comments.push(comment)
-          return sendJson(res, 201, wireComment(comment))
+          return sendJson(res, 201, wireComment(comment, appId))
         }
       }
       if (
@@ -312,8 +319,10 @@ export async function startFakeGithub(
       ) {
         const comment = comments.find((c) => c.id === Number(m?.[2]) && c.repo === m?.[1])
         if (!comment) return sendJson(res, 404, { message: 'Not Found' })
+        // A person's comment is theirs to edit, never the App's.
+        if (comment.author === 'user') return sendJson(res, 403, { message: 'Forbidden' })
         comment.body = text(obj['body'])
-        return sendJson(res, 200, wireComment(comment))
+        return sendJson(res, 200, wireComment(comment, appId))
       }
       if (
         (m = /^\/repos\/([^/]+\/[^/]+)\/issues\/comments\/(\d+)\/reactions$/.exec(url.pathname)) &&
@@ -380,7 +389,14 @@ export async function startFakeGithub(
       delays.push({ match, ms, remaining: times })
     },
     seedComment(repo, prNumber, body) {
-      const comment: FakeGithub.Comment = { id: nextId++, repo, prNumber, body, reactions: [] }
+      const comment: FakeGithub.Comment = {
+        id: nextId++,
+        author: 'user',
+        repo,
+        prNumber,
+        body,
+        reactions: [],
+      }
       comments.push(comment)
       return comment
     },
@@ -441,8 +457,15 @@ export async function startFakeGithub(
 const text = (v: unknown): string => (typeof v === 'string' ? v : '')
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)
 
-function wireComment(c: FakeGithub.Comment) {
-  return { id: c.id, body: c.body, user: { login: 'circi[bot]' } }
+function wireComment(c: FakeGithub.Comment, appId: string) {
+  return c.author === 'user'
+    ? { id: c.id, body: c.body, user: { login: 'ann', type: 'User' } }
+    : {
+        id: c.id,
+        body: c.body,
+        user: { login: 'circi[bot]', type: 'Bot' },
+        performed_via_github_app: { id: Number(appId) },
+      }
 }
 
 function toCheckRun(id: number, repo: string, body: Record<string, unknown>): FakeGithub.CheckRun {
@@ -467,7 +490,10 @@ function applyCheckRun(run: FakeGithub.CheckRun, body: Record<string, unknown>):
   run.history.push(body)
   if (typeof body['name'] === 'string') run.name = body['name']
   if (typeof body['status'] === 'string') run.status = body['status']
-  run.conclusion = typeof body['conclusion'] === 'string' ? body['conclusion'] : undefined
+  // A partial update (a note in the output only) leaves the conclusion as it was, as GitHub does.
+  if ('conclusion' in body || 'status' in body) {
+    run.conclusion = typeof body['conclusion'] === 'string' ? body['conclusion'] : undefined
+  }
   if (typeof body['details_url'] === 'string') run.detailsUrl = body['details_url']
   const output = body['output'] as { title?: string; summary?: string } | undefined
   if (output) {

@@ -2,6 +2,7 @@ import type { IntegrationCatalog, IntegrationEvent } from '@circi/core'
 import type { z } from 'zod'
 
 import { type GitProvider } from '#src/git/provider.ts'
+import { type CommandIgnoredReason } from '#src/git/render.ts'
 import { type IssueTracker } from '#src/tracker/tracker.ts'
 
 /**
@@ -206,6 +207,8 @@ export namespace IntegrationDefinition {
     event: Extract<GitEvent, { type: 'command' | 'check_action' }>
     /** What happened: done, the person is not a CirCI member of the project, or nothing applied. */
     outcome: 'acted' | 'refused' | 'ignored'
+    /** Why nothing applied (with `ignored`). */
+    reason?: CommandIgnoredReason
     /** The pull request, when the event itself does not carry it (a check action's build). */
     prNumber?: number
     /** The connection's external id and opened credentials (`undefined` for a connection without any). */

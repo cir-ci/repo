@@ -10,7 +10,8 @@ import { fakeHost, jsonResponse as json } from './types.ts'
 export function fakeBitbucketHost(options: { workspace: string; repos: string[]; token: string }) {
   let nextId = 10
   const statuses = new Map<string, unknown>()
-  let comments: { id: number; raw: string }[] = []
+  const BOT = '{bot-uuid}'
+  let comments: { id: number; raw: string; uuid: string }[] = []
   let revoked = false
   const requests: {
     method: string
@@ -33,6 +34,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
     const body: unknown = req.body ? JSON.parse(await req.text()) : undefined
     const raw = String(Reflect.get(Object(Reflect.get(Object(body), 'content')), 'raw') ?? '')
 
+    if (req.method === 'GET' && path === '/2.0/user') return json({ uuid: BOT })
     const status = /\/commit\/([^/]+)\/statuses\/build$/.exec(path)
     if (req.method === 'POST' && status) {
       const key = String(Reflect.get(Object(body), 'key'))
@@ -46,7 +48,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
       const slice = comments.slice((page - 1) * 2, page * 2)
       const more = comments.length > page * 2
       return json({
-        values: slice.map((c) => ({ id: c.id, content: { raw: c.raw } })),
+        values: slice.map((c) => ({ id: c.id, user: { uuid: c.uuid }, content: { raw: c.raw } })),
         ...(more
           ? {
               next: `https://api.bitbucket.test${path}?pagelen=100&page=${page + 1}`,
@@ -55,7 +57,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
       })
     }
     if (req.method === 'POST' && list) {
-      const comment = { id: nextId++, raw }
+      const comment = { id: nextId++, raw, uuid: BOT }
       comments.push(comment)
       return json({ id: comment.id }, 201)
     }
@@ -63,6 +65,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
     if (req.method === 'PUT' && one) {
       const found = comments.find((c) => c.id === Number(one[1]))
       if (!found) return json({ type: 'error', error: { message: 'Not found' } }, 404)
+      if (found.uuid !== BOT) return json({ type: 'error', error: { message: 'Forbidden' } }, 403)
       found.raw = raw
       return json({ id: found.id })
     }
@@ -92,6 +95,10 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
       comments: () => comments.map((c) => c.raw),
       deleteComments: () => {
         comments = []
+      },
+      /** A comment a person wrote (it may quote the marker). */
+      seedHumanComment: (raw: string) => {
+        comments.push({ id: nextId++, raw, uuid: '{someone-else}' })
       },
       revoke: () => {
         revoked = true

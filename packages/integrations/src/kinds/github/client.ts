@@ -1,7 +1,7 @@
 import { createHmac, createSign, timingSafeEqual } from 'node:crypto'
 
 import { type GitProvider, headerValue, ProviderApiError } from '#src/git/provider.ts'
-import { PR_COMMENT_MARKER } from '#src/git/render.ts'
+import { HELP_COMMENT_MARKER, PR_COMMENT_MARKER } from '#src/git/render.ts'
 import { apiMessage, createHttpClient, type HttpClient } from '#src/http.ts'
 
 /**
@@ -54,6 +54,9 @@ function isRejectedToken(err: unknown): err is GithubApiError {
     err.status === 401
   )
 }
+
+const prop = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
 
 const b64url = (data: Buffer | string) => Buffer.from(data).toString('base64url')
 
@@ -267,35 +270,65 @@ export class GithubApp implements GitProvider {
   }
 
   /**
-   * Writes the pull request's summary comment: edits `existingId`, else finds one carrying
-   * the marker (after a lost id), else creates it. Returns the comment's id.
+   * Writes the pull request's summary comment: edits `existingId`, else finds the App's own comment
+   * carrying the marker (after a lost id), else creates it. Returns the comment's id.
    */
-  async upsertComment(
+  upsertComment(
     installationId: string,
     repo: string,
     prNumber: number,
     body: string,
     existingId?: string,
   ): Promise<string> {
-    let id = existingId
-    if (!id) {
+    return this.#writeMarked(installationId, repo, prNumber, PR_COMMENT_MARKER, body, existingId)
+  }
+
+  /** Whether GitHub says this comment was written by this App (not a person quoting its marker). */
+  #isOwn(comment: unknown): boolean {
+    return (
+      prop(prop(comment, 'user'), 'type') === 'Bot' &&
+      String(prop(prop(comment, 'performed_via_github_app'), 'id')) === this.#options.appId
+    )
+  }
+
+  /** The App's own comment carrying `marker`, searching every page of the pull request's comments. */
+  async #findOwn(
+    installationId: string,
+    repo: string,
+    prNumber: number,
+    marker: string,
+  ): Promise<string | undefined> {
+    for (let page = 1; page <= 30; page++) {
+      // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
       const { data } = await this.#api(
         installationId,
         'GET',
-        `/repos/${repo}/issues/${prNumber}/comments?per_page=100`,
+        `/repos/${repo}/issues/${prNumber}/comments?per_page=100&page=${page}`,
       )
-      const found = Array.isArray(data)
-        ? data.find(
-            (c: unknown) =>
-              typeof c === 'object' &&
-              c !== null &&
-              typeof Reflect.get(c, 'body') === 'string' &&
-              String(Reflect.get(c, 'body')).includes(PR_COMMENT_MARKER),
-          )
-        : undefined
+      if (!Array.isArray(data)) return undefined
+      const found = data.find(
+        (c: unknown) =>
+          this.#isOwn(c) &&
+          typeof Reflect.get(Object(c), 'body') === 'string' &&
+          String(Reflect.get(Object(c), 'body')).includes(marker),
+      )
       const foundId: unknown = found ? Reflect.get(found, 'id') : undefined
-      if (typeof foundId === 'number' || typeof foundId === 'string') id = String(foundId)
+      if (typeof foundId === 'number' || typeof foundId === 'string') return String(foundId)
+      if (data.length < 100) return undefined
     }
+    return undefined
+  }
+
+  /** Edits the comment `existingId` (or the App's own one with `marker`), else creates one. */
+  async #writeMarked(
+    installationId: string,
+    repo: string,
+    prNumber: number,
+    marker: string,
+    body: string,
+    existingId?: string,
+  ): Promise<string> {
+    const id = existingId ?? (await this.#findOwn(installationId, repo, prNumber, marker))
     if (id) {
       try {
         await this.#api(installationId, 'PATCH', `/repos/${repo}/issues/comments/${id}`, { body })
@@ -304,10 +337,10 @@ export class GithubApp implements GitProvider {
         if (
           !(err instanceof GithubApiError) ||
           err instanceof GithubInstallationRevokedError ||
-          err.status !== 404
+          (err.status !== 404 && err.status !== 403)
         )
           throw err
-        // Deleted by someone: write a new one.
+        // Deleted, or not ours to edit: write a new one.
       }
     }
     return this.#createComment(installationId, repo, prNumber, body)
@@ -327,9 +360,30 @@ export class GithubApp implements GitProvider {
     return String(id)
   }
 
-  /** A plain reply on a pull request. */
+  /**
+   * A reply on a pull request. All replies share one help comment per pull request, which this
+   * edits in place (or creates the first time), so a refused command never piles up comments.
+   */
   async reply(installationId: string, repo: string, prNumber: number, body: string): Promise<void> {
-    await this.#createComment(installationId, repo, prNumber, body)
+    await this.#writeMarked(
+      installationId,
+      repo,
+      prNumber,
+      HELP_COMMENT_MARKER,
+      `${HELP_COMMENT_MARKER}\n${body}`,
+    )
+  }
+
+  /** Says something on a check run itself (its title and summary), for a button that did nothing. */
+  async noteOnCheckRun(
+    installationId: string,
+    repo: string,
+    checkRunId: string,
+    note: { title: string; summary: string },
+  ): Promise<void> {
+    await this.#api(installationId, 'PATCH', `/repos/${repo}/check-runs/${checkRunId}`, {
+      output: { title: note.title.slice(0, 255), summary: note.summary },
+    })
   }
 
   /** A reaction (👍 = `+1`) on a comment. */

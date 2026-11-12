@@ -136,6 +136,22 @@ const note = (mr: number, text: string, userId = GITLAB_ID, extra: object = {}) 
 })
 const reviewState = async (id: string) => (await getBuild(t.db, id))?.reviewStatus
 
+const manual = (value: boolean) =>
+  t.db
+    .update(schema.projects)
+    .set({ autoApproveNoChanges: !value })
+    .where(eq(schema.projects.id, acme.project.id))
+const noChanges = async (mr: number, status: 'complete' | 'processing' = 'complete') => {
+  n += 1
+  return seedBuild(t.db, acme.project.id, {
+    commitSha: `fed${3000 + n}`,
+    branch: 'feature',
+    prNumber: mr,
+    status,
+    ...(status === 'complete' ? { conclusion: 'no_changes' as const } : {}),
+  })
+}
+
 describe('GitLab webhook', () => {
   it('refuses a missing or wrong token, and a delivery nobody can identify is still counted once', async () => {
     expect((await deliver('Push Hook', {}, { token: 'wrong' })).statusCode).toBe(401)
@@ -224,8 +240,34 @@ describe('GitLab webhook', () => {
     expect(sent.at(-1)).toMatch(/^reply 42: .*Sign in at https:\/\/ci\.acme\.io with GitLab/)
   })
 
-  it('thumbs down for a command that applies to nothing', async () => {
+  it('thumbs down for a command that applies to nothing, and says why', async () => {
     await deliver('Note Hook', note(99, '/circi approve'))
-    expect(sent.at(-1)).toBe('react acme/tools/web!99 555 thumbsdown tok')
+    expect(sent.slice(-2)).toEqual([
+      'react acme/tools/web!99 555 thumbsdown tok',
+      "reply 99: There's no CirCI build for this pull request yet. Reply again once your tests have uploaded screenshots.",
+    ])
+  })
+
+  it('approves a no-change build that awaits approval, and explains when none does', async () => {
+    const idle = await noChanges(60)
+    await deliver('Note Hook', note(60, '/circi approve'))
+    expect(sent.at(-1)).toBe(
+      "reply 60: Nothing to approve: the latest build has no visual changes, and this project doesn't require approval.",
+    )
+    expect(await reviewState(idle.id)).toBe('pending')
+    await noChanges(61, 'processing')
+    await deliver('Note Hook', note(61, '/circi approve'))
+    expect(sent.at(-1)).toBe(
+      'reply 61: The latest build is still processing. Reply `/circi approve` again when its check finishes.',
+    )
+    await manual(true)
+    try {
+      const waiting = await noChanges(62)
+      await deliver('Note Hook', note(62, '/circi approve'))
+      expect(await reviewState(waiting.id)).toBe('approved')
+      expect(sent.at(-1)).toBe('react acme/tools/web!62 555 thumbsup tok')
+    } finally {
+      await manual(false)
+    }
   })
 })

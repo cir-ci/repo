@@ -194,7 +194,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
       status: 'completed',
       title: '1 changed: review required',
     })
-    expect(run.summary).toContain('Approve or reject the changes here')
+    expect(run.summary).toContain('Approve or reject it here')
     expect(run.summary).toContain(`/${workspaceSlug}/${linked.slug}/builds/${pr.buildNumber}`)
     expect(run.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
     // It was announced as in progress before it completed (create, then patches).

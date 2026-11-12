@@ -45,6 +45,7 @@ export {
 } from './build-filters.ts'
 export { failureGroup, type FailureTally, tallyFailures } from './failure.ts'
 export { buildOutcome } from './outcome.ts'
+export { reviewability } from './approvable.ts'
 export {
   bucketsBetween,
   DAY_MS,

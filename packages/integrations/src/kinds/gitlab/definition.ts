@@ -5,7 +5,7 @@ import { webhookUrlProblem } from '@circi/core/node'
 import { z } from 'zod'
 
 import { headerValue } from '#src/git/provider.ts'
-import { parseCommand } from '#src/git/render.ts'
+import { ignoredReply, parseCommand } from '#src/git/render.ts'
 import {
   connectFailure,
   derivedWebhookSecret,
@@ -182,6 +182,12 @@ export const gitlab = defineIntegration({
           await host.reply(event.repo.ref, event.number, LINK_HELP(ctx.publicOrigin), credentials)
         } else {
           await host.react(event.repo.ref, event.number, event.commentId, 'thumbsdown', credentials)
+          await host.reply(
+            event.repo.ref,
+            event.number,
+            ignoredReply(event.command, input.reason),
+            credentials,
+          )
         }
       },
     },

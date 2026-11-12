@@ -48,6 +48,8 @@ beforeAll(async () => {
     // The edge of Bitbucket's API: only records the comments written.
     fetch: async (input, init) => {
       const req = new Request(input, init)
+      // Lookups find nothing (and `/user` names nobody), so every reply is a new comment.
+      if (req.method !== 'POST') return Response.json({ values: [] })
       posted.push([
         new URL(req.url).pathname,
         String(
@@ -124,6 +126,22 @@ const commentEvent = (pr: number, raw: string, uuid = ANN) => ({
   pullrequest: { id: pr },
   comment: { id: 9, content: { raw }, user: { uuid, nickname: 'ann' } },
 })
+
+const manual = (value: boolean) =>
+  t.db
+    .update(schema.projects)
+    .set({ autoApproveNoChanges: !value })
+    .where(eq(schema.projects.id, acme.project.id))
+const noChanges = async (pr: number, status: 'complete' | 'processing') => {
+  n += 1
+  return seedBuild(t.db, acme.project.id, {
+    commitSha: `fed${3000 + n}`,
+    branch: 'feature',
+    prNumber: pr,
+    status,
+    ...(status === 'complete' ? { conclusion: 'no_changes' as const } : {}),
+  })
+}
 
 describe('Bitbucket webhook', () => {
   it('refuses a bad or missing signature, and a delivery without a request id', async () => {
@@ -232,5 +250,30 @@ describe('Bitbucket webhook', () => {
     })
     expect((await getBuild(t.db, build.id))?.reviewStatus).toBe('pending')
     expect(posted).toHaveLength(0)
+  })
+
+  it('replies with the reason when a command applies to nothing, and approves a no-change build', async () => {
+    posted.length = 0
+    await deliver('pullrequest:comment_created', commentEvent(70, '/circi approve'))
+    expect(posted.at(-1)?.[1]).toBe(
+      "<!-- circi:help -->\nThere's no CirCI build for this pull request yet. Reply again once your tests have uploaded screenshots.",
+    )
+    await noChanges(71, 'processing')
+    await deliver('pullrequest:comment_created', commentEvent(71, '/circi reject'))
+    expect(posted.at(-1)?.[1]).toContain('The latest build is still processing.')
+    await noChanges(72, 'complete')
+    await deliver('pullrequest:comment_created', commentEvent(72, '/circi approve'))
+    expect(posted.at(-1)?.[1]).toContain(
+      'Nothing to approve: the latest build has no visual changes',
+    )
+    await manual(true)
+    try {
+      const waiting = await noChanges(73, 'complete')
+      await deliver('pullrequest:comment_created', commentEvent(73, '/circi approve'))
+      expect((await getBuild(t.db, waiting.id))?.reviewStatus).toBe('approved')
+      expect(posted.at(-1)?.[1]).toMatch(/approved/)
+    } finally {
+      await manual(false)
+    }
   })
 })

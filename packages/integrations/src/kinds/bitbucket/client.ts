@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 import { type GitProvider, headerValue, ProviderApiError } from '#src/git/provider.ts'
-import { PR_COMMENT_MARKER } from '#src/git/render.ts'
+import { HELP_COMMENT_MARKER, PR_COMMENT_MARKER } from '#src/git/render.ts'
 import { createHttpClient } from '#src/http.ts'
 
 /**
@@ -175,8 +175,8 @@ export class BitbucketCloud implements GitProvider {
     return key
   }
 
-  /** Edits `existingId`, else finds the comment carrying the marker, else creates it. */
-  async upsertComment(
+  /** Edits `existingId`, else finds the token's own comment carrying the marker, else creates it. */
+  upsertComment(
     _workspace: string,
     repo: string,
     prNumber: number,
@@ -184,25 +184,19 @@ export class BitbucketCloud implements GitProvider {
     existingId?: string,
     credentials?: string,
   ): Promise<string> {
+    return this.#writeMarked(repo, prNumber, PR_COMMENT_MARKER, body, existingId, credentials)
+  }
+
+  async #writeMarked(
+    repo: string,
+    prNumber: number,
+    marker: string,
+    body: string,
+    existingId: string | undefined,
+    credentials: string | undefined,
+  ): Promise<string> {
     const base = `/repositories/${repoPath(repo)}/pullrequests/${prNumber}/comments`
-    let id = existingId
-    if (!id) {
-      let next: string | undefined = `${base}?pagelen=100`
-      for (let page = 0; next && !id && page < 5; page++) {
-        // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
-        const data = obj(await this.#call(credentials, 'GET', next))
-        const values: unknown = data.values
-        const found = Array.isArray(values)
-          ? values.find(
-              (c) =>
-                obj(c).deleted !== true &&
-                (text(obj(obj(c).content).raw) ?? '').includes(PR_COMMENT_MARKER),
-            )
-          : undefined
-        id = found ? text(obj(found).id) : undefined
-        next = text(data.next)
-      }
-    }
+    const id = existingId ?? (await this.#findOwn(base, marker, credentials))
     if (id) {
       try {
         await this.#call(credentials, 'PUT', `${base}/${encodeURIComponent(id)}`, {
@@ -210,11 +204,52 @@ export class BitbucketCloud implements GitProvider {
         })
         return id
       } catch (err) {
-        if (!(err instanceof ProviderApiError) || err.revoked || err.status !== 404) throw err
-        // Deleted by someone: write a new one.
+        if (
+          !(err instanceof ProviderApiError) ||
+          err.revoked ||
+          (err.status !== 404 && err.status !== 403)
+        ) {
+          throw err
+        }
+        // Deleted, or not ours to edit: write a new one.
       }
     }
     return this.#createComment(repo, prNumber, body, credentials)
+  }
+
+  /**
+   * The comment carrying `marker` that the token's own account wrote. A token that can't say who
+   * it is (some repository access tokens can't read `/user`) adopts nothing: it writes a new one.
+   */
+  async #findOwn(
+    base: string,
+    marker: string,
+    credentials: string | undefined,
+  ): Promise<string | undefined> {
+    let me: string | undefined
+    try {
+      me = text(obj(await this.#call(credentials, 'GET', '/user')).uuid)
+    } catch (err) {
+      if (err instanceof ProviderApiError && err.revoked) throw err
+    }
+    if (!me) return undefined
+    let next: string | undefined = `${base}?pagelen=100`
+    for (let page = 0; next && page < 30; page++) {
+      // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
+      const data = obj(await this.#call(credentials, 'GET', next))
+      const values: unknown = data.values
+      const found = Array.isArray(values)
+        ? values.find(
+            (c) =>
+              obj(c).deleted !== true &&
+              text(obj(obj(c).user).uuid) === me &&
+              (text(obj(obj(c).content).raw) ?? '').includes(marker),
+          )
+        : undefined
+      if (found) return text(obj(found).id)
+      next = text(data.next)
+    }
+    return undefined
   }
 
   async #createComment(
@@ -234,7 +269,10 @@ export class BitbucketCloud implements GitProvider {
     return id
   }
 
-  /** A plain reply on a pull request. */
+  /**
+   * A reply on a pull request. All replies share one help comment per pull request, edited in
+   * place (created the first time), so a refused command never piles up comments.
+   */
   async reply(
     _workspace: string,
     repo: string,
@@ -242,6 +280,13 @@ export class BitbucketCloud implements GitProvider {
     body: string,
     credentials?: string,
   ): Promise<void> {
-    await this.#createComment(repo, prNumber, body, credentials)
+    await this.#writeMarked(
+      repo,
+      prNumber,
+      HELP_COMMENT_MARKER,
+      `${HELP_COMMENT_MARKER}\n${body}`,
+      undefined,
+      credentials,
+    )
   }
 }

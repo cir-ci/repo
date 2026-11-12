@@ -19,14 +19,16 @@ const { privateKey } = generateKeyPairSync('rsa', {
 function githubHarness(): ProviderHarness {
   const repos = ['acme/web', 'acme/api-private']
   const fake = fakeGithubHost({ installationId: '99', repos })
+  const app = new GithubApp({
+    apiUrl: 'https://api.github.test',
+    appId: '4242',
+    privateKey,
+    webhookSecret: 's3cret',
+    fetch: fake.fetcher,
+  })
   return {
-    provider: new GithubApp({
-      apiUrl: 'https://api.github.test',
-      appId: '4242',
-      privateKey,
-      webhookSecret: 's3cret',
-      fetch: fake.fetcher,
-    }),
+    provider: app,
+    reply: (pr, body) => app.reply('99', 'acme/web', pr, body),
     externalId: '99',
     repo: 'acme/web',
     prNumber: 7,

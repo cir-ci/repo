@@ -30,6 +30,8 @@ function bitbucketHarness(): ProviderHarness {
     fetch: fake.fetcher,
   })
   return {
+    reply: (pr, body) => real.reply('acme', 'acme/web', pr, body, credentials),
+    pageSize: 2,
     // The contract calls without credentials; a Bitbucket connection always has them.
     provider: {
       kind: real.kind,
@@ -166,11 +168,15 @@ describe('Bitbucket adapter', () => {
       token: TOKEN,
     })
     const bb = new BitbucketCloud({ apiUrl: API, fetch: fake.fetcher })
-    for (const raw of ['one', 'two', 'three']) {
-      // eslint-disable-next-line no-await-in-loop -- in order
-      await bb.reply('acme', 'acme/web', 7, raw, credentials)
-    }
-    await bb.reply('acme', 'acme/web', 7, '<!-- circi:pr-summary --> hi', credentials)
+    for (const raw of ['one', 'two', 'three']) fake.host.seedHumanComment(raw)
+    const first = await bb.upsertComment(
+      'acme',
+      'acme/web',
+      7,
+      '<!-- circi:pr-summary --> hi',
+      undefined,
+      credentials,
+    )
     const id = await bb.upsertComment(
       'acme',
       'acme/web',
@@ -179,6 +185,7 @@ describe('Bitbucket adapter', () => {
       undefined,
       credentials,
     )
+    expect(id).toBe(first)
     expect(fake.host.comments()).toEqual(['one', 'two', 'three', '<!-- circi:pr-summary --> new'])
     expect(id).toBeTruthy()
   })

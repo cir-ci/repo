@@ -64,6 +64,13 @@ describe('verifyGithubSignature', () => {
   })
 })
 
+const ownMarked = (id: number, body = '<!-- circi:pr-summary -->\nold') => ({
+  id,
+  body,
+  user: { type: 'Bot' },
+  performed_via_github_app: { id: 4242 },
+})
+
 describe('GithubApp', () => {
   it('signs a JWT GitHub can verify, naming the app', () => {
     const { app } = appWith({})
@@ -130,11 +137,12 @@ describe('GithubApp', () => {
     expect(calls[1]?.body).not.toHaveProperty('head_sha')
   })
 
-  it('finds its comment by the marker, edits it, and recreates it if it was deleted', async () => {
-    const marked = { id: 77, body: '<!-- circi:pr-summary -->\nold' }
+  it('finds its own comment by the marker, edits it, and recreates it if it was deleted', async () => {
     const { app, calls } = appWith({
       'POST /app/installations/99/access_tokens': [tokenReply],
-      'GET /repos/acme/web/issues/12/comments?per_page=100': [[{ id: 1, body: 'lgtm' }, marked]],
+      'GET /repos/acme/web/issues/12/comments?per_page=100&page=1': [
+        [{ id: 1, body: 'lgtm' }, ownMarked(77)],
+      ],
       'PATCH /repos/acme/web/issues/comments/77': [
         new Response('{"message":"Not Found"}', { status: 404 }),
       ],
@@ -144,10 +152,57 @@ describe('GithubApp', () => {
     expect(id).toBe('78')
     expect(calls.map((c) => `${c.method} ${c.path}${c.query}`)).toEqual([
       'POST /app/installations/99/access_tokens',
-      'GET /repos/acme/web/issues/12/comments?per_page=100',
+      'GET /repos/acme/web/issues/12/comments?per_page=100&page=1',
       'PATCH /repos/acme/web/issues/comments/77',
       'POST /repos/acme/web/issues/12/comments',
     ])
+  })
+
+  it("ignores a person's comment that quotes the marker, and another app's", async () => {
+    const quoted = { id: 5, body: '> <!-- circi:pr-summary -->', user: { type: 'User' } }
+    const otherApp = {
+      ...ownMarked(6),
+      performed_via_github_app: { id: 1 },
+    }
+    const { app, calls } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply],
+      'GET /repos/acme/web/issues/12/comments?per_page=100&page=1': [[quoted, otherApp]],
+      'POST /repos/acme/web/issues/12/comments': [{ id: 80 }],
+    })
+    expect(await app.upsertComment('99', 'acme/web', 12, 'body')).toBe('80')
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+  })
+
+  it('reads every page of comments to find its own', async () => {
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, body: 'chat' }))
+    const { app, calls } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply],
+      'GET /repos/acme/web/issues/12/comments?per_page=100&page=1': [page1],
+      'GET /repos/acme/web/issues/12/comments?per_page=100&page=2': [[ownMarked(500)]],
+      'PATCH /repos/acme/web/issues/comments/500': [{ id: 500 }],
+    })
+    expect(await app.upsertComment('99', 'acme/web', 12, 'body')).toBe('500')
+    expect(calls.filter((c) => c.method === 'POST' && c.path.endsWith('/comments'))).toHaveLength(0)
+  })
+
+  it('writes a new comment when GitHub refuses the edit (403) instead of failing forever', async () => {
+    const { app } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply],
+      'PATCH /repos/acme/web/issues/comments/77': [
+        new Response('{"message":"Forbidden"}', { status: 403 }),
+      ],
+      'POST /repos/acme/web/issues/12/comments': [{ id: 81 }],
+    })
+    expect(await app.upsertComment('99', 'acme/web', 12, 'b', '77')).toBe('81')
+  })
+
+  it('says something on a check run through its output', async () => {
+    const { app, calls } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply],
+      'PATCH /repos/acme/web/check-runs/55': [{ id: 55 }],
+    })
+    await app.noteOnCheckRun('99', 'acme/web', '55', { title: 'Not allowed', summary: 'why' })
+    expect(calls[1]?.body).toEqual({ output: { title: 'Not allowed', summary: 'why' } })
   })
 
   it('edits a known comment id without listing', async () => {

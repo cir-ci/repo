@@ -12,7 +12,8 @@ export function fakeGitlabHost(options: {
 }) {
   let nextId = 100
   const statuses = new Map<string, { id: number; state: string; name: string; sha: string }>()
-  let notes: { id: number; body: string }[] = []
+  let notes: { id: number; body: string; author: { id: number }; system: boolean }[] = []
+  const botId = options.userId ?? 7
   const awards: string[] = []
   let revoked = false
   const requests: { method: string; path: string; body: unknown }[] = []
@@ -60,11 +61,17 @@ export function fakeGitlabHost(options: {
       awards.push(String(Reflect.get(Object(body), 'name')))
       return json({ id: nextId++ }, 201)
     }
-    if (req.method === 'GET' && /\/merge_requests\/\d+\/notes$/.test(path)) return json(notes)
+    if (req.method === 'GET' && /\/merge_requests\/\d+\/notes$/.test(path)) {
+      const per = Number(url.searchParams.get('per_page') ?? '20')
+      const page = Number(url.searchParams.get('page') ?? '1')
+      return json(notes.slice((page - 1) * per, page * per))
+    }
     if (req.method === 'POST' && /\/merge_requests\/\d+\/notes$/.test(path)) {
       const note = {
         id: nextId++,
         body: String(Reflect.get(Object(body), 'body')),
+        author: { id: botId },
+        system: false,
       }
       notes.push(note)
       return json(note, 201)
@@ -73,6 +80,7 @@ export function fakeGitlabHost(options: {
     if (req.method === 'PUT' && note) {
       const found = notes.find((n) => n.id === Number(note[1]))
       if (!found) return json({ message: '404 Not found' }, 404)
+      if (found.author.id !== botId) return json({ message: '403 Forbidden' }, 403)
       found.body = String(Reflect.get(Object(body), 'body'))
       return json(found)
     }
@@ -89,6 +97,10 @@ export function fakeGitlabHost(options: {
       awards: () => [...awards],
       deleteComments: () => {
         notes = []
+      },
+      /** A note a person wrote (it may quote the marker). */
+      seedHumanComment: (body: string) => {
+        notes.push({ id: nextId++, body, author: { id: botId + 1000 }, system: false })
       },
       revoke: () => {
         revoked = true

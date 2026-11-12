@@ -65,6 +65,15 @@ export namespace CheckReport {
   export type Conclusion = 'success' | 'failure' | 'action_required' | 'neutral'
 }
 
+/** What to do next on a build that awaits a decision, in the words its check shows. */
+function nextStep(build: ReportedBuild): string {
+  const reply =
+    build.prNumber === null
+      ? ''
+      : ' or reply `/circi approve` or `/circi reject` on the pull request'
+  return `Approve or reject it here${reply}, or open the build to see it.`
+}
+
 export const checkName = (buildName: string) => `CirCI / ${buildName}`
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -121,7 +130,7 @@ export function checkReport(
       status: 'completed',
       conclusion: options.blockMergeOnChanges ? 'action_required' : 'success',
       title: 'No visual changes: approval required',
-      summary: `${plural(build.counts.total, 'screenshot')} compared, none differ. This project approves builds by hand.\n\n${link}`,
+      summary: `${plural(build.counts.total, 'screenshot')} compared, none differ. This project approves builds by hand. ${nextStep(build)}\n\n${link}`,
     }
   }
   if (build.conclusion !== 'changes_detected') {
@@ -182,7 +191,7 @@ export function checkReport(
       status: 'completed',
       conclusion: 'success',
       title: `Only flaky screenshots changed (${counts})`,
-      summary: `${counts}. These screenshots keep changing on the default branch, and this project doesn't hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
+      summary: `${counts}. These screenshots keep changing on the default branch, and this project doesn't hold merges for them. ${nextStep(build)}\n\n${link}`,
     }
   }
   return {
@@ -191,7 +200,7 @@ export function checkReport(
     status: 'completed',
     conclusion: options.blockMergeOnChanges ? 'action_required' : 'success',
     title: `${counts}: review required`,
-    summary: `${counts}. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
+    summary: `${counts}. ${nextStep(build)}\n\n${link}`,
   }
 }
 
@@ -212,7 +221,7 @@ function reviewDetail(review: ReportedReview | undefined): string {
 function reviewCell(b: ReportedBuild): string {
   if (b.status === 'error') return '—'
   if (b.status !== 'complete') return '…'
-  if (b.conclusion !== 'changes_detected') return '—'
+  if (b.conclusion !== 'changes_detected') return b.awaitsApproval ? `[Approve](${b.url})` : '—'
   const by = b.review?.decidedBy ? ` by ${b.review.decidedBy}` : ''
   const detail = reviewDetail(b.review)
   if (b.reviewStatus === 'approved') return `✅ Approved${by}${detail}`
@@ -223,7 +232,14 @@ function reviewCell(b: ReportedBuild): string {
 function statusCell(b: ReportedBuild): string {
   if (b.status === 'error') return '❌ Failed'
   if (b.status !== 'complete') return '⏳ Processing'
-  return b.conclusion === 'changes_detected' ? '🟡 Changes detected' : '✅ No changes'
+  if (b.conclusion === 'changes_detected') return '🟡 Changes detected'
+  return b.awaitsApproval ? '🟡 No changes, approval required' : '✅ No changes'
+}
+
+/** A build that is waiting for someone to approve or reject it. */
+function needsDecision(b: ReportedBuild): boolean {
+  if (b.status !== 'complete') return false
+  return b.conclusion === 'changes_detected' ? b.reviewStatus === 'pending' : !!b.awaitsApproval
 }
 
 function sitesSection(sites: ReportedSite[]): string[] {
@@ -260,8 +276,33 @@ export function prCommentBody(
     ...rows,
     ...sitesSection(extras.sites ?? []),
     '',
-    'Reply `/circi approve`, `/circi reject` or `/circi rerun` to act on the latest build.',
+    builds.some(needsDecision)
+      ? 'Review the builds in CirCI (the links above), or reply `/circi approve` or `/circi reject` here. `/circi rerun` processes them again.'
+      : 'Reply `/circi approve`, `/circi reject` or `/circi rerun` to act on the latest builds.',
   ].join('\n')
+}
+
+/** Hidden marker of the one help comment per pull request: refusals and ignored commands edit it in place. */
+export const HELP_COMMENT_MARKER = '<!-- circi:help -->'
+
+/** Why a `/circi` command did nothing. */
+export type CommandIgnoredReason = 'no_build' | 'processing' | 'failed' | 'nothing_to_review'
+
+/** The one short reply for a command that applied to nothing. */
+export function ignoredReply(
+  command: 'approve' | 'reject' | 'rerun',
+  reason: CommandIgnoredReason = 'no_build',
+): string {
+  switch (reason) {
+    case 'processing':
+      return `The latest build is still processing. Reply \`/circi ${command}\` again when its check finishes.`
+    case 'failed':
+      return `The latest build failed, so there's nothing to ${command}. \`/circi rerun\` processes it again.`
+    case 'nothing_to_review':
+      return `Nothing to ${command}: the latest build has no visual changes, and this project doesn't require approval.`
+    default:
+      return "There's no CirCI build for this pull request yet. Reply again once your tests have uploaded screenshots."
+  }
 }
 
 /** `/circi approve` and friends, from a comment's text; the first matching line wins. */

@@ -11,10 +11,22 @@ export const githubSignature = (secret: string, body: string): string =>
  * the adapter depends on (ids, 404 for a deleted comment, 404 for an uninstalled installation).
  * Different from the scripted fake in github.test.ts, which pins exact requests.
  */
-export function fakeGithubHost(options: { installationId: string; repos: string[] }) {
+export function fakeGithubHost(options: {
+  installationId: string
+  repos: string[]
+  /** The App's id (what `performed_via_github_app` carries on its comments). */
+  appId?: string
+}) {
+  const appId = Number(options.appId ?? '4242')
   let nextId = 100
   const checks = new Set<number>()
-  let comments: { id: number; body: string }[] = []
+  let comments: {
+    id: number
+    body: string
+    user: { type: string; login: string }
+    performed_via_github_app: { id: number } | null
+  }[] = []
+  const outputs = new Map<number, unknown>()
   let revoked = false
 
   const behaviour: typeof fetch = async (input, init) => {
@@ -42,13 +54,21 @@ export function fakeGithubHost(options: { installationId: string; repos: string[
     const check = /\/check-runs\/(\d+)$/.exec(path)
     if (req.method === 'PATCH' && check) {
       const id = Number(check[1])
+      const output = Reflect.get(Object(body), 'output')
+      if (output !== undefined) outputs.set(id, output)
       return checks.has(id) ? json({ id }) : json({ message: 'Not Found' }, 404)
     }
-    if (req.method === 'GET' && /\/issues\/\d+\/comments$/.test(path)) return json(comments)
+    if (req.method === 'GET' && /\/issues\/\d+\/comments$/.test(path)) {
+      const per = Number(url.searchParams.get('per_page') ?? '30')
+      const page = Number(url.searchParams.get('page') ?? '1')
+      return json(comments.slice((page - 1) * per, page * per))
+    }
     if (req.method === 'POST' && /\/issues\/\d+\/comments$/.test(path)) {
       const comment = {
         id: nextId++,
         body: String(Reflect.get(Object(body), 'body')),
+        user: { type: 'Bot', login: 'circi[bot]' },
+        performed_via_github_app: { id: appId },
       }
       comments.push(comment)
       return json(comment, 201)
@@ -57,6 +77,8 @@ export function fakeGithubHost(options: { installationId: string; repos: string[
     if (req.method === 'PATCH' && comment) {
       const found = comments.find((c) => c.id === Number(comment[1]))
       if (!found) return json({ message: 'Not Found' }, 404)
+      // A person's comment is theirs to edit, never the App's.
+      if (found.user.type !== 'Bot') return json({ message: 'Forbidden' }, 403)
       found.body = String(Reflect.get(Object(body), 'body'))
       return json(found)
     }
@@ -80,6 +102,16 @@ export function fakeGithubHost(options: { installationId: string; repos: string[
       deleteComments: () => {
         comments = []
       },
+      /** A comment a person wrote (it may quote the marker). */
+      seedHumanComment: (body: string) => {
+        comments.push({
+          id: nextId++,
+          body,
+          user: { type: 'User', login: 'ann' },
+          performed_via_github_app: null,
+        })
+      },
+      checkOutput: (id: number | string) => outputs.get(Number(id)),
       revoke: () => {
         revoked = true
       },

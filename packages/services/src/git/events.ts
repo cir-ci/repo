@@ -1,6 +1,7 @@
-import { REVIEW_SOURCES } from '@circi/core'
+import { REVIEW_SOURCES, reviewability } from '@circi/core'
 import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
+import { getProjectById } from '@circi/db/queries'
 import {
   findBuildByCheckRun,
   findGitProjects,
@@ -9,6 +10,7 @@ import {
 } from '@circi/db/queue'
 import { findProjectViewersByAccount } from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
+import type { CommandIgnoredReason } from '@circi/integrations/git'
 
 import { recordPullRequestAuthor, requeueBuild } from '#src/builds/lifecycle.ts'
 import { reviewBuild } from '#src/reviews/reviews.ts'
@@ -111,6 +113,7 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
   const projects = await findGitProjects(db, kind, event.repo.connection, event.repo.ref)
   let acted = false
   let refused = false
+  let reason: CommandIgnoredReason = 'no_build'
   let credentials: string | undefined
   let externalId = 'externalId' in event.repo.connection ? event.repo.connection.externalId : ''
   const source = reviewSource(kind, 'comment')
@@ -128,12 +131,21 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
       refused = true
       continue
     }
+    // eslint-disable-next-line no-await-in-loop
+    const settings = await getProjectById(db, project.id)
     for (const build of builds) {
       try {
         if (event.command === 'rerun') {
           // eslint-disable-next-line no-await-in-loop -- few builds per commit
           await requeueBuild(db, build.id)
-        } else if (build.conclusion === 'changes_detected') {
+        } else {
+          const verdict = reviewability(build, {
+            autoApproveNoChanges: settings?.autoApproveNoChanges ?? true,
+          })
+          if (verdict !== 'reviewable') {
+            reason = verdict
+            continue
+          }
           // eslint-disable-next-line no-await-in-loop
           await reviewBuild(db, {
             buildId: build.id,
@@ -141,11 +153,10 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
             state: event.command === 'approve' ? 'approved' : 'rejected',
             source,
           })
-        } else {
-          continue
         }
         acted = true
       } catch (err) {
+        reason = 'failed'
         input.log.info(
           { err, buildId: build.id, command: event.command },
           `${kind} command not applicable`,
@@ -156,6 +167,7 @@ async function onCommand(db: Database, input: handleGitEvents.Input, event: Of<'
   await answer(input, {
     event,
     outcome: acted ? 'acted' : refused ? 'refused' : 'ignored',
+    ...(acted || refused ? {} : { reason }),
     connection: { externalId, credentials },
   })
 }
@@ -168,17 +180,28 @@ async function onCheckAction(
   const kind = input.definition.id
   const build = await findBuildByCheckRun(db, event.checkRunId)
   if (!build) return
+  const connection = event.repo?.connection
+  // A check's answer needs the connection the delivery named (a check button has no stored one).
+  const answerWith = (said: Pick<IntegrationDefinition.GitAnswer, 'outcome' | 'reason'>) =>
+    event.repo && connection && 'externalId' in connection
+      ? answer(input, {
+          event,
+          ...said,
+          ...(build.prNumber === null ? {} : { prNumber: build.prNumber }),
+          connection: { externalId: connection.externalId, credentials: undefined },
+        })
+      : undefined
   const userId = await memberOf(db, build.projectId, kind, event.actor.accountId)
   if (!userId) {
-    const connection = event.repo?.connection
-    if (event.repo && connection && 'externalId' in connection && build.prNumber !== null) {
-      await answer(input, {
-        event,
-        outcome: 'refused',
-        prNumber: build.prNumber,
-        connection: { externalId: connection.externalId, credentials: undefined },
-      })
-    }
+    await answerWith({ outcome: 'refused' })
+    return
+  }
+  const settings = await getProjectById(db, build.projectId)
+  const verdict = reviewability(build, {
+    autoApproveNoChanges: settings?.autoApproveNoChanges ?? true,
+  })
+  if (verdict !== 'reviewable') {
+    await answerWith({ outcome: 'ignored', reason: verdict })
     return
   }
   await reviewBuild(db, {

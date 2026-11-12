@@ -37,11 +37,10 @@ const projects = [
 
 function harness(): ProviderHarness {
   const fake = fakeGitlabHost({ token: 'glpat-fake', projects })
+  const real = new GitlabProvider({ webhookSecret: 's3cret', fetch: fake.fetcher })
   return {
-    provider: withCredentials(
-      new GitlabProvider({ webhookSecret: 's3cret', fetch: fake.fetcher }),
-      creds,
-    ),
+    provider: withCredentials(real, creds),
+    reply: (pr, body) => real.reply('acme/web', pr, body, creds),
     externalId: 'gitlab.test#7',
     repo: 'acme/web',
     prNumber: 7,
@@ -115,7 +114,7 @@ describe('GitLab adapter', () => {
     expect(me).toEqual({ id: '7', username: 'circi-bot' })
     expect(gitlabExternalId(`${BASE}/sub`, me.id)).toBe('gitlab.test#7')
     await gitlab.reply('acme/web', 3, 'hello', creds)
-    expect(fake.host.comments()).toEqual(['hello'])
+    expect(fake.host.comments()).toEqual(['<!-- circi:help -->\nhello'])
     await gitlab.react('acme/web', 3, 5, 'thumbsup', creds)
     expect(fake.host.awards()).toEqual(['thumbsup'])
   })

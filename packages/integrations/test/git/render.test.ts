@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkReport,
   describeCounts,
+  ignoredReply,
   parseCommand,
   PR_COMMENT_MARKER,
   prCommentBody,
@@ -159,12 +160,57 @@ describe('pull request comment', () => {
     expect(body).toContain('- [Coverage](https://abc-web-cov.sites.test)\n')
     expect(prCommentBody([build()], { sites: [] })).not.toContain('Hosted sites')
     expect(prCommentBody([build()])).not.toContain('Hosted sites')
-    expect(body.indexOf('Hosted sites')).toBeLessThan(body.indexOf('Reply `/circi approve`'))
+    expect(body.indexOf('Hosted sites')).toBeLessThan(body.indexOf('`/circi approve`'))
   })
 
   it('describes counts', () => {
     expect(describeCounts({ added: 0, removed: 2, changed: 0, failed: 1, total: 3 })).toBe(
       '2 removed · 1 failed',
+    )
+  })
+})
+
+describe('what to do next', () => {
+  it('the check says where to approve, and the comment command only for a pull request build', () => {
+    const r = checkReport(build(), { blockMergeOnChanges: true })
+    expect(r.summary).toContain('3 changed · 1 added.')
+    expect(r.summary).toContain('reply `/circi approve` or `/circi reject` on the pull request')
+    expect(r.summary).toContain('[Open build #7 in CirCI](https://ci.acme.io/acme/web/builds/7)')
+    const branch = checkReport(build({ prNumber: null }), { blockMergeOnChanges: true })
+    expect(branch.summary).not.toContain('/circi')
+    const manual = checkReport(build({ conclusion: 'no_changes', awaitsApproval: true }), {
+      blockMergeOnChanges: true,
+    })
+    expect(manual.title).toBe('No visual changes: approval required')
+    expect(manual.summary).toContain('10 screenshots compared, none differ')
+    expect(manual.summary).toContain('reply `/circi approve`')
+  })
+
+  it('the comment points at the builds to review, then drops the nudge once nothing waits', () => {
+    const waiting = prCommentBody([build()])
+    expect(waiting).toContain('Review the builds in CirCI')
+    expect(waiting).toContain('`/circi approve` or `/circi reject`')
+    const manual = prCommentBody([build({ conclusion: 'no_changes', awaitsApproval: true })])
+    expect(manual).toContain('🟡 No changes, approval required')
+    expect(manual).toContain('[Approve](https://ci.acme.io/acme/web/builds/7)')
+    const done = prCommentBody([build({ reviewStatus: 'approved' })])
+    expect(done).toContain('Reply `/circi approve`, `/circi reject` or `/circi rerun`')
+  })
+})
+
+describe('ignoredReply', () => {
+  it('says plainly why a command did nothing', () => {
+    expect(ignoredReply('approve')).toBe(
+      "There's no CirCI build for this pull request yet. Reply again once your tests have uploaded screenshots.",
+    )
+    expect(ignoredReply('reject', 'processing')).toBe(
+      'The latest build is still processing. Reply `/circi reject` again when its check finishes.',
+    )
+    expect(ignoredReply('approve', 'failed')).toBe(
+      "The latest build failed, so there's nothing to approve. `/circi rerun` processes it again.",
+    )
+    expect(ignoredReply('approve', 'nothing_to_review')).toBe(
+      "Nothing to approve: the latest build has no visual changes, and this project doesn't require approval.",
     )
   })
 })
