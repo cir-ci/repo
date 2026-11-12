@@ -1,6 +1,6 @@
 /* A setting a link points at: it stops below the sticky header, then flashes. */
 .target {
-  scroll-margin-top: calc(var(--circi-page-top, 0px) + 16px);
+  scroll-margin-top: 16px;
 }
 
 .flash {

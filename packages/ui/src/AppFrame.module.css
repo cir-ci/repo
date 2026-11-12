@@ -59,20 +59,32 @@
   }
 }
 
-.main {
+.panel {
   display: flex;
   flex: 999 1 520px;
   flex-direction: column;
   min-width: 0;
   margin: 0 8px 8px;
-  /* The panel is the scroll container at every width where the frame has a height of its own
-     (from 820px up, and the compact layout below it): the window never scrolls, so the sidebar
-     and the panel never shift sideways. Stacked under 820px (no compact bar) the window scrolls
-     and the panel clips. */
+  /* The panel clips; inside it the tab row and the page's header sit fixed above `main`, which is
+     the scroll container wherever the frame has a height of its own (from 820px up, and the
+     compact layout below it): the window never scrolls, so nothing shifts sideways, and the
+     scrollbar starts under the header. Stacked under 820px (no compact bar) the window scrolls. */
   overflow: clip;
   border: 1px solid var(--circi-line-subtle);
   border-radius: var(--circi-radius-panel);
   background: var(--circi-surface-panel);
+}
+
+/* What the page's header portals into: fixed above the scroller. */
+.head {
+  flex: none;
+}
+
+.main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .main:focus-visible {
@@ -118,12 +130,12 @@
     flex: none;
   }
 
-  .root[data-compact] .main {
+  .root[data-compact] .panel {
     flex: 1 1 auto;
   }
 
   /* A phone: the panel is full-bleed, the bar above it 52px (the buttons are 44px). */
-  .root[data-compact] .main {
+  .root[data-compact] .panel {
     margin: 0;
     border-width: 1px 0 0;
     border-radius: 0;
@@ -144,9 +156,13 @@
     height: calc(100dvh - var(--circi-window-top, 0px));
   }
 
-  .root[data-compact] .main {
+  .root[data-compact] .panel {
     --circi-window-top: 0px;
 
+    min-height: 0;
+  }
+
+  .root[data-compact] .main {
     min-height: 0;
     overflow: hidden auto;
     overscroll-behavior: contain;
@@ -187,22 +203,25 @@
   }
 
   /*
-   * The page's sticky parts stick to the panel's top, which is already below the title bar, so
-   * the window's offset is 0 here (the tab row, when there is one, sets it to its own height).
-   * The gutter is kept even when the page is short, so a page that grows long (Builds against
+   * The panel's top is already below the title bar, so the window's offset is 0 here (the tab row,
+   * when there is one, sets it to its own height on the panel). The gutter is kept even when the page is short, so a page that grows long (Builds against
    * Triage) doesn't reflow its own content by the scrollbar's width.
    */
-  .main {
+  .panel {
     --circi-window-top: 0px;
 
     min-height: 0;
     margin: 8px 8px 8px 0;
+  }
+
+  .root[data-sidebar-collapsed] .panel {
+    margin-left: 8px;
+  }
+
+  .main {
+    min-height: 0;
     overflow: hidden auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-  }
-
-  .root[data-sidebar-collapsed] .main {
-    margin-left: 8px;
   }
 }

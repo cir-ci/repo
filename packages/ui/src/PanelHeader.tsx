@@ -1,4 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+
+import { PanelSlotContext } from './panel-slot.ts'
 
 import styles from './PanelHeader.module.css'
 
@@ -22,20 +25,24 @@ export namespace PanelNotices {
 
 /**
  * The bar at the top of the content panel (44px, taller where it wraps): where you are on the
- * left, the page's actions on the right. It sticks to the top of the panel while the page
- * scrolls, and gives its height to the panel as `--circi-page-top`, so a page's own sticky parts
- * stop under it.
+ * left, the page's actions on the right. In an `AppFrame` it is drawn above the panel's scrolling
+ * area (a portal into the frame's fixed head), so the scrollbar starts under it and it never
+ * moves; its height (and the tab row's) goes to the panel as `--circi-panel-top`, for what a page
+ * sizes against the scroller's height. Anything of a page that sticks does so at the scroller's
+ * top (`--circi-page-top`, 0).
  */
 export function PanelHeader(props: PanelHeader.Props) {
   const ref = useRef<HTMLElement>(null)
   const notices = useContext(NoticesContext)
+  const slot = useContext(PanelSlotContext)
   useLayoutEffect(() => {
-    const header = ref.current
-    const panel = header?.parentElement
+    // The header exists once the frame's head does (`slot`).
+    const header = slot === null ? null : ref.current
+    const panel = header?.closest<HTMLElement>('[data-panel]')
     if (!header || !panel) return undefined
     const measure = () =>
       panel.style.setProperty(
-        '--circi-page-top',
+        '--circi-panel-top',
         `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,
       )
     measure()
@@ -43,16 +50,19 @@ export function PanelHeader(props: PanelHeader.Props) {
     observer?.observe(header)
     return () => {
       observer?.disconnect()
-      panel.style.removeProperty('--circi-page-top')
+      panel.style.removeProperty('--circi-panel-top')
     }
-  }, [])
+  }, [slot])
+  const header = (
+    <header ref={ref} className={styles.root} data-panel-header="">
+      {props.children}
+      <div className={styles.spacer} />
+      {props.actions ? <div className={styles.actions}>{props.actions}</div> : null}
+    </header>
+  )
   return (
     <>
-      <header ref={ref} className={styles.root} data-panel-header="">
-        {props.children}
-        <div className={styles.spacer} />
-        {props.actions ? <div className={styles.actions}>{props.actions}</div> : null}
-      </header>
+      {slot === undefined ? header : slot ? createPortal(header, slot) : null}
       {notices}
     </>
   )

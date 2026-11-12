@@ -23,8 +23,8 @@
   color: var(--circi-text-secondary);
 }
 
-/* Pinned to the bottom when there's room, and never closer than 24px to the last section. */
+/* Pinned to the bottom when there's room, and never closer than 16px to the last section. */
 .footer {
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 16px;
 }

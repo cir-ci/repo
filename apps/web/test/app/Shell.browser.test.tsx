@@ -130,6 +130,9 @@ function asInstanceAdmin() {
 // buttons. The test pages are only that header, titled with their text.
 const text = (content: string) => () => <PageHeading title={content} />
 
+/** The content panel: the page's header above its scroller (`main`), and the scroller. */
+const panel = () => page.elementLocator(document.querySelector<HTMLElement>('[data-panel]')!)
+
 async function renderShell(path: string) {
   const root = createRootRoute({ component: Shell })
   const routes = [
@@ -277,7 +280,7 @@ describe('Shell, wide', () => {
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(panel()).toHaveTextContent('Projects page')
   })
 
   it('puts Inbox and Projects above the workspace switcher, and Reviews and Insights below it', async () => {
@@ -310,13 +313,14 @@ describe('Shell, wide', () => {
       await renderShell('/headed')
       const banner = page.getByRole('status').filter({ hasText: 'The dashboard moved from' })
       await expect.element(banner).toBeVisible()
-      const header = page.getByRole('main').element().querySelector('header')
+      const header = panel().element().querySelector('header')
       const shown = banner.element()
-      // Inside the panel (the main), straight after the header, not above it.
+      // Inside the main, the first thing in the scroller under the fixed header, not above it.
       expect(header).not.toBeNull()
-      expect(page.getByRole('main').element().contains(shown)).toBe(true)
-      expect(header?.nextElementSibling?.contains(shown)).toBe(true)
-      expect(header && getComputedStyle(header).position).toBe('sticky')
+      const main = page.getByRole('main').element()
+      expect(main.contains(shown)).toBe(true)
+      expect(main.contains(header)).toBe(false)
+      expect(main.firstElementChild?.contains(shown)).toBe(true)
     } finally {
       API['/api/instance/notices'] = {}
     }
@@ -436,7 +440,7 @@ describe('Shell, wide', () => {
       .getByRole('navigation', { name: 'Main' })
       .getByRole('link', { name: 'Insights' })
       .click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Insights page')
+    await expect.element(panel()).toHaveTextContent('Insights page')
     expect(router.state.location.pathname).toBe('/workspaces/acme/insights')
   })
 
@@ -533,7 +537,7 @@ describe('Shell, keyboard', () => {
   it('goes to the Inbox with G then I', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(panel()).toHaveTextContent('Projects page')
     await userEvent.keyboard('gi')
     await expect.poll(() => router.state.location.pathname).toBe('/inbox')
     await userEvent.keyboard('gr')
@@ -559,7 +563,7 @@ describe('Shell, keyboard', () => {
   it('does not take G while typing in a field', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(panel()).toHaveTextContent('Projects page')
     const field = document.createElement('input')
     document.body.append(field)
     field.focus()
@@ -572,7 +576,7 @@ describe('Shell, keyboard', () => {
     await page.viewport(1280, 800)
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
     await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(panel()).toHaveTextContent('Projects page')
     window.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'C', metaKey: true, shiftKey: true, bubbles: true }),
     )
@@ -697,7 +701,7 @@ describe('Shell, settings', () => {
   it('has no settings nav on other pages', async () => {
     await page.viewport(1280, 800)
     await renderShell('/inbox')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+    await expect.element(panel()).toHaveTextContent('Inbox page')
     expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
   })
 })
@@ -888,7 +892,7 @@ describe('Shell, narrow', () => {
     await page.viewport(390, 844)
     asInstanceAdmin()
     await renderShell(path)
-    await expect.element(page.getByRole('main')).toBeVisible()
+    await expect.element(panel()).toBeVisible()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
     expect(page.getByRole('dialog').elements()).toHaveLength(0)
@@ -936,7 +940,7 @@ describe('Shell, narrow', () => {
   it('has the sections and Close buttons of a settings page in its header, and no "Settings" bar above it', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/settings')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Workspace settings page')
+    await expect.element(panel()).toHaveTextContent('Workspace settings page')
     await expect.poll(() => headerButton('Settings sections')).toBeDefined()
     await expect.poll(() => headerButton('Close settings, back to Inbox')).toBeDefined()
     expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
@@ -1199,7 +1203,7 @@ describe('Shell, narrow', () => {
       await tabs().getByRole('button', { name: 'Projects' }).click()
       await page.getByRole('menu').getByRole('menuitem', { name: 'All projects' }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/')
-      await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+      await expect.element(panel()).toHaveTextContent('Projects page')
     })
 
     it('is not on a wide screen', async () => {
@@ -1271,21 +1275,21 @@ describe('Shell, narrow', () => {
     it('are not on other pages: a build, project settings, Inbox', async () => {
       await page.viewport(390, 844)
       await renderShell('/acme/web-app/settings')
-      await expect.element(page.getByRole('main')).toHaveTextContent('Project settings page')
+      await expect.element(panel()).toHaveTextContent('Project settings page')
       expect(strip().elements()).toHaveLength(0)
     })
 
     it('are not on the Inbox', async () => {
       await page.viewport(390, 844)
       await renderShell('/inbox')
-      await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+      await expect.element(panel()).toHaveTextContent('Inbox page')
       expect(strip().elements()).toHaveLength(0)
     })
 
     it('are not on a wide screen, where the sidebar has the sub-items', async () => {
       await page.viewport(1280, 800)
       await renderShell('/acme/web-app/triage')
-      await expect.element(page.getByRole('main')).toHaveTextContent('Triage page')
+      await expect.element(panel()).toHaveTextContent('Triage page')
       expect(strip().elements()).toHaveLength(0)
       await expect
         .element(
@@ -1298,7 +1302,7 @@ describe('Shell, narrow', () => {
   it('leaves the desktop header without the phone buttons', async () => {
     await page.viewport(1280, 800)
     await renderShell('/headed')
-    await expect.element(page.getByRole('main')).toBeVisible()
+    await expect.element(panel()).toBeVisible()
     expect(headerButton('Search')).toBeUndefined()
     expect(headerButton('Settings sections')).toBeUndefined()
   })
@@ -1334,7 +1338,7 @@ describe('Shell, collapsing the navigation', () => {
     await renderShell('/headed')
     expect(show().elements()).toHaveLength(0)
     // Open, the toggle is the page header's first control, in the panel, where Show will be.
-    const main = page.getByRole('main').element()
+    const main = panel().element()
     expect(main.contains(hide().element())).toBe(true)
     expect(
       page.getByRole('navigation', { name: 'Main' }).element().contains(hide().element()),
@@ -1351,7 +1355,7 @@ describe('Shell, collapsing the navigation', () => {
       .getBoundingClientRect()
     expect(icon.right).toBeLessThanOrEqual(crumbs.left)
     // It is the first thing in the panel's header, at its far left.
-    const header = page.getByRole('main').element().getBoundingClientRect()
+    const header = panel().element().getBoundingClientRect()
     expect(icon.left - header.left).toBeLessThan(24)
     // Hide and Show sit at the same height in the header's left end.
     expect(Math.abs(icon.top - before.top)).toBeLessThan(2)
@@ -1532,7 +1536,7 @@ describe('Shell, phone', () => {
   it('is full-bleed: the panel has no margin, border or rounded corners', async () => {
     await page.viewport(390, 844)
     await renderShell('/')
-    const main = page.getByRole('main').element()
+    const main = panel().element()
     const box = main.getBoundingClientRect()
     expect(Math.round(box.left)).toBe(0)
     expect(Math.round(box.right)).toBe(390)
@@ -1595,7 +1599,7 @@ describe('Shell, phone', () => {
   it('shows a build page without the tab bar: its own review bar takes the bottom', async () => {
     await page.viewport(390, 844)
     await renderShell('/acme/web-app/builds/7')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Build page')
+    await expect.element(panel()).toHaveTextContent('Build page')
     expect(tabs().elements()).toHaveLength(0)
   })
 

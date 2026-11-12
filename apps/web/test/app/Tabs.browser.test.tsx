@@ -160,7 +160,9 @@ const activeTab = () => document.querySelector<HTMLElement>('[role="tablist"] [d
 
 /** The offset the tab row gives the page's panel (its header sticks below the tabs). */
 const panelTop = () =>
-  document.querySelector('main')?.style.getPropertyValue('--circi-window-top') ?? ''
+  document
+    .querySelector<HTMLElement>('[data-panel]')
+    ?.style.getPropertyValue('--circi-window-top') ?? ''
 const tabs = () => page.getByRole('tab')
 const tabNamed = (name: string) => page.getByRole('tab', { name })
 const press = (keys: string) => userEvent.keyboard(keys)
@@ -220,7 +222,7 @@ describe('tabs in the installed app', () => {
     // Over the page only: the tabs are in the panel, right of the sidebar, which reaches the top.
     const tab = tabNamed('Projects page').element()
     const sidebar = page.getByRole('navigation', { name: 'Main' }).element().getBoundingClientRect()
-    expect(tab.closest('main')).not.toBeNull()
+    expect(tab.closest('[data-panel]')).not.toBeNull()
     expect(sidebar.top).toBe(0)
     expect(tab.getBoundingClientRect().left).toBeGreaterThanOrEqual(sidebar.right)
     expect(document.documentElement.style.getPropertyValue('--circi-window-top')).toBe('')
@@ -302,7 +304,11 @@ describe('tabs in the installed app', () => {
         return fade && el instanceof HTMLElement ? [el] : []
       })
     await expect.poll(() => fades().length).toBeGreaterThan(0)
-    expect(fades().every((el) => el.parentElement === document.querySelector('main'))).toBe(true)
+    const parents = new Set([
+      document.querySelector('main'),
+      document.querySelector('[data-panel] > section'),
+    ])
+    expect(fades().every((el) => parents.has(el.parentElement))).toBe(true)
     expect(fades().some((el) => el.hasAttribute('data-tab-row'))).toBe(false)
     animate.mockRestore()
     await expect.poll(() => indicator().offsetLeft).toBe(activeTab().offsetLeft)

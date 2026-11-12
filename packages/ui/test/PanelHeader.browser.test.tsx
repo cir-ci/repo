@@ -68,18 +68,30 @@ describe('PanelHeader', () => {
         <div style={{ height: 3000, flexShrink: 0 }}>Long page</div>
       </AppFrame>,
     )
-    // Inside the main landmark a <header> is not a banner.
-    const header = page.getByRole('main').element().querySelector('header')!
+    // Above the scroller, not in the main landmark: a header in the frame's head, not a banner.
+    const header = document.querySelector('header')!
     const main = page.getByRole('main').element()
+    const panel = document.querySelector<HTMLElement>('[data-panel]')!
+    expect(main.contains(header)).toBe(false)
+    expect(page.getByRole('banner').elements()).toHaveLength(0)
+    const top = header.getBoundingClientRect().top
     main.scrollTo({ top: 1500 })
     await expect.poll(() => main.scrollTop).toBeGreaterThan(1000)
-    // Inside the panel's 1px top border.
-    await expect
-      .poll(() => header.getBoundingClientRect().top)
-      .toBe(main.getBoundingClientRect().top + 1)
+    expect(header.getBoundingClientRect().top).toBe(top)
+    // The scrollbar's area starts where the header ends.
+    expect(main.getBoundingClientRect().top).toBeCloseTo(header.getBoundingClientRect().bottom, 0)
     // The header's height, below the installed app's title bar (none here: 0).
-    expect(main.style.getPropertyValue('--circi-page-top')).toBe(
+    expect(panel.style.getPropertyValue('--circi-panel-top')).toBe(
       `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,
     )
+  })
+
+  it('renders in place outside an AppFrame', async () => {
+    await render(
+      <PanelHeader>
+        <span>Alone</span>
+      </PanelHeader>,
+    )
+    await expect.element(page.getByText('Alone')).toBeVisible()
   })
 })

@@ -48,10 +48,11 @@ export function fadeInSwitchedPage(): void {
 
 function fadeInPage(): void {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  const panel = document.querySelector('main')
+  const panel = document.querySelector('[data-panel]')
   if (!panel) return
-  for (const part of panel.children) {
-    if (part instanceof HTMLElement && !part.hasAttribute('data-tab-row')) {
+  // The page's header (above the scroller) and the page itself (in it).
+  for (const part of panel.querySelectorAll(':scope > section > *, :scope > main > *')) {
+    if (part instanceof HTMLElement) {
       part.animate([{ opacity: 0.35 }, { opacity: 1 }], {
         duration: SWITCH_FADE_MS,
         easing: 'ease-out',

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 
+import { PanelSlotContext } from './panel-slot.ts'
 import { useScrollingFlag } from './use-scrolling.ts'
 
 import styles from './AppFrame.module.css'
@@ -14,6 +16,7 @@ import styles from './AppFrame.module.css'
  */
 export function AppFrame(props: AppFrame.Props) {
   const onNavScroll = useScrollingFlag()
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
   const height =
     typeof props.minHeight === 'number'
       ? `${props.minHeight}px`
@@ -46,9 +49,22 @@ export function AppFrame(props: AppFrame.Props) {
         </nav>
         {props.sidebarCollapsed ? null : props.sidebarHandle}
       </div>
-      <main className={styles.main} id="content" tabIndex={-1} data-scroll-restoration-id="content">
-        {props.children}
-      </main>
+      {/* The panel: what is above the scroller (the app's tab row, the page's header) stays put;
+          only `main` scrolls, so its scrollbar starts under them. */}
+      <div className={styles.panel} data-panel="">
+        {props.panelTop}
+        <PanelSlotContext.Provider value={slot}>
+          <section className={styles.head} ref={setSlot} />
+          <main
+            className={styles.main}
+            id="content"
+            tabIndex={-1}
+            data-scroll-restoration-id="content"
+          >
+            {props.children}
+          </main>
+        </PanelSlotContext.Provider>
+      </div>
       {props.bottomBar ? <div className={styles.bottom}>{props.bottomBar}</div> : null}
     </div>
   )
@@ -60,8 +76,10 @@ export namespace AppFrame {
     sidebar: ReactNode
     /** The sidebar landmark's name; "Main" unless the sidebar is another navigation (Settings). */
     sidebarLabel?: string
-    /** The page, usually a `PanelHeader` followed by content. */
+    /** The page: a `PanelHeader` (shown above the scrolling area, not in it) and its content. */
     children: ReactNode
+    /** Fixed at the top of the panel, above the page's header (the installed app's tab row). */
+    panelTop?: ReactNode
     /** The frame's height from 820px up (and its minimum height stacked below it); defaults to the full viewport. Set it to embed the frame in a smaller area. */
     minHeight?: number | string
     /**

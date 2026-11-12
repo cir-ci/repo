@@ -1,10 +1,9 @@
-/* Stays at the top of the panel while the page scrolls, so where you are, the filters and the
-   page's actions are always in reach. Anything else sticky in a page sits under it
-   (`--circi-page-top`). */
+/* Above the panel's scrolling area (see `AppFrame`), so where you are, the filters and the page's
+   actions are always in reach and the scrollbar starts under it. */
 .root {
-  position: sticky;
-  top: var(--circi-window-top, 0px);
+  position: relative;
   z-index: 3;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

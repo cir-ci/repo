@@ -31,9 +31,9 @@
 /* Its own scroll: the list stays in view while the viewer's column scrolls with the page. */
 .list {
   position: sticky;
-  top: var(--circi-page-top, 0px);
+  top: 0;
   box-sizing: border-box;
-  max-height: calc(var(--circi-frame-height, 100dvh) - 18px - var(--circi-page-top, 0px));
+  max-height: calc(var(--circi-frame-height, 100dvh) - 18px - var(--circi-panel-top, 0px));
   padding: 8px;
   overflow-y: auto;
 }

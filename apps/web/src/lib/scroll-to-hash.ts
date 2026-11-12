@@ -14,8 +14,8 @@ const CLASSES = [styles.target, styles.flash].filter((name) => name !== undefine
 const FOCUSABLE = 'input, textarea, select, button, [role="combobox"]'
 
 /**
- * Brings the setting a link points at into view: scrolls it below the sticky header
- * (`--circi-page-top`), tints it for a moment and focuses its control. With reduced motion the
+ * Brings the setting a link points at into view: scrolls it under the scroller top
+ * (its scroll margin), tints it for a moment and focuses its control. With reduced motion the
  * scroll is a jump and the tint does not fade. Returns a function that ends the tint early.
  */
 export function revealElement(element: HTMLElement): () => void {

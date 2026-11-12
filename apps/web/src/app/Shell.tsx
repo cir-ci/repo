@@ -154,10 +154,9 @@ function SignedInFrame({ user }: { user: SessionUser }) {
           />
         }
         compact
+        panelTop={<TabRow />}
         {...(phone && !inSettings && !isBuildPage(pathname) ? { bottomBar: <PhoneTabs /> } : {})}
       >
-        {/* The tabs (installed app): over the page only, so the sidebar reaches the top. */}
-        <TabRow />
         {/* The notices show under each page's sticky header, inside the panel (`PanelHeader`). */}
         <PanelNotices notices={<Notices email={user.email} />}>
           <TabGate userId={user.id}>

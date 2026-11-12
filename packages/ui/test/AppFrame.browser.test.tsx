@@ -145,14 +145,18 @@ describe('AppFrame from 820px up: the panel scrolls, not the window', () => {
     expect(side.getBoundingClientRect().height).toBe(window.innerHeight)
   })
 
-  it('keeps the page header at the top of the panel while the panel scrolls', async () => {
+  it('keeps the page header above the scroller while the panel scrolls', async () => {
     await page.viewport(1280, 800)
     await render(rows(3000))
     const main = page.getByRole('main').element()
-    const header = main.querySelector('header')!
+    const header = document.querySelector('header')!
     main.scrollTo({ top: 1200 })
     await expect.poll(() => main.scrollTop).toBe(1200)
-    expect(header.getBoundingClientRect().top).toBeCloseTo(main.getBoundingClientRect().top + 1, 0)
+    // The header is above the scroller, and does not move: the scrollbar starts under it.
+    const panel = document.querySelector('[data-panel]')!.getBoundingClientRect()
+    expect(header.getBoundingClientRect().top).toBeCloseTo(panel.top + 1, 0)
+    expect(main.getBoundingClientRect().top).toBeCloseTo(header.getBoundingClientRect().bottom, 0)
+    expect(main.contains(header)).toBe(false)
   })
 
   it('moves neither the sidebar nor the panel when the content grows past the window', async () => {
@@ -218,7 +222,7 @@ describe('AppFrame resizable sidebar', () => {
     )
     expect(page.getByRole('navigation').elements()).toHaveLength(0)
     expect(page.getByRole('separator').elements()).toHaveLength(0)
-    expect(page.getByRole('main').element().getBoundingClientRect().left).toBe(8)
+    expect(page.getByRole('main').element().getBoundingClientRect().left).toBe(9)
   })
 
   it('has no handle below 820px', async () => {
@@ -272,14 +276,18 @@ describe('AppFrame on a phone: the panel scrolls, not the window', () => {
     expect(window.scrollY).toBe(0)
   })
 
-  it('keeps the page header at the top of the panel while the panel scrolls', async () => {
+  it('keeps the page header above the scroller while the panel scrolls', async () => {
     await page.viewport(390, 844)
     await render(framed())
     const main = page.getByRole('main').element()
-    const header = main.querySelector('header')!
+    const header = document.querySelector('header')!
     main.scrollTo({ top: 1200 })
     await expect.poll(() => main.scrollTop).toBe(1200)
     // Inside the panel's 1px top border.
-    expect(header.getBoundingClientRect().top).toBeCloseTo(main.getBoundingClientRect().top + 1, 0)
+    // The header is above the scroller, and does not move: the scrollbar starts under it.
+    const panel = document.querySelector('[data-panel]')!.getBoundingClientRect()
+    expect(header.getBoundingClientRect().top).toBeCloseTo(panel.top + 1, 0)
+    expect(main.getBoundingClientRect().top).toBeCloseTo(header.getBoundingClientRect().bottom, 0)
+    expect(main.contains(header)).toBe(false)
   })
 })
