@@ -69,6 +69,7 @@ describe('gateInputs', () => {
   it("keeps today's default: a flaky-only change blocks like any other", async () => {
     const { build } = await flakyPr()
     expect(await gateInputs(t.db, build)).toEqual({
+      unreadable: 0,
       blockMergeOnChanges: true,
       autoApproveNoChanges: true,
       flakyBlocksMerge: true,

@@ -45,6 +45,27 @@ describe('readPngInfo', () => {
     await expect(readPngInfo(jpeg)).rejects.toThrow(/Expected a PNG, got jpeg/)
     await expect(readPngInfo(Buffer.from('not an image'))).rejects.toBeInstanceOf(InvalidImageError)
   })
+
+  it('says in plain words what was wrong', async () => {
+    const jpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#000' } })
+      .jpeg()
+      .toBuffer()
+    await expect(readPngInfo(jpeg)).rejects.toMatchObject({
+      reason: "not a PNG (it's a JPEG file)",
+    })
+    await expect(readPngInfo(Buffer.from('not an image'))).rejects.toMatchObject({
+      reason: 'not a PNG',
+    })
+    await expect(readPngInfo(Buffer.alloc(0))).rejects.toMatchObject({
+      reason: 'the file is empty',
+    })
+    // The header is fine but the pixels stop short: found when the image is decoded.
+    const whole = await png(60, 60)
+    await expect(makeThumbnail(whole.subarray(0, whole.length - 30))).rejects.toMatchObject({
+      name: 'InvalidImageError',
+      reason: 'the file is corrupt or truncated',
+    })
+  })
 })
 
 describe('diffImages', () => {

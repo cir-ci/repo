@@ -8,6 +8,7 @@ import {
   ScrollArea,
   SettingsRow,
   SettingsSection,
+  StatusChip,
   StatusIcon,
   visuallyHidden,
 } from '@circi/ui'
@@ -150,11 +151,14 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
             </SettingsRow>
             <SettingsRow className={styles.fact} label="Screenshots">
               <span className={styles.counts}>
-                {counts.length === 0 ? (
+                {counts.length === 0 && r.changes.failed === 0 ? (
                   <span>No changes</span>
                 ) : (
                   counts.map((c) => <span key={c}>{c}</span>)
                 )}
+                {r.changes.failed > 0 ? (
+                  <StatusChip status="failed">{r.changes.failed} couldn't be read</StatusChip>
+                ) : null}
                 <span>{r.changes.unchanged} same</span>
               </span>
             </SettingsRow>

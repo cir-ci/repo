@@ -55,6 +55,7 @@ export namespace listInbox {
       added: number
       removed: number
       unchanged: number
+      failed: number
     } | null
     /** The person's open review request for the build: its target and how far past it. */
     request: { dueAt: Date | null; overdueByMs: number } | null
@@ -152,7 +153,7 @@ export async function listInbox(
   const buildIds = [...new Set(rows.flatMap((r) => (r.n.buildId === null ? [] : [r.n.buildId])))]
   const counts = new Map<
     string,
-    { changed: number; added: number; removed: number; unchanged: number }
+    { changed: number; added: number; removed: number; unchanged: number; failed: number }
   >()
   const open = new Map<string, { dueAt: Date | null; snoozed: boolean }>()
   if (buildIds.length > 0) {
@@ -171,12 +172,14 @@ export async function listInbox(
         added: 0,
         removed: 0,
         unchanged: 0,
+        failed: 0,
       }
       if (
         g.status === 'changed' ||
         g.status === 'added' ||
         g.status === 'removed' ||
-        g.status === 'unchanged'
+        g.status === 'unchanged' ||
+        g.status === 'failed'
       ) {
         entry[g.status] += g.n
       }
@@ -243,6 +246,7 @@ export async function listInbox(
                 added: 0,
                 removed: 0,
                 unchanged: 0,
+                failed: 0,
               }),
         request: request
           ? {

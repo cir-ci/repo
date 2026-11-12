@@ -84,7 +84,7 @@ export function describeCounts(c: ReportedBuild['counts']): string {
     c.changed ? `${c.changed} changed` : '',
     c.added ? `${c.added} added` : '',
     c.removed ? `${c.removed} removed` : '',
-    c.failed ? `${c.failed} failed` : '',
+    c.failed ? `${c.failed} couldn't be read` : '',
   ]
     .filter(Boolean)
     .join(' · ')
@@ -144,6 +144,18 @@ export function checkReport(
   }
 
   const counts = describeCounts(build.counts)
+  if (build.counts.failed > 0) {
+    // An input problem no review settles: the check fails until the build is uploaded again with
+    // valid PNGs, whatever was approved (the same rule as `buildOutcome`).
+    const n = build.counts.failed
+    return {
+      ...base,
+      status: 'completed',
+      conclusion: 'failure',
+      title: `${plural(n, 'screenshot')} couldn't be read`,
+      summary: `${counts}. Upload the build again with valid PNGs. The other screenshots can still be reviewed.\n\n${link}`,
+    }
+  }
   const actions: CheckReport['actions'] = [
     ...(build.reviewStatus === 'approved'
       ? []
@@ -232,6 +244,7 @@ function reviewCell(b: ReportedBuild): string {
 function statusCell(b: ReportedBuild): string {
   if (b.status === 'error') return '❌ Failed'
   if (b.status !== 'complete') return '⏳ Processing'
+  if (b.counts.failed > 0) return `❌ ${plural(b.counts.failed, 'screenshot')} couldn't be read`
   if (b.conclusion === 'changes_detected') return '🟡 Changes detected'
   return b.awaitsApproval ? '🟡 No changes, approval required' : '✅ No changes'
 }

@@ -201,9 +201,17 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
   }
   const c = status.counts
   log(
-    `${status.outcome.summary}: ${c.changed} changed, ${c.added} added, ${c.removed} removed, ${c.unchanged} unchanged${c.failed ? `, ${c.failed} failed` : ''}`,
+    `${status.outcome.summary}: ${c.changed} changed, ${c.added} added, ${c.removed} removed, ${c.unchanged} unchanged${c.failed ? `, ${c.failed} couldn't be read` : ''}`,
   )
   if (status.outcome.warning) log(`warning: ${status.outcome.warning}`)
+  if (c.failed > 0) {
+    // An input problem, not a visual change: no review settles it, and both gates fail, so the
+    // job ends with an error (2) rather than the "needs review" exit (1).
+    for (const shot of status.unreadable ?? []) log(`error: ${shot.name}: ${shot.reason}`)
+    log(`Upload the build again with valid PNGs: ${status.build.url}`)
+    result.exitCode = 2
+    return result
+  }
   if (status.outcome.state === 'fail') {
     // With an integration the commit status is the gate and the job doesn't fail on changes (PLAN §7.4).
     if (status.gate === 'exit-code') {

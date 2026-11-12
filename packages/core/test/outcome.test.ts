@@ -64,6 +64,24 @@ describe('flaky-only changes', () => {
   })
 })
 
+describe('buildOutcome with unreadable screenshots', () => {
+  it.each([
+    ['approved, blocking', { reviewStatus: 'approved' }, true],
+    ['approved, not blocking', { reviewStatus: 'approved' }, false],
+    ['pending, not blocking', {}, false],
+  ] as const)('never passes: %s', (_label, over, blockMergeOnChanges) => {
+    expect(
+      buildOutcome({ ...done, ...flags, ...over, blockMergeOnChanges, unreadable: 2 }),
+    ).toEqual({ state: 'fail', summary: "2 screenshots couldn't be read" })
+  })
+
+  it('names one screenshot in the singular', () => {
+    expect(
+      buildOutcome({ ...done, ...flags, blockMergeOnChanges: true, unreadable: 1 }).summary,
+    ).toBe("1 screenshot couldn't be read")
+  })
+})
+
 describe('resolveFlakyBlocksMerge', () => {
   it.each([
     // [workspace, project, effective]

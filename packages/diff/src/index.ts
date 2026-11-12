@@ -19,10 +19,35 @@ export {
 const MAX_INPUT_PIXELS = 100_000_000
 
 export class InvalidImageError extends Error {
-  constructor(message: string) {
+  /** What was wrong, in plain words for a person ("not a PNG", "the file is truncated"). */
+  readonly reason: string
+  constructor(message: string, reason = message) {
     super(message)
     this.name = 'InvalidImageError'
+    this.reason = reason
   }
+}
+
+/** Plain words for what a decoder (sharp) complained about. */
+function plainReason(raw: string): string {
+  const text = raw.toLowerCase()
+  if (text.includes('empty')) return 'the file is empty'
+  if (text.includes('unsupported image format')) return 'not a PNG'
+  if (
+    text.includes('corrupt') ||
+    text.includes('read error') ||
+    text.includes('premature') ||
+    text.includes('treated as error') // sharp's wording for a stream that ends early
+  ) {
+    return 'the file is corrupt or truncated'
+  }
+  return `the file can't be decoded (${raw})`
+}
+
+/** An `InvalidImageError` for whatever the decoder threw. */
+function unreadable(err: unknown): InvalidImageError {
+  const raw = err instanceof Error ? err.message : String(err)
+  return new InvalidImageError(`Not a readable image: ${raw}`, plainReason(raw))
 }
 
 export namespace readPngInfo {
@@ -38,13 +63,17 @@ export async function readPngInfo(png: Buffer): Promise<readPngInfo.Info> {
   try {
     meta = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()
   } catch (err) {
+    throw unreadable(err)
+  }
+  if (meta.format !== 'png') {
     throw new InvalidImageError(
-      `Not a readable image: ${err instanceof Error ? err.message : String(err)}`,
+      `Expected a PNG, got ${meta.format ?? 'unknown'}`,
+      `not a PNG (it's ${meta.format ? `a ${meta.format.toUpperCase()} file` : 'another kind of file'})`,
     )
   }
-  if (meta.format !== 'png')
-    throw new InvalidImageError(`Expected a PNG, got ${meta.format ?? 'unknown'}`)
-  if (!meta.width || !meta.height) throw new InvalidImageError('PNG has no dimensions')
+  if (!meta.width || !meta.height) {
+    throw new InvalidImageError('PNG has no dimensions', 'the PNG has no dimensions')
+  }
   return { width: meta.width, height: meta.height }
 }
 
@@ -209,15 +238,20 @@ async function toRgbaCanvas(
   width: number,
   height: number,
 ): Promise<Uint8Array> {
-  const data = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS })
-    .ensureAlpha()
-    .extend({
-      right: width - info.width,
-      bottom: height - info.height,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .raw()
-    .toBuffer()
+  let data: Buffer
+  try {
+    data = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS })
+      .ensureAlpha()
+      .extend({
+        right: width - info.width,
+        bottom: height - info.height,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .raw()
+      .toBuffer()
+  } catch (err) {
+    throw unreadable(err)
+  }
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
 }
 
@@ -237,17 +271,22 @@ export async function makeThumbnail(png: Buffer): Promise<makeThumbnail.Result> 
   const info = await readPngInfo(png)
   const scale = Math.min(1, THUMB_WIDTH / info.width)
   const scaledHeight = Math.max(1, Math.round(info.height * scale))
-  const { data, info: out } = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS })
-    .resize({ width: Math.min(THUMB_WIDTH, info.width), withoutEnlargement: true })
-    .extract({
-      left: 0,
-      top: 0,
-      width: Math.min(THUMB_WIDTH, info.width),
-      height: Math.min(THUMB_MAX_HEIGHT, scaledHeight),
-    })
-    .webp({ quality: 80 })
-    .toBuffer({ resolveWithObject: true })
-  return { webp: data, width: out.width, height: out.height }
+  try {
+    const { data, info: out } = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS })
+      .resize({ width: Math.min(THUMB_WIDTH, info.width), withoutEnlargement: true })
+      .extract({
+        left: 0,
+        top: 0,
+        width: Math.min(THUMB_WIDTH, info.width),
+        height: Math.min(THUMB_MAX_HEIGHT, scaledHeight),
+      })
+      .webp({ quality: 80 })
+      .toBuffer({ resolveWithObject: true })
+    return { webp: data, width: out.width, height: out.height }
+  } catch (err) {
+    // The header read fine but the pixel data didn't (a truncated file).
+    throw unreadable(err)
+  }
 }
 
 export namespace makeWorkspacePicture {
@@ -278,9 +317,7 @@ export async function makeWorkspacePicture(
       limitInputPixels: MAX_INPUT_PIXELS,
     }).metadata())
   } catch (err) {
-    throw new InvalidImageError(
-      `Not a readable image: ${err instanceof Error ? err.message : String(err)}`,
-    )
+    throw unreadable(err)
   }
   if (format !== 'png' && format !== 'jpeg' && format !== 'webp') {
     throw new InvalidImageError(`Expected a PNG, JPEG or WebP image, got ${format ?? 'unknown'}`)

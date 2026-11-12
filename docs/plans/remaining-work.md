@@ -94,8 +94,11 @@ left is listed below by kind.
 
 - Webhooks: no per-project webhook limit; a delivery-time private-address skip is only logged.
   (Fixed: "Regenerate secret" on a webhook, with a confirm and the new secret shown once.)
-- Fixed: an undecodable PNG now ends the build as an error naming the screenshot(s) (the CLI
-  prints it and exits 2 when the project blocks merges); it used to be one failed screenshot.
+- Fixed: an undecodable screenshot (not a PNG, corrupt or truncated) fails only itself: its diff is
+  `failed` with "Couldn't read this image: <reason>", and the rest of the build stays reviewable.
+  The build page lists it first in a "Couldn't read" group with a danger state in the viewer (no
+  approve or reject; Approve all skips it and says so), counts show "N couldn't be read", and the
+  build can't pass while one exists: the check fails, `--wait` names each file and exits 2.
 - GitHub: `installation` events now flag the connection "needs attention" (deleted, suspend) or
   clear it (created, unsuspend), and a closed or merged `pull_request` closes the open review
   requests on its builds (as dismissed). `push` stays unhandled on purpose: builds learn their

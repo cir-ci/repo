@@ -376,8 +376,68 @@ describe('processBuild', () => {
     const d = await diffsOf(b.id)
     expect(d.broken).toMatchObject({
       status: 'failed',
-      errorMessage: expect.stringMatching(/Not a readable image/),
+      errorMessage: "Couldn't read this image: not a PNG",
     })
+  })
+
+  it('fails only the unreadable screenshot, with a plain reason, and processes the rest', async () => {
+    const { project } = await seedProject(t.db)
+    const good = await png(60, 40)
+    const jpeg = await sharp({ create: { width: 20, height: 20, channels: 3, background: '#fff' } })
+      .jpeg()
+      .toBuffer()
+    const truncated = (await png(80, 80, { x: 4, y: 4 })).subarray(0, 90)
+    const b = await uploadBuild(
+      project.id,
+      { commitSha: 'dddd002', branch: 'main' },
+      { good, jpeg, truncated, text: Buffer.from('nope') },
+    )
+    await processBuild({ db: t.db, storage }, b.id)
+    const d = await diffsOf(b.id)
+    expect(d.good).toMatchObject({ status: 'added', errorMessage: null })
+    expect(d.jpeg).toMatchObject({
+      status: 'failed',
+      errorMessage: "Couldn't read this image: not a PNG (it's a JPEG file)",
+    })
+    expect(d.text).toMatchObject({ status: 'failed' })
+    expect(d.truncated).toMatchObject({
+      status: 'failed',
+      errorMessage: expect.stringMatching(/^Couldn't read this image: the file is corrupt/),
+    })
+    expect(await getBuild(t.db, b.id)).toMatchObject({ status: 'complete' })
+  })
+
+  it('does not offer an unreadable screenshot for approval, and the build cannot pass', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const good = await png(60, 40)
+    const b = await uploadBuild(
+      project.id,
+      { commitSha: 'dddd003', branch: 'main' },
+      { good, broken: Buffer.from('nope') },
+    )
+    await processBuild({ db: t.db, storage }, b.id)
+    // Approve all: only the readable screenshot is decided.
+    const approved = await reviewSnapshots(t.db, {
+      buildId: b.id,
+      userId: owner.id,
+      snapshotNames: 'undecided',
+      decision: 'approved',
+    })
+    expect(approved.reviewStatus).toBe('approved')
+    // Deciding on the unreadable one by name is refused.
+    await expect(
+      reviewSnapshots(t.db, {
+        buildId: b.id,
+        userId: owner.id,
+        snapshotNames: ['broken'],
+        decision: 'approved',
+      }),
+    ).rejects.toThrow(/broken/)
+    // Approved, yet the gate holds: an unreadable screenshot is an input problem.
+    const build = await getBuild(t.db, b.id)
+    if (!build) throw new Error('build missing')
+    const outcome = buildOutcome({ ...build, ...(await gateInputs(t.db, build)) })
+    expect(outcome).toEqual({ state: 'fail', summary: "1 screenshot couldn't be read" })
   })
 
   it('skips builds that are not waiting to be processed', async () => {

@@ -246,12 +246,22 @@ export namespace recordReview {
   }
 }
 
-/** Names of a build's snapshots that differ from the baseline (everything but unchanged). */
+/**
+ * Names of a build's snapshots that differ from the baseline and so need a decision: everything
+ * but unchanged and failed (a screenshot the server couldn't read has nothing to approve, and
+ * must never become a baseline).
+ */
 export async function listChangedSnapshotNames(db: Database, buildId: string): Promise<string[]> {
   const rows = await db
     .select({ name: screenshotDiffs.name })
     .from(screenshotDiffs)
-    .where(and(eq(screenshotDiffs.buildId, buildId), ne(screenshotDiffs.status, 'unchanged')))
+    .where(
+      and(
+        eq(screenshotDiffs.buildId, buildId),
+        ne(screenshotDiffs.status, 'unchanged'),
+        ne(screenshotDiffs.status, 'failed'),
+      ),
+    )
     .orderBy(screenshotDiffs.name)
   return rows.map((r) => r.name)
 }

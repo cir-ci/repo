@@ -632,8 +632,8 @@ function BuildPeek({ build: b }: { build: Build.ListItem }) {
       ) : null}
       <dt>Screenshots</dt>
       <dd>
-        {b.counts.changed} changed, {b.counts.added} added, {b.counts.removed} removed,{' '}
-        {b.counts.failed} failed of {b.counts.total}
+        {b.counts.changed} changed, {b.counts.added} added, {b.counts.removed} removed
+        {b.counts.failed > 0 ? `, ${b.counts.failed} couldn't be read` : ''} of {b.counts.total}
       </dd>
       <dt>Uploaded</dt>
       <dd>

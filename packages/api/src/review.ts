@@ -72,7 +72,7 @@ export namespace Review {
     project: { slug: string; name: string; diffThreshold: number }
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
-    changes: { changed: number; added: number; removed: number; unchanged: number }
+    changes: { changed: number; added: number; removed: number; unchanged: number; failed: number }
     /**
      * The build's changed screenshots, biggest change first (at most 60): the dashboard groups
      * them by how much changed.

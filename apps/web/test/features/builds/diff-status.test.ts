@@ -40,7 +40,7 @@ describe('screenshotLabel', () => {
   it('is the kind while pending and for kinds that ignore the review', () => {
     expect(screenshotLabel('changed', 'pending')).toBe('Changed')
     expect(screenshotLabel('unchanged', 'approved')).toBe('Unchanged')
-    expect(screenshotLabel('failed', 'rejected')).toBe('Failed')
+    expect(screenshotLabel('failed', 'rejected')).toBe("Couldn't read")
     expect(screenshotLabel('flaky', 'approved')).toBe('Flaky')
   })
   it('adds the decision for a reviewed change', () => {

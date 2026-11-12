@@ -27,6 +27,17 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
       return { state: 'fail', summary: `Unknown build status "${b.status}"` }
   }
 
+  // A screenshot the server couldn't read is an input problem no review can settle: the build
+  // can't pass until it is uploaded again with a valid PNG, whatever was approved and whether or
+  // not the project blocks merges on visual changes (like a rejection, it is not a matter of
+  // taste: the screenshot was never compared).
+  const unreadable = b.unreadable ?? 0
+  if (unreadable > 0) {
+    return {
+      state: 'fail',
+      summary: `${unreadable} ${unreadable === 1 ? 'screenshot' : 'screenshots'} couldn't be read`,
+    }
+  }
   if (b.reviewStatus === 'rejected') return { state: 'fail', summary: 'Changes rejected' }
   if (b.conclusion === 'no_changes') {
     if (b.autoApproveNoChanges === false && b.reviewStatus !== 'approved') {
@@ -59,6 +70,8 @@ export namespace buildOutcome {
     conclusion: string | null
     reviewStatus: string
     blockMergeOnChanges: boolean
+    /** How many screenshots the server couldn't read (failed diffs); none when omitted. */
+    unreadable?: number
     /** Whether a build with no changes passes on its own (default: it does). */
     autoApproveNoChanges?: boolean
     /** Every difference is a flaky screenshot (`onlyFlakyChanges`). */

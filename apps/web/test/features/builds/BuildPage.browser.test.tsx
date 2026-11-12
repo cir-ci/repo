@@ -182,9 +182,80 @@ describe('BuildPage states', () => {
     await renderBuild()
     const failed = page
       .getByRole('navigation', { name: 'Screenshots' })
-      .getByRole('img', { name: 'Failed' })
+      .getByRole('img', { name: "Couldn't read" })
     await expect.element(failed).toBeVisible()
     expect(failed.element().getAttribute('data-status')).toBe('failed')
+  })
+
+  it("puts the screenshots that couldn't be read first, in an open group with the failed glyph", async () => {
+    fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('a', 'changed'),
+            shot('broken', 'failed', {
+              errorMessage: "Couldn't read this image: not a PNG (it's a JPEG file)",
+              head: null,
+              base: null,
+            }),
+            shot('b', 'added'),
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    const list = page.getByRole('navigation', { name: 'Screenshots' })
+    const groups = list.getByRole('button', { name: /Couldn't read|Changed|Added/ })
+    await expect.element(groups.first()).toHaveAttribute('aria-expanded', 'true')
+    await hasText(groups.first(), /Couldn't read\s*1$/)
+    expect(
+      list.element().querySelector('[data-group-id="failed"] [data-status="failed"]'),
+    ).not.toBeNull()
+    await expect
+      .element(
+        list.getByRole('link', { name: /broken/ }).getByRole('img', { name: "Couldn't read" }),
+      )
+      .toBeVisible()
+    // The build says so too, and that it can't pass.
+    await expect
+      .element(page.getByText(/1 screenshot couldn't be read, so this build can't pass/))
+      .toBeVisible()
+  })
+
+  it("shows a danger state instead of images for a screenshot that couldn't be read, with nothing to decide", async () => {
+    const api = fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('broken', 'failed', {
+              errorMessage: "Couldn't read this image: the file is corrupt or truncated",
+              head: null,
+              base: null,
+            }),
+            shot('a', 'changed'),
+          ],
+        },
+      ),
+    )
+    await renderBuild('/acme/web-app/builds/7?shot=broken')
+    await expect
+      .element(page.getByRole('heading', { name: "Couldn't read this screenshot" }))
+      .toBeVisible()
+    await expect
+      .element(
+        page.getByText(
+          /broken: the file is corrupt or truncated\. Upload the build again with a valid PNG\./,
+        ),
+      )
+      .toBeVisible()
+    expect(
+      page.getByRole('img', { name: /in this build|in the baseline/ }).elements(),
+    ).toHaveLength(0)
+    expect(page.getByRole('button', { name: /^Approve$/ }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: /^Reject$/ }).elements()).toHaveLength(0)
+    expect(api.reviews).toEqual([])
   })
 
   it('calls a build with nothing to compare against "No baseline" and explains it', async () => {
@@ -264,7 +335,7 @@ describe('BuildPage states', () => {
     )
     await renderBuild()
     await expect.element(page.getByText('Upload was incomplete')).toBeVisible()
-    await expect.element(page.getByText('Not a PNG')).toBeVisible()
+    await expect.element(page.getByText(/login: Not a PNG/)).toBeVisible()
   })
 
   it('shows an added screenshot without view modes', async () => {
@@ -597,6 +668,27 @@ describe('approving and rejecting', () => {
     )
     await expect.element(toastNamed('Approved 2 screenshots')).toBeVisible()
     await expect.element(page.getByRole('button', { name: /^Approve all/ })).not.toBeInTheDocument()
+  })
+
+  it("skips the screenshots that couldn't be read when approving all, and the toast says so", async () => {
+    const api = fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('broken', 'failed', { errorMessage: "Couldn't read this image: not a PNG" }),
+            shot('a', 'changed'),
+            shot('c', 'added'),
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    await page.getByRole('button', { name: /^Approve all/ }).click()
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([body({ snapshotNames: ['a', 'c'], decision: 'approved' })]),
+    )
+    await expect.element(toastNamed("Approved 2 screenshots; 1 couldn't be read")).toBeVisible()
   })
 
   it('asks for a reason before rejecting the snapshot, and says so in a toast', async () => {

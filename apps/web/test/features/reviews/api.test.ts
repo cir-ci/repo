@@ -46,7 +46,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   },
   project: { slug: 'web', name: 'Web', diffThreshold: 0 },
   workspace: { slug: 'acme', name: 'Acme' },
-  changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
+  changes: { changed: 2, added: 1, removed: 0, unchanged: 5, failed: 0 },
   changedScreenshots: [],
   flakyChanges: 0,
   ...over,
@@ -226,11 +226,11 @@ describe('groupRequests', () => {
 
 describe('change summary', () => {
   it('lists the kinds that have screenshots', () => {
-    expect(changeSummary({ changed: 4, added: 1, removed: 0, unchanged: 3 })).toEqual([
+    expect(changeSummary({ changed: 4, added: 1, removed: 0, unchanged: 3, failed: 0 })).toEqual([
       '4 changed',
       '1 added',
     ])
-    expect(changeSummary({ changed: 0, added: 0, removed: 0, unchanged: 3 })).toEqual([])
+    expect(changeSummary({ changed: 0, added: 0, removed: 0, unchanged: 3, failed: 0 })).toEqual([])
   })
 
   it('writes a diff score as a percentage', () => {

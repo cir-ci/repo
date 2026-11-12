@@ -150,7 +150,7 @@ export async function processBuild(
       await thumbnailFor(db, storage, diff, fetchFile, sha)
     } catch (err) {
       if (!(err instanceof InvalidImageError)) throw err
-      invalid.set(sha, err.message)
+      invalid.set(sha, unreadableMessage(err))
     }
   })
   await copyFileThumbnailsToScreenshots(db, build.id)
@@ -226,7 +226,7 @@ export async function processBuild(
       statuses.push(status)
     } catch (err) {
       if (!(err instanceof InvalidImageError)) throw err
-      fail(err.message, 'failed')
+      fail(unreadableMessage(err), 'failed')
     } finally {
       loader.release(pair.base.fileSha256)
       loader.release(pair.head.fileSha256)
@@ -283,6 +283,11 @@ function resultOf(row: ScreenshotDiff): DiffResult {
     jobStatus: row.jobStatus,
     errorMessage: row.errorMessage,
   }
+}
+
+/** The stored message of a screenshot the server can't decode; the name is the diff's own. */
+function unreadableMessage(err: InvalidImageError): string {
+  return `Couldn't read this image: ${err.reason}`
 }
 
 async function thumbnailFor(

@@ -108,6 +108,23 @@ describe('checkReport', () => {
     })
     expect(checkReport(failed, { blockMergeOnChanges: false }).conclusion).toBe('neutral')
   })
+
+  it("holds the check while a screenshot couldn't be read, even when the rest is approved", () => {
+    const unreadable = build({
+      reviewStatus: 'approved',
+      counts: { added: 0, removed: 0, changed: 2, failed: 1, total: 4 },
+    })
+    const blocked = checkReport(unreadable, { blockMergeOnChanges: true })
+    expect(blocked).toMatchObject({
+      status: 'completed',
+      conclusion: 'failure',
+      title: "1 screenshot couldn't be read",
+      actions: [],
+    })
+    expect(blocked.summary).toContain("2 changed · 1 couldn't be read")
+    expect(blocked.summary).toContain('Upload the build again')
+    expect(checkReport(unreadable, { blockMergeOnChanges: false }).conclusion).toBe('failure')
+  })
 })
 
 const decided = (reviewStatus: string, review: ReportedBuild['review']) =>
@@ -165,8 +182,15 @@ describe('pull request comment', () => {
 
   it('describes counts', () => {
     expect(describeCounts({ added: 0, removed: 2, changed: 0, failed: 1, total: 3 })).toBe(
-      '2 removed · 1 failed',
+      "2 removed · 1 couldn't be read",
     )
+  })
+
+  it("says in the pull request comment which builds have screenshots that couldn't be read", () => {
+    const body = prCommentBody([
+      build({ counts: { added: 0, removed: 0, changed: 2, failed: 1, total: 5 } }),
+    ])
+    expect(body).toContain("| ❌ 1 screenshot couldn't be read | 2 changed · 1 couldn't be read |")
   })
 })
 

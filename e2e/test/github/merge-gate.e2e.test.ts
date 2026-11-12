@@ -346,7 +346,7 @@ describe('merge gate (against a fake GitHub)', () => {
     expect(gh.checkRuns.some((c) => c.repo.includes('unlinked'))).toBe(false)
   })
 
-  it('an undecodable screenshot is a "failed" screenshot: held for review like a change', async () => {
+  it('an undecodable screenshot fails the check, in a blocking project and a lenient one', async () => {
     const { stack } = ctx
     const broken = async (p: LinkedProject, n: number) => {
       await p.repo.checkout('main')
@@ -367,11 +367,16 @@ describe('merge gate (against a fake GitHub)', () => {
     const soft = await broken(lenient, 40)
     await settle(hard.sha)
     await settle(soft.sha)
+    // An input problem no review settles: the check fails whether or not merges are blocked
+    // on visual changes, and offers no Approve or Reject. `--wait` exited 2 for the same reason.
     expect(checkFor(hard.sha)).toMatchObject({
-      conclusion: 'action_required',
-      title: '1 failed: review required',
+      conclusion: 'failure',
+      title: "1 screenshot couldn't be read",
+      actions: [],
     })
-    expect(checkFor(soft.sha)).toMatchObject({ conclusion: 'success' })
+    expect(checkFor(soft.sha)).toMatchObject({ conclusion: 'failure' })
+    expect(hard.run.exitCode).toBe(2)
+    expect(soft.run.exitCode).toBe(2)
   })
 
   it('a build that errors as a whole: failure when blocking, neutral when not', async () => {

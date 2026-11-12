@@ -50,7 +50,7 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
   },
   project: { slug: 'web', name: 'Web', diffThreshold: 0.01 },
   workspace: { slug: 'acme', name: 'Acme' },
-  changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
+  changes: { changed: 4, added: 1, removed: 0, unchanged: 38, failed: 0 },
   changedScreenshots: [
     { name: 'dashboard / overview', score: 0.31, sha256: 'b'.repeat(64), thumbnail: null },
     { name: 'checkout / payment-form', score: 0.024, sha256: 'a'.repeat(64), thumbnail: null },

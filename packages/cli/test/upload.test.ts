@@ -233,6 +233,25 @@ describe('upload', () => {
       expect(out).not.toContain('re-run this job')
     })
 
+    it("exits 2 and names each screenshot that couldn't be read, with the reason", async () => {
+      const unreadable = [
+        { name: 'home', reason: "Couldn't read this image: not a PNG (it's a JPEG file)" },
+        { name: 'about', reason: "Couldn't read this image: the file is corrupt or truncated" },
+      ]
+      for (const gate of ['exit-code', 'status'] as const) {
+        lines.length = 0
+        // eslint-disable-next-line no-await-in-loop -- one run per gate
+        const result = await run({ wait: true, gate }, { outcomes: ['fail'], gate, unreadable })
+        expect(result.exitCode).toBe(2)
+        const out = lines.join('\n')
+        expect(out).toContain("2 couldn't be read")
+        expect(out).toContain("error: home: Couldn't read this image: not a PNG (it's a JPEG file)")
+        expect(out).toContain("error: about: Couldn't read this image: the file is corrupt")
+        expect(out).toContain('Upload the build again with valid PNGs')
+        expect(out).not.toContain('Review the changes')
+      }
+    })
+
     it('says so when the server gives no reason for a failed build', async () => {
       await run({ wait: true }, { buildStatus: 'error', outcomes: ['fail'] })
       expect(lines.join('\n')).toContain('failed to process: the server gave no reason')

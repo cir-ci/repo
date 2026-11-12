@@ -35,7 +35,7 @@ import { usePhone } from '#lib/use-phone.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
 import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
-import { changeSummary } from './review-model.ts'
+import { changeSummary, unreadableReason } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { PhoneControls } from './ViewerPhone.tsx'
 import { ViewOptionsMenu } from './ViewOptionsMenu.tsx'
@@ -67,7 +67,7 @@ const isViewMode = (value: string): value is ViewMode =>
  * competes with them. At "fit" an image is never scaled up past its real size.
  */
 export function Viewer({
-  diff,
+  diff: given,
   kind,
   review,
   designEnabled = false,
@@ -76,6 +76,8 @@ export function Viewer({
   issues,
   ...props
 }: Viewer.Props) {
+  // A screenshot the server couldn't read shows no images (the file may not be one), only why.
+  const diff = given.status === 'failed' ? { ...given, base: null, head: null, diff: null } : given
   const [opacity, setOpacity] = useState(70)
   const [at, setAt] = useState(50)
   const [zoom, setZoom] = useState<Zoom>('fit')
@@ -365,9 +367,18 @@ export function Viewer({
         data-checkerboard={checkerboard ? '' : undefined}
       >
         {diff.status === 'failed' ? (
-          <Banner tone="danger">
-            {diff.errorMessage ?? "This screenshot couldn't be processed."}
-          </Banner>
+          // Nothing to compare and nothing to decide: the reason and what to do, instead of images.
+          <EmptyState
+            tone="failed"
+            size="section"
+            title="Couldn't read this screenshot"
+            icon={<StatusIcon status="failed" size={32} decorative />}
+          >
+            <Text as="span" variant="mono">
+              {diff.name}
+            </Text>
+            : {unreadableReason(diff.errorMessage)}. Upload the build again with a valid PNG.
+          </EmptyState>
         ) : null}
         {regions?.error && !ignoring ? <Banner tone="danger">{regions.error}</Banner> : null}
         {diff.sizeChanged && diff.base && diff.head ? (

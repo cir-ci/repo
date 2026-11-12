@@ -1,5 +1,5 @@
 import type { Inbox } from '@circi/api'
-import { Avatar, Badge, Button, Kbd, Pane, StatusIcon, TextField } from '@circi/ui'
+import { Avatar, Badge, Button, Kbd, Pane, StatusChip, StatusIcon, TextField } from '@circi/ui'
 import { useState, type ReactNode } from 'react'
 
 import { buildStatus, changeSummary, overdueLabel } from '#features/reviews/api.ts'
@@ -180,7 +180,12 @@ function BuildDetails({
           [
             'Screenshots',
             <span key="shots" className={styles.counts}>
-              <span>{counts.length === 0 ? 'No changes' : counts.join(', ')}</span>
+              {counts.length > 0 || item.changes.failed === 0 ? (
+                <span>{counts.length === 0 ? 'No changes' : counts.join(', ')}</span>
+              ) : null}
+              {item.changes.failed > 0 ? (
+                <StatusChip status="failed">{item.changes.failed} couldn't be read</StatusChip>
+              ) : null}
               <span className={styles.muted}>{item.changes.unchanged} same</span>
             </span>,
           ],

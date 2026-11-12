@@ -1,7 +1,7 @@
 import { buildOutcome } from '@circi/core'
 import { type Build, type Database } from '@circi/db'
 import { getProjectBuild, getProjectLink } from '@circi/db/queries'
-import { getBuildCounts } from '@circi/db/repositories'
+import { getBuildCounts, listBuildDiffs } from '@circi/db/repositories'
 import { integrationRegistry } from '@circi/integrations'
 
 import { gateInputs } from '#src/builds/gate.ts'
@@ -20,9 +20,19 @@ export async function getBuildStatus(
   const linked =
     input.gitHostReports &&
     (await getProjectLink(db, input.projectId, integrationRegistry.gitKinds()))
+  const counts = await getBuildCounts(db, build.id)
+  // Which screenshots the server couldn't read and why, so a CI log can name them.
+  const unreadable =
+    counts.failed > 0
+      ? (await listBuildDiffs(db, build.id))
+          .filter((d) => d.status === 'failed')
+          .map((d) => ({ name: d.name, reason: d.errorMessage ?? "Couldn't read this image" }))
+          .toSorted((a, b) => a.name.localeCompare(b.name))
+      : []
   return {
     build,
-    counts: await getBuildCounts(db, build.id),
+    counts,
+    unreadable,
     outcome: buildOutcome({ ...build, ...(await gateInputs(db, build)) }),
     gate: input.gate ?? (linked ? 'status' : 'exit-code'),
   }
@@ -42,6 +52,8 @@ export namespace getBuildStatus {
   export interface Result {
     build: Build
     counts: Awaited<ReturnType<typeof getBuildCounts>>
+    /** The screenshots that couldn't be read, by name, with the reason; empty when none. */
+    unreadable: { name: string; reason: string }[]
     outcome: ReturnType<typeof buildOutcome>
     gate: Gate
   }

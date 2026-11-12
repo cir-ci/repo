@@ -48,12 +48,12 @@ const diffs = [
 ]
 
 describe('groupShots', () => {
-  it('orders groups Changed, Added, Removed, Flaky, Failed, Unchanged and drops empty ones', () => {
+  it("orders groups Couldn't read, Changed, Added, Removed, Flaky, Unchanged and drops empty ones", () => {
     expect(groupShots(diffs).map((g) => g.kind)).toEqual([
+      'failed',
       'changed',
       'added',
       'removed',
-      'failed',
       'unchanged',
     ])
   })
@@ -102,11 +102,11 @@ describe('selection', () => {
 
   it('walks in list order and stops at the ends', () => {
     expect(ordered.map((d) => d.name)).toEqual([
+      'e-failed',
       'b-changed',
       'f-changed',
       'c-added',
       'd-removed',
-      'e-failed',
       'a-unchanged',
     ])
     const [first, second] = ordered
@@ -137,6 +137,24 @@ describe('selection', () => {
       'y',
     )
     expect(defaultShot([])).toBeUndefined()
+  })
+
+  it("starts on a screenshot that couldn't be read only when nothing needs a decision", () => {
+    expect(defaultShot(groupShots([diff('bad', 'failed'), diff('y', 'unchanged')]))?.name).toBe(
+      'bad',
+    )
+    expect(defaultShot(groupShots([diff('bad', 'failed'), diff('real', 'added')]))?.name).toBe(
+      'real',
+    )
+  })
+
+  it("asks no decision of a screenshot that couldn't be read", () => {
+    expect(needsDecision(diff('bad', 'failed'))).toBe(false)
+    expect(undecidedNames([diff('bad', 'failed'), diff('a', 'changed')], 'pending')).toEqual(['a'])
+    expect(reviewProgress([diff('bad', 'failed'), diff('a', 'changed')], 'pending')).toEqual({
+      reviewed: 0,
+      total: 1,
+    })
   })
 
   it('does not start on a flaky screenshot while another needs attention', () => {

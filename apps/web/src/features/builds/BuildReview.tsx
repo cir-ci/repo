@@ -64,6 +64,7 @@ import {
   orderShots,
   reviewProgress,
   shotBadge,
+  unreadableCount,
 } from './review-model.ts'
 import { ReviewActions, useReviewControls } from './ReviewActions.tsx'
 import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
@@ -235,8 +236,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   // Only what needs saying sits under the header: nothing otherwise. The comparison itself
   // ("Compared with build #33 ...") is in the Details tab.
   const fallbackBanner = baselineBanner(data)
+  const unreadable = build.status === 'complete' ? unreadableCount(data.diffs) : 0
   const hasNotices =
-    fallbackBanner !== null || Boolean(review.error) || Boolean(build.errorMessage) || active
+    fallbackBanner !== null ||
+    Boolean(review.error) ||
+    Boolean(build.errorMessage) ||
+    active ||
+    unreadable > 0
 
   /** A screenshot row's right-click menu: its decisions (hidden when not allowed), name, and baseline. */
   const shotMenu = (d: Build.DiffItem) => {
@@ -411,6 +417,14 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           {fallbackBanner}
           {review.error ? <Banner tone="danger">{review.error.message}</Banner> : null}
           {build.errorMessage ? <Banner tone="danger">{build.errorMessage}</Banner> : null}
+          {unreadable > 0 ? (
+            <Banner tone="danger">
+              {unreadable === 1
+                ? "1 screenshot couldn't be read"
+                : `${unreadable} screenshots couldn't be read`}
+              , so this build can't pass. Upload it again with valid PNGs.
+            </Banner>
+          ) : null}
           {active ? (
             <Banner tone="info">Processing screenshots. This page updates when it's done.</Banner>
           ) : null}

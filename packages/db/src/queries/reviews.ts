@@ -108,6 +108,7 @@ export namespace listReviewRequests {
     added: number
     removed: number
     unchanged: number
+    failed: number
   }
 
   export interface ChangedScreenshot {
@@ -247,7 +248,13 @@ export async function listReviewRequests(
         diffThreshold: r.project.diffThreshold,
       },
       workspace: r.workspace,
-      changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
+      changes: changes.get(r.request.buildId) ?? {
+        changed: 0,
+        added: 0,
+        removed: 0,
+        unchanged: 0,
+        failed: 0,
+      },
       changedScreenshots: changed.get(r.request.buildId) ?? [],
       flakyChanges: flakyChanges.get(r.request.buildId) ?? 0,
     }
@@ -273,10 +280,17 @@ export async function loadChanges(db: Database, buildIds: string[]) {
     .where(inArray(screenshotDiffs.buildId, buildIds))
     .groupBy(screenshotDiffs.buildId, screenshotDiffs.status)
   for (const c of counts) {
-    const entry = changes.get(c.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 }
+    const entry = changes.get(c.buildId) ?? {
+      changed: 0,
+      added: 0,
+      removed: 0,
+      unchanged: 0,
+      failed: 0,
+    }
     if (c.status === 'changed' || c.status === 'added' || c.status === 'removed') {
       entry[c.status] += c.n
     } else if (c.status === 'unchanged') entry.unchanged += c.n
+    else if (c.status === 'failed') entry.failed += c.n
     changes.set(c.buildId, entry)
   }
 

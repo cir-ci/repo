@@ -26,6 +26,8 @@ export interface FakeCirciOptions {
   buildStatus?: string
   /** `errorMessage` in that answer. */
   errorMessage?: string | null
+  /** Screenshots the server couldn't read: counted as failed, listed in `unreadable`. */
+  unreadable?: { name: string; reason: string }[]
   /**
    * The first `times` requests whose `METHOD path` starts with `match` answer `status` (an error
    * body) before the route runs; status 0 drops the connection instead.
@@ -171,7 +173,15 @@ export class FakeCirci {
           ...this.build(),
           status: this.options.buildStatus ?? (state === 'pending' ? 'processing' : 'complete'),
         },
-        counts: { added: 1, removed: 0, changed: 2, unchanged: 3, failed: 0, total: 6 },
+        counts: {
+          added: 1,
+          removed: 0,
+          changed: 2,
+          unchanged: 3,
+          failed: this.options.unreadable?.length ?? 0,
+          total: 6,
+        },
+        unreadable: this.options.unreadable ?? [],
         outcome: { state, summary: state === 'pass' ? 'All clear' : 'Changes found' },
         gate: this.options.gate ?? 'exit-code',
         errorMessage: this.options.errorMessage ?? null,

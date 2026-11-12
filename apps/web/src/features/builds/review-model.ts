@@ -7,11 +7,13 @@ import { shotDecision, type ShotKind } from './diff-status.ts'
  * what needs no attention starts collapsed (Flaky opens when it holds the only changes).
  */
 export const GROUP_ORDER: readonly { kind: ShotKind; title: string; open: boolean }[] = [
+  // Screenshots the server couldn't read come first and stay open: nothing else about the
+  // build is trustworthy until they are uploaded again.
+  { kind: 'failed', title: "Couldn't read", open: true },
   { kind: 'changed', title: 'Changed', open: true },
   { kind: 'added', title: 'Added', open: true },
   { kind: 'removed', title: 'Removed', open: true },
   { kind: 'flaky', title: 'Flaky', open: false },
-  { kind: 'failed', title: 'Failed', open: true },
   { kind: 'unchanged', title: 'Unchanged', open: false },
 ]
 
@@ -49,10 +51,16 @@ export function groupShots(
 export const orderShots = (groups: readonly ShotGroup[]): Build.DiffItem[] =>
   groups.flatMap((g) => g.items)
 
-/** The screenshot to open when none is chosen: the first that needs attention, else the first. */
+/**
+ * The screenshot to open when none is chosen: the first that needs a decision, else one that
+ * couldn't be read, else the first.
+ */
 export function defaultShot(groups: readonly ShotGroup[]): Build.DiffItem | undefined {
-  const attention = groups.find((g) => g.kind !== 'unchanged' && g.kind !== 'flaky')
-  return attention?.items[0] ?? orderShots(groups)[0]
+  const attention = groups.find(
+    (g) => g.kind !== 'unchanged' && g.kind !== 'flaky' && g.kind !== 'failed',
+  )
+  const unreadable = groups.find((g) => g.kind === 'failed')
+  return attention?.items[0] ?? unreadable?.items[0] ?? orderShots(groups)[0]
 }
 
 /** The screenshot one step away from `current`, stopping at either end. */
@@ -105,9 +113,22 @@ export function nextToReview(
   )
 }
 
-/** A snapshot that differs from the baseline needs a decision; an unchanged one needs none. */
+/**
+ * A snapshot that differs from the baseline needs a decision; an unchanged one needs none, and
+ * one the server couldn't read has nothing to approve or reject (the server refuses it too).
+ */
 export const needsDecision = (diff: Pick<Build.DiffItem, 'status'>): boolean =>
-  diff.status !== null && diff.status !== 'unchanged'
+  diff.status !== null && diff.status !== 'unchanged' && diff.status !== 'failed'
+
+/** Why a screenshot couldn't be read: the stored message without its lead ("not a PNG"). */
+export function unreadableReason(message: string | null): string {
+  const reason = message?.replace(/^Couldn't read this image:\s*/, '').replace(/\.$/, '')
+  return reason || "the file couldn't be decoded"
+}
+
+/** How many screenshots the server couldn't read. */
+export const unreadableCount = (diffs: readonly Pick<Build.DiffItem, 'status'>[]): number =>
+  diffs.filter((d) => d.status === 'failed').length
 
 /** How many of the snapshots that need a decision have one ("2 of 5 reviewed"). */
 export function reviewProgress(

@@ -9,7 +9,7 @@ export const DIFF_LABEL: Record<ShotKind, string> = {
   changed: 'Changed',
   added: 'Added',
   removed: 'Removed',
-  failed: 'Failed',
+  failed: "Couldn't read",
   unchanged: 'Unchanged',
   flaky: 'Flaky',
 }
@@ -20,7 +20,7 @@ export const DIFF_LABEL: Record<ShotKind, string> = {
  * is reviewed (changed shows `needs-review`, added and removed their own ring-and-mark glyph),
  * then follows the decision: approved (by a person or automatically) is `approved`, rejected is
  * `rejected`. Flaky keeps its own glyph whatever the review, unchanged stays `neutral`, failed
- * stays `rejected`.
+ * stays `failed` (never decided: there is nothing to approve).
  */
 export function screenshotStatus(kind: ShotKind, review: ReviewStatus): Status {
   switch (kind) {

@@ -42,7 +42,13 @@ export namespace Inbox {
       reviewStatus: ReviewStatus
     } | null
     /** How the build's screenshots compare with the baseline; null without a build. */
-    changes: { changed: number; added: number; removed: number; unchanged: number } | null
+    changes: {
+      changed: number
+      added: number
+      removed: number
+      unchanged: number
+      failed: number
+    } | null
     /** Your open review request for the build: its target (null without one) and how far past it. */
     request: { dueAt: string | null; overdueByMs: number } | null
     project: { slug: string; name: string } | null

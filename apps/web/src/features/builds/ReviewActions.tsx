@@ -10,7 +10,7 @@ import { refreshAll, withUndo } from '#lib/undo.ts'
 
 import { shotDecision } from './diff-status.ts'
 import { RejectDialog } from './RejectDialog.tsx'
-import { isReviewable, needsDecision, undecidedNames } from './review-model.ts'
+import { isReviewable, needsDecision, undecidedNames, unreadableCount } from './review-model.ts'
 
 /** What the review screen can do about decisions, shared by the buttons and the a / ⇧A / r keys. */
 export interface ReviewControls {
@@ -137,10 +137,12 @@ export function useReviewControls(
     },
     approveAll: () => {
       if (canApproveAll && !review.isPending) {
+        // Screenshots the server couldn't read are never approved; the toast says they were skipped.
+        const skipped = unreadableCount(data.diffs)
         decide(
           undecided,
           'approved',
-          `Approved ${undecided.length} ${undecided.length === 1 ? 'screenshot' : 'screenshots'}`,
+          `Approved ${undecided.length} ${undecided.length === 1 ? 'screenshot' : 'screenshots'}${skipped > 0 ? `; ${skipped} couldn't be read` : ''}`,
         )
       }
     },

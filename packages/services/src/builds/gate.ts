@@ -1,7 +1,7 @@
 import { resolveFlakyBlocksMerge, assertFound } from '@circi/core'
 import { type Build, type Database } from '@circi/db'
 import { getWorkspaceSettings, getProjectById } from '@circi/db/queries'
-import { buildFlakyDecision } from '@circi/db/repositories'
+import { buildFlakyDecision, getBuildCounts } from '@circi/db/repositories'
 
 /**
  * What decides a build's merge gate besides the build itself: the project's blocking switch,
@@ -37,6 +37,10 @@ export async function gateInputs(
     build.conclusion === 'changes_detected' &&
     build.reviewStatus === 'pending'
   return {
+    unreadable:
+      build.status === 'complete' && build.conclusion === 'changes_detected'
+        ? (await getBuildCounts(db, build.id)).failed
+        : 0,
     blockMergeOnChanges: project.blockMergeOnChanges,
     autoApproveNoChanges: project.autoApproveNoChanges,
     flakyBlocksMerge,
@@ -51,6 +55,8 @@ async function decisionOf(db: Database, build: Parameters<typeof gateInputs>[1])
 
 export namespace gateInputs {
   export interface Result {
+    /** Screenshots the server couldn't read: the build can't pass while there are any. */
+    unreadable: number
     blockMergeOnChanges: boolean
     /** Whether a build with no changes passes on its own. */
     autoApproveNoChanges: boolean

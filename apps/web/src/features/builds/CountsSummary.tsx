@@ -20,7 +20,7 @@ export function CountsSummary({ counts, review, includeUnchanged = true }: Count
         .filter((k) => counts[k] > 0)
         .map((k) => (
           <StatusChip key={k} status={screenshotStatus(k, review)}>
-            {counts[k]} {DIFF_LABEL[k].toLowerCase()}
+            {counts[k]} {k === 'failed' ? "couldn't be read" : DIFF_LABEL[k].toLowerCase()}
           </StatusChip>
         ))}
     </Stack>

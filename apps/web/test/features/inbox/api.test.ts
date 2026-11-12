@@ -31,7 +31,7 @@ const item = (over: Partial<Inbox.Item> = {}): Inbox.Item => ({
     status: 'complete',
     reviewStatus: 'pending',
   },
-  changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
+  changes: { changed: 4, added: 1, removed: 0, unchanged: 38, failed: 0 },
   request: { dueAt: null, overdueByMs: 0 },
   project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },

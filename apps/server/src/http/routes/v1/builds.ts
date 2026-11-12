@@ -84,6 +84,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     return {
       build: describeBuild(ctx, status.build, deps.publicOrigin),
       counts: status.counts,
+      unreadable: status.unreadable,
       outcome: status.outcome,
       gate: status.gate,
       errorMessage: status.build.errorMessage,
