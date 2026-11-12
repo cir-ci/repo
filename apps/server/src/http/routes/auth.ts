@@ -30,6 +30,27 @@ function readableValidation(text: string) {
 }
 
 /**
+ * The email-code paths of better-auth's `email-otp` plugin that the dashboard uses: they exist
+ * only while email codes are offered. The plugin has more (`/forget-password/email-otp`,
+ * `/email-otp/request-password-reset`, `/email-otp/verify-email`, `/email-otp/change-email`, …):
+ * nothing in CirCI calls them, so they never exist, rather than being reachable and doing
+ * something CirCI didn't plan for.
+ */
+const EMAIL_CODE_PATHS: ReadonlySet<string> = new Set([
+  '/email-otp/send-verification-otp',
+  '/sign-in/email-otp',
+])
+
+/** Whether a path (below `/api/auth`) belongs to the `email-otp` plugin. */
+function isEmailOtpPath(path: string): boolean {
+  return (
+    path.startsWith('/email-otp/') ||
+    path === '/sign-in/email-otp' ||
+    path === '/forget-password/email-otp'
+  )
+}
+
+/**
  * Hands `/api/auth/*` (sign in, sign out, session, workspaces…) to better-auth. Fastify's
  * request becomes a Web `Request` built against the configured public origin, not the Host
  * header, so redirects and origin checks stay right behind a reverse proxy.
@@ -56,11 +77,12 @@ export const authRoutes: FastifyPluginAsync<{
     url: '/api/auth/*',
     handler: async (request, reply) => {
       const url = new URL(request.url, options.publicOrigin)
-      // With email login off its endpoints disappear, rather than existing and doing nothing.
+      // Email-code endpoints exist only for the paths the dashboard uses, and only with email
+      // login on; every other path of the plugin is not found.
+      const path = url.pathname.slice('/api/auth'.length)
       if (
-        (url.pathname.startsWith('/api/auth/email-otp/') ||
-          url.pathname === '/api/auth/sign-in/email-otp') &&
-        !(await options.methods()).email
+        isEmailOtpPath(path) &&
+        (!EMAIL_CODE_PATHS.has(path) || !(await options.methods()).email)
       ) {
         return reply.callNotFound()
       }

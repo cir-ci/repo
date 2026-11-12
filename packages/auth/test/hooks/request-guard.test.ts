@@ -97,6 +97,30 @@ describe('requestGuard: sign-in codes', () => {
   })
 })
 
+describe('requestGuard: every path that sends a code shares the per-address limit', () => {
+  const ways = [
+    [
+      '/forget-password/email-otp',
+      (email: string) => auth.api.forgetPasswordEmailOTP({ body: { email } }),
+    ],
+    [
+      '/email-otp/request-password-reset',
+      (email: string) => auth.api.requestPasswordResetEmailOTP({ body: { email } }),
+    ],
+  ] as const
+
+  it.each(ways)('%s is limited with the sign-in code requests', async (_path, request) => {
+    for (let i = 0; i < 3; i += 1) {
+      // eslint-disable-next-line no-await-in-loop -- counted in order
+      await ask('shared@guard.test')
+    }
+    await request('shared@guard.test')
+    await request('shared@guard.test')
+    await expect(request('shared@guard.test')).rejects.toMatchObject({ statusCode: 429 })
+    await expect(ask('shared@guard.test')).rejects.toMatchObject({ statusCode: 429 })
+  })
+})
+
 describe('requestGuard: workspace endpoints', () => {
   it('lets a member whose login method the workspace accepts open it', async () => {
     const { slug, headers } = await memberOfWorkspace()

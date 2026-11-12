@@ -252,6 +252,43 @@ const signInFrom = (userAgent: string) =>
 
 const newSignInMails = () => sent.filter((m) => m.subject.startsWith('New sign-in'))
 
+const post = (app: FastifyInstance, url: string, payload: object) =>
+  app.inject({ method: 'POST', url, headers: JSON_HEADERS, payload })
+
+describe('which email-code paths exist', () => {
+  const unused = [
+    ['/api/auth/forget-password/email-otp', { email: 'x@acme.test' }],
+    ['/api/auth/email-otp/request-password-reset', { email: 'x@acme.test' }],
+    ['/api/auth/email-otp/reset-password', { email: 'x@acme.test', otp: '123456', password: 'p' }],
+    ['/api/auth/email-otp/request-email-change', { newEmail: 'x@acme.test' }],
+    ['/api/auth/email-otp/change-email', { newEmail: 'x@acme.test', otp: '123456' }],
+    ['/api/auth/email-otp/verify-email', { email: 'x@acme.test', otp: '123456' }],
+    [
+      '/api/auth/email-otp/check-verification-otp',
+      { email: 'x@acme.test', type: 'sign-in', otp: '1' },
+    ],
+  ] as const
+
+  it.each(unused)('%s does not exist, with email codes on or off', async (url, payload) => {
+    sent.length = 0
+    expect((await post(on, url, payload)).statusCode).toBe(404)
+    expect((await post(off, url, payload)).statusCode).toBe(404)
+    expect(sent).toHaveLength(0)
+  })
+
+  it('keeps the two paths the sign-in page uses only while email codes are on', async () => {
+    const body = { email: 'paths@acme.test', type: 'sign-in' }
+    expect((await post(on, '/api/auth/email-otp/send-verification-otp', body)).statusCode).toBe(200)
+    expect((await post(off, '/api/auth/email-otp/send-verification-otp', body)).statusCode).toBe(
+      404,
+    )
+    expect(
+      (await post(off, '/api/auth/sign-in/email-otp', { email: 'x@acme.test', otp: '1' }))
+        .statusCode,
+    ).toBe(404)
+  })
+})
+
 describe('abuse limits and new-device mail', () => {
   it('stops one address being flooded with codes, even from different IPs', async () => {
     const email = 'flood@acme.test'

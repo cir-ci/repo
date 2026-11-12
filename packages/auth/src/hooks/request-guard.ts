@@ -20,6 +20,26 @@ async function passwordLoginOn(setting: AuthOptions['passwordLogin']): Promise<b
   return setting !== false
 }
 
+/**
+ * Every better-auth path that makes a code (and so may send mail), whichever plugin option or
+ * deprecated alias reaches it. Each is limited per address.
+ */
+const CODE_REQUEST_PATHS: ReadonlySet<string> = new Set([
+  '/email-otp/send-verification-otp',
+  '/email-otp/request-password-reset',
+  '/forget-password/email-otp',
+  '/email-otp/request-email-change',
+])
+
+/** The address a code request names: `email`, or `newEmail` for an email change. */
+function codeAddress(body: unknown): string {
+  if (typeof body !== 'object' || body === null) return ''
+  const email: unknown = Reflect.get(body, 'email')
+  const newEmail: unknown = Reflect.get(body, 'newEmail')
+  if (typeof email === 'string') return email
+  return typeof newEmail === 'string' ? newEmail : ''
+}
+
 /** The workspace a request names, by id or slug. */
 function workspaceRef(source: unknown): { id?: string; slug?: string } | undefined {
   if (typeof source !== 'object' || source === null) return undefined
@@ -66,9 +86,9 @@ export function requestGuard(
       }
       return
     }
-    if (ctx.path === '/email-otp/send-verification-otp') {
+    if (CODE_REQUEST_PATHS.has(ctx.path)) {
       // Counted for every address, so refusing never reveals which ones have accounts.
-      const email = typeof ctx.body?.email === 'string' ? ctx.body.email : ''
+      const email = codeAddress(ctx.body)
       if (email && !(await takeEmailCodeSlot(options.db, email))) {
         throw new APIError('TOO_MANY_REQUESTS', {
           message: 'Too many sign-in codes requested for this address. Try again later.',
