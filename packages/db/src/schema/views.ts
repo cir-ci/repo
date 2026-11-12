@@ -41,6 +41,8 @@ export const savedViews = pgTable(
   (t) => [
     unique('saved_views_user_workspace_name_unique').on(t.userId, t.workspaceId, t.name),
     index('saved_views_user_workspace_idx').on(t.userId, t.workspaceId, t.position),
+    index('saved_views_workspace_idx').on(t.workspaceId),
+    index('saved_views_project_idx').on(t.projectId),
     check('saved_views_name_check', sql`length(btrim(${t.name})) > 0`),
   ],
 )
@@ -58,5 +60,8 @@ export const userPinnedProjects = pgTable(
     position: integer('position').notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.projectId] })],
+  (t) => [
+    primaryKey({ columns: [t.userId, t.projectId] }),
+    index('user_pinned_projects_project_idx').on(t.projectId),
+  ],
 )

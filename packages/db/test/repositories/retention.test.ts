@@ -64,6 +64,38 @@ describe('expireBuilds', () => {
     expect(await listBuildScreenshots(t.db, old.id)).toEqual([])
   })
 
+  it('works through more builds than one batch, oldest first', async () => {
+    const project = await projectWithRetention(30)
+    const ids: string[] = []
+    for (let i = 0; i < 5; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- seeding in order
+      const b = await seedBuild(t.db, project.id, {
+        branch: 'feature',
+        status: 'complete',
+        createdAt: daysAgo(40 + i),
+      })
+      // oxlint-disable-next-line no-await-in-loop
+      await seedScreenshot(t.db, { buildId: b.id, fileSha256: fakeSha('b') })
+      ids.push(b.id)
+    }
+    const young = await seedBuild(t.db, project.id, { status: 'complete', createdAt: daysAgo(2) })
+
+    // Batches of two: 2 + 2 + 1 builds, three transactions.
+    expect(await expireBuilds(t.db, now, 2)).toBe(5)
+    const rows = await t.db
+      .select()
+      .from(schema.builds)
+      .where(eq(schema.builds.projectId, project.id))
+    const byId = new Map(rows.map((b) => [b.id, b.status]))
+    expect(ids.map((id) => byId.get(id))).toEqual(Array(5).fill('expired'))
+    expect(byId.get(young.id)).toBe('complete')
+    for (const id of ids) {
+      // oxlint-disable-next-line no-await-in-loop
+      expect(await listBuildScreenshots(t.db, id)).toEqual([])
+    }
+    expect(await expireBuilds(t.db, now, 2)).toBe(0)
+  })
+
   it('keeps the newest approved default-branch build, which later builds compare against', async () => {
     const project = await projectWithRetention(30)
     const baseline = await seedBuild(t.db, project.id, {

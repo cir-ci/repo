@@ -35,6 +35,7 @@ export const notifications = pgTable(
   (t) => [
     index('notifications_user_idx').on(t.userId, t.createdAt),
     index('notifications_build_idx').on(t.buildId, t.userId),
+    index('notifications_actor_idx').on(t.actorId),
     check('notifications_kind_check', inList('kind', NOTIFICATION_KINDS)),
   ],
 )

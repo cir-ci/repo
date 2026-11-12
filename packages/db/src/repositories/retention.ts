@@ -38,18 +38,38 @@ function column(result: unknown, name: string): string[] {
 /** A file is referenced if anything at all points at it (a workspace's picture is named by its `logo`). */
 const isReferenced = (sha: typeof files.sha256) => sql`(
   exists (select 1 from ${screenshots} where ${screenshots.fileSha256} = ${sha} or ${screenshots.thumbnailSha256} = ${sha})
+  or exists (select 1 from ${files} f2 where f2.thumbnail_sha256 = ${sha})
   or exists (select 1 from ${screenshotDiffs} where ${screenshotDiffs.diffFileSha256} = ${sha})
   or exists (select 1 from static_site_files where static_site_files.sha256 = ${sha})
   or exists (select 1 from ${uploadClaims} where ${uploadClaims.fileSha256} = ${sha})
   or exists (select 1 from ${workspace} where ${workspace.logo} = ${WORKSPACE_PICTURE_PREFIX}::text || ${sha})
 )`
 
+/** How many builds one expiry transaction handles. */
+export const EXPIRE_BATCH = 100
+
 /**
  * Expires finished builds older than their project's retention. The newest build that can serve
  * as a baseline on the default branch, per build name, is never expired: later builds compare
- * against it. Returns how many builds were expired.
+ * against it. Works through the builds oldest first in batches of `batchSize`, one transaction
+ * each, so a backlog never holds one long transaction or one huge `in (...)` list. Returns how
+ * many builds were expired.
  */
-export async function expireBuilds(db: Database, now: Date): Promise<number> {
+export async function expireBuilds(
+  db: Database,
+  now: Date,
+  batchSize: number = EXPIRE_BATCH,
+): Promise<number> {
+  let total = 0
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop -- batches run one after another
+    const n = await expireBuildBatch(db, now, batchSize)
+    total += n
+    if (n < batchSize) return total
+  }
+}
+
+async function expireBuildBatch(db: Database, now: Date, limit: number): Promise<number> {
   return db.transaction(async (tx) => {
     const expired = await tx.execute(sql`
       with keep as (
@@ -60,14 +80,20 @@ export async function expireBuilds(db: Database, now: Date): Promise<number> {
           and b.branch = p.default_branch
           and (b.review_status = 'approved' or (b.conclusion = 'no_changes' and b.review_status <> 'rejected'))
         order by b.project_id, b.name, b.created_at desc
+      ),
+      picked as (
+        select b.id
+        from ${builds} b
+        join ${projects} p on p.id = b.project_id
+        where b.status in ('complete', 'error')
+          and b.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+          and b.id not in (select id from keep)
+        order by b.created_at, b.id
+        limit ${limit}
       )
       update ${builds} b
       set status = 'expired'
-      from ${projects} p
-      where p.id = b.project_id
-        and b.status in ('complete', 'error')
-        and b.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
-        and b.id not in (select id from keep)
+      where b.id in (select id from picked)
       returning b.id
     `)
     const ids = column(expired, 'id')

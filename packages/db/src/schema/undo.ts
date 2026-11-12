@@ -42,6 +42,7 @@ export const undoActions = pgTable(
   },
   (t) => [
     index('undo_actions_user_idx').on(t.userId, t.createdAt),
+    index('undo_actions_project_idx').on(t.projectId),
     check('undo_actions_kind_check', inList('kind', UNDO_KINDS)),
   ],
 )

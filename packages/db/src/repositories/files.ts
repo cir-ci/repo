@@ -144,6 +144,32 @@ export async function setFileDimensions(
     .where(and(eq(files.sha256, sha256), isNull(files.width)))
 }
 
+/** Which of these files have no thumbnail yet (the worker makes one per file, once). */
+export async function listFilesWithoutThumbnail(db: Database, shas: string[]): Promise<string[]> {
+  const out: string[] = []
+  for (let i = 0; i < shas.length; i += 5000) {
+    // eslint-disable-next-line no-await-in-loop -- one query per 5000 hashes
+    const rows = await db
+      .select({ sha256: files.sha256 })
+      .from(files)
+      .where(and(inArray(files.sha256, shas.slice(i, i + 5000)), isNull(files.thumbnailSha256)))
+    out.push(...rows.map((r) => r.sha256))
+  }
+  return out
+}
+
+/** Records a file's thumbnail and dimensions together, once the worker has made them. */
+export async function setFileThumbnail(
+  db: Database,
+  sha256: string,
+  input: { thumbnailSha256: string; width: number; height: number },
+): Promise<void> {
+  await db
+    .update(files)
+    .set({ thumbnailSha256: input.thumbnailSha256, width: input.width, height: input.height })
+    .where(and(eq(files.sha256, sha256), isNull(files.thumbnailSha256)))
+}
+
 /**
  * Inserts a worker-made file (diff image, thumbnail) whose bytes are already stored and hashed
  * by the server itself, so it's verified from the start. Returns the storage key to use, which

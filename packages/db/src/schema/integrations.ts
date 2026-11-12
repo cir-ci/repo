@@ -1,4 +1,4 @@
-import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
 import { workspace, user } from './auth.ts'
@@ -58,5 +58,8 @@ export const integrationProjects = pgTable(
     extra: jsonb('extra').$type<Record<string, unknown>>().notNull().default({}),
     createdAt: createdAt(),
   },
-  (t) => [unique('integration_projects_key').on(t.integrationId, t.projectId)],
+  (t) => [
+    unique('integration_projects_key').on(t.integrationId, t.projectId),
+    index('integration_projects_project_idx').on(t.projectId),
+  ],
 )

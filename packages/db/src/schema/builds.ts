@@ -88,6 +88,8 @@ export const builds = pgTable(
       .where(sql`${t.parallelNonce} is not null`),
     index('builds_project_branch_idx').on(t.projectId, t.branch, t.createdAt),
     index('builds_project_name_commit_idx').on(t.projectId, t.name, t.commitSha),
+    index('builds_base_build_idx').on(t.baseBuildId),
+    index('builds_author_user_idx').on(t.authorUserId),
     check('builds_status_check', inList('status', BUILD_STATUSES)),
     check('builds_review_status_check', inList('review_status', REVIEW_STATUSES)),
     check('builds_ancestry_status_check', inList('ancestry_status', ANCESTRY_STATUSES)),

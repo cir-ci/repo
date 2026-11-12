@@ -88,6 +88,9 @@ export const screenshotDiffs = pgTable(
   (t) => [
     uniqueIndex('screenshot_diffs_build_name_key').on(t.buildId, t.name),
     index('screenshot_diffs_diff_file_idx').on(t.diffFileSha256),
+    // Deleting a screenshot (a build's expiry) looks its diffs up by either side.
+    index('screenshot_diffs_base_screenshot_idx').on(t.baseScreenshotId),
+    index('screenshot_diffs_head_screenshot_idx').on(t.headScreenshotId),
     check('screenshot_diffs_status_check', inListOrNull('status', DIFF_STATUSES)),
     check('screenshot_diffs_job_status_check', inList('job_status', DIFF_JOB_STATUSES)),
   ],

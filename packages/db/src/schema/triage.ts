@@ -78,5 +78,8 @@ export const triageRotationMembers = pgTable(
     position: integer('position').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.projectId, t.userId] })],
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.userId] }),
+    index('triage_rotation_members_user_idx').on(t.userId),
+  ],
 )

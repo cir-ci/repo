@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  type AnyPgColumn,
   bigint,
   check,
   index,
@@ -29,6 +30,10 @@ export const files = pgTable(
     size: bigint('size', { mode: 'number' }),
     width: integer('width'),
     height: integer('height'),
+    /** WebP thumbnail of an image, made once by the worker; screenshots copy it from here. */
+    thumbnailSha256: text('thumbnail_sha256').references((): AnyPgColumn => files.sha256, {
+      onDelete: 'restrict',
+    }),
     contentType: text('content_type'),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
     gcMarkedAt: timestamp('gc_marked_at', { withTimezone: true }),
@@ -42,6 +47,7 @@ export const files = pgTable(
     index('files_gc_marked_idx')
       .on(t.gcMarkedAt)
       .where(sql`${t.gcMarkedAt} is not null`),
+    index('files_thumbnail_idx').on(t.thumbnailSha256),
   ],
 )
 

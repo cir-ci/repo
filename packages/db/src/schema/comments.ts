@@ -53,6 +53,7 @@ export const comments = pgTable(
   (t) => [
     index('comments_build_idx').on(t.buildId, t.createdAt),
     index('comments_parent_idx').on(t.parentId),
+    index('comments_author_idx').on(t.authorId),
     // A region is all four numbers or none, inside the snapshot, and needs a snapshot.
     check(
       'comments_region_check',

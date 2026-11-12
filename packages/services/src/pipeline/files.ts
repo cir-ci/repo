@@ -10,21 +10,67 @@ import { contentKey, type StorageDriver } from '@circi/storage'
 
 export type Loader = (sha256: string) => Promise<Buffer>
 
-/** Loads file bytes once per build, even when several pairs share a file. */
-export function createLoader(db: Database, storage: StorageDriver): Loader {
+/** A loader that frees a file's bytes after the last pair that needs them has finished. */
+export interface RefCountedLoader {
+  (sha256: string): Promise<Buffer>
+  /** Marks one use of the file done; the bytes are dropped when no use is left. */
+  release(sha256: string): void
+  /** Files held right now. */
+  size(): number
+  /** The most files held at once. */
+  peak(): number
+}
+
+/** Reads one file's bytes from storage, without keeping them. */
+export function createFetcher(db: Database, storage: StorageDriver): Loader {
+  return async (sha256) => {
+    const file = await getFile(db, sha256)
+    if (!file) throw new Error(`file ${sha256} missing from the database`)
+    return readAll(await storage.get(file.storageKey))
+  }
+}
+
+/**
+ * Loads file bytes once while pairs share them, and frees them after their last use. `uses` says
+ * how many `release` calls each file will get (one per pair that reads it); the cache then holds
+ * only what the pairs in flight need, not the whole build. A file with no count is never freed.
+ */
+export function createLoader(
+  db: Database,
+  storage: StorageDriver,
+  uses: ReadonlyMap<string, number> = new Map(),
+): RefCountedLoader {
+  const fetch = createFetcher(db, storage)
   const cache = new Map<string, Promise<Buffer>>()
-  return (sha256) => {
+  const left = new Map(uses)
+  let peak = 0
+  const load = (sha256: string): Promise<Buffer> => {
     let p = cache.get(sha256)
     if (!p) {
-      p = (async () => {
-        const file = await getFile(db, sha256)
-        if (!file) throw new Error(`file ${sha256} missing from the database`)
-        return readAll(await storage.get(file.storageKey))
-      })()
+      p = fetch(sha256)
       cache.set(sha256, p)
+      peak = Math.max(peak, cache.size)
+      // A failed read is not kept: the next use tries again.
+      p.catch(() => {
+        if (cache.get(sha256) === p) cache.delete(sha256)
+      })
     }
     return p
   }
+  return Object.assign(load, {
+    release: (sha256: string): void => {
+      const counted = left.get(sha256)
+      if (counted === undefined) return
+      const n = counted - 1
+      if (n > 0) left.set(sha256, n)
+      else {
+        left.delete(sha256)
+        cache.delete(sha256)
+      }
+    },
+    size: (): number => cache.size,
+    peak: (): number => peak,
+  })
 }
 
 /** Stores bytes the server made itself (diffs, thumbnails), deduplicated by hash. */

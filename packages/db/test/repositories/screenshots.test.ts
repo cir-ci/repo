@@ -7,15 +7,18 @@ import {
   seedScreenshot,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   listBuildDiffs,
+  copyFileThumbnailsToScreenshots,
   listBuildScreenshots,
   replaceBuildDiffs,
   setScreenshotThumbnail,
-  updateDiff,
+  updateDiffs,
 } from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -44,7 +47,78 @@ describe('screenshots', () => {
   })
 })
 
+describe('file thumbnails', () => {
+  it('copies a file thumbnail to the screenshots that use the file, in one statement', async () => {
+    const build = await newBuild()
+    const withThumb = await seedScreenshot(t.db, {
+      buildId: build.id,
+      name: 'one',
+      fileSha256: fakeSha('5'),
+    })
+    const twin = await seedScreenshot(t.db, {
+      buildId: build.id,
+      name: 'two',
+      fileSha256: fakeSha('5'),
+    })
+    const without = await seedScreenshot(t.db, {
+      buildId: build.id,
+      name: 'three',
+      fileSha256: fakeSha('6'),
+    })
+    await seedFile(t.db, { sha256: fakeSha('7'), kind: 'thumbnail' })
+    await t.db
+      .update(schema.files)
+      .set({ thumbnailSha256: fakeSha('7') })
+      .where(eq(schema.files.sha256, fakeSha('5')))
+
+    await copyFileThumbnailsToScreenshots(t.db, build.id)
+    const byId = new Map((await listBuildScreenshots(t.db, build.id)).map((s) => [s.id, s]))
+    expect(byId.get(withThumb.id)?.thumbnailSha256).toBe(fakeSha('7'))
+    expect(byId.get(twin.id)?.thumbnailSha256).toBe(fakeSha('7'))
+    expect(byId.get(without.id)?.thumbnailSha256).toBeNull()
+  })
+})
+
 describe('diffs', () => {
+  it('inserts and updates more than 10,000 diffs, past the parameter limit of one statement', async () => {
+    const build = await newBuild()
+    const count = 12_000
+    const rows = Array.from({ length: count }, (_, i) => ({
+      buildId: build.id,
+      name: `shot-${i}`,
+      status: null,
+      jobStatus: 'pending' as const,
+    }))
+    await replaceBuildDiffs(t.db, build.id, rows)
+    const listed = await listBuildDiffs(t.db, build.id)
+    expect(listed).toHaveLength(count)
+
+    await updateDiffs(
+      t.db,
+      listed.map((d, i) => ({
+        id: d.id,
+        status: i % 2 === 0 ? ('changed' as const) : ('unchanged' as const),
+        score: i % 2 === 0 ? 0.5 : 0,
+        changedPixels: i % 2 === 0 ? 7 : null,
+        ignoredChangedPixels: 0,
+        ignoredRegions: i % 3 === 0 ? [`${d.name} #1`, `${d.name} #2`] : [],
+        sizeChanged: false,
+        diffFileSha256: null,
+        jobStatus: 'done' as const,
+        errorMessage: null,
+      })),
+    )
+    const after = await listBuildDiffs(t.db, build.id)
+    expect(after.every((d) => d.jobStatus === 'done')).toBe(true)
+    expect(after.filter((d) => d.status === 'changed')).toHaveLength(count / 2)
+    const sample = after.find((d) => d.name === 'shot-3')
+    expect(sample).toMatchObject({
+      status: 'unchanged',
+      ignoredRegions: ['shot-3 #1', 'shot-3 #2'],
+      changedPixels: null,
+    })
+  })
+
   it("replaces a build's diffs without touching other builds", async () => {
     const build = await newBuild()
     const other = await newBuild()
@@ -62,22 +136,30 @@ describe('diffs', () => {
     expect(await listBuildDiffs(t.db, build.id)).toEqual([])
   })
 
-  it('updates the result fields of one diff', async () => {
+  it('updates the result fields of a diff', async () => {
     const build = await newBuild()
     const diff = await seedDiff(t.db, { buildId: build.id, status: 'unchanged' })
     await seedFile(t.db, { sha256: fakeSha('4'), kind: 'diff' })
-    await updateDiff(t.db, diff.id, {
-      status: 'changed',
-      score: 0.25,
-      changedPixels: 12,
-      sizeChanged: true,
-      diffFileSha256: fakeSha('4'),
-    })
+    await updateDiffs(t.db, [
+      {
+        id: diff.id,
+        status: 'changed',
+        score: 0.25,
+        changedPixels: 12,
+        ignoredChangedPixels: 3,
+        ignoredRegions: [],
+        sizeChanged: true,
+        diffFileSha256: fakeSha('4'),
+        jobStatus: 'done',
+        errorMessage: null,
+      },
+    ])
     const [row] = await listBuildDiffs(t.db, build.id)
     expect(row).toMatchObject({
       status: 'changed',
       score: 0.25,
       changedPixels: 12,
+      ignoredChangedPixels: 3,
       sizeChanged: true,
       diffFileSha256: fakeSha('4'),
     })

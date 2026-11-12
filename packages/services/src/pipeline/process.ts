@@ -1,19 +1,26 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
-import { type Database, type NewScreenshotDiff, type Screenshot } from '@circi/db'
+import {
+  type Database,
+  type NewScreenshotDiff,
+  type Screenshot,
+  type ScreenshotDiff,
+} from '@circi/db'
 import { getBuild, getProjectById } from '@circi/db/queries'
 import {
   buildFlakyDecision,
+  copyFileThumbnailsToScreenshots,
   findDecidedRerunOf,
   ignoreRegionsByName,
   listBaselineCandidates,
   listBuildDiffs,
   listBuildScreenshots,
+  listFilesWithoutThumbnail,
   replaceBuildDiffs,
   setBuildBaseline,
   type setBuildResult,
-  setFileDimensions,
-  setScreenshotThumbnail,
-  updateDiff,
+  setFileThumbnail,
+  updateDiffs,
+  type DiffResult,
 } from '@circi/db/repositories'
 import {
   InvalidImageError,
@@ -27,7 +34,7 @@ import type { StorageDriver } from '@circi/storage'
 import { completeBuild } from '#src/builds/lifecycle.ts'
 
 import { mapLimit } from './concurrency.ts'
-import { createLoader, type Loader, storeServerFile } from './files.ts'
+import { createFetcher, createLoader, type Loader, storeServerFile } from './files.ts'
 
 /** The build pipeline (PLAN §7.2–7.3), run by the worker's `process-build` job. */
 
@@ -130,42 +137,54 @@ export async function processBuild(
   }))
   await replaceBuildDiffs(db, build.id, rows)
 
-  // 3. Thumbnails (and validation) for every head screenshot.
-  const loader = createLoader(db, storage)
-  const invalid = new Map<string, string>()
-  await mapLimit(head, concurrency, async (shot) => {
+  // 3. Thumbnails (and validation), once per distinct file that has none yet. A thumbnail and
+  // the dimensions belong to the content-addressed file, so a screenshot whose bytes were seen in
+  // any earlier build costs no download and no encode; the screenshots then copy them in SQL.
+  const fetchFile = createFetcher(db, storage)
+  const invalid = new Map<string, string>() // by file hash
+  const needThumbnail = await listFilesWithoutThumbnail(db, [
+    ...new Set(head.map((s) => s.fileSha256)),
+  ])
+  await mapLimit(needThumbnail, concurrency, async (sha) => {
     try {
-      await thumbnailFor(db, storage, diff, loader, shot)
+      await thumbnailFor(db, storage, diff, fetchFile, sha)
     } catch (err) {
       if (!(err instanceof InvalidImageError)) throw err
-      invalid.set(shot.id, err.message)
+      invalid.set(sha, err.message)
     }
   })
+  await copyFileThumbnailsToScreenshots(db, build.id)
 
-  // 4. Pixel diffs for same-name pairs with different bytes.
+  // 4. Pixel diffs for same-name pairs with different bytes. Outcomes are collected and written
+  // in set-based batches; the bytes of a file are dropped after the last pair that reads it.
   const diffRows = await listBuildDiffs(db, build.id)
   const ignored = await ignoreRegionsByName(db, build.projectId)
   const byName = new Map(diffRows.map((r) => [r.name, r]))
+  const uses = new Map<string, number>()
+  for (const pair of pairs) {
+    if (pair.status !== 'compare') continue
+    for (const sha of [pair.base.fileSha256, pair.head.fileSha256])
+      uses.set(sha, (uses.get(sha) ?? 0) + 1)
+  }
+  const loader = createLoader(db, storage, uses)
   const statuses: string[] = []
+  const results: DiffResult[] = []
   await mapLimit(pairs, concurrency, async (pair) => {
     const row = byName.get(pair.name)
     if (!row) throw new Error(`diff row for ${pair.name} missing`)
+    const fail = (message: string, jobStatus: DiffResult['jobStatus']) => {
+      results.push({ ...resultOf(row), status: 'failed', errorMessage: message, jobStatus })
+      statuses.push('failed')
+    }
     if (pair.status !== 'compare') {
-      const headInvalid = 'head' in pair ? invalid.get(pair.head.id) : undefined
-      if (headInvalid) {
-        await updateDiff(db, row.id, { status: 'failed', errorMessage: headInvalid })
-        statuses.push('failed')
-      } else statuses.push(pair.status)
+      const headInvalid = 'head' in pair ? invalid.get(pair.head.fileSha256) : undefined
+      if (headInvalid) fail(headInvalid, row.jobStatus)
+      else statuses.push(pair.status)
       return
     }
-    const headInvalid = invalid.get(pair.head.id)
+    const headInvalid = invalid.get(pair.head.fileSha256)
     if (headInvalid) {
-      await updateDiff(db, row.id, {
-        status: 'failed',
-        jobStatus: 'failed',
-        errorMessage: headInvalid,
-      })
-      statuses.push('failed')
+      fail(headInvalid, 'failed')
       return
     }
     try {
@@ -189,7 +208,8 @@ export async function processBuild(
       }
       const status = res.changed ? 'changed' : 'unchanged'
       const regions = ignored.get(pair.name) ?? []
-      await updateDiff(db, row.id, {
+      results.push({
+        ...resultOf(row),
         status,
         score: res.score,
         changedPixels: res.changedPixels,
@@ -206,14 +226,13 @@ export async function processBuild(
       statuses.push(status)
     } catch (err) {
       if (!(err instanceof InvalidImageError)) throw err
-      await updateDiff(db, row.id, {
-        status: 'failed',
-        jobStatus: 'failed',
-        errorMessage: err.message,
-      })
-      statuses.push('failed')
+      fail(err.message, 'failed')
+    } finally {
+      loader.release(pair.base.fileSha256)
+      loader.release(pair.head.fileSha256)
     }
   })
+  await updateDiffs(db, results)
 
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
   // no baseline (a project's first) is never auto-approved: someone reviews every screenshot once.
@@ -250,23 +269,37 @@ export async function processBuild(
   }
 }
 
+/** The row's own columns as a result, so a batch update leaves what it doesn't change alone. */
+function resultOf(row: ScreenshotDiff): DiffResult {
+  return {
+    id: row.id,
+    status: row.status,
+    score: row.score,
+    changedPixels: row.changedPixels,
+    ignoredChangedPixels: row.ignoredChangedPixels,
+    ignoredRegions: row.ignoredRegions,
+    sizeChanged: row.sizeChanged,
+    diffFileSha256: row.diffFileSha256,
+    jobStatus: row.jobStatus,
+    errorMessage: row.errorMessage,
+  }
+}
+
 async function thumbnailFor(
   db: Database,
   storage: StorageDriver,
   diff: processBuild.Deps['diff'],
-  load: Loader,
-  shot: Screenshot,
+  fetchFile: Loader,
+  sha256: string,
 ): Promise<void> {
-  const png = await load(shot.fileSha256)
+  const png = await fetchFile(sha256)
   const info = await diff.readPngInfo(png)
-  await setFileDimensions(db, shot.fileSha256, info)
-  if (shot.thumbnailSha256) return
   const thumb = await diff.makeThumbnail(png)
-  const sha = await storeServerFile(db, storage, thumb.webp, {
+  const thumbnailSha256 = await storeServerFile(db, storage, thumb.webp, {
     kind: 'thumbnail',
     contentType: 'image/webp',
     width: thumb.width,
     height: thumb.height,
   })
-  await setScreenshotThumbnail(db, shot.id, sha)
+  await setFileThumbnail(db, sha256, { thumbnailSha256, width: info.width, height: info.height })
 }

@@ -25,6 +25,7 @@ export const reviews = pgTable(
   },
   (t) => [
     index('reviews_build_idx').on(t.buildId, t.createdAt),
+    index('reviews_user_idx').on(t.userId),
     check('reviews_state_check', inList('state', REVIEW_STATES)),
     check('reviews_source_check', inList('source', REVIEW_SOURCES)),
   ],
@@ -59,6 +60,7 @@ export const snapshotReviews = pgTable(
       .on(t.buildId, t.snapshotName)
       .where(sql`${t.supersededAt} is null`),
     index('snapshot_reviews_build_idx').on(t.buildId, t.createdAt),
+    index('snapshot_reviews_user_idx').on(t.userId),
     check('snapshot_reviews_decision_check', inList('decision', REVIEW_STATES)),
     check('snapshot_reviews_source_check', inList('source', REVIEW_SOURCES)),
   ],

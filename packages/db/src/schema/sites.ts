@@ -117,22 +117,30 @@ export const siteHostnames = pgTable(
   },
   (t) => [
     index('site_hostnames_site_idx').on(t.projectSiteId),
+    index('site_hostnames_static_site_idx').on(t.staticSiteId),
     check('site_hostnames_kind_check', inList(t.linkKind.name, ['commit', 'branch'])),
   ],
 )
 
 /** One-time tokens the dashboard hands to a site address, bound to that address, valid 60 seconds. */
-export const siteTokens = pgTable('site_tokens', {
-  tokenHash: text('token_hash').primaryKey(),
-  label: text('label').notNull(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  authSessionId: text('auth_session_id')
-    .notNull()
-    .references(() => session.id, { onDelete: 'cascade' }),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-})
+export const siteTokens = pgTable(
+  'site_tokens',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    label: text('label').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    authSessionId: text('auth_session_id')
+      .notNull()
+      .references(() => session.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('site_tokens_user_idx').on(t.userId),
+    index('site_tokens_auth_session_idx').on(t.authSessionId),
+  ],
+)
 
 /**
  * What a site's own cookie stands for: a short-lived reference to a dashboard session, for one
@@ -152,5 +160,9 @@ export const siteSessions = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index('site_sessions_expires_idx').on(t.expiresAt)],
+  (t) => [
+    index('site_sessions_expires_idx').on(t.expiresAt),
+    index('site_sessions_user_idx').on(t.userId),
+    index('site_sessions_auth_session_idx').on(t.authSessionId),
+  ],
 )
