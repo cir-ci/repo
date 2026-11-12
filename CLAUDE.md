@@ -135,7 +135,8 @@ A namespace must contain only types. Never put a value in one.
   dialog and in each pane; the other actions are secondary, danger or ghost. A page test of a main
   page calls `expectOnePrimaryPerArea()` (`apps/web/test/support/primary-buttons.ts`).
 - **Copy:** contractions ("Couldn't", "can't") with the straight apostrophe everywhere (dashboard, server,
-  emails), never the curly one; "ID", not "id"; "Delete" for something gone for good
+  emails), never the curly one; US spelling ("color", "behavior", "organization", "canceled"); "project" and
+  "workspace" lowercase in running text (capital only at a sentence's start or in a UI label); "ID", not "id"; "Delete" for something gone for good
   (comments, rules, projects, workspaces), "Remove" for taking it out of a list (members, webhooks,
   ignore regions, links: no "Unlink"; "Revoke" only for invitations); "screenshot", never "snapshot", in UI text. No text that states the
   obvious ("saved with Save changes", "Only owners can do this" beside a hidden control), no
