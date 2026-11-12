@@ -228,9 +228,12 @@ export function TriagePage() {
           ) : null
         }
         find={
-          data && total.length > 0 ? (
-            <FindField noun="triage items" value={find} onChange={setFind} />
-          ) : null
+          <FindField
+            noun="triage items"
+            value={find}
+            onChange={setFind}
+            disabled={!data || total.length === 0}
+          />
         }
         actions={
           data && chip && data.rotation.onTriage ? (

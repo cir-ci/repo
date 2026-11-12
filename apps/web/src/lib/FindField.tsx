@@ -10,9 +10,10 @@ import styles from './FindField.module.css'
  * The find field of a list page: one look everywhere (a search glyph, "Find …" as the
  * placeholder). `/` focuses it from anywhere on the page that is not typing or in a dialog, and
  * Esc empties it (and, when it is already empty, leaves it). The page keeps the text (see
- * `useFindParam`) and does the filtering.
+ * `useFindParam`) and does the filtering. A page always shows its field, so nothing moves when
+ * it fills or empties: with nothing to find it is `disabled`.
  */
-export function FindField({ noun, value, onChange, className }: FindField.Props) {
+export function FindField({ noun, value, onChange, className, disabled = false }: FindField.Props) {
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -20,6 +21,7 @@ export function FindField({ noun, value, onChange, className }: FindField.Props)
       if (event.key !== '/' || event.defaultPrevented || event.isComposing) return
       if (isHandledElsewhere(event.target, event)) return
       if (useShortcutStore.getState().drafting.size > 0) return
+      if (input.current?.disabled) return
       event.preventDefault()
       input.current?.focus()
     }
@@ -51,6 +53,7 @@ export function FindField({ noun, value, onChange, className }: FindField.Props)
         spellCheck={false}
         aria-keyshortcuts="/"
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
       />
@@ -65,5 +68,7 @@ export namespace FindField {
     value: string
     onChange: (next: string) => void
     className?: string
+    /** Nothing to find (an empty page, or still loading): the field stays in place, greyed out. */
+    disabled?: boolean
   }
 }

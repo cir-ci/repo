@@ -252,7 +252,8 @@ describe('TriagePage', () => {
       title.element().closest('main')?.getBoundingClientRect() ?? new DOMRect(0, 0, 1200, 800)
     expect(Math.abs(box.left + box.width / 2 - (main.left + main.width / 2))).toBeLessThan(24)
     expect(box.top).toBeGreaterThan(main.top + 80)
-    expect(page.getByRole('textbox', { name: 'Find triage items' }).elements()).toHaveLength(0)
+    // The find field stays where it is, so nothing moves when items arrive; with none, it is off.
+    await expect.element(page.getByRole('textbox', { name: 'Find triage items' })).toBeDisabled()
   })
 
   it('finds items by screenshot, build or kind, keeps the text in the address and says when nothing matches', async () => {

@@ -40,25 +40,30 @@ export function PanelHeader(props: PanelHeader.Props) {
     const header = slot === null ? null : ref.current
     const panel = header?.closest<HTMLElement>('[data-panel]')
     if (!header || !panel) return undefined
+    // The whole fixed head: the header and what sits `below` it.
+    const head = slot ?? header
     const measure = () =>
       panel.style.setProperty(
         '--circi-panel-top',
-        `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,
+        `calc(var(--circi-window-top, 0px) + ${head.getBoundingClientRect().height}px)`,
       )
     measure()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
-    observer?.observe(header)
+    observer?.observe(head)
     return () => {
       observer?.disconnect()
       panel.style.removeProperty('--circi-panel-top')
     }
   }, [slot])
   const header = (
-    <header ref={ref} className={styles.root} data-panel-header="">
-      {props.children}
-      <div className={styles.spacer} />
-      {props.actions ? <div className={styles.actions}>{props.actions}</div> : null}
-    </header>
+    <>
+      <header ref={ref} className={styles.root} data-panel-header="">
+        {props.children}
+        <div className={styles.spacer} />
+        {props.actions ? <div className={styles.actions}>{props.actions}</div> : null}
+      </header>
+      {props.below}
+    </>
   )
   return (
     <>
@@ -74,5 +79,10 @@ export namespace PanelHeader {
     children: ReactNode
     /** Buttons for this page's main actions. */
     actions?: ReactNode
+    /**
+     * A row that stays with the header, above the scrolling content (a phone's find field and a
+     * project's page tabs): in an `AppFrame` it is drawn into the fixed head too.
+     */
+    below?: ReactNode
   }
 }

@@ -1,5 +1,5 @@
-/* A phone: a row under the page header, not part of the sticky bar: the find field takes the row,
-   and on a project's pages the icons of its pages sit on its right. */
+/* A phone: a row under the page header, fixed with it above the scrolling content: the find
+   field takes the row, and on a project's pages the icons of its pages sit on its right. */
 .find {
   display: flex;
   align-items: center;

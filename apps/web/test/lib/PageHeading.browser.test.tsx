@@ -1,3 +1,4 @@
+import { AppFrame } from '@circi/ui'
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
@@ -125,6 +126,33 @@ describe('PageHeading on a phone, on a project page', () => {
     expect(pages.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(
       find.getBoundingClientRect().right,
     )
+  })
+})
+
+describe('PageHeading on a phone, in the app frame', () => {
+  it('keeps the find field and the page icons fixed with the header; only the content scrolls', async () => {
+    fakeApi({ 'GET /api/workspaces/acme/sidebar': { body: sidebarModel({ projects: [] }) } })
+    await renderPage(
+      <AppFrame sidebar={<span>Side</span>} compactBar={<span>Bar</span>}>
+        <PageHeading title="Builds" find={<input aria-label="Find builds" />} />
+        <div style={{ height: 3000, flexShrink: 0 }}>Long list</div>
+      </AppFrame>,
+      { route: '/$workspace/$project', url: '/acme/web-app', viewport: [390, 844] },
+    )
+    const pages = page.getByRole('tablist', { name: 'Project pages' })
+    await expect.element(pages).toBeVisible()
+    const find = page.getByRole('textbox', { name: 'Find builds' }).element()
+    const main = page.getByRole('main').element()
+    expect(main.contains(find)).toBe(false)
+    expect(main.contains(pages.element())).toBe(false)
+    // The scroller starts under the row.
+    expect(main.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      pages.element().getBoundingClientRect().bottom - 1,
+    )
+    const before = find.getBoundingClientRect().top
+    main.scrollTop = 400
+    await expect.poll(() => main.scrollTop).toBeGreaterThan(0)
+    expect(find.getBoundingClientRect().top).toBe(before)
   })
 })
 

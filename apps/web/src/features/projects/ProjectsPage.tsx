@@ -63,9 +63,12 @@ export function ProjectsPage() {
           ) : null
         }
         find={
-          projects && projects.length > 0 ? (
-            <FindField noun="projects" value={find} onChange={setFind} />
-          ) : null
+          <FindField
+            noun="projects"
+            value={find}
+            onChange={setFind}
+            disabled={!projects || projects.length === 0}
+          />
         }
         actions={
           canCreateProject ? (

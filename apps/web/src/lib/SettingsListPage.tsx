@@ -25,7 +25,17 @@ export function SettingsListPage({
   ...frame
 }: SettingsListPage.Props) {
   return (
-    <PageFrame {...frame} find={<FindField noun={noun} value={search} onChange={onSearch} />}>
+    <PageFrame
+      {...frame}
+      find={
+        <FindField
+          noun={noun}
+          value={search}
+          onChange={onSearch}
+          disabled={count === 0 && search.trim() === ''}
+        />
+      }
+    >
       {back}
       {count === 0 && search.trim() ? (
         <NoResults noun={singular} query={search} onClear={() => onSearch('')} size="section" />

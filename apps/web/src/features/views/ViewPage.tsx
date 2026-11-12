@@ -101,9 +101,11 @@ function ViewBuilds({
         crumbs={crumbs}
         title={title}
         find={
-          builds.length > 0 || hasFilters(filters) ? (
-            <BuildsFind filters={filters} onFiltersChange={change} />
-          ) : null
+          <BuildsFind
+            filters={filters}
+            onFiltersChange={change}
+            disabled={builds.length === 0 && !hasFilters(filters)}
+          />
         }
       />
       <div className={styles.content}>

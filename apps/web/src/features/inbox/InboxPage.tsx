@@ -216,7 +216,14 @@ export function InboxPage() {
     <>
       <PageHeading
         title="Inbox"
-        find={<FindField noun="notifications" value={find} onChange={setFind} />}
+        find={
+          <FindField
+            noun="notifications"
+            value={find}
+            onChange={setFind}
+            disabled={find === '' && (data?.items.length ?? 0) === 0}
+          />
+        }
         actions={
           <>
             <Button

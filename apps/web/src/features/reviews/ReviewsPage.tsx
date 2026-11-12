@@ -250,7 +250,14 @@ export function ReviewsPage() {
       <PageHeading
         crumbs={crumbsFor(names)}
         title="Reviews"
-        find={<FindField noun="reviews" value={find} onChange={setFind} />}
+        find={
+          <FindField
+            noun="reviews"
+            value={find}
+            onChange={setFind}
+            disabled={find === '' && inThisWorkspace.length === 0}
+          />
+        }
         actions={
           selected ? (
             <>

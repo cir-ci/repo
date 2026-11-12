@@ -63,9 +63,11 @@ export function ProjectPage() {
         })}
         title={data?.project.name ?? project}
         find={
-          data && (data.builds.length > 0 || hasFilters(filters)) ? (
-            <BuildsFind filters={filters} onFiltersChange={setFilters} />
-          ) : null
+          <BuildsFind
+            filters={filters}
+            onFiltersChange={setFilters}
+            disabled={!data || (data.builds.length === 0 && !hasFilters(filters))}
+          />
         }
         actions={
           <>

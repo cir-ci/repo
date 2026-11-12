@@ -98,9 +98,12 @@ export function BaselinesPage() {
           ) : null
         }
         find={
-          data && all.length > 0 ? (
-            <FindField noun="baselines" value={filter} onChange={setFilter} />
-          ) : null
+          <FindField
+            noun="baselines"
+            value={filter}
+            onChange={setFilter}
+            disabled={!data || all.length === 0}
+          />
         }
       />
       <div className={styles.page}>

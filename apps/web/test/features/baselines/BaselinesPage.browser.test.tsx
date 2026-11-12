@@ -160,7 +160,8 @@ describe('BaselinesPage', () => {
     const box = title.element().getBoundingClientRect()
     expect(Math.abs(box.left + box.width / 2 - 1200 / 2)).toBeLessThan(150)
     expect(box.top).toBeGreaterThan(150)
-    expect(page.getByRole('textbox', { name: 'Find baselines' }).elements()).toHaveLength(0)
+    // The find field stays where it is, so nothing moves when items arrive; with none, it is off.
+    await expect.element(page.getByRole('textbox', { name: 'Find baselines' })).toBeDisabled()
   })
 
   it('shows an error with a retry', async () => {
