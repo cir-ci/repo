@@ -158,29 +158,36 @@ describe('ProjectPage', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/8')
   })
 
-  it('leaves Settings out of the header for members', async () => {
-    api([build(8)])
-    await show()
-    await expect.element(page.getByRole('link', { name: 'Sites' })).toBeVisible()
-    expect(page.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
-  })
+  // Pinning and the project's settings live in its right-click menu (and the sidebar's), not in
+  // the header, whoever is looking.
+  for (const [who, canManage] of [
+    ['an owner or admin', true],
+    ['a member', false],
+  ] as const) {
+    it(`has no Pin or Settings in the header for ${who}`, async () => {
+      api([build(8)], undefined, undefined, canManage)
+      await show()
+      await expect.element(page.getByRole('link', { name: 'Sites' })).toBeVisible()
+      expect(page.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
+      expect(page.getByRole('button', { name: /^(Un)?pin project$/i }).elements()).toHaveLength(0)
+    })
+  }
 
   it('leaves Sites out of the header when the project has no sites', async () => {
     api([build(8)], undefined, undefined, true, 0)
     await show()
-    await expect.element(page.getByRole('link', { name: 'Settings' })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
     expect(page.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
   })
 
-  it('opens Sites and Settings from the header', async () => {
+  it('opens Sites from the header', async () => {
     api([build(8)], undefined, undefined, true)
     const { router } = await show()
-    // They go somewhere, so they are links (with real addresses), not buttons.
-    await expect
-      .element(page.getByRole('link', { name: 'Sites' }))
-      .toHaveAttribute('href', '/acme/web/sites')
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
+    // It goes somewhere, so it is a link (with a real address), not a button.
+    const sites = page.getByRole('link', { name: 'Sites' })
+    await expect.element(sites).toHaveAttribute('href', '/acme/web/sites')
+    await sites.click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/sites')
   })
 
   it('guides the first upload when there are no builds', async () => {

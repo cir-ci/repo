@@ -16,11 +16,9 @@ import { BuildsFind } from '#features/builds/list/BuildsFind.tsx'
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { flakyQuery, settingsQuery, projectQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { usePinProject } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
-import { toast } from '#lib/toast.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import styles from './ProjectPage.module.css'
@@ -44,9 +42,8 @@ export function ProjectPage() {
   const { data: settings } = useQuery(settingsQuery(workspace, project))
   const canManage = settings?.canManage === true
   const { data: sidebar } = useSidebarModel(workspace)
-  const pin = usePinProject(workspace, project)
+  // Pinning and the project's settings are in its right-click menu (and the sidebar's), not here.
   const sidebarProject = sidebar?.projects.find((p) => p.slug === project)
-  const pinned = sidebarProject?.pinned
   const siteCount = sidebarProject?.siteCount ?? 0
   useDocumentTitle(before ? 'Older builds' : 'Builds', data?.project.name ?? project)
 
@@ -72,23 +69,6 @@ export function ProjectPage() {
         }
         actions={
           <>
-            {pinned === undefined ? null : (
-              <Button
-                size="sm"
-                loading={pin.isPending}
-                onClick={() =>
-                  pin.mutate(!pinned, {
-                    // Undo is the exact inverse: pin it the way it was.
-                    onSuccess: () =>
-                      toast.undoable(pinned ? 'Unpinned project' : 'Pinned project', () =>
-                        pin.mutateAsync(pinned),
-                      ),
-                  })
-                }
-              >
-                {pinned ? 'Unpin project' : 'Pin project'}
-              </Button>
-            )}
             {siteCount ? (
               <Button
                 size="sm"
@@ -98,17 +78,6 @@ export function ProjectPage() {
                 })}
               >
                 Sites
-              </Button>
-            ) : null}
-            {canManage ? (
-              <Button
-                size="sm"
-                {...clientLink({
-                  to: '/$workspace/$project/settings',
-                  params: { workspace, project },
-                })}
-              >
-                Settings
               </Button>
             ) : null}
           </>
