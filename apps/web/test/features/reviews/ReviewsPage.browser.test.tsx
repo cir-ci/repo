@@ -48,7 +48,7 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
     conclusion: 'changes_detected',
     reviewStatus: 'pending',
   },
-  project: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web', diffThreshold: 0.01 },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
   changedScreenshots: [
@@ -242,12 +242,13 @@ describe('ReviewsPage', () => {
     await expect.element(panel.getByText('Screenshots')).toBeVisible()
     await expect.element(panel.getByText('4 changed')).toBeVisible()
     await expect.element(panel.getByRole('heading', { name: 'Changes', exact: true })).toBeVisible()
-    // Grouped by how much changed: 31% is Large, 2.4% and 1.1% Medium.
+    // Grouped by how far above the project's 1% threshold: 31% is Large (31 or more), 2.4% and
+    // 1.1% Small (under 16).
     const groups = panel
       .getByRole('heading', { level: 3 })
       .elements()
       .map((h) => h.textContent)
-    expect(groups).toEqual(['Large1', 'Medium2'])
+    expect(groups).toEqual(['Large1', 'Small2'])
     await expect
       .element(page.getByRole('region', { name: 'Large changes' }).getByRole('link'))
       .toHaveAccessibleName(/dashboard \/ overview/)

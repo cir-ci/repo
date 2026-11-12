@@ -165,7 +165,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
           <div className={styles.changes}>
             {r.changedScreenshots.length > 0 ? (
               <SettingsSection title="Changes" bare>
-                {changeSizeGroups(r.changedScreenshots).map((g) => (
+                {changeSizeGroups(r.changedScreenshots, r.project.diffThreshold).map((g) => (
                   <section
                     key={g.size}
                     className={styles.sizeGroup}

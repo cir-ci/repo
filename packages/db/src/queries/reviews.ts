@@ -86,7 +86,8 @@ export namespace listReviewRequests {
       conclusion: Build['conclusion']
       reviewStatus: Build['reviewStatus']
     }
-    project: { slug: string; name: string }
+    /** `diffThreshold`: the project's minimum change (0 to 1), where its size groups start. */
+    project: { slug: string; name: string; diffThreshold: number }
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: Changes
@@ -163,6 +164,7 @@ export async function listReviewRequests(
         id: projects.id,
         slug: projects.slug,
         name: projects.name,
+        diffThreshold: projects.diffThreshold,
         defaultBranch: projects.defaultBranch,
         flakyAfterChanges: projects.flakyAfterChanges,
       },
@@ -239,7 +241,11 @@ export async function listReviewRequests(
       requestedBy: askerOf(r.request.requestedById, askers),
       requestedByName: r.request.requestedByName,
       build: r.build,
-      project: { slug: r.project.slug, name: r.project.name },
+      project: {
+        slug: r.project.slug,
+        name: r.project.name,
+        diffThreshold: r.project.diffThreshold,
+      },
       workspace: r.workspace,
       changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
       changedScreenshots: changed.get(r.request.buildId) ?? [],

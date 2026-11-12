@@ -178,32 +178,34 @@ export function changeSummary(changes: Review.Request['changes']): string[] {
 }
 
 /** A diff score as a percentage of the screenshot: "2.4%", "<0.1%"; empty when not measured. */
-/** The size groups of a review's changes, largest first; the score (0 to 1) a group starts at. */
+/** The size groups of a review's changes, largest first: how far above the project's threshold. */
 const SIZE_GROUPS = [
-  { size: 'large', label: 'Large', min: 0.1 },
-  { size: 'medium', label: 'Medium', min: 0.01 },
-  { size: 'small', label: 'Small', min: 0 },
-  { size: 'unmeasured', label: 'Not measured', min: null },
+  { size: 'large', label: 'Large', above: 0.3 },
+  { size: 'medium', label: 'Medium', above: 0.15 },
+  { size: 'small', label: 'Small', above: 0 },
 ] as const
 
-const sizeOf = (score: number | null) =>
+const sizeOf = (score: number | null, threshold: number) =>
   score === null
     ? 'unmeasured'
-    : (SIZE_GROUPS.find((g) => g.min !== null && score >= g.min)?.size ?? 'small')
+    : (SIZE_GROUPS.find((g) => score >= threshold + g.above)?.size ?? 'small')
 
 /**
- * A review's changed screenshots grouped by how much of each changed: Large (10% of the pixels
- * or more), Medium (1% or more), Small, then Not measured; empty groups are left out, and each
+ * A review's changed screenshots grouped by how much of each changed, measured from the
+ * project's diff threshold (its minimum change, 0 to 1): Large at the threshold + 30 points or
+ * more, Medium at + 15, Small below that, then Not measured. Empty groups are left out, and each
  * keeps the order it was given (biggest first).
  */
 export function changeSizeGroups<T extends { score: number | null }>(
   changes: readonly T[],
+  threshold: number,
 ): changeSizeGroups.Group<T>[] {
-  return SIZE_GROUPS.map((g) => ({
-    size: g.size,
-    label: g.label,
-    items: changes.filter((c) => sizeOf(c.score) === g.size),
-  })).filter((g) => g.items.length > 0)
+  const groups: changeSizeGroups.Group<T>[] = [
+    ...SIZE_GROUPS.map((g) => ({ size: g.size, label: g.label, items: [] as T[] })),
+    { size: 'unmeasured', label: 'Not measured', items: [] },
+  ]
+  for (const c of changes) groups.find((g) => g.size === sizeOf(c.score, threshold))?.items.push(c)
+  return groups.filter((g) => g.items.length > 0)
 }
 
 export namespace changeSizeGroups {

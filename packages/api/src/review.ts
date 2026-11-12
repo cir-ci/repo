@@ -68,7 +68,8 @@ export namespace Review {
       conclusion: BuildConclusion | null
       reviewStatus: ReviewStatus
     }
-    project: { slug: string; name: string }
+    /** `diffThreshold`: the project's minimum change (0 to 1), where its size groups start. */
+    project: { slug: string; name: string; diffThreshold: number }
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: { changed: number; added: number; removed: number; unchanged: number }

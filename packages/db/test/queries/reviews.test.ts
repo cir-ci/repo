@@ -58,6 +58,8 @@ describe('listReviewRequests', () => {
     }
     const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
     expect(item?.changes).toEqual({ changed: 3, added: 1, removed: 0, unchanged: 1 })
+    // The project's threshold comes along: the size groups start from it.
+    expect(item?.project.diffThreshold).toBe(0)
     // Every changed screenshot, biggest change first; not the added or unchanged ones.
     expect(item?.changedScreenshots.map((c) => [c.name, c.score])).toEqual([
       ['b', 0.2],

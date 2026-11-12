@@ -44,7 +44,7 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
     conclusion: 'changes_detected',
     reviewStatus: 'pending',
   },
-  project: { slug: 'web', name: 'Web' },
+  project: { slug: 'web', name: 'Web', diffThreshold: 0 },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
   changedScreenshots: [],
@@ -55,21 +55,30 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
 const shot = (name: string, score: number | null) => ({ name, score })
 
 describe('changeSizeGroups', () => {
-  it('groups changes as Large, Medium, Small and Not measured, keeping their order and leaving out empty groups', () => {
-    const groups = changeSizeGroups([
-      shot('hero', 0.4),
-      shot('nav', 0.1),
-      shot('footer', 0.05),
-      shot('icon', 0.001),
-      shot('odd', null),
-    ])
+  it("groups changes from the project's threshold: Large at +30 points, Medium at +15, Small below, then Not measured", () => {
+    const groups = changeSizeGroups(
+      [
+        shot('hero', 0.45),
+        shot('nav', 0.35),
+        shot('footer', 0.2),
+        shot('card', 0.19),
+        shot('icon', 0.06),
+        shot('odd', null),
+      ],
+      0.05,
+    )
     expect(groups.map((g) => [g.label, g.items.map((i) => i.name)])).toEqual([
       ['Large', ['hero', 'nav']],
       ['Medium', ['footer']],
-      ['Small', ['icon']],
+      ['Small', ['card', 'icon']],
       ['Not measured', ['odd']],
     ])
-    expect(changeSizeGroups([shot('a', 0.02)]).map((g) => g.size)).toEqual(['medium'])
+  })
+
+  it('starts at 0 with no threshold, and leaves out empty groups', () => {
+    expect(changeSizeGroups([shot('a', 0.2)], 0).map((g) => g.size)).toEqual(['medium'])
+    expect(changeSizeGroups([shot('a', 0.3)], 0).map((g) => g.size)).toEqual(['large'])
+    expect(changeSizeGroups([shot('a', 0.1)], 0).map((g) => g.size)).toEqual(['small'])
   })
 })
 
