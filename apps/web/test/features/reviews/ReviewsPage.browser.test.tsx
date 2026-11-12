@@ -51,14 +51,15 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
   project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 4, added: 1, removed: 0, unchanged: 38 },
-  largestChanges: [
+  changedScreenshots: [
+    { name: 'dashboard / overview', score: 0.31, sha256: 'b'.repeat(64), thumbnail: null },
     { name: 'checkout / payment-form', score: 0.024, sha256: 'a'.repeat(64), thumbnail: null },
     { name: 'settings / billing', score: 0.011, sha256: null, thumbnail: null },
   ],
   ...over,
 })
 
-// Desktop unless a test says otherwise: below 720px the list and the review take turns.
+// Desktop unless a test says otherwise: on a page under 880px the list and the review take turns.
 const show = (url = '/workspaces/acme/reviews', viewport: [number, number] = [1280, 800]) =>
   renderPage(<ReviewsPage />, {
     viewport,
@@ -223,7 +224,7 @@ describe('ReviewsPage', () => {
     await expect.element(page.getByRole('heading', { name: /Needs your review/ })).toBeVisible()
   })
 
-  it('selects a review into the address and shows its details and largest changes', async () => {
+  it('selects a review into the address and shows its details and changes', async () => {
     fakeApi({
       'GET /api/reviews': {
         body: { tab: 'for-you', requests: [request('r1', 12), request('r2', 13)] },
@@ -240,7 +241,16 @@ describe('ReviewsPage', () => {
     await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
     await expect.element(panel.getByText('Screenshots')).toBeVisible()
     await expect.element(panel.getByText('4 changed')).toBeVisible()
-    await expect.element(panel.getByRole('heading', { name: 'Largest changes' })).toBeVisible()
+    await expect.element(panel.getByRole('heading', { name: 'Changes', exact: true })).toBeVisible()
+    // Grouped by how much changed: 31% is Large, 2.4% and 1.1% Medium.
+    const groups = panel
+      .getByRole('heading', { level: 3 })
+      .elements()
+      .map((h) => h.textContent)
+    expect(groups).toEqual(['Large1', 'Medium2'])
+    await expect
+      .element(page.getByRole('region', { name: 'Large changes' }).getByRole('link'))
+      .toHaveAccessibleName(/dashboard \/ overview/)
     const thumb = panel.getByRole('link', { name: /checkout \/ payment-form/ })
     await expect
       .element(thumb)
@@ -753,7 +763,8 @@ describe('ReviewsPage list width', () => {
 describe('ReviewsPage list in a narrow window', () => {
   it('leaves the review its space, whatever width is stored', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
-    await show('/workspaces/acme/reviews?review=r1', [900, 800])
+    // Wide enough (880px of page, beside the shell's sidebar) for the list beside the review.
+    await show('/workspaces/acme/reviews?review=r1', [1100, 800])
     usePaneStore.setState({ widths: { 'reviews-list': PANES['reviews-list'].max } })
     const list = page.getByRole('complementary', { name: 'Reviews' })
     const detail = page.getByRole('region', { name: 'Selected review' })
@@ -764,7 +775,7 @@ describe('ReviewsPage list in a narrow window', () => {
       main: () => detail.element().getBoundingClientRect().width,
       container: () => parentOf(handle.element()),
       grows: 1,
-      to: 740,
+      to: 1000,
     })
   })
 })
@@ -849,7 +860,7 @@ describe('ReviewsPage scrolling and layout', () => {
     await expect.element(panel.getByRole('heading', { name: 'Build #1' })).toBeVisible()
     const list = document.getElementById('reviews-list')!
     const details = scroller(panel.getByRole('heading', { name: 'Details' }).element())
-    const changes = scroller(panel.getByRole('link', { name: 'Go to review' }).element())
+    const changes = scroller(panel.getByRole('heading', { name: 'Changes', exact: true }).element())
     expect(new Set([list, details, changes]).size, 'three scroll containers').toBe(3)
     for (const el of [list, details, changes]) {
       expect(['auto', 'scroll']).toContain(getComputedStyle(el).overflowY)
@@ -869,19 +880,41 @@ describe('ReviewsPage scrolling and layout', () => {
     )
   })
 
-  it('puts the details at half the width with the changes to their right on a wide pane', async () => {
+  it('puts the details at a third of the width with the changes to their right on a wide pane', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
-    await showFramed('/workspaces/acme/reviews?review=r1', [1500, 800])
+    // Wide enough that a third is more than the details' 420px minimum.
+    await showFramed('/workspaces/acme/reviews?review=r1', [2100, 900])
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
     const details = panel.getByRole('heading', { name: 'Details' }).element()
-    const go = panel.getByRole('link', { name: 'Go to review' }).element()
+    const changes = panel.getByRole('heading', { name: 'Changes', exact: true }).element()
     const a = details.closest('[data-scroll-area]')!.getBoundingClientRect()
-    const b = go.closest('[data-scroll-area]')!.getBoundingClientRect()
+    const b = changes.closest('[data-scroll-area]')!.getBoundingClientRect()
     expect(b.left).toBeGreaterThanOrEqual(a.right - 1)
-    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(2)
-    // Go to review is the first thing in the changes column.
-    expect(go.getBoundingClientRect().top - b.top).toBeLessThan(40)
+    // The details take a third, the changes the other two.
+    expect(Math.abs(b.width - 2 * a.width)).toBeLessThan(30)
+    // One change fills its group's row; two share it half and half.
+    const width = (name: RegExp) =>
+      panel.getByRole('link', { name }).element().getBoundingClientRect().width
+    const row = panel.getByRole('list').first().element().getBoundingClientRect().width
+    expect(width(/dashboard \/ overview/)).toBeGreaterThan(row - 2)
+    expect(Math.abs(width(/checkout \/ payment-form/) - (row - 12) / 2)).toBeLessThan(2)
+    // The picture is never drawn wider than the image (no blur), and a wide cell gets the full
+    // image, not the 480px thumbnail.
+    const img = panel
+      .getByRole('link', { name: /dashboard \/ overview/ })
+      .element()
+      .querySelector('img')!
+    expect(getComputedStyle(img).maxWidth).toBe('100%')
+    expect(img.style.width).toBe('')
+    expect(img.getAttribute('src')).toContain('b'.repeat(64))
+    // Go to review is on the build's line, at its right end.
+    const go = panel.getByRole('link', { name: 'Go to review' }).element()
+    const title = panel.getByRole('heading', { name: 'Build #12' }).element()
+    expect(
+      Math.abs(middle(go.getBoundingClientRect()) - middle(title.getBoundingClientRect())),
+    ).toBeLessThan(4)
+    expect(Math.abs(go.getBoundingClientRect().right - b.right)).toBeLessThan(40)
   })
 
   it('keeps the window still when the pane is narrow beside the sidebar, the pane scrolling as one', async () => {
@@ -898,6 +931,20 @@ describe('ReviewsPage scrolling and layout', () => {
     expect(getComputedStyle(body).overflowY).toBe('auto')
   })
 
+  it('shows the review alone when the page is too narrow for it beside the list, so no detail wraps', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await showFramed('/workspaces/acme/reviews?review=r1', [875, 800])
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
+    expect(page.getByRole('complementary', { name: 'Reviews' }).elements()).toHaveLength(0)
+    await expect.element(panel.getByRole('link', { name: 'Back to reviews' })).toBeVisible()
+    // Each fact's label and value share one line.
+    for (const label of ['Requested by', 'Compared with', 'Screenshots']) {
+      const row = panel.getByText(label, { exact: true }).element().parentElement!
+      expect(row.getBoundingClientRect().height).toBeLessThan(60)
+    }
+  })
+
   it('stacks the details and the changes on a narrow pane (a phone frame lets the window scroll, as before)', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
     await showFramed('/workspaces/acme/reviews?review=r1', [390, 700])
@@ -905,10 +952,16 @@ describe('ReviewsPage scrolling and layout', () => {
     await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
     const details = panel.getByRole('heading', { name: 'Details' }).element()
     await expect.element(panel.getByRole('link', { name: 'Go to review' })).toBeVisible()
-    const go = panel.getByRole('link', { name: 'Go to review' }).element()
-    expect(go.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    const changes = panel.getByRole('heading', { name: 'Changes', exact: true }).element()
+    expect(changes.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       details.closest('[data-scroll-area]')!.getBoundingClientRect().bottom - 1,
     )
+    // Go to review stays on the build's line on a phone too.
+    const go = panel.getByRole('link', { name: 'Go to review' }).element()
+    const title = panel.getByRole('heading', { name: 'Build #12' }).element()
+    expect(
+      Math.abs(middle(go.getBoundingClientRect()) - middle(title.getBoundingClientRect())),
+    ).toBeLessThan(4)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 })

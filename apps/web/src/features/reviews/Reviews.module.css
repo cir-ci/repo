@@ -1,3 +1,13 @@
+/* What the list and the review share: its width, not the window's, decides whether they sit side
+   by side (the sidebar and the list's own width both take from it). */
+.frame {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  container: reviews / inline-size;
+}
+
 .layout {
   position: relative;
   display: flex;
@@ -128,7 +138,9 @@
 .cols {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* The details take a third of the page, but never so little that a fact wraps (420px, room
+     for the screenshot counts); the changes the rest. */
+  grid-template-columns: minmax(420px, 1fr) minmax(0, 2fr);
   gap: 28px;
   min-height: 0;
 }
@@ -145,10 +157,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.changes > :first-child {
-  align-self: flex-start;
+  /* Room beside and under the screenshots, so a hovered one's outline isn't cut by the scroller;
+     none on top, so its heading lines up with Details. */
+  padding: 0 12px 16px;
 }
 
 .back {
@@ -172,6 +183,7 @@
 }
 
 .title {
+  min-width: 0;
   margin: 0;
   font-size: 20px;
   font-weight: 600;
@@ -212,6 +224,14 @@
   margin-left: 4px;
 }
 
+/* Go to review closes the build's line, on the right, over the changes' right edge (their
+   12px padding). */
+.go {
+  flex: none;
+  margin-right: 12px;
+  margin-left: auto;
+}
+
 .flaky {
   display: inline-flex;
   gap: 4px;
@@ -231,9 +251,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sizeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A group's screenshots share its width: one fills it, two take half each, three or more a
+   third (the fourth starts a new row); never under 140px, so a phone shows two side by side. */
 .thumbs {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(max(140px, calc((100% - 24px) / 3)), 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -249,20 +277,21 @@
 }
 
 .shot {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  display: block;
   box-sizing: border-box;
-  aspect-ratio: 4 / 3;
+  /* The frame hugs the whole image: no backdrop around it, nothing cut off. */
+  width: fit-content;
+  max-width: 100%;
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);
   border-radius: 6px;
-  background: #fff;
 }
 
 .shot img {
   display: block;
-  width: 100%;
+  /* Never wider than the image itself: an upscaled screenshot would look blurred. */
+  max-width: 100%;
+  height: auto;
 }
 
 .thumb:hover .shot {
@@ -290,7 +319,9 @@
   white-space: nowrap;
 }
 
-@media (max-width: 720px) {
+/* Too narrow for the list (420px) beside a review whose details fit unwrapped (about 460px):
+   they take turns. */
+@container reviews (max-width: 879.98px) {
   .layout {
     flex-direction: column;
   }
@@ -302,7 +333,8 @@
     border-right: 0;
   }
 
-  /* Phone: the list, or the review once one is selected; a link goes back. */
+  /* The list, or the review once one is selected; a link goes back. Nothing to resize. */
+  .layout > [data-pane],
   .layout[data-selected='true'] .sub,
   .layout[data-selected='false'] .detail {
     display: none;

@@ -531,7 +531,7 @@ export async function searchWorkspace(
 
   // What the peek shows beyond the rows: the largest change of each build, the thumbnail of each
   // screenshot and baseline, and who approved the baselines.
-  const { changes, largest } = await loadChanges(
+  const { changes, changed } = await loadChanges(
     db,
     buildRows.map((b) => b.id),
   )
@@ -549,7 +549,7 @@ export async function searchWorkspace(
     query: q,
     builds: buildRows.map(({ total: _total, id, ...r }) => {
       const c = changes.get(id)
-      const top = largest.get(id)?.[0]
+      const top = changed.get(id)?.[0]
       return {
         ...r,
         changes: { changed: c?.changed ?? 0, added: c?.added ?? 0, removed: c?.removed ?? 0 },

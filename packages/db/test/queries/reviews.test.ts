@@ -36,7 +36,7 @@ async function setup() {
 }
 
 describe('listReviewRequests', () => {
-  it("counts the build's changes and picks the two largest changed screenshots", async () => {
+  it("counts the build's changes and lists its changed screenshots, biggest first", async () => {
     const { owner, build } = await setup()
     await seedReviewRequest(t.db, { buildId: build.id, reviewerId: owner.id })
     for (const [name, status, score] of [
@@ -58,9 +58,11 @@ describe('listReviewRequests', () => {
     }
     const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
     expect(item?.changes).toEqual({ changed: 3, added: 1, removed: 0, unchanged: 1 })
-    expect(item?.largestChanges.map((c) => [c.name, c.score])).toEqual([
+    // Every changed screenshot, biggest change first; not the added or unchanged ones.
+    expect(item?.changedScreenshots.map((c) => [c.name, c.score])).toEqual([
       ['b', 0.2],
       ['c', 0.05],
+      ['a', 0.01],
     ])
   })
 

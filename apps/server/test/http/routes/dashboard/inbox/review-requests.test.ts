@@ -72,7 +72,7 @@ describe('review requests', () => {
         project: { slug: 'web' },
         workspace: { slug: acme.workspaceSlug },
         changes: { changed: expect.any(Number), added: expect.any(Number) },
-        largestChanges: expect.any(Array),
+        changedScreenshots: expect.any(Array),
       },
     ])
     expect(ids(await list('created'))).toEqual([requestId])

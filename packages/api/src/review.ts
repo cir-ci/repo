@@ -72,8 +72,11 @@ export namespace Review {
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: { changed: number; added: number; removed: number; unchanged: number }
-    /** The (up to two) changed screenshots with the highest diff score, biggest first. */
-    largestChanges: {
+    /**
+     * The build's changed screenshots, biggest change first (at most 60): the dashboard groups
+     * them by how much changed.
+     */
+    changedScreenshots: {
       name: string
       /** Fraction of the screenshot that differs, 0 to 1; null when not measured. */
       score: number | null

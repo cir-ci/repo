@@ -178,6 +178,42 @@ export function changeSummary(changes: Review.Request['changes']): string[] {
 }
 
 /** A diff score as a percentage of the screenshot: "2.4%", "<0.1%"; empty when not measured. */
+/** The size groups of a review's changes, largest first; the score (0 to 1) a group starts at. */
+const SIZE_GROUPS = [
+  { size: 'large', label: 'Large', min: 0.1 },
+  { size: 'medium', label: 'Medium', min: 0.01 },
+  { size: 'small', label: 'Small', min: 0 },
+  { size: 'unmeasured', label: 'Not measured', min: null },
+] as const
+
+const sizeOf = (score: number | null) =>
+  score === null
+    ? 'unmeasured'
+    : (SIZE_GROUPS.find((g) => g.min !== null && score >= g.min)?.size ?? 'small')
+
+/**
+ * A review's changed screenshots grouped by how much of each changed: Large (10% of the pixels
+ * or more), Medium (1% or more), Small, then Not measured; empty groups are left out, and each
+ * keeps the order it was given (biggest first).
+ */
+export function changeSizeGroups<T extends { score: number | null }>(
+  changes: readonly T[],
+): changeSizeGroups.Group<T>[] {
+  return SIZE_GROUPS.map((g) => ({
+    size: g.size,
+    label: g.label,
+    items: changes.filter((c) => sizeOf(c.score) === g.size),
+  })).filter((g) => g.items.length > 0)
+}
+
+export namespace changeSizeGroups {
+  export interface Group<T> {
+    size: 'large' | 'medium' | 'small' | 'unmeasured'
+    label: string
+    items: T[]
+  }
+}
+
 export function scoreLabel(score: number | null): string {
   if (score === null) return ''
   const pct = score * 100

@@ -90,8 +90,8 @@ export namespace listReviewRequests {
     workspace: { slug: string; name: string }
     /** How the build's screenshots compare with the baseline. */
     changes: Changes
-    /** The (up to two) changed screenshots with the highest diff score, biggest first. */
-    largestChanges: LargestChange[]
+    /** The changed screenshots, biggest change first, at most `CHANGED_SCREENSHOTS_LIMIT`. */
+    changedScreenshots: ChangedScreenshot[]
     /** How many of the build's changed screenshots are flaky on the project's default branch. */
     flakyChanges: number
   }
@@ -109,7 +109,7 @@ export namespace listReviewRequests {
     unchanged: number
   }
 
-  export interface LargestChange {
+  export interface ChangedScreenshot {
     name: string
     /** Fraction of the screenshot that differs, 0 to 1; null when not measured. */
     score: number | null
@@ -209,7 +209,7 @@ export async function listReviewRequests(
   )
 
   const buildIds = [...new Set(rows.map((r) => r.request.buildId))]
-  const { changes, largest } = await loadChanges(db, buildIds)
+  const { changes, changed } = await loadChanges(db, buildIds)
   const baselines = await loadBaselines(db, buildIds)
   const flakyChanges = await loadFlakyChanges(
     db,
@@ -242,17 +242,20 @@ export async function listReviewRequests(
       project: { slug: r.project.slug, name: r.project.name },
       workspace: r.workspace,
       changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
-      largestChanges: largest.get(r.request.buildId) ?? [],
+      changedScreenshots: changed.get(r.request.buildId) ?? [],
       flakyChanges: flakyChanges.get(r.request.buildId) ?? 0,
     }
   })
 }
 
-/** Counts by diff status, and the two highest-scoring changed screenshots, per build. */
+/** How many changed screenshots a review request carries: enough for any real build's review. */
+export const CHANGED_SCREENSHOTS_LIMIT = 60
+
+/** Counts by diff status, and the changed screenshots (highest score first), per build. */
 export async function loadChanges(db: Database, buildIds: string[]) {
   const changes = new Map<string, listReviewRequests.Changes>()
-  const largest = new Map<string, listReviewRequests.LargestChange[]>()
-  if (buildIds.length === 0) return { changes, largest }
+  const changed = new Map<string, listReviewRequests.ChangedScreenshot[]>()
+  if (buildIds.length === 0) return { changes, changed }
 
   const counts = await db
     .select({
@@ -289,14 +292,14 @@ export async function loadChanges(db: Database, buildIds: string[]) {
   const top = await db
     .select()
     .from(ranked)
-    .where(sql`${ranked.rank} <= 2`)
+    .where(sql`${ranked.rank} <= ${CHANGED_SCREENSHOTS_LIMIT}`)
     .orderBy(asc(ranked.buildId), asc(ranked.rank))
   for (const t of top) {
-    const list = largest.get(t.buildId) ?? []
+    const list = changed.get(t.buildId) ?? []
     list.push({ name: t.name, score: t.score, sha256: t.sha256, thumbnail: t.thumbnail })
-    largest.set(t.buildId, list)
+    changed.set(t.buildId, list)
   }
-  return { changes, largest }
+  return { changes, changed }
 }
 
 /**

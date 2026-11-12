@@ -4,6 +4,7 @@ import {
   ArrowRightIcon,
   Avatar,
   Button,
+  ListGroup,
   ScrollArea,
   SettingsRow,
   SettingsSection,
@@ -19,6 +20,7 @@ import { useClientLink } from '#lib/use-client-link.ts'
 
 import {
   baselineLabel,
+  changeSizeGroups,
   changeSummary,
   decisionLabel,
   overdueLabel,
@@ -67,6 +69,10 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
           <StatusIcon status={status} label={label} size={18} />
           <h2 className={styles.title}>Build #{r.build.number}</h2>
           {children ? <div className={styles.actions}>{children}</div> : null}
+          <Button variant="primary" size="sm" className={styles.go} {...buildLink()}>
+            Go to review
+            <ArrowRightIcon size={16} />
+          </Button>
         </div>
         <span className={styles.meta}>
           {projectMark(r.project.slug, r.project.name)}
@@ -157,34 +163,41 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
 
         <ScrollArea rootClassName={styles.col} className={styles.colScroll}>
           <div className={styles.changes}>
-            <Button variant="primary" {...buildLink()}>
-              Go to review
-              <ArrowRightIcon size={16} />
-            </Button>
-            {r.largestChanges.length > 0 ? (
-              <SettingsSection title="Largest changes" bare>
-                <ul className={styles.thumbs}>
-                  {r.largestChanges.map((c) => {
-                    const link = buildLink(c.name)
-                    const sha = c.thumbnail ?? c.sha256
-                    return (
-                      <li key={c.name}>
-                        <a className={styles.thumb} href={link.href} onClick={link.onClick}>
-                          <span className={styles.shot}>
-                            {sha ? <img src={fileUrl(sha)} alt="" loading="lazy" /> : null}
-                          </span>
-                          <span className={styles.thumbCaption}>
-                            <span className={styles.thumbName}>
-                              <span style={visuallyHidden}>Open {c.name} in build: </span>
-                              {c.name}
-                            </span>
-                            <span className={styles.mono}>{scoreLabel(c.score)}</span>
-                          </span>
-                        </a>
-                      </li>
-                    )
-                  })}
-                </ul>
+            {r.changedScreenshots.length > 0 ? (
+              <SettingsSection title="Changes" bare>
+                {changeSizeGroups(r.changedScreenshots).map((g) => (
+                  <section
+                    key={g.size}
+                    className={styles.sizeGroup}
+                    aria-label={`${g.label} changes`}
+                  >
+                    <ListGroup level={3} label={g.label} count={g.items.length} />
+                    <ul className={styles.thumbs}>
+                      {g.items.map((c) => {
+                        const link = buildLink(c.name)
+                        // One or two to a row are wider than a thumbnail (480px): the full image.
+                        const sha =
+                          g.items.length < 3 ? (c.sha256 ?? c.thumbnail) : (c.thumbnail ?? c.sha256)
+                        return (
+                          <li key={c.name}>
+                            <a className={styles.thumb} href={link.href} onClick={link.onClick}>
+                              <span className={styles.thumbCaption}>
+                                <span className={styles.thumbName}>
+                                  <span style={visuallyHidden}>Open {c.name} in build: </span>
+                                  {c.name}
+                                </span>
+                                <span className={styles.mono}>{scoreLabel(c.score)}</span>
+                              </span>
+                              <span className={styles.shot}>
+                                {sha ? <img src={fileUrl(sha)} alt="" loading="lazy" /> : null}
+                              </span>
+                            </a>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </section>
+                ))}
               </SettingsSection>
             ) : null}
           </div>

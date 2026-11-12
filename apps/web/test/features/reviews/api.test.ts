@@ -2,6 +2,7 @@ import type { Review } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  changeSizeGroups,
   changeSummary,
   baselineLabel,
   decisionLabel,
@@ -46,9 +47,30 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   project: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
   changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
-  largestChanges: [],
+  changedScreenshots: [],
   flakyChanges: 0,
   ...over,
+})
+
+const shot = (name: string, score: number | null) => ({ name, score })
+
+describe('changeSizeGroups', () => {
+  it('groups changes as Large, Medium, Small and Not measured, keeping their order and leaving out empty groups', () => {
+    const groups = changeSizeGroups([
+      shot('hero', 0.4),
+      shot('nav', 0.1),
+      shot('footer', 0.05),
+      shot('icon', 0.001),
+      shot('odd', null),
+    ])
+    expect(groups.map((g) => [g.label, g.items.map((i) => i.name)])).toEqual([
+      ['Large', ['hero', 'nav']],
+      ['Medium', ['footer']],
+      ['Small', ['icon']],
+      ['Not measured', ['odd']],
+    ])
+    expect(changeSizeGroups([shot('a', 0.02)]).map((g) => g.size)).toEqual(['medium'])
+  })
 })
 
 describe('snoozedLabel', () => {

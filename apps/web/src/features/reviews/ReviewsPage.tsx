@@ -286,83 +286,86 @@ export function ReviewsPage() {
       <PushPrompt hasReview={pending > 0} />
       <QueryBoundary query={query} announce="Loading reviews" rows={4}>
         {() => (
-          <div
-            className={styles.layout}
-            data-selected={selected ? 'true' : 'false'}
-            style={paneVars({ '--circi-reviews-width': ['reviews-list', listWidth] })}
-          >
-            <ReviewList
-              workspace={workspace}
-              userId={userId}
-              tab={tab}
-              pending={pending}
-              snoozed={snoozedCount}
-              groups={groups}
-              selectedId={selected?.id}
-              listRef={listRef}
-              rowProps={rowProps}
-              find={find}
-              onFind={setFind}
-              hasRequests={inThisWorkspace.length > 0}
-              linkTo={(id) => clientLink(searchFor({ review: id }))}
-              rowMenu={rowMenu}
-              onTab={(next) =>
-                void navigate({
-                  ...searchFor({ tab: next }),
-                  search: { tab: next, ...(find.trim() ? { q: find.trim() } : {}) },
-                })
-              }
-            />
-            <PaneHandle
-              pane="reviews-list"
-              cssVar="--circi-reviews-width"
-              at="var(--circi-reviews-width)"
-            />
-            <section className={styles.detail} aria-label="Selected review">
-              {failed ? (
-                <Text tone="failed" role="alert">
-                  {failed.message}
-                </Text>
-              ) : null}
-              {selected ? (
-                <ReviewDetail request={selected} backHref={back.href} onBack={back.onClick}>
-                  {can.unsnooze ? (
-                    <Button size="sm" onClick={() => doUnsnooze(selected)}>
-                      Unsnooze
-                    </Button>
-                  ) : null}
-                  {can.snooze ? (
-                    <SnoozeMenu
-                      open={snoozeOpen}
-                      onOpenChange={setSnoozeOpen}
-                      onSnooze={(choice) => doSnooze(selected, choice)}
-                      trigger={
-                        <TipButton label="Snooze" aria-keyshortcuts="h">
-                          <AlarmClockIcon size={16} />
-                        </TipButton>
-                      }
-                    />
-                  ) : null}
-                  {tab === 'reviewed' || waiting ? null : (
-                    <TipButton label="Dismiss" onClick={() => doDismiss(selected)}>
-                      <CloseIcon size={16} />
-                    </TipButton>
-                  )}
-                </ReviewDetail>
-              ) : items.length > 0 ? (
-                <PanePlaceholder
-                  icon={<PullRequestIcon />}
-                  detail="Pick a build from the list to read it here."
-                  hint={
-                    <>
-                      <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the review
-                    </>
-                  }
-                >
-                  Select a review
-                </PanePlaceholder>
-              ) : null}
-            </section>
+          <div className={styles.frame}>
+            <div
+              className={styles.layout}
+              data-selected={selected ? 'true' : 'false'}
+              style={paneVars({ '--circi-reviews-width': ['reviews-list', listWidth] })}
+            >
+              <ReviewList
+                workspace={workspace}
+                userId={userId}
+                tab={tab}
+                pending={pending}
+                snoozed={snoozedCount}
+                groups={groups}
+                selectedId={selected?.id}
+                listRef={listRef}
+                rowProps={rowProps}
+                find={find}
+                onFind={setFind}
+                hasRequests={inThisWorkspace.length > 0}
+                linkTo={(id) => clientLink(searchFor({ review: id }))}
+                rowMenu={rowMenu}
+                onTab={(next) =>
+                  void navigate({
+                    ...searchFor({ tab: next }),
+                    search: { tab: next, ...(find.trim() ? { q: find.trim() } : {}) },
+                  })
+                }
+              />
+              <PaneHandle
+                pane="reviews-list"
+                cssVar="--circi-reviews-width"
+                at="var(--circi-reviews-width)"
+              />
+              <section className={styles.detail} aria-label="Selected review">
+                {failed ? (
+                  <Text tone="failed" role="alert">
+                    {failed.message}
+                  </Text>
+                ) : null}
+                {selected ? (
+                  <ReviewDetail request={selected} backHref={back.href} onBack={back.onClick}>
+                    {can.unsnooze ? (
+                      <Button size="sm" onClick={() => doUnsnooze(selected)}>
+                        Unsnooze
+                      </Button>
+                    ) : null}
+                    {can.snooze ? (
+                      <SnoozeMenu
+                        open={snoozeOpen}
+                        onOpenChange={setSnoozeOpen}
+                        onSnooze={(choice) => doSnooze(selected, choice)}
+                        trigger={
+                          <TipButton label="Snooze" aria-keyshortcuts="h">
+                            <AlarmClockIcon size={16} />
+                          </TipButton>
+                        }
+                      />
+                    ) : null}
+                    {tab === 'reviewed' || waiting ? null : (
+                      <TipButton label="Dismiss" onClick={() => doDismiss(selected)}>
+                        <CloseIcon size={16} />
+                      </TipButton>
+                    )}
+                  </ReviewDetail>
+                ) : items.length > 0 ? (
+                  <PanePlaceholder
+                    icon={<PullRequestIcon />}
+                    detail="Pick a build from the list to read it here."
+                    hint={
+                      <>
+                        <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the
+                        review
+                      </>
+                    }
+                  >
+                    Select a review
+                  </PanePlaceholder>
+                ) : null}
+              </section>
+            </div>
           </div>
         )}
       </QueryBoundary>
