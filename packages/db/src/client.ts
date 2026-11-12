@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
+import { PgTransaction, type PgDatabase, type PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { Client, Pool } from 'pg'
 
 import * as schema from './schema/index.ts'
@@ -158,20 +158,29 @@ export async function withAdvisoryLock<T>(
 /**
  * Runs `fn` only if no other connection holds the session-level advisory lock on `key`
  * (`pg_try_advisory_lock`): resolves to `{ ran: false }` at once when another process has it, so a
- * periodic sweep is skipped, not queued. The lock sits on one connection taken from the pool for
- * the duration; `fn` runs on the normal `db` with its own short transactions, and the lock is
- * released (and the connection returned) when it ends. Without a pool (the in-process test
- * database has a single session, so there is nothing to contend with) it just runs `fn`.
+ * periodic sweep is skipped, not queued. The lock sits on its own connection (a `new Client`, as
+ * `listen` does, never one from the pool: a sweep can run for minutes, and a pool of one would
+ * deadlock while a small pool would starve the lanes and HTTP); `fn` runs on the normal `db` with
+ * its own short transactions, and the lock is released and the connection closed when it ends.
+ * Without a pool (the in-process test database has a single session, so there is nothing to
+ * contend with) it just runs `fn`. A transaction is refused: a session lock needs a connection of
+ * its own, and quietly running without one would hide a sweep that runs twice at once.
  */
 export async function tryAdvisoryLock<T>(
   db: Database,
   key: string,
   fn: () => Promise<T>,
+  options: { newClient?: (pool: Pool) => Client } = {},
 ): Promise<{ ran: true; value: T } | { ran: false }> {
+  if (db instanceof PgTransaction) {
+    throw new Error('tryAdvisoryLock needs the database, not a transaction')
+  }
   const pool: unknown = Reflect.get(db, '$client')
   if (!(pool instanceof Pool)) return { ran: true, value: await fn() }
-  const client = await pool.connect()
-  let broken = false
+  const client = options.newClient?.(pool) ?? lockClient(pool)
+  // A lost connection frees the lock with its session; a query on it reports the failure.
+  client.on('error', () => {})
+  await client.connect()
   try {
     const res = await client.query<{ locked: boolean }>(
       'select pg_try_advisory_lock(hashtextextended($1, 0)) as locked',
@@ -181,12 +190,21 @@ export async function tryAdvisoryLock<T>(
     try {
       return { ran: true, value: await fn() }
     } finally {
-      // If the unlock fails the connection is dropped, which frees the lock with the session.
+      // If the unlock fails, closing the connection below frees the lock with the session.
       await client
         .query('select pg_advisory_unlock(hashtextextended($1, 0))', [key])
-        .catch(() => (broken = true))
+        .catch(() => {})
     }
   } finally {
-    client.release(broken)
+    await client.end().catch(() => {})
   }
+}
+
+/** A connection of its own with the pool's settings (address, credentials, TLS), named for the lock. */
+function lockClient(pool: Pool): Client {
+  const { max: _max, ...settings } = pool.options
+  return new Client({
+    ...settings,
+    application_name: `${pool.options.application_name ?? 'circi'}-lock`,
+  })
 }
