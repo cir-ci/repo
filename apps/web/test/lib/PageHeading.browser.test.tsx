@@ -156,6 +156,45 @@ describe('PageHeading on a phone, in the app frame', () => {
   })
 })
 
+describe('PageHeading on a phone, in the app frame with classic scrollbars', () => {
+  it('keeps the find row and the page icons where they are while the scroller scrolls, and the scroller starts below them', async () => {
+    const style = document.createElement('style')
+    style.textContent = '*::-webkit-scrollbar { width: 12px; height: 12px }'
+    document.head.append(style)
+    try {
+      fakeApi({ 'GET /api/workspaces/acme/sidebar': { body: sidebarModel({ projects: [] }) } })
+      await renderPage(
+        <AppFrame sidebar={<span>Side</span>} compactBar={<span>Bar</span>}>
+          <PageHeading title="Builds" find={<input aria-label="Find builds" />} />
+          <div style={{ height: 3000, flexShrink: 0 }}>Long list</div>
+        </AppFrame>,
+        { route: '/$workspace/$project', url: '/acme/web-app', viewport: [390, 844] },
+      )
+      const pages = page.getByRole('tablist', { name: 'Project pages' })
+      await expect.element(pages).toBeVisible()
+      const find = page.getByRole('textbox', { name: 'Find builds' }).element()
+      const main = page.getByRole('main').element()
+      // A phone reserves no gutter (its bars are overlays), so a classic bar costs the row nothing.
+      expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
+      const row = () => ({
+        find: find.getBoundingClientRect().top,
+        pages: pages.element().getBoundingClientRect().top,
+        main: main.getBoundingClientRect().top,
+      })
+      const before = row()
+      expect(before.main).toBeGreaterThanOrEqual(pages.element().getBoundingClientRect().bottom - 1)
+      expect(before.main).toBeGreaterThanOrEqual(find.getBoundingClientRect().bottom - 1)
+      main.scrollTop = 600
+      await expect.poll(() => main.scrollTop).toBe(600)
+      expect(row()).toEqual(before)
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+      expect(window.scrollY).toBe(0)
+    } finally {
+      style.remove()
+    }
+  })
+})
+
 describe('PageTitle', () => {
   it('is a hidden h1 that assistive technology still reads', async () => {
     await renderPage(<PageTitle>Sign in</PageTitle>)

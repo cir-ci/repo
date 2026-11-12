@@ -184,6 +184,33 @@ describe('AppFrame from 820px up: the panel scrolls, not the window', () => {
   })
 })
 
+describe('AppFrame with classic, space-taking scrollbars', () => {
+  it('takes the scrollbar from the scroller alone: the header and the content keep their width when a page grows long', async () => {
+    const style = document.createElement('style')
+    style.textContent = '*::-webkit-scrollbar { width: 12px; height: 12px }'
+    document.head.append(style)
+    try {
+      await page.viewport(1280, 800)
+      const view = await render(rows(100))
+      const main = document.getElementById('content')!
+      const header = document.querySelector<HTMLElement>('header')!
+      const before = { header: header.getBoundingClientRect(), page: pageWidth() }
+      await view.rerender(rows(5000))
+      expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
+      expect(main.offsetWidth - main.clientWidth).toBe(12)
+      expect(header.offsetWidth).toBe(header.clientWidth)
+      const after = header.getBoundingClientRect()
+      expect(after.left).toBe(before.header.left)
+      expect(after.width).toBe(before.header.width)
+      expect(pageWidth()).toBe(before.page)
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+      expect(window.scrollX).toBe(0)
+    } finally {
+      style.remove()
+    }
+  })
+})
+
 const handle = (extra: { style?: { left: string } } = {}) => (
   <ResizeHandle
     label="Resize the sidebar"
