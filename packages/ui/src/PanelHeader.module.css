@@ -76,22 +76,29 @@
    * the title, then the buttons, on the first line (the title taking all the room left), and the
    * row under them.
    */
-  .root:has(> [data-header-row]) {
+  .root:has(> :is([data-header-row], [data-header-status])) {
     flex-wrap: wrap;
   }
 
-  .root:has(> [data-header-row]) > :not(.actions, .spacer, [data-header-row]) {
+  .root:has(> :is([data-header-row], [data-header-status]))
+    > :not(.actions, .spacer, [data-header-row], [data-header-status]) {
     flex: 1 1 0;
   }
 
-  .root:has(> [data-header-row]) > .spacer {
+  .root:has(> :is([data-header-row], [data-header-status])) > .spacer {
     flex: none;
     width: 0;
   }
 
-  .root:has(> [data-header-row]) > .spacer,
-  .root:has(> [data-header-row]) > .actions {
+  .root:has(> :is([data-header-row], [data-header-status])) > .spacer,
+  .root:has(> :is([data-header-row], [data-header-status])) > .actions {
     order: 1;
+  }
+
+  .root:has(> [data-header-status]) > [data-header-status] {
+    order: 99;
+    flex: 1 0 100%;
+    margin-left: 0;
   }
 
   .root > [data-header-row] {

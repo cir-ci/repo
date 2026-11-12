@@ -86,6 +86,22 @@ describe('the build page on a phone', () => {
     expectNoSidewaysScroll()
   })
 
+  it("shows the build's state in the header, on a line of its own under the branch", async () => {
+    fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }))
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const header = document.querySelector('[data-panel-header]')!
+    const state = header.querySelector('[data-header-status]')!
+    expect(state.textContent).toContain('Needs review')
+    expect(state.textContent).toContain('1')
+    const branch = page.getByRole('button', { name: 'Copy branch name' }).element()
+    expect(state.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      branch.getBoundingClientRect().bottom - 1,
+    )
+    expect(state.getBoundingClientRect().right).toBeLessThanOrEqual(390)
+    expectNoSidewaysScroll()
+  })
+
   it("keeps the strip's information in the Details sheet, with the state, target and watchers above Build and People", async () => {
     const api = fakeBuildApi(
       detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }),

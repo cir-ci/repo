@@ -3,8 +3,14 @@
   display: inline-flex;
   gap: 4px;
   align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: var(--circi-radius-inline);
+  background: none;
   color: var(--circi-text-secondary);
+  font: inherit;
+  cursor: default;
 }
 
 .root:focus-visible {

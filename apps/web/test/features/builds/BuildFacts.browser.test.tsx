@@ -95,14 +95,14 @@ describe('the Details tab', () => {
     await expect.element(facts().getByText('Decisions')).toBeVisible()
     // Not in Details on a desktop: the header has them.
     expect(facts().getByText('Watchers', { exact: true }).elements()).toHaveLength(0)
-    const watchers = page.getByLabelText('3 watching, you included')
+    const watchers = page.getByRole('button', { name: "3 · you're watching" })
     await expect.element(watchers).toBeVisible()
     await watchers.hover()
     const tip = page.getByRole('tooltip')
     await expect.element(tip.getByText('Grace Hopper')).toBeVisible()
     const people = [...tip.element().querySelectorAll('li')]
     expect(people.map((li) => li.textContent)).toEqual([
-      'Ada Lovelace',
+      'Ada Lovelace (you)',
       'Grace Hopper',
       'Alan Turing',
     ])
@@ -116,7 +116,7 @@ describe('the Details tab', () => {
     )
     api.activity = [asked('u2', 'Grace Hopper', 'u1', 'Ada Lovelace')]
     await renderBuild()
-    await expect.element(page.getByLabelText('1 watching, you included')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: "1 · you're watching" })).toBeVisible()
     expect(page.getByText(/Requested from/).elements()).toHaveLength(0)
     // The request is in the Details tab instead.
     await expect.element(facts().getByText('Grace Hopper')).toBeVisible()
@@ -221,7 +221,7 @@ describe('the Details tab', () => {
   it('leaves out "you\'re watching" in the header for someone who isn\'t notified', async () => {
     fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }))
     await renderBuild()
-    await expect.element(page.getByLabelText('1 watching')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: '1 watching' })).toBeVisible()
     expect(page.getByText("you're watching").elements()).toHaveLength(0)
   })
 

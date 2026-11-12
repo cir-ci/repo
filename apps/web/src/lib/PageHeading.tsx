@@ -88,7 +88,7 @@ export function PageHeading({
           ref={statusRef}
           className={styles.status}
           data-header-status=""
-          data-row={statusRow ? '' : undefined}
+          data-row={statusRow || phone ? '' : undefined}
         >
           {status}
         </div>

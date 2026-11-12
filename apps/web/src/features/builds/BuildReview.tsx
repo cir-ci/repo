@@ -400,13 +400,12 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           )
         }
         status={
-          phone ? null : (
-            <>
-              <BuildStateLabel build={build} hasBaseline={hasBaseline} />
-              <ReviewTarget target={data.reviewTarget} />
-              <Watchers watchers={data.watchers} />
-            </>
-          )
+          // On a phone too: a line of its own under the branch.
+          <>
+            <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+            <ReviewTarget target={data.reviewTarget} />
+            <Watchers watchers={data.watchers} />
+          </>
         }
         after={build.branch ? <Ref value={build.branch} label="branch name" /> : null}
         afterOwnRow

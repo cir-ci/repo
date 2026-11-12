@@ -1,5 +1,5 @@
 import type { Build } from '@circi/api'
-import { Avatar, EyeIcon, Text, Tooltip } from '@circi/ui'
+import { Avatar, EyeIcon, Text, Tooltip, visuallyHidden } from '@circi/ui'
 
 import { authClient } from '#lib/auth-client.ts'
 
@@ -14,7 +14,6 @@ export function Watchers({ watchers }: Watchers.Props) {
   const { data: session } = authClient.useSession()
   if (watchers.length === 0) return null
   const watching = watchers.some((w) => w.id === session?.user.id)
-  const label = `${watchers.length} watching${watching ? ', you included' : ''}`
   return (
     <Tooltip
       content={
@@ -23,18 +22,21 @@ export function Watchers({ watchers }: Watchers.Props) {
             <li key={w.id} className={styles.person}>
               <Avatar type="user" id={w.id} name={w.name} image={w.image} size={16} />
               {w.name}
+              {w.id === session?.user.id ? ' (you)' : ''}
             </li>
           ))}
         </ul>
       }
     >
-      <span className={styles.root} tabIndex={0} aria-label={label}>
+      {/* Its name is its visible text ("4 · you're watching", or "4 watching"), so what is said
+          and what is read match (WCAG 2.5.3). */}
+      <button type="button" className={styles.root}>
         <EyeIcon size={14} aria-hidden="true" />
         <Text variant="small" tone="secondary">
           {watchers.length}
-          {watching ? " · you're watching" : ''}
+          {watching ? " · you're watching" : <span style={visuallyHidden}> watching</span>}
         </Text>
-      </span>
+      </button>
     </Tooltip>
   )
 }
