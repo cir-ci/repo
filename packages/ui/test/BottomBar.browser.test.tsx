@@ -67,8 +67,9 @@ describe('AppFrame with a bottom bar', () => {
     await page.viewport(1280, 800)
     await render(frame)
     expect(page.getByRole('navigation', { name: 'Pages' }).elements()).toHaveLength(0)
-    const main = page.getByRole('main').element()
-    expect(main.getBoundingClientRect().left).toBeGreaterThan(0)
-    expect(Number.parseFloat(getComputedStyle(main).borderTopLeftRadius)).toBeGreaterThan(0)
+    // The card is the panel around the header and main.
+    const panel = page.getByRole('main').element().closest('[data-panel]')!
+    expect(panel.getBoundingClientRect().left).toBeGreaterThan(0)
+    expect(Number.parseFloat(getComputedStyle(panel).borderTopLeftRadius)).toBeGreaterThan(0)
   })
 })
