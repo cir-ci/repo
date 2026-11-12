@@ -2,6 +2,7 @@ import type { Build, Flaky, Review, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { projectPath } from '#lib/api-paths.ts'
+import { signedFileQuery } from '#lib/file-signatures.ts'
 import { getJson, post } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
@@ -26,7 +27,11 @@ export const flakyQuery = (workspace: string, project: string) =>
     queryFn: () => getJson<Flaky.Report>(projectPath(workspace, project, 'flaky')),
   })
 
-export const fileUrl = (sha256: string) => `/api/files/${sha256}`
+/** A file's address without a signature: it works only while signed in (also what goes into links outside the dashboard). */
+export const filePath = (sha256: string) => `/api/files/${sha256}`
+
+/** A file's address for the dashboard's own pages: signed when the server sent a signature for it. */
+export const fileUrl = (sha256: string) => `${filePath(sha256)}${signedFileQuery(sha256)}`
 
 /** A decision on a build; rejecting carries the reason the author will read. */
 export interface Decision {

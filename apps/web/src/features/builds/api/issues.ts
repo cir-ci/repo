@@ -6,7 +6,7 @@ import { projectPath } from '#lib/api-paths.ts'
 import { getJson, post } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
-import { fileUrl } from './index.ts'
+import { filePath } from './index.ts'
 
 const base = (workspace: string, project: string, number: number) =>
   projectPath(workspace, project, 'builds', number, 'issues')
@@ -61,7 +61,7 @@ export function issuePreview(
       buildUrl: snapshotName ? `${buildUrl}?shot=${encodeURIComponent(snapshotName)}` : buildUrl,
       snapshotName,
       rejection: rejection ? { by: rejection.userName, reason: rejection.reason } : null,
-      imageUrl: sha ? `${origin}${fileUrl(sha)}` : null,
+      imageUrl: sha ? `${origin}${filePath(sha)}` : null,
     }),
   }
 }

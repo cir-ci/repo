@@ -61,7 +61,7 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
   app,
   deps,
 ) => {
-  app.addHook('onRequest', requireInstanceAdmin(deps.db))
+  app.addHook('onRequest', requireInstanceAdmin())
 
   async function load(id: string): Promise<listAccounts.Item> {
     const account = await getAccount(deps.db, id)

@@ -14,7 +14,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { projectSites } from '#schema/index.ts'
 import { getSidebar } from '#src/queries/index.ts'
-import { assignTriageItem, snoozeTriageItem } from '#src/repositories/index.ts'
+import {
+  assignTriageItem,
+  refreshTriageProblems,
+  snoozeTriageItem,
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -59,6 +63,8 @@ describe('getSidebar', () => {
     })
     await seedSavedView(t.db, { userId: mate.id, workspaceId: workspace.id, name: 'Theirs' })
 
+    // The seeders write builds directly, so the stored queue is brought up to date by hand.
+    await refreshTriageProblems(t.db, first.project.id)
     const bar = await getSidebar(t.db, { userId: owner.id, workspace, now })
     expect(
       bar.projects.map(({ slug, name, pinned, triage }) => ({ slug, name, pinned, triage })),

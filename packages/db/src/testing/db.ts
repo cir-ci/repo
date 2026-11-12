@@ -25,6 +25,8 @@ export namespace createTestDb {
     /** PGlite's LISTEN, shaped like the production `ListenFn`. */
     listen: ListenFn
     close(): Promise<void>
+    /** The statements the Drizzle `db` has run since `queries.reset()` (a transaction's BEGIN and COMMIT are not counted). */
+    queries: { count(): number; sql(): string[]; reset(): void }
     /** Empties every table the app owns (not the migration history), for a file that wants a clean slate per test. */
     reset(): Promise<void>
   }
@@ -52,7 +54,9 @@ function loadTemplate(): Promise<Blob | null> {
 export async function createTestDb(): Promise<createTestDb.Result> {
   const dump = await loadTemplate()
   const client = dump ? new PGlite({ loadDataDir: dump }) : new PGlite()
-  const db = drizzle({ client, schema })
+  let log: string[] = []
+  const db = drizzle({ client, schema, logger: { logQuery: (query) => void log.push(query) } })
+  const queries = { count: () => log.length, sql: () => [...log], reset: () => void (log = []) }
   if (!dump) await migrate(db, { migrationsFolder })
   const listen: ListenFn = async (channel, onNotify) => {
     const unsubscribe = await client.listen(channel, onNotify)
@@ -67,7 +71,7 @@ export async function createTestDb(): Promise<createTestDb.Result> {
     if (rows.length === 0) return
     await client.exec(`truncate ${rows.map((r) => r.name).join(', ')} restart identity cascade`)
   }
-  return { client, db, listen, close: () => client.close(), reset }
+  return { client, db, listen, close: () => client.close(), queries, reset }
 }
 
 let n = 0

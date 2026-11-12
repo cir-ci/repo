@@ -1,16 +1,14 @@
-import { type Database } from '@circi/db'
-import { isInstanceAdmin } from '@circi/db/queries'
 import type { onRequestAsyncHookHandler } from 'fastify'
 
 import { currentUser } from './session.ts'
 
 /**
  * Only instance admins pass (403 otherwise). Add it after `requireSession`, which answers
- * the signed-out with 401 first.
+ * the signed-out with 401 first and looks the role up with the session.
  */
-export function requireInstanceAdmin(db: Database): onRequestAsyncHookHandler {
+export function requireInstanceAdmin(): onRequestAsyncHookHandler {
   return async (req, reply) => {
-    if (!(await isInstanceAdmin(db, currentUser(req).id))) {
+    if (!currentUser(req).instanceAdmin) {
       return reply.code(403).send({ error: 'Only instance admins can do this' })
     }
     return undefined

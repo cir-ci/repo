@@ -8,7 +8,7 @@ import {
   listTriage,
   loadFlakyHistory,
 } from '#src/queries/index.ts'
-import { updateProjectSettings } from '#src/repositories/index.ts'
+import { refreshTriageProblems, updateProjectSettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -212,6 +212,8 @@ describe('every consumer agrees', () => {
       false,
       false,
     ])
+    // The seeders write builds directly, so the stored queue is brought up to date by hand.
+    await refreshTriageProblems(t.db, project.id)
     const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now })
     expect(counts.get(project.id)).toBe(triage.items.filter((i) => !i.snoozed).length)
     expect(list).toEqual(['clock'])

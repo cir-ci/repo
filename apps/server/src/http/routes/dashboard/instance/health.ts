@@ -14,7 +14,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
   app,
   deps,
 ) => {
-  app.addHook('onRequest', requireInstanceAdmin(deps.db))
+  app.addHook('onRequest', requireInstanceAdmin())
 
   /** The same checks as `circi admin doctor` (it asks other hosts, so it can take a few seconds). */
   app.get('/instance/health/checks', async (_req, reply) => {

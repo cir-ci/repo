@@ -31,7 +31,7 @@ describe('account names', () => {
 
   it('stores a name trimmed', async () => {
     expect((await rename('  Ada Lovelace  ')).statusCode).toBe(200)
-    const me = await fx.get('/api/auth/get-session', acmeCookie)
+    const me = await fx.get('/api/auth/get-session?disableCookieCache=true', acmeCookie)
     expect(me.json().user.name).toBe('Ada Lovelace')
   })
 })

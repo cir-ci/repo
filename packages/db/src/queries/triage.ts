@@ -32,7 +32,7 @@ import {
   user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import type { Build } from '#src/types.ts'
+import type { Build, Project } from '#src/types.ts'
 
 import { flakyVerdictsFor, type FlakyHistoryBuild } from './flaky.ts'
 import { getTriageRotation, latestDefaultBranchBuildNumber } from './triage-rotation.ts'
@@ -168,68 +168,26 @@ async function flakyBlocking(
   return result
 }
 
-/** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
-export async function listTriage(
-  db: Database,
-  input: { projectId: string; now: Date },
-): Promise<listTriage.Queue> {
-  const [row] = await db
-    .select({ project: projects, workspaceSlug: workspace.slug })
-    .from(projects)
-    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
-    .where(eq(projects.id, input.projectId))
-  if (!row) return { items: [], rotation: { members: [], onTriage: null, until: null } }
-  const { project } = row
-  const projectRef = { slug: project.slug, name: project.name }
+const buildRef = {
+  number: builds.number,
+  branch: builds.branch,
+  commitSha: builds.commitSha,
+  status: builds.status,
+  createdAt: builds.createdAt,
+}
+
+type ProjectRef = { id: string; defaultBranch: string }
+
+/**
+ * No baseline: a screenshot added on a default-branch build that had nothing to compare with, and
+ * never seen again by a later completed default-branch build (which would have compared it).
+ * Newest build first per name.
+ */
+async function orphanProblems(db: Database, project: ProjectRef) {
   const branch = project.defaultBranch
-
-  const found: {
-    kind: TriageKind
-    key: string
-    snapshotName: string | null
-    build: BuildRef
-    error?: string | null
-  }[] = []
-
-  const buildRef = {
-    number: builds.number,
-    branch: builds.branch,
-    commitSha: builds.commitSha,
-    status: builds.status,
-    createdAt: builds.createdAt,
-  }
-
-  // Flaky: one bounded history, the one rule; the latest build in which each flaky name changed.
-  const { builds: window, flaky } = (await flakyVerdictsFor(db, [project])).get(project.id) ?? {
-    builds: [],
-    flaky: [],
-  }
-  const flakyNames = flaky.map((f) => f.name)
-  const reasons = new Map(flaky.map((f) => [f.name, f.why]))
-  const history = flakyHistory(window, flakyNames)
-  const blocking = await flakyBlocking(db, project.id, flakyNames)
-  for (const f of flaky) {
-    const latest = latestChange(window, f.name) ?? window.at(-1)
-    if (!latest) continue
-    found.push({
-      kind: 'flaky',
-      key: f.name,
-      snapshotName: f.name,
-      build: {
-        number: latest.number,
-        branch,
-        commitSha: latest.commitSha,
-        status: 'complete',
-        createdAt: latest.createdAt,
-      },
-    })
-  }
-
-  // No baseline: added on a default-branch build that had nothing to compare with, and never
-  // seen again by a later completed default-branch build (which would have compared it).
   const later = aliasedTable(builds, 'later')
   const laterDiff = aliasedTable(screenshotDiffs, 'later_diff')
-  const orphans = await db
+  return db
     .selectDistinctOn([screenshotDiffs.name], { name: screenshotDiffs.name, build: buildRef })
     .from(screenshotDiffs)
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
@@ -280,18 +238,18 @@ export async function listTriage(
       ),
     )
     .orderBy(screenshotDiffs.name, desc(builds.number))
-  for (const r of orphans) {
-    found.push({ kind: 'no_baseline', key: r.name, snapshotName: r.name, build: r.build })
-  }
+}
 
-  // Failed: errored default-branch builds with no completed build after them.
-  const failed = await db
+/** Failed: errored default-branch builds with no completed build after them, newest first. */
+async function failedProblems(db: Database, project: ProjectRef) {
+  const later = aliasedTable(builds, 'later')
+  return db
     .select({ ...buildRef, error: builds.errorMessage })
     .from(builds)
     .where(
       and(
         eq(builds.projectId, project.id),
-        eq(builds.branch, branch),
+        eq(builds.branch, project.defaultBranch),
         eq(builds.status, 'error'),
         notExists(
           db
@@ -300,7 +258,7 @@ export async function listTriage(
             .where(
               and(
                 eq(later.projectId, project.id),
-                eq(later.branch, branch),
+                eq(later.branch, project.defaultBranch),
                 eq(later.status, 'complete'),
                 gt(later.number, builds.number),
               ),
@@ -309,6 +267,83 @@ export async function listTriage(
       ),
     )
     .orderBy(desc(builds.number))
+}
+
+/**
+ * The (kind, key) of every problem in a project's queue, computed from its builds: what
+ * `refreshTriageProblems` stores in `triage_problems`. The same three rules `listTriage` shows.
+ */
+export async function findTriageProblems(
+  db: Database,
+  project: Pick<Project, 'id' | 'defaultBranch' | 'flakyAfterChanges'>,
+): Promise<{ kind: TriageKind; key: string }[]> {
+  const { flaky } = (await flakyVerdictsFor(db, [project])).get(project.id) ?? { flaky: [] }
+  const orphans = await orphanProblems(db, project)
+  const failed = await failedProblems(db, project)
+  return [
+    ...flaky.map((f) => ({ kind: 'flaky' as const, key: f.name })),
+    ...orphans.map((o) => ({ kind: 'no_baseline' as const, key: o.name })),
+    ...failed.map((b) => ({ kind: 'failed' as const, key: `build:${b.number}` })),
+  ]
+}
+
+/** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
+export async function listTriage(
+  db: Database,
+  input: { projectId: string; now: Date },
+): Promise<listTriage.Queue> {
+  const [row] = await db
+    .select({ project: projects, workspaceSlug: workspace.slug })
+    .from(projects)
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .where(eq(projects.id, input.projectId))
+  if (!row) return { items: [], rotation: { members: [], onTriage: null, until: null } }
+  const { project } = row
+  const projectRef = { slug: project.slug, name: project.name }
+  const branch = project.defaultBranch
+
+  const found: {
+    kind: TriageKind
+    key: string
+    snapshotName: string | null
+    build: BuildRef
+    error?: string | null
+  }[] = []
+
+  // Flaky: one bounded history, the one rule; the latest build in which each flaky name changed.
+  const { builds: window, flaky } = (await flakyVerdictsFor(db, [project])).get(project.id) ?? {
+    builds: [],
+    flaky: [],
+  }
+  const flakyNames = flaky.map((f) => f.name)
+  const reasons = new Map(flaky.map((f) => [f.name, f.why]))
+  const history = flakyHistory(window, flakyNames)
+  const blocking = await flakyBlocking(db, project.id, flakyNames)
+  for (const f of flaky) {
+    const latest = latestChange(window, f.name) ?? window.at(-1)
+    if (!latest) continue
+    found.push({
+      kind: 'flaky',
+      key: f.name,
+      snapshotName: f.name,
+      build: {
+        number: latest.number,
+        branch,
+        commitSha: latest.commitSha,
+        status: 'complete',
+        createdAt: latest.createdAt,
+      },
+    })
+  }
+
+  // No baseline: see `orphanProblems`.
+  const orphans = await orphanProblems(db, project)
+  for (const r of orphans) {
+    found.push({ kind: 'no_baseline', key: r.name, snapshotName: r.name, build: r.build })
+  }
+
+  // Failed: see `failedProblems`.
+  const failed = await failedProblems(db, project)
   for (const { error, ...b } of failed) {
     found.push({ kind: 'failed', key: `build:${b.number}`, snapshotName: null, build: b, error })
   }
@@ -407,83 +442,30 @@ export async function countAssignedTriage(
 
 /**
  * How many items wait in each project's queue of a workspace (not snoozed, not dismissed), in one
- * query: the sidebar needs every project's number and must not run a triage list per project. The
- * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each project; projects with
- * nothing waiting are in the map with 0. The three kinds mirror `listTriage`: the flaky names
- * come from the same rule over the same bounded history (`flakyVerdictsFor`, not SQL, so the two
- * cannot disagree) and go into the query as data; the orphan and failed rules are the same, then
- * what people did about them is applied the same way (dismissed out, snoozed out while their
- * snooze lasts).
+ * indexed query: the sidebar needs every project's number on every fetch and must not recompute
+ * any queue. The counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each
+ * project; projects with nothing waiting are in the map with 0. The problems themselves are the
+ * rows of `triage_problems`, kept by `refreshTriageProblems` whenever a write could change them
+ * (the three rules are the ones `listTriage` shows); what people did about them is applied the
+ * same way (dismissed out, snoozed out while their snooze lasts).
  */
 export async function countOpenTriage(
   db: Database,
   input: { workspaceId: string; now: Date },
 ): Promise<Map<string, number>> {
-  const workspaceProjects = await db
-    .select({
-      id: projects.id,
-      defaultBranch: projects.defaultBranch,
-      flakyAfterChanges: projects.flakyAfterChanges,
-    })
-    .from(projects)
-    .where(eq(projects.workspaceId, input.workspaceId))
-  const verdicts = await flakyVerdictsFor(db, workspaceProjects)
-  const flakyKeys = JSON.stringify(
-    workspaceProjects.flatMap((t) =>
-      (verdicts.get(t.id)?.flaky ?? []).map((f) => ({ project_id: t.id, key: f.name })),
-    ),
-  )
   const result: unknown = await db.execute(sql`
-    with ws_projects as (
-      select id, default_branch, flaky_after_changes from projects where workspace_id = ${input.workspaceId}
-    ),
-    main_builds as (
-      select b.id, b.project_id, b.number, b.status, b.baseline_source, b.review_status, b.conclusion
-      from builds b join ws_projects t on t.id = b.project_id and b.branch = t.default_branch
-    ),
-    latest_push as (
-      select project_id, max(number) as n from main_builds group by project_id
-    ),
-    last_complete as (
-      select project_id, max(number) as n from main_builds where status = 'complete' group by project_id
-    ),
-    found as (
-      select (x->>'project_id')::uuid as project_id, 'flaky'::text as kind, x->>'key' as key
-      from jsonb_array_elements(${flakyKeys}::jsonb) x
-      union
-      select mb.project_id, 'no_baseline', d.name
-      from screenshot_diffs d join main_builds mb on mb.id = d.build_id
-      where mb.status = 'complete' and mb.baseline_source = 'none' and d.status = 'added'
-        and not exists (
-          select 1 from snapshot_reviews sr
-          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null
-            and sr.decision = 'approved')
-        and not (mb.review_status = 'approved' and not exists (
-          select 1 from snapshot_reviews sr
-          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null))
-        and not (coalesce(mb.conclusion, '') = 'no_changes' and mb.review_status <> 'rejected' and not exists (
-          select 1 from snapshot_reviews sr
-          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null))
-        and not exists (
-          select 1 from screenshot_diffs ld join main_builds lb on lb.id = ld.build_id
-          where lb.project_id = mb.project_id and lb.status = 'complete'
-            and lb.number > mb.number and ld.name = d.name)
-      union
-      select mb.project_id, 'failed', 'build:' || mb.number
-      from main_builds mb
-      where mb.status = 'error'
-        and coalesce((select n from last_complete lc where lc.project_id = mb.project_id), 0) <= mb.number
-    )
     select t.id as project_id,
-      (count(f.key) filter (where i.dismissed_at is null
+      (count(p.key) filter (where i.dismissed_at is null
         and not (i.snooze_kind is not null
           and case when i.snoozed_until is not null
                 then i.snoozed_until > ${input.now.toISOString()}::timestamptz
-                else coalesce(lp.n, 0) <= coalesce(i.snoozed_after_build, 0) end)))::int as open
-    from ws_projects t
-    left join found f on f.project_id = t.id
-    left join triage_items i on i.project_id = f.project_id and i.kind = f.kind and i.key = f.key
-    left join latest_push lp on lp.project_id = t.id
+                else coalesce((select max(b.number) from builds b
+                                where b.project_id = t.id and b.branch = t.default_branch), 0)
+                       <= coalesce(i.snoozed_after_build, 0) end)))::int as open
+    from projects t
+    left join triage_problems p on p.project_id = t.id
+    left join triage_items i on i.project_id = p.project_id and i.kind = p.kind and i.key = p.key
+    where t.workspace_id = ${input.workspaceId}
     group by t.id
   `)
   const rows: unknown =

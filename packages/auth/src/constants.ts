@@ -9,3 +9,6 @@ export const INVITATION_TTL_SECONDS = 7 * 24 * 3600
 
 /** How long an emailed sign-in code works. */
 export const EMAIL_CODE_TTL_SECONDS = 600
+
+/** How long a signed cookie stands in for the session and user lookups (see `createAuth`). */
+export const SESSION_COOKIE_CACHE_SECONDS = 30

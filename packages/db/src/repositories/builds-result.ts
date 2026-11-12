@@ -7,6 +7,7 @@ import { assertFound } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 import { approveChangedSnapshots, carryRejection, supersedeSnapshotReviews } from './reviews.ts'
+import { refreshTriageProblems } from './triage-problems.ts'
 
 /** Recording how a build ended, and resetting it for another run. */
 
@@ -60,6 +61,7 @@ export async function setBuildResult(
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
     assertFound(done, 'Build not found')
+    await refreshTriageProblems(tx, done.projectId, { branch: done.branch })
     return done
   })
 }
@@ -142,6 +144,7 @@ export async function setBuildError(
     .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
     .where(eq(builds.id, buildId))
     .returning()
+  if (failed) await refreshTriageProblems(db, failed.projectId, { branch: failed.branch })
   return failed
 }
 
@@ -165,5 +168,6 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
     .returning()
   assertFound(updated, 'Build not found, or still processing')
   await supersedeSnapshotReviews(db, buildId)
+  await refreshTriageProblems(db, updated.projectId, { branch: updated.branch })
   return updated
 }

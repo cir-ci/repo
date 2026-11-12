@@ -1,3 +1,4 @@
+import { absorbFileSignatures } from './file-signatures.ts'
 import { isApprovalRequest } from './prompt-rules.ts'
 import { usePwaStore } from './stores/pwa-store.ts'
 
@@ -61,8 +62,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   if (res.status === 204) return undefined as T
   // The shapes come from `@circi/api`, which the server checks its read models against.
+  const body: unknown = await res.json()
+  absorbFileSignatures(body)
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return (await res.json()) as T
+  return body as T
 }
 
 export const getJson = <T>(path: string) => request<T>(path)

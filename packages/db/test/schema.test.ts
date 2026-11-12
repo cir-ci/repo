@@ -87,6 +87,7 @@ describe('migrations', () => {
       'static_site_files',
       'static_sites',
       'triage_items',
+      'triage_problems',
       'triage_rotation_members',
       'undo_actions',
       'upload_claims',

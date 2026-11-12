@@ -115,6 +115,13 @@ declare module 'fastify' {
     /** The project whose CI token authenticated this `/v1` request. */
     project?: getProjectContext.Context
     /** The signed-in user, inside the session-protected dashboard API. */
-    user?: { id: string; email: string; name: string; method: SessionMethod; sessionId: string }
+    user?: {
+      id: string
+      email: string
+      name: string
+      method: SessionMethod
+      instanceAdmin: boolean
+      sessionId: string
+    }
   }
 }

@@ -13,6 +13,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { countOpenTriage, listTriage } from '#src/queries/index.ts'
 import {
   dismissTriageItem,
+  recordSnapshotReviews,
+  refreshTriageProblems,
+  resetBuild,
+  setBuildError,
+  setBuildResult,
   setTriageRotation,
   updateProjectSettings,
 } from '#src/repositories/index.ts'
@@ -176,9 +181,10 @@ describe('listTriage', () => {
     await seedDiff(t.db, { buildId: first.id, name: 'pricing', status: 'added' })
     const keys = async () =>
       (await listTriage(t.db, { projectId: project.id, now })).items.map((i) => i.key).toSorted()
-    const open = async () => [
-      ...(await countOpenTriage(t.db, { workspaceId: workspace.id, now })).values(),
-    ]
+    const open = async () => {
+      await refreshTriageProblems(t.db, project.id)
+      return [...(await countOpenTriage(t.db, { workspaceId: workspace.id, now })).values()]
+    }
     expect(await keys()).toEqual(['about', 'home', 'pricing'])
     // `home` accepted on its own, `about` rejected, `pricing` undecided: only `home` is a baseline.
     await t.db.insert(schema.snapshotReviews).values([
@@ -322,6 +328,11 @@ describe('countOpenTriage', () => {
     await seedDiff(t.db, { buildId: ok.id, name: 'home', status: 'unchanged' })
     await mainBuild(outside.project.id, { status: 'error' })
 
+    for (const project of [first, calm, snoozy, empty, outside]) {
+      // The seeders write builds directly, so the stored queue is brought up to date by hand.
+      // oxlint-disable-next-line no-await-in-loop -- a handful of projects
+      await refreshTriageProblems(t.db, project.project.id)
+    }
     const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now })
     const expected = new Map<string, number>()
     for (const project of [first, calm, snoozy, empty]) {
@@ -336,5 +347,92 @@ describe('countOpenTriage', () => {
     expect(counts.get(calm.project.id)).toBe(0)
     expect(counts.get(empty.project.id)).toBe(0)
     expect(counts.has(outside.project.id)).toBe(false)
+  })
+})
+
+const projectCount = async (workspaceId: string, projectId: string) =>
+  (await countOpenTriage(t.db, { workspaceId, now })).get(projectId)
+const openItems = async (projectId: string) =>
+  (await listTriage(t.db, { projectId, now })).items.filter((i) => !i.snoozed).length
+
+describe('countOpenTriage stays right as builds and reviews are written', () => {
+  it('follows a build completing, failing and being re-run, a review, and a settings change', async () => {
+    const { project, workspace } = await seedProject(t.db)
+    const check = async (expected: number) => {
+      expect(await openItems(project.id)).toBe(expected)
+      expect(await projectCount(workspace.id, project.id)).toBe(expected)
+    }
+    await check(0)
+
+    // A build is processing: nothing to show until it completes.
+    const first = await mainBuild(project.id, { status: 'complete' })
+    await t.db
+      .update(schema.builds)
+      .set({ status: 'processing', baselineSource: 'none' })
+      .where(eq(schema.builds.id, first.id))
+    await seedDiff(t.db, { buildId: first.id, name: 'home', status: 'added' })
+    await seedDiff(t.db, { buildId: first.id, name: 'about', status: 'added' })
+    await check(0)
+    const [processing] = await t.db
+      .select()
+      .from(schema.builds)
+      .where(eq(schema.builds.id, first.id))
+    const done = await setBuildResult(t.db, processing!, {
+      conclusion: 'changes_detected',
+      approval: 'none',
+    })
+    await check(2)
+
+    // A review: approving `home` makes it a baseline.
+    await recordSnapshotReviews(t.db, {
+      buildId: done.id,
+      userId: null,
+      decision: 'approved',
+      snapshotNames: ['home'],
+    })
+    await check(1)
+    await recordSnapshotReviews(t.db, {
+      buildId: done.id,
+      userId: null,
+      decision: 'approved',
+      snapshotNames: 'all',
+    })
+    await check(0)
+
+    // A newer build fails: one failed item, until another completes.
+    const broken = await mainBuild(project.id, { status: 'complete' })
+    await setBuildError(t.db, broken.id, 'boom')
+    await check(1)
+    const fine = await mainBuild(project.id, { status: 'complete' })
+    await t.db
+      .update(schema.builds)
+      .set({ status: 'processing', baselineSource: 'cli' })
+      .where(eq(schema.builds.id, fine.id))
+    const [fineRow] = await t.db.select().from(schema.builds).where(eq(schema.builds.id, fine.id))
+    await setBuildResult(t.db, fineRow!, { conclusion: 'no_changes', approval: 'none' })
+    await check(0)
+
+    // Re-running the first build takes its screenshots out of the queue's history while it runs.
+    await resetBuild(t.db, done.id)
+    await check(0)
+
+    // Another default branch: the queue is about that branch's builds.
+    await updateProjectSettings(t.db, project.id, { defaultBranch: 'develop' })
+    await check(0)
+    await updateProjectSettings(t.db, project.id, { defaultBranch: 'main' })
+    await check(0)
+  })
+
+  it('is a constant number of statements however many problems there are', async () => {
+    const { project, workspace } = await seedProject(t.db)
+    const b = await mainBuild(project.id, { baselineSource: 'none' })
+    for (let i = 0; i < 40; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- seeding
+      await seedDiff(t.db, { buildId: b.id, name: `shot-${i}`, status: 'added' })
+    }
+    await refreshTriageProblems(t.db, project.id)
+    t.queries.reset()
+    expect(await projectCount(workspace.id, project.id)).toBe(40)
+    expect(t.queries.count()).toBe(1)
   })
 })

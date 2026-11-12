@@ -51,6 +51,7 @@ export async function startAccess() {
         email: `${id}@access.test`,
         name: id,
         method,
+        instanceAdmin: false,
         sessionId: 'session',
       }
     }

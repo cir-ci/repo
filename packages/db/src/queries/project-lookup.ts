@@ -1,7 +1,7 @@
 import type { ProjectColor } from '@circi/core'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 
-import { member, projects, workspace } from '#schema/index.ts'
+import { member, projectMembers, projects, workspace } from '#schema/index.ts'
 import { projectVisibleTo } from '#shared/project-visibility.ts'
 import { type SessionMethod, workspaceAccepts, workspaceIsLive } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
@@ -82,8 +82,27 @@ export namespace findProjectForMember {
  */
 export async function findProjectForMember(
   db: Database,
-  input: { workspaceSlug: string; projectSlug: string; userId: string; method?: SessionMethod },
+  input: findProjectForMember.Input,
 ): Promise<findProjectForMember.Visible | undefined> {
+  return (await findProjectWithAccess(db, input))?.project
+}
+export namespace findProjectForMember {
+  export interface Input {
+    workspaceSlug: string
+    projectSlug: string
+    userId: string
+    method?: SessionMethod
+  }
+}
+
+/**
+ * `findProjectForMember`, plus what a request needs to decide on access, from the same query: the
+ * user's role in the project's workspace and whether they belong to the project itself.
+ */
+export async function findProjectWithAccess(
+  db: Database,
+  input: findProjectForMember.Input,
+): Promise<findProjectWithAccess.Found | undefined> {
   const [row] = await db
     .select({
       id: projects.id,
@@ -94,6 +113,8 @@ export async function findProjectForMember(
       icon: projects.icon,
       workspaceSlug: workspace.slug,
       workspaceName: workspace.name,
+      role: member.role,
+      isMember: sql<boolean>`exists (select 1 from ${projectMembers} where ${projectMembers.projectId} = ${projects.id} and ${projectMembers.userId} = ${input.userId})`,
     })
     .from(projects)
     .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
@@ -106,7 +127,18 @@ export async function findProjectForMember(
         projectVisibleTo(input.userId, projects),
       ),
     )
-  return row
+  if (!row) return undefined
+  const { role, isMember, ...project } = row
+  return { project, role, isMember }
+}
+export namespace findProjectWithAccess {
+  export interface Found {
+    project: findProjectForMember.Visible
+    /** The user's role in the project's workspace (`owner`, `admin`, `member`). */
+    role: string
+    /** Whether the user belongs to the project (owners and admins may see it without). */
+    isMember: boolean
+  }
 }
 
 /** The member's role in the project's workspace (`owner`, `admin`, `member`), if they belong. */

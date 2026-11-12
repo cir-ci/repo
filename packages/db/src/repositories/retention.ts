@@ -15,6 +15,8 @@ import {
 import type { Database } from '#src/client.ts'
 import { isForeignKeyViolation } from '#src/errors.ts'
 
+import { refreshTriageProblems } from './triage-problems.ts'
+
 /**
  * Retention and garbage collection (PLAN §8). Old data goes in three separate steps, so a
  * mistake in one can't lose files that something still needs:
@@ -94,10 +96,15 @@ async function expireBuildBatch(db: Database, now: Date, limit: number): Promise
       update ${builds} b
       set status = 'expired'
       where b.id in (select id from picked)
-      returning b.id
+      returning b.id, b.project_id
     `)
     const ids = column(expired, 'id')
     if (ids.length === 0) return 0
+    // Expired builds leave the history the queue is derived from.
+    for (const projectId of new Set(column(expired, 'project_id'))) {
+      // oxlint-disable-next-line no-await-in-loop -- one transaction, one connection
+      await refreshTriageProblems(tx, projectId)
+    }
     await tx.delete(screenshotDiffs).where(inArray(screenshotDiffs.buildId, ids))
     await tx.delete(screenshots).where(inArray(screenshots.buildId, ids))
     await tx.delete(uploadClaims).where(inArray(uploadClaims.buildId, ids))

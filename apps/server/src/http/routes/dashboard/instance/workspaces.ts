@@ -36,7 +36,7 @@ export const dashboardInstanceWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard
   app,
   deps,
 ) => {
-  app.addHook('onRequest', requireInstanceAdmin(deps.db))
+  app.addHook('onRequest', requireInstanceAdmin())
 
   app.get('/instance/workspaces', async (req): Promise<InstanceAdmin.WorkspaceList> => ({
     workspaces: (await listInstanceWorkspaces(deps.db, currentUser(req).id)).map((w) => wire(w)),

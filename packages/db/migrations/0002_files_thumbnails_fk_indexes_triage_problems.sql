@@ -1,4 +1,13 @@
+CREATE TABLE "triage_problems" (
+	"project_id" uuid NOT NULL,
+	"kind" text NOT NULL,
+	"key" text NOT NULL,
+	CONSTRAINT "triage_problems_project_id_kind_key_pk" PRIMARY KEY("project_id","kind","key"),
+	CONSTRAINT "triage_problems_kind_check" CHECK (kind in ('flaky', 'no_baseline', 'failed'))
+);
+--> statement-breakpoint
 ALTER TABLE "files" ADD COLUMN "thumbnail_sha256" text;--> statement-breakpoint
+ALTER TABLE "triage_problems" ADD CONSTRAINT "triage_problems_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "files" ADD CONSTRAINT "files_thumbnail_sha256_files_sha256_fk" FOREIGN KEY ("thumbnail_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "builds_base_build_idx" ON "builds" USING btree ("base_build_id");--> statement-breakpoint
 CREATE INDEX "builds_author_user_idx" ON "builds" USING btree ("author_user_id");--> statement-breakpoint

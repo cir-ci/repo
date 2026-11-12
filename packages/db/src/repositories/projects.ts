@@ -25,6 +25,7 @@ import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 import type { Project } from '#src/types.ts'
 
 import { addProjectMembers } from './project-members.ts'
+import { refreshTriageProblems } from './triage-problems.ts'
 
 /**
  * Projects, and the lookups the API and dashboard need. A project's CI token is a better-auth
@@ -221,6 +222,10 @@ export async function updateProjectSettings(
   try {
     const [row] = await db.update(projects).set(set).where(eq(projects.id, projectId)).returning()
     assertFound(row, 'Project not found')
+    // The queue's problems follow the default branch and the flaky threshold.
+    if (set.defaultBranch !== undefined || set.flakyAfterChanges !== undefined) {
+      await refreshTriageProblems(db, projectId)
+    }
     return projectSettings(row)
   } catch (err) {
     // `projects_workspace_slug_key`: another project in the workspace already has this slug.

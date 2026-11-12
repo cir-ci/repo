@@ -163,6 +163,8 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   return {
     app,
     db: t.db,
+    /** Counts the statements the server and better-auth run (see `createTestDb`). */
+    queries: t.queries,
     /** Acme's owner and Rival's owner, as clients. */
     client: clientFor(app, acmeCookie),
     rivalClient: clientFor(app, rivalCookie),

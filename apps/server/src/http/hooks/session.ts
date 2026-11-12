@@ -3,8 +3,7 @@ import { type Database } from '@circi/db'
 import {
   findWorkspaceBySlug,
   getMemberRole,
-  getSessionMethod,
-  isInstanceAdmin,
+  getSessionAccess,
   providerRefusal,
 } from '@circi/db/queries'
 import type { FastifyRequest, onRequestAsyncHookHandler, preHandlerAsyncHookHandler } from 'fastify'
@@ -17,21 +16,21 @@ export function requireSession(auth: Auth, db: Database): onRequestAsyncHookHand
   return async (req, reply) => {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
     if (!session) return reply.code(401).send({ error: 'Sign in to continue' })
-    // Workspaces may refuse some login methods, so the session's method travels with it.
-    let method = (await getSessionMethod(db, session.session.id)) ?? 'unknown'
-    // Instance admins are never locked out by a workspace's GitHub or Google switch.
-    if (
-      typeof method === 'object' &&
-      'oidcProvider' in method &&
-      (await isInstanceAdmin(db, session.user.id))
-    ) {
-      method = 'oidc'
-    }
+    // Workspaces may refuse some login methods, so the session's method travels with it (one query,
+    // which also tells whether the user is an instance admin, never locked out by a provider switch).
+    const access = await getSessionAccess(db, {
+      sessionId: session.session.id,
+      userId: session.user.id,
+    })
+    // Gone since the cookie cache was filled: signed out, revoked or banned.
+    if (!access) return reply.code(401).send({ error: 'Sign in to continue' })
+    const { method, instanceAdmin } = access
     req.user = {
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
       method,
+      instanceAdmin,
       sessionId: session.session.id,
     }
     return undefined

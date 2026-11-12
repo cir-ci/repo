@@ -1,9 +1,11 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, gt, sql } from 'drizzle-orm'
 
 import {
   member,
+  session,
   sessionMethods,
   ssoProvider,
+  user,
   workspace,
   workspaceAuthSettings,
 } from '#schema/index.ts'
@@ -89,6 +91,22 @@ export function instanceAuthMethods(input: {
   }
 }
 
+interface MethodRow {
+  method: string | null | undefined
+  scope: string | null | undefined
+  provider: string | null | undefined
+}
+
+function toSessionMethod(row: MethodRow | undefined): SessionMethod | undefined {
+  const method = row?.method
+  if (method === 'workspace-oidc') return row?.scope ? { scopedTo: row.scope } : undefined
+  // A session from before the provider was recorded counts as plain single sign-on.
+  if (method === 'oidc' && isSwitchableProvider(row?.provider)) {
+    return { oidcProvider: row.provider }
+  }
+  return method === 'password' || method === 'email' || method === 'oidc' ? method : undefined
+}
+
 /** How a session signed in; `undefined` for sessions that predate the record. */
 export async function getSessionMethod(
   db: Database,
@@ -102,13 +120,43 @@ export async function getSessionMethod(
     })
     .from(sessionMethods)
     .where(eq(sessionMethods.sessionId, sessionId))
-  const method = row?.method
-  if (method === 'workspace-oidc') return row?.scope ? { scopedTo: row.scope } : undefined
-  // A session from before the provider was recorded counts as plain single sign-on.
-  if (method === 'oidc' && isSwitchableProvider(row?.provider)) {
-    return { oidcProvider: row.provider }
-  }
-  return method === 'password' || method === 'email' || method === 'oidc' ? method : undefined
+  return toSessionMethod(row)
+}
+
+/**
+ * What a dashboard request needs to know about its session, in one query: that the session still
+ * exists and has not expired (so signing out, revoking or banning ends it at once even while
+ * better-auth's cookie cache still vouches for it), how it signed in (`getSessionMethod`; a
+ * session from before the record is `'unknown'`) and whether the user is an instance admin.
+ * Instance admins are never locked out by a workspace's GitHub or Google switch, so for them such
+ * a session counts as plain single sign-on. `undefined` when the session is gone.
+ */
+export async function getSessionAccess(
+  db: Database,
+  input: { sessionId: string; userId: string },
+): Promise<{ method: SessionMethod; instanceAdmin: boolean } | undefined> {
+  const [row] = await db
+    .select({
+      method: sessionMethods.method,
+      scope: sessionMethods.scopeWorkspaceId,
+      provider: sessionMethods.provider,
+      role: user.role,
+    })
+    .from(session)
+    .innerJoin(user, eq(user.id, session.userId))
+    .leftJoin(sessionMethods, eq(sessionMethods.sessionId, session.id))
+    .where(
+      and(
+        eq(session.id, input.sessionId),
+        eq(session.userId, input.userId),
+        gt(session.expiresAt, new Date()),
+      ),
+    )
+  if (!row) return undefined
+  const instanceAdmin = (row.role ?? '').split(',').includes('admin')
+  let method: SessionMethod = toSessionMethod(row) ?? 'unknown'
+  if (typeof method === 'object' && 'oidcProvider' in method && instanceAdmin) method = 'oidc'
+  return { method, instanceAdmin }
 }
 
 /** Whether the workspace accepts a session that signed in with `method`. */

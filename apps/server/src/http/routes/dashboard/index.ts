@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 
+import { signFileHashes } from '#http/hooks/file-signatures.ts'
 import { requireSameOrigin } from '#http/hooks/same-origin.ts'
 import { refuseBlockedProvider, requireSession } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
@@ -83,6 +84,8 @@ export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, 
   await dash.register(
     async (scope) => {
       await scope.register(sessionApi, deps)
+      // Outside `sessionApi`: a signed link needs no session (see the route).
+      await scope.register(dashboardFileRoutes, deps)
     },
     { prefix: '/api' },
   )
@@ -95,6 +98,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
   api.addHook('preHandler', refuseBlockedProvider(deps.db))
+  if (deps.authSecret) api.addHook('preSerialization', signFileHashes(deps.authSecret))
   await api.register(dashboardProjectRoutes, deps)
   await api.register(dashboardProjectMemberRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
@@ -134,5 +138,4 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardSearchRoutes, deps)
   await api.register(dashboardViewRoutes, deps)
   await api.register(dashboardWorkspaceBuildsRoutes, deps)
-  await api.register(dashboardFileRoutes, deps)
 }

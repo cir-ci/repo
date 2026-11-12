@@ -1,10 +1,9 @@
 import { NotFoundError } from '@circi/core'
 import { type Build } from '@circi/db'
 import {
-  findProjectForMember,
+  type findProjectForMember,
+  findProjectWithAccess,
   getBuildByNumber,
-  getProjectMemberRole,
-  isProjectMember,
 } from '@circi/db/queries'
 import { type Actor, assertAllowed, canSeeProject, canWriteProject } from '@circi/services'
 import type { FastifyRequest } from 'fastify'
@@ -51,7 +50,7 @@ export async function loadProject(
 ): Promise<loadProject.Found> {
   const p = parse(projectParams, req.params)
   const user = currentUser(req)
-  const project = await findProjectForMember(deps.db, {
+  const found = await findProjectWithAccess(deps.db, {
     workspaceSlug: p.workspace,
     projectSlug: p.project,
     userId: user.id,
@@ -61,13 +60,12 @@ export async function loadProject(
     notFound: options.notFound ?? 'Project not found',
     forbidden: options.forbidden ?? 'Only owners and admins can change this',
   }
-  if (!project) {
+  if (!found) {
     const outsider: Actor = { userId: user.id, instanceAdmin: false, role: undefined }
     assertAllowed(canSeeProject(outsider), messages)
     throw new NotFoundError(messages.notFound)
   }
-  const role = await getProjectMemberRole(deps.db, project.id, user.id)
-  const isMember = await isProjectMember(deps.db, project.id, user.id)
+  const { project, role, isMember } = found
   const actor: Actor = { userId: user.id, instanceAdmin: false, role, projectMember: isMember }
   assertAllowed(canSeeProject(actor), messages)
   if (options.manage) assertAllowed(canWriteProject(actor), messages)

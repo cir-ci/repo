@@ -65,6 +65,29 @@ export const triageItems = pgTable(
   ],
 )
 
+/**
+ * The problems a project's triage queue holds right now: the derived part of the queue, kept as
+ * rows so counting them (the sidebar, on every fetch) is an indexed count instead of a
+ * recomputation over every default-branch build. `refreshTriageProblems` rewrites a project's
+ * rows whenever something that can change them is written (a build completes, fails, is re-run or
+ * expires, a review is recorded, the default branch or flaky threshold changes). Same `kind` and
+ * `key` as `triage_items`, which holds what people did about each.
+ */
+export const triageProblems = pgTable(
+  'triage_problems',
+  {
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<TriageKind>().notNull(),
+    key: text('key').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.kind, t.key] }),
+    check('triage_problems_kind_check', inList('kind', TRIAGE_KINDS)),
+  ],
+)
+
 /** The people who take turns being on triage, in order (see `rotationFor` in `@circi/core`). */
 export const triageRotationMembers = pgTable(
   'triage_rotation_members',

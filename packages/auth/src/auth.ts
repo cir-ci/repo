@@ -2,7 +2,7 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import * as schema from '@circi/db/schema'
 import { betterAuth } from 'better-auth'
 
-import { MIN_PASSWORD_LENGTH } from './constants.ts'
+import { MIN_PASSWORD_LENGTH, SESSION_COOKIE_CACHE_SECONDS } from './constants.ts'
 import { hostCookies } from './cookies.ts'
 import { beforeAccountCreate } from './hooks/account-create.ts'
 import {
@@ -78,6 +78,10 @@ export function createAuth(options: AuthOptions) {
       disableSignUp: true,
       minPasswordLength: MIN_PASSWORD_LENGTH,
     },
+    // The dashboard calls the API a lot: a signed cookie carries the session and user for a short
+    // while, so most requests skip the session and user lookups. The price: a session revoked
+    // elsewhere (or a banned user) stays valid here for up to `maxAge` seconds.
+    session: { cookieCache: { enabled: true, maxAge: SESSION_COOKIE_CACHE_SECONDS } },
     ...(options.rateLimit === undefined ? {} : { rateLimit: { enabled: options.rateLimit } }),
     advanced: {
       cookiePrefix: 'circi',

@@ -11,7 +11,7 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
   app,
   deps,
 ) => {
-  app.addHook('onRequest', requireInstanceAdmin(deps.db))
+  app.addHook('onRequest', requireInstanceAdmin())
 
   app.get('/instance/settings', async (_req, reply) => {
     if (!deps.instance) return reply.code(501).send({ error: "Instance settings aren't available" })

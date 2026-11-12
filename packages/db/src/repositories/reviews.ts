@@ -16,12 +16,21 @@ import type { Database } from '#src/client.ts'
 import { ConflictError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
+import { refreshTriageProblems } from './triage-problems.ts'
+
 /**
  * Approving and rejecting snapshots and builds (PLAN §7.4). A decision is stored per snapshot
  * (`snapshot_reviews`); the build's `review_status` is derived from them, and `reviews` keeps a
  * row each time that derived status becomes approved or rejected. The status is what makes an
  * approved build a baseline for later builds and what the merge gate reads.
  */
+
+/** Rows per INSERT/UPDATE: each row binds under 10 parameters, and Postgres allows 65535. */
+const SNAPSHOT_REVIEW_CHUNK = 5000
+
+function* chunks<T>(items: T[], size: number): Generator<T[]> {
+  for (let i = 0; i < items.length; i += size) yield items.slice(i, i + size)
+}
 
 /**
  * Records decisions on snapshots of a build, then derives the build's `review_status` from the
@@ -37,138 +46,152 @@ export async function recordSnapshotReviews(
   input: recordSnapshotReviews.Input,
 ): Promise<recordSnapshotReviews.Result> {
   return db.transaction(async (tx) => {
-    const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
-    assertFound(build, 'Build not found')
-    if (build.status !== 'complete') {
-      throw new ConflictError(
-        `Build #${build.number} is ${build.status}; it can be reviewed once it's complete`,
+    const result = await decideSnapshots(tx, input)
+    // The queue's no-baseline problems depend on what is approved.
+    await refreshTriageProblems(tx, result.build.projectId, { branch: result.build.branch })
+    return result
+  })
+}
+
+async function decideSnapshots(
+  tx: Database,
+  input: recordSnapshotReviews.Input,
+): Promise<recordSnapshotReviews.Result> {
+  const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
+  assertFound(build, 'Build not found')
+  if (build.status !== 'complete') {
+    throw new ConflictError(
+      `Build #${build.number} is ${build.status}; it can be reviewed once it's complete`,
+    )
+  }
+  if (build.conclusion !== 'changes_detected') {
+    const [project] = await tx
+      .select({ autoApprove: projects.autoApproveNoChanges })
+      .from(projects)
+      .where(eq(projects.id, build.projectId))
+    // A project that doesn't approve no-change builds on their own has them decided by a person:
+    // there are no snapshots to decide, so the decision is the build's.
+    if (build.conclusion === 'no_changes' && project && !project.autoApprove) {
+      return decideBuildWithoutChanges(tx, build, input)
+    }
+    throw new ConflictError(`Build #${build.number} has no changes to review`)
+  }
+  const changed = await listChangedSnapshotNames(tx, build.id)
+  const current = await currentDecisions(tx, build.id)
+
+  let names: string[]
+  if (input.snapshotNames === 'all') names = changed
+  else if (input.snapshotNames === 'undecided') names = changed.filter((n) => !current.has(n))
+  else {
+    names = [...new Set(input.snapshotNames)]
+    const unknown = names.filter((n) => !changed.includes(n))
+    if (unknown.length > 0) {
+      throw new ConflictError(`Not a changed snapshot of build #${build.number}: ${unknown[0]}`)
+    }
+  }
+
+  const reason = input.decision === 'rejected' ? input.reason || null : null
+  const decided: string[] = []
+  const insertedIds: string[] = []
+  const supersededIds: string[] = []
+  const now = new Date()
+  const toDecide = names.filter((name) => current.get(name)?.decision !== input.decision)
+  // Set-based: one UPDATE for everything superseded, then multi-row INSERTs (chunked under
+  // Postgres's bind-parameter limit), so the statement count doesn't grow with the snapshots.
+  for (const chunk of chunks(toDecide, SNAPSHOT_REVIEW_CHUNK)) {
+    // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+    const replaced = await tx
+      .update(snapshotReviews)
+      .set({ supersededAt: now })
+      .where(
+        and(
+          eq(snapshotReviews.buildId, build.id),
+          inArray(snapshotReviews.snapshotName, chunk),
+          isNull(snapshotReviews.supersededAt),
+        ),
       )
-    }
-    if (build.conclusion !== 'changes_detected') {
-      const [project] = await tx
-        .select({ autoApprove: projects.autoApproveNoChanges })
-        .from(projects)
-        .where(eq(projects.id, build.projectId))
-      // A project that doesn't approve no-change builds on their own has them decided by a person:
-      // there are no snapshots to decide, so the decision is the build's.
-      if (build.conclusion === 'no_changes' && project && !project.autoApprove) {
-        return decideBuildWithoutChanges(tx, build, input)
-      }
-      throw new ConflictError(`Build #${build.number} has no changes to review`)
-    }
-    const changed = await listChangedSnapshotNames(tx, build.id)
-    const current = await currentDecisions(tx, build.id)
-
-    let names: string[]
-    if (input.snapshotNames === 'all') names = changed
-    else if (input.snapshotNames === 'undecided') names = changed.filter((n) => !current.has(n))
-    else {
-      names = [...new Set(input.snapshotNames)]
-      const unknown = names.filter((n) => !changed.includes(n))
-      if (unknown.length > 0) {
-        throw new ConflictError(`Not a changed snapshot of build #${build.number}: ${unknown[0]}`)
-      }
-    }
-
-    const reason = input.decision === 'rejected' ? input.reason || null : null
-    const decided: string[] = []
-    const insertedIds: string[] = []
-    const supersededIds: string[] = []
-    const now = new Date()
-    for (const name of names) {
-      if (current.get(name)?.decision === input.decision) continue
-      // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
-      const replaced = await tx
-        .update(snapshotReviews)
-        .set({ supersededAt: now })
-        .where(
-          and(
-            eq(snapshotReviews.buildId, build.id),
-            eq(snapshotReviews.snapshotName, name),
-            isNull(snapshotReviews.supersededAt),
-          ),
-        )
-        .returning({ id: snapshotReviews.id })
-      supersededIds.push(...replaced.map((r) => r.id))
-      // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
-      const [row] = await tx
-        .insert(snapshotReviews)
-        .values({
+      .returning({ id: snapshotReviews.id })
+    supersededIds.push(...replaced.map((r) => r.id))
+    // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+    const rows = await tx
+      .insert(snapshotReviews)
+      .values(
+        chunk.map((snapshotName) => ({
           buildId: build.id,
-          snapshotName: name,
+          snapshotName,
           decision: input.decision,
           userId: input.userId,
-          source: input.source ?? 'ui',
+          source: input.source ?? ('ui' as const),
           reason,
           createdAt: now,
-        })
-        .returning({ id: snapshotReviews.id })
-      if (row) insertedIds.push(row.id)
-      current.set(name, { decision: input.decision, reason })
-      decided.push(name)
-    }
+        })),
+      )
+      .returning({ id: snapshotReviews.id })
+    insertedIds.push(...rows.map((r) => r.id))
+  }
+  for (const name of toDecide) current.set(name, { decision: input.decision, reason })
+  decided.push(...toDecide)
 
-    const status = deriveReviewStatus({
-      changed,
-      decisions: new Map([...current].map(([n, c]) => [n, c.decision])),
-    })
-    const previousStatus = build.reviewStatus
-    if (status === previousStatus) {
-      return {
-        build,
-        changed: false,
-        previousStatus,
-        decided,
-        reviewerName: null,
-        reasons: [],
-        insertedIds,
-        supersededIds,
-        reviewId: null,
-      }
-    }
-    const [updated] = await tx
-      .update(builds)
-      .set({ reviewStatus: status })
-      .where(eq(builds.id, build.id))
-      .returning()
-    if (!updated) throw new Error('update returned no row')
-    const reasons = [
-      ...new Set(
-        changed
-          .map((n) => current.get(n))
-          .filter((c) => c?.decision === 'rejected' && c.reason)
-          .map((c) => c?.reason ?? ''),
-      ),
-    ]
-    let reviewId: string | null = null
-    if (status !== 'pending') {
-      const [row] = await tx
-        .insert(reviews)
-        .values({
-          buildId: build.id,
-          userId: input.userId,
-          state: status,
-          source: input.source ?? 'ui',
-          reason: status === 'rejected' ? reasons.join('\n') || null : null,
-        })
-        .returning({ id: reviews.id })
-      reviewId = row?.id ?? null
-    }
-    const [reviewer] = input.userId
-      ? await tx.select({ name: user.name }).from(user).where(eq(user.id, input.userId))
-      : []
+  const status = deriveReviewStatus({
+    changed,
+    decisions: new Map([...current].map(([n, c]) => [n, c.decision])),
+  })
+  const previousStatus = build.reviewStatus
+  if (status === previousStatus) {
     return {
-      build: updated,
-      changed: true,
+      build,
+      changed: false,
       previousStatus,
       decided,
-      reviewerName: reviewer?.name ?? null,
-      reasons,
+      reviewerName: null,
+      reasons: [],
       insertedIds,
       supersededIds,
-      reviewId,
+      reviewId: null,
     }
-  })
+  }
+  const [updated] = await tx
+    .update(builds)
+    .set({ reviewStatus: status })
+    .where(eq(builds.id, build.id))
+    .returning()
+  if (!updated) throw new Error('update returned no row')
+  const reasons = [
+    ...new Set(
+      changed
+        .map((n) => current.get(n))
+        .filter((c) => c?.decision === 'rejected' && c.reason)
+        .map((c) => c?.reason ?? ''),
+    ),
+  ]
+  let reviewId: string | null = null
+  if (status !== 'pending') {
+    const [row] = await tx
+      .insert(reviews)
+      .values({
+        buildId: build.id,
+        userId: input.userId,
+        state: status,
+        source: input.source ?? 'ui',
+        reason: status === 'rejected' ? reasons.join('\n') || null : null,
+      })
+      .returning({ id: reviews.id })
+    reviewId = row?.id ?? null
+  }
+  const [reviewer] = input.userId
+    ? await tx.select({ name: user.name }).from(user).where(eq(user.id, input.userId))
+    : []
+  return {
+    build: updated,
+    changed: true,
+    previousStatus,
+    decided,
+    reviewerName: reviewer?.name ?? null,
+    reasons,
+    insertedIds,
+    supersededIds,
+    reviewId,
+  }
 }
 
 export namespace recordSnapshotReviews {
@@ -305,15 +328,18 @@ export async function approveChangedSnapshots(
 ): Promise<void> {
   const names = await listChangedSnapshotNames(db, buildId)
   if (names.length === 0) return
-  await db.insert(snapshotReviews).values(
-    names.map((snapshotName) => ({
-      buildId,
-      snapshotName,
-      decision: 'approved' as const,
-      userId: null,
-      source,
-    })),
-  )
+  for (const chunk of chunks(names, SNAPSHOT_REVIEW_CHUNK)) {
+    // eslint-disable-next-line no-await-in-loop -- sequential chunks of one logical insert
+    await db.insert(snapshotReviews).values(
+      chunk.map((snapshotName) => ({
+        buildId,
+        snapshotName,
+        decision: 'approved' as const,
+        userId: null,
+        source,
+      })),
+    )
+  }
 }
 
 /**
@@ -422,59 +448,70 @@ export async function restoreSnapshotReviews(
   input: restoreSnapshotReviews.Input,
 ): Promise<restoreSnapshotReviews.Result> {
   return db.transaction(async (tx) => {
-    const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
-    assertFound(build, 'Build not found')
-    const previousStatus = build.reviewStatus
-    if (input.insertedIds.length === 0) {
-      // A build decided as a whole: its status is the decision.
-      if (build.reviewStatus !== input.resultStatus) return { stale: true, build, changed: false }
-      const [updated] = await tx
-        .update(builds)
-        .set({ reviewStatus: input.previousStatus })
-        .where(eq(builds.id, build.id))
-        .returning()
-      return {
-        stale: false,
-        build: updated ?? build,
-        changed: input.previousStatus !== previousStatus,
-      }
+    const result = await restoreDecisions(tx, input)
+    if (!result.stale) {
+      await refreshTriageProblems(tx, result.build.projectId, { branch: result.build.branch })
     }
-    const live = await tx
-      .select({ id: snapshotReviews.id })
-      .from(snapshotReviews)
-      .where(
-        and(inArray(snapshotReviews.id, input.insertedIds), isNull(snapshotReviews.supersededAt)),
-      )
-    if (live.length !== input.insertedIds.length) return { stale: true, build, changed: false }
-    await tx
-      .update(snapshotReviews)
-      .set({ supersededAt: new Date() })
-      .where(inArray(snapshotReviews.id, input.insertedIds))
-    if (input.supersededIds.length > 0) {
-      await tx
-        .update(snapshotReviews)
-        .set({ supersededAt: null })
-        .where(inArray(snapshotReviews.id, input.supersededIds))
-    }
-    // The status the action left is exactly what undoing it puts back; if others moved it on
-    // (they decided other snapshots), it follows the decisions as they now are.
-    let status: ReviewStatus = input.previousStatus
-    if (build.reviewStatus !== input.resultStatus) {
-      status = deriveReviewStatus({
-        changed: await listChangedSnapshotNames(tx, build.id),
-        decisions: new Map(
-          [...(await currentDecisions(tx, build.id))].map(([n, c]) => [n, c.decision]),
-        ),
-      })
-    }
-    if (status === previousStatus) return { stale: false, build, changed: false }
+    return result
+  })
+}
+
+async function restoreDecisions(
+  tx: Database,
+  input: restoreSnapshotReviews.Input,
+): Promise<restoreSnapshotReviews.Result> {
+  const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
+  assertFound(build, 'Build not found')
+  const previousStatus = build.reviewStatus
+  if (input.insertedIds.length === 0) {
+    // A build decided as a whole: its status is the decision.
+    if (build.reviewStatus !== input.resultStatus) return { stale: true, build, changed: false }
     const [updated] = await tx
       .update(builds)
-      .set({ reviewStatus: status })
+      .set({ reviewStatus: input.previousStatus })
       .where(eq(builds.id, build.id))
       .returning()
-    return { stale: false, build: updated ?? build, changed: true }
-  })
+    return {
+      stale: false,
+      build: updated ?? build,
+      changed: input.previousStatus !== previousStatus,
+    }
+  }
+  const live = await tx
+    .select({ id: snapshotReviews.id })
+    .from(snapshotReviews)
+    .where(
+      and(inArray(snapshotReviews.id, input.insertedIds), isNull(snapshotReviews.supersededAt)),
+    )
+  if (live.length !== input.insertedIds.length) return { stale: true, build, changed: false }
+  await tx
+    .update(snapshotReviews)
+    .set({ supersededAt: new Date() })
+    .where(inArray(snapshotReviews.id, input.insertedIds))
+  if (input.supersededIds.length > 0) {
+    await tx
+      .update(snapshotReviews)
+      .set({ supersededAt: null })
+      .where(inArray(snapshotReviews.id, input.supersededIds))
+  }
+  // The status the action left is exactly what undoing it puts back; if others moved it on
+  // (they decided other snapshots), it follows the decisions as they now are.
+  let status: ReviewStatus = input.previousStatus
+  if (build.reviewStatus !== input.resultStatus) {
+    status = deriveReviewStatus({
+      changed: await listChangedSnapshotNames(tx, build.id),
+      decisions: new Map(
+        [...(await currentDecisions(tx, build.id))].map(([n, c]) => [n, c.decision]),
+      ),
+    })
+  }
+  if (status === previousStatus) return { stale: false, build, changed: false }
+  const [updated] = await tx
+    .update(builds)
+    .set({ reviewStatus: status })
+    .where(eq(builds.id, build.id))
+    .returning()
+  return { stale: false, build: updated ?? build, changed: true }
 }
 export namespace restoreSnapshotReviews {
   export interface Input {

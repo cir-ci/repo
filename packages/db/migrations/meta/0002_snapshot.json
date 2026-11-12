@@ -1,5 +1,5 @@
 {
-  "id": "57629c3f-854a-4a60-a634-9ec6e23696e0",
+  "id": "1cb02fa6-15de-40b9-9923-f602ae80db1c",
   "prevId": "e902db60-86e0-48b4-bec1-1def6aab2f79",
   "version": "7",
   "dialect": "postgresql",
@@ -5894,6 +5894,65 @@
         "triage_items_snooze_kind_check": {
           "name": "triage_items_snooze_kind_check",
           "value": "snooze_kind is null or snooze_kind in ('next_push', 'tomorrow', 'next_week', 'date')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.triage_problems": {
+      "name": "triage_problems",
+      "schema": "",
+      "columns": {
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "triage_problems_project_id_projects_id_fk": {
+          "name": "triage_problems_project_id_projects_id_fk",
+          "tableFrom": "triage_problems",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "triage_problems_project_id_kind_key_pk": {
+          "name": "triage_problems_project_id_kind_key_pk",
+          "columns": [
+            "project_id",
+            "kind",
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "triage_problems_kind_check": {
+          "name": "triage_problems_kind_check",
+          "value": "kind in ('flaky', 'no_baseline', 'failed')"
         }
       },
       "isRLSEnabled": false
