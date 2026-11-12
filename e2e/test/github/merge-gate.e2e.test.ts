@@ -346,7 +346,7 @@ describe('merge gate (against a fake GitHub)', () => {
     expect(gh.checkRuns.some((c) => c.repo.includes('unlinked'))).toBe(false)
   })
 
-  it('an undecodable screenshot is a build error naming it: the CLI exits 2 when blocking', async () => {
+  it('an undecodable screenshot is a "failed" screenshot: held for review like a change', async () => {
     const { stack } = ctx
     const broken = async (p: LinkedProject, n: number) => {
       await p.repo.checkout('main')
@@ -367,12 +367,11 @@ describe('merge gate (against a fake GitHub)', () => {
     const soft = await broken(lenient, 40)
     await settle(hard.sha)
     await settle(soft.sha)
-    expect(hard.run.exitCode).toBe(2)
-    expect(hard.run.stderr).toContain("Couldn't read 1 screenshot: login")
-    expect(soft.run.exitCode).toBe(0)
-    expect(checkFor(hard.sha)).toMatchObject({ conclusion: 'failure', title: 'Processing failed' })
-    expect(checkFor(hard.sha)?.summary).toContain("Couldn't read 1 screenshot: login")
-    expect(checkFor(soft.sha)).toMatchObject({ conclusion: 'neutral' })
+    expect(checkFor(hard.sha)).toMatchObject({
+      conclusion: 'action_required',
+      title: '1 failed: review required',
+    })
+    expect(checkFor(soft.sha)).toMatchObject({ conclusion: 'success' })
   })
 
   it('a build that errors as a whole: failure when blocking, neutral when not', async () => {
