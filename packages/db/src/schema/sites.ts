@@ -122,6 +122,23 @@ export const siteHostnames = pgTable(
   ],
 )
 
+/**
+ * Addresses retention removed: what an expired address answers with ("This site expired")
+ * instead of what an address that never existed does. Only people who may open the site are told.
+ * Gone with the site.
+ */
+export const expiredSiteHostnames = pgTable(
+  'expired_site_hostnames',
+  {
+    label: text('label').primaryKey(),
+    projectSiteId: uuid('project_site_id')
+      .notNull()
+      .references(() => projectSites.id, { onDelete: 'cascade' }),
+    expiredAt: timestamp('expired_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('expired_site_hostnames_site_idx').on(t.projectSiteId)],
+)
+
 /** One-time tokens the dashboard hands to a site address, bound to that address, valid 60 seconds. */
 export const siteTokens = pgTable(
   'site_tokens',

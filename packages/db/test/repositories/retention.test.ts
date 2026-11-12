@@ -151,6 +151,10 @@ describe('expireSites', () => {
     expect(await expireSites(t.db, now)).toEqual({ addresses: 1, versions: 0 })
     await t.db.delete(schema.siteHostnames).where(eq(schema.siteHostnames.label, 'main-branch'))
     expect(await expireSites(t.db, now)).toEqual({ addresses: 0, versions: 1 })
+    // Both the branch address and the commit address are remembered as expired, for the sites domain to say so.
+    expect(
+      (await t.db.select().from(schema.expiredSiteHostnames)).map((r) => r.label).toSorted(),
+    ).toContain('stale-branch')
     expect(
       await t.db
         .select()

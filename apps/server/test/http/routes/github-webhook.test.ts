@@ -276,25 +276,30 @@ const requireApproval = (value: boolean) =>
     .set({ autoApproveNoChanges: !value })
     .where(eq(schema.projects.id, acme.project.id))
 
+async function openRequest(buildId: string) {
+  const [row] = await t.db
+    .insert(schema.reviewRequests)
+    .values({ buildId, reviewerId: acme.owner.id, reviewerName: 'Owner' })
+    .returning()
+  return row?.id ?? ''
+}
+const requestState = async (id: string) =>
+  (await t.db.select().from(schema.reviewRequests).where(eq(schema.reviewRequests.id, id)))[0]
+    ?.state
+
+const closed = (pr: number, merged: boolean) => ({
+  action: 'closed',
+  pull_request: { number: pr, merged, user: { id: Number(GITHUB_ID), login: 'ann' } },
+  installation: { id: 99 },
+  repository: { full_name: 'acme/web' },
+})
+
+const attention = async () =>
+  (await t.db.select().from(schema.integrations).where(eq(schema.integrations.externalId, '99')))[0]
+
+const installationEvent = (action: string) => ({ action, installation: { id: 99 } })
+
 describe('GitHub webhook: pull requests closing and the installation', () => {
-  async function openRequest(buildId: string) {
-    const [row] = await t.db
-      .insert(schema.reviewRequests)
-      .values({ buildId, reviewerId: acme.owner.id, reviewerName: 'Owner' })
-      .returning()
-    return row?.id ?? ''
-  }
-  const requestState = async (id: string) =>
-    (await t.db.select().from(schema.reviewRequests).where(eq(schema.reviewRequests.id, id)))[0]
-      ?.state
-
-  const closed = (pr: number, merged: boolean) => ({
-    action: 'closed',
-    pull_request: { number: pr, merged, user: { id: Number(GITHUB_ID), login: 'ann' } },
-    installation: { id: 99 },
-    repository: { full_name: 'acme/web' },
-  })
-
   it('closing a pull request closes the open review requests on its builds, merged or not', async () => {
     const build = await changedBuild(60)
     const other = await changedBuild(61)
@@ -309,19 +314,15 @@ describe('GitHub webhook: pull requests closing and the installation', () => {
     expect(await requestState(unrelated)).toBe('dismissed')
   })
 
-  const attention = async () =>
-    (await t.db.select().from(schema.integrations).where(eq(schema.integrations.externalId, '99')))[0]
-
   it('removing or suspending the installation flags the connection, restoring it clears the flag', async () => {
-    const hook = (action: string) => ({ action, installation: { id: 99 } })
-    await deliver('installation', hook('deleted'))
+    await deliver('installation', installationEvent('deleted'))
     expect(await attention()).toMatchObject({ needsAttention: true })
     expect((await attention())?.needsAttentionReason).toMatch(/GitHub App was removed/)
-    await deliver('installation', hook('unsuspend'))
+    await deliver('installation', installationEvent('unsuspend'))
     expect(await attention()).toMatchObject({ needsAttention: false, needsAttentionReason: null })
-    await deliver('installation', hook('suspend'))
+    await deliver('installation', installationEvent('suspend'))
     expect(await attention()).toMatchObject({ needsAttention: true })
-    await deliver('installation', hook('created'))
+    await deliver('installation', installationEvent('created'))
     expect(await attention()).toMatchObject({ needsAttention: false })
   })
 

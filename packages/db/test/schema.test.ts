@@ -52,6 +52,7 @@ describe('migrations', () => {
       'comments',
       'commit_ancestry',
       'email_code_requests',
+      'expired_site_hostnames',
       'files',
       'ignore_regions',
       'instance_settings',

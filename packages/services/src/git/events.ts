@@ -127,7 +127,12 @@ async function onPullRequestClosed(
   input: handleGitEvents.Input,
   event: Of<'pull_request_closed'>,
 ) {
-  const projects = await findGitProjects(db, input.definition.id, event.repo.connection, event.repo.ref)
+  const projects = await findGitProjects(
+    db,
+    input.definition.id,
+    event.repo.connection,
+    event.repo.ref,
+  )
   for (const project of projects) {
     // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several projects
     await db.transaction(async (tx) => {

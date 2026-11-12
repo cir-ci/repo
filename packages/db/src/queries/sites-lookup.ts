@@ -1,6 +1,7 @@
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
 
 import {
+  expiredSiteHostnames,
   files,
   workspace,
   projects,
@@ -153,6 +154,37 @@ export async function findSiteByAddress(
   return address.includes('.')
     ? findSiteByCustomDomain(db, address.toLowerCase())
     : findSiteByLabel(db, address)
+}
+
+/**
+ * Who owns an address that retention removed ("This site expired"), or undefined for one that is
+ * live, never existed or was never one of a hostname label. For the sign-in steps to tell people
+ * who may open the site that it expired, and everyone else nothing.
+ */
+export async function findExpiredSiteByLabel(
+  db: Database,
+  label: string,
+): Promise<findExpiredSiteByLabel.Site | undefined> {
+  const [row] = await db
+    .select({ project: projects, workspace: workspace })
+    .from(expiredSiteHostnames)
+    .innerJoin(projectSites, eq(projectSites.id, expiredSiteHostnames.projectSiteId))
+    .innerJoin(projects, eq(projects.id, projectSites.projectId))
+    .innerJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .where(eq(expiredSiteHostnames.label, label))
+  return row
+    ? {
+        project: { id: row.project.id },
+        workspace: { id: row.workspace.id },
+      }
+    : undefined
+}
+
+export namespace findExpiredSiteByLabel {
+  export interface Site {
+    project: { id: string }
+    workspace: { id: string }
+  }
 }
 
 export namespace sitesForCommit {

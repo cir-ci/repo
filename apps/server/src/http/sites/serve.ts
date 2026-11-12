@@ -1,6 +1,7 @@
 import { type Database } from '@circi/db'
 import {
   commitLabelOfVersion,
+  findExpiredSiteByLabel,
   findSiteByCustomDomain,
   findSiteByLabel,
   isVerifiedCustomDomain,
@@ -70,14 +71,24 @@ const NOT_FOUND_PAGE = standalonePage(
   'No site is published at this address. It may have expired, or the link is wrong.',
 )
 
-function notFound(reply: FastifyReply) {
-  // The page's one stylesheet is inline: its CSP allows exactly that (by hash) and nothing else.
+/** What an address that retention removed answers, to people who may open the site only. */
+const EXPIRED_PAGE = standalonePage(
+  'Site expired',
+  'This site was removed once it was older than the retention period. Publish it again to bring it back.',
+)
+
+function page(reply: FastifyReply, status: number, html: string) {
   return reply
-    .code(404)
+    .code(status)
     .header('content-type', 'text/html; charset=utf-8')
     .header('content-security-policy', PAGE_CSP)
     .header('x-content-type-options', 'nosniff')
-    .send(NOT_FOUND_PAGE)
+    .send(html)
+}
+
+function notFound(reply: FastifyReply) {
+  // The page's one stylesheet is inline: its CSP allows exactly that (by hash) and nothing else.
+  return page(reply, 404, NOT_FOUND_PAGE)
 }
 
 /** Only same-site paths: never `//host`, never a backslash, never a scheme. */
@@ -170,11 +181,17 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
       : parseLabel(label)
         ? await findSiteByLabel(deps.db, label)
         : undefined
+    // An address retention removed: only told to people who may open the site, like any other.
+    const expired =
+      !found && !custom && parseLabel(label)
+        ? await findExpiredSiteByLabel(deps.db, label)
+        : undefined
+    const owner = found ?? expired
 
     // The token handoff from the dashboard: spend it, start a site session, set the cookie.
     if (url.pathname === '/_circi/auth') {
       const token = url.searchParams.get('t')
-      const id = await openSiteSession(deps.db, { token, label, siteExists: found !== undefined })
+      const id = await openSiteSession(deps.db, { token, label, siteExists: owner !== undefined })
       if (!id) return signIn(reply, label, safeReturn(url.searchParams.get('return')))
       return reply
         .code(302)
@@ -187,8 +204,9 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
         .send()
     }
 
-    const session = await hasAccess(req, label, found?.workspace.id, found?.project.id)
-    if (!found || !session) return signIn(reply, label, `${url.pathname}${url.search}`)
+    const session = await hasAccess(req, label, owner?.workspace.id, owner?.project.id)
+    if (!owner || !session) return signIn(reply, label, `${url.pathname}${url.search}`)
+    if (!found) return page(reply, 410, EXPIRED_PAGE)
 
     // Everything under /_circi/ is CirCI's, never the upload's.
     if (`${url.pathname.slice(1)}/`.startsWith(RESERVED_PREFIX)) return notFound(reply)

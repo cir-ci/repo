@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 
 import { type Auth } from '@circi/auth'
 import { packSite as packWithCli, uploadSite } from '@circi/cli'
+import { expireSites } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { addTestMember, createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
@@ -423,6 +424,29 @@ describe('the sites domain', () => {
   it('accepts very large cookie headers instead of refusing the request', async () => {
     const res = await siteGet('0'.repeat(12) + '-x', '/', { cookie: `bomb=${'x'.repeat(30_000)}` })
     expect(res.statusCode).toBe(302)
+  })
+})
+
+describe('an expired site', () => {
+  it('tells members it expired (410), strangers nothing more than for an unknown address', async () => {
+    const res = await upload(STORYBOOK, { name: 'old', commit: 'e'.repeat(40) })
+    const label = labelOf(res.json().addresses.commit)
+    // Retention ran long after the upload.
+    const later = new Date(Date.now() + 400 * 86_400_000)
+    expect(await expireSites(t.db, later)).toMatchObject({ versions: expect.any(Number) })
+    expect(await siteGet(label)).toMatchObject({ statusCode: 302 })
+
+    const { hand, siteCookie } = await openSite(label)
+    expect(hand.statusCode).toBe(200)
+    const page = await siteGet(label, '/', { cookie: siteCookie })
+    expect(page.statusCode).toBe(410)
+    expect(page.body).toContain('<h1>Site expired</h1>')
+    expect(page.headers['content-security-policy']).toMatch(/^default-src 'none'/)
+    // Another workspace's member is refused like for any address that doesn't exist.
+    const outsider = await openSite(label, rivalCookie)
+    const unknown = await openSite('000000000000-ghost', rivalCookie)
+    expect(outsider.hand.statusCode).toBe(404)
+    expect(outsider.hand.body).toBe(unknown.hand.body)
   })
 })
 

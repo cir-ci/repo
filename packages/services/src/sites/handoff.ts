@@ -1,5 +1,6 @@
 import { type Database } from '@circi/db'
 import {
+  findExpiredSiteByLabel,
   findSiteByAddress,
   getMemberRole,
   isProjectMember,
@@ -22,7 +23,8 @@ export async function handOffToSite(
   const { label, userId, sessionId, method } = input
   // Only addresses that exist match (a hostname label, or a verified custom domain): a
   // malformed one simply finds nothing.
-  const found = await findSiteByAddress(db, label)
+  // An address that expired still hands members a token, so the site's host can tell them so.
+  const found = (await findSiteByAddress(db, label)) ?? (await findExpiredSiteByLabel(db, label))
   if (!found) return undefined
   const workspaceId = found.workspace.id
   const role = await getMemberRole(db, { userId, workspaceId })

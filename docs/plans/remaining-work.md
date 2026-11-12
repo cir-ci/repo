@@ -92,14 +92,21 @@ left is listed below by kind.
 
 ## 1. Bugs, safety and cleanup (open)
 
-- Webhooks: no regenerate-secret endpoint; no per-project webhook limit; a delivery-time
-  private-address skip is only logged.
-- An undecodable PNG counts as a failed screenshot, not a build error.
-- No handler for GitHub `installation`, `pull_request` and `push` events (accepted and ignored);
-  no GitHub OAuth/device flow in CirCI: GitHub identities were inserted by SQL in the tests, so
-  the "link GitHub" step on the Account page is untested.
-- Sites: an expired site simply disappears (no "expired" marker, an expired address answers like
-  an unknown one); no story deep links for sites.
+- Webhooks: no per-project webhook limit; a delivery-time private-address skip is only logged.
+  (Fixed: "Regenerate secret" on a webhook, with a confirm and the new secret shown once.)
+- Fixed: an undecodable PNG now ends the build as an error naming the screenshot(s) (the CLI
+  prints it and exits 2 when the project blocks merges); it used to be one failed screenshot.
+- GitHub: `installation` events now flag the connection "needs attention" (deleted, suspend) or
+  clear it (created, unsuspend), and a closed or merged `pull_request` closes the open review
+  requests on its builds (as dismissed). `push` stays unhandled on purpose: builds learn their
+  commit from the CLI, and the App doesn't subscribe to it. `installation_repositories`
+  (repositories added or removed) is still ignored. No GitHub OAuth/device flow in CirCI: GitHub
+  identities were inserted by SQL in the tests, so the "link GitHub" step on the Account page is
+  untested.
+- Sites: fixed: an expired address (a branch address past retention, or a version's commit
+  address) is remembered in `expired_site_hostnames` and answers 410 "Site expired" to people who
+  may open the site; everyone else gets the same sign-in and "not found" as for an unknown
+  address. Still missing: no story deep links for sites.
 - Same-size migration corruption is only detected when the S3 target object has a checksum; an
   fs target is checked by size only.
 - LocalStack accepts any credentials: wrong-credentials handling is covered only by a fake 403

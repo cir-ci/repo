@@ -3,6 +3,7 @@ import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
 
 import {
   builds,
+  expiredSiteHostnames,
   files,
   projects,
   screenshotDiffs,
@@ -122,6 +123,18 @@ export async function expireSites(
   now: Date,
 ): Promise<{ addresses: number; versions: number }> {
   return db.transaction(async (tx) => {
+    // Both kinds of address are remembered as expired before their rows go (a version's commit
+    // address goes with it), so the address answers "expired" rather than "not found".
+    await tx.execute(sql`
+      insert into ${expiredSiteHostnames} (label, project_site_id, expired_at)
+      select h.label, h.project_site_id, ${now}::timestamptz
+      from ${siteHostnames} h, project_sites s, ${projects} p
+      where h.project_site_id = s.id and p.id = s.project_id
+        and h.link_kind = 'branch'
+        and h.branch is distinct from p.default_branch
+        and h.updated_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+      on conflict (label) do update set expired_at = excluded.expired_at
+    `)
     const addresses = await tx.execute(sql`
       delete from ${siteHostnames} h
       using project_sites s, ${projects} p
@@ -130,6 +143,19 @@ export async function expireSites(
         and h.branch is distinct from p.default_branch
         and h.updated_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
       returning h.label
+    `)
+    await tx.execute(sql`
+      insert into ${expiredSiteHostnames} (label, project_site_id, expired_at)
+      select h.label, h.project_site_id, ${now}::timestamptz
+      from ${siteHostnames} h
+      join ${staticSites} v on v.id = h.static_site_id
+      join project_sites s on s.id = v.project_site_id
+      join ${projects} p on p.id = s.project_id
+      where v.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+        and not exists (
+          select 1 from ${siteHostnames} b where b.static_site_id = v.id and b.link_kind = 'branch'
+        )
+      on conflict (label) do update set expired_at = excluded.expired_at
     `)
     const versions = await tx.execute(sql`
       delete from ${staticSites} v
