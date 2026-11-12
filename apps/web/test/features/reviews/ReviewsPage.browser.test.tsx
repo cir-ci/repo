@@ -292,8 +292,7 @@ describe('ReviewsPage', () => {
     })
     const { router } = await show()
     await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()
-    await userEvent.keyboard('j')
-    await expect.poll(() => router.state.location.search).toMatchObject({ review: 'r1' })
+    // The first review is already selected, so J goes to the second.
     await userEvent.keyboard('j')
     await expect.poll(() => router.state.location.search).toMatchObject({ review: 'r2' })
     await expect.element(page.getByRole('heading', { name: 'Build #13' })).toBeVisible()
