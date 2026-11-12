@@ -59,10 +59,12 @@ export namespace startWorker {
      * the worker at once. Without it, or while the connection is down, the poll finds jobs.
      */
     listen?: ListenFn
-    /** How long to wait when the queue is empty. Default 1 s; also the fallback for missed notifications. */
+    /** How long to wait when the queue is empty; also the fallback for missed notifications. Default 5 s with `listen`, else 1 s. */
     pollIntervalMs?: number
     /** Builds processed at the same time. Default 2. */
     concurrency?: number
+    /** Extra lanes that never take a build (webhooks, git checks, email, Slack). Default 1. */
+    lightLanes?: number
     /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
     uploadTimeoutMinutes?: number
     /** Pixel comparison engine (`CIRCI_DIFF_ENGINE`, default `js`); `native` and `js-workers` fall back to `js` with a warning when they can't run. */
@@ -77,6 +79,10 @@ export namespace startWorker {
     reviewSweepIntervalMs?: number
     /** How often triage items nobody has go to the person on triage, for projects that want it (default 5 minutes); 0 turns it off. */
     triageAssignIntervalMs?: number
+    /** Days a done or failed job is kept before the pruning sweep deletes it (default 14); 0 keeps them. */
+    jobRetentionDays?: number
+    /** How often finished jobs are pruned (default 1 hour). */
+    jobPruneIntervalMs?: number
     /** How often to look for them (default 5 minutes). */
     maintenanceIntervalMs?: number
     /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
@@ -112,7 +118,7 @@ export async function startWorker(deps: startWorker.Deps): Promise<startWorker.R
   deps.logger.info(
     {
       storage: deps.storage.kind,
-      lanes: deps.concurrency ?? 2,
+      lanes: (deps.concurrency ?? 2) + (deps.lightLanes ?? 1),
       diffEngine,
       ...(diffEngine === 'js-workers' && deps.diffThreads ? { diffThreads: deps.diffThreads } : {}),
     },

@@ -1,8 +1,15 @@
 import { createTestDb } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { claimJob, completeJob, enqueueJob, failJob } from '#src/queue/index.ts'
+import {
+  claimJob,
+  completeJob,
+  deleteFinishedJobs,
+  enqueueJob,
+  extendLease,
+  failJob,
+} from '#src/queue/index.ts'
 import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -23,7 +30,7 @@ describe('job queue', () => {
     expect([a?.payload, b?.payload]).toEqual([{ n: 1 }, { n: 2 }])
     expect(await claimJob(t.db, 'q1', 60)).toBeUndefined()
     if (!a) throw new Error('no job')
-    await completeJob(t.db, a.id)
+    await completeJob(t.db, a)
     const [done] = await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, a.id))
     expect(done?.status).toBe('done')
   })
@@ -39,7 +46,7 @@ describe('job queue', () => {
     await enqueueJob(t.db, { queue: 'q3', payload: {}, maxAttempts: 2 })
     const first = await claimJob(t.db, 'q3', 60)
     if (!first) throw new Error('no job')
-    expect(await failJob(t.db, first, 'boom')).toBe(true)
+    expect(await failJob(t.db, first, 'boom')).toBe('retried')
     // Not due yet because of the backoff.
     expect(await claimJob(t.db, 'q3', 60)).toBeUndefined()
     await t.db
@@ -49,7 +56,7 @@ describe('job queue', () => {
     const second = await claimJob(t.db, 'q3', 60)
     if (!second) throw new Error('no retry')
     expect(second.attempts).toBe(2)
-    expect(await failJob(t.db, second, 'boom again')).toBe(false)
+    expect(await failJob(t.db, second, 'boom again')).toBe('failed')
     const [row] = await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, first.id))
     expect(row).toMatchObject({ status: 'failed', lastError: 'boom again' })
   })
@@ -81,6 +88,102 @@ describe('job queue', () => {
       .where(eq(schema.jobs.id, job.id))
     const again = await claimJob(t.db, 'q4', 60)
     expect(again?.id).toBe(job.id)
+  })
+})
+
+const expire = (id: number) =>
+  t.db
+    .update(schema.jobs)
+    .set({ lockedUntil: new Date(0) })
+    .where(eq(schema.jobs.id, id))
+const rowOf = async (id: number) =>
+  (await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, id)))[0]
+
+describe('job leases', () => {
+  it('ignores the complete and the fail of a claim whose lease expired and was taken again', async () => {
+    await enqueueJob(t.db, { queue: 'ql1', payload: {} })
+    const first = await claimJob(t.db, 'ql1', 60)
+    if (!first) throw new Error('no job')
+    await expire(first.id)
+    const second = await claimJob(t.db, 'ql1', 60)
+    expect(second?.attempts).toBe(first.attempts + 1)
+    expect(await completeJob(t.db, first)).toBe(false)
+    expect(await failJob(t.db, first, 'late')).toBe('lost')
+    expect(await rowOf(first.id)).toMatchObject({ status: 'running', lastError: null })
+    if (!second) throw new Error('no second claim')
+    expect(await completeJob(t.db, second)).toBe(true)
+    expect((await rowOf(first.id))?.status).toBe('done')
+  })
+
+  it('a heartbeat keeps a long job leased; a lost claim cannot extend', async () => {
+    await enqueueJob(t.db, { queue: 'ql2', payload: {} })
+    const job = await claimJob(t.db, 'ql2', 60)
+    if (!job) throw new Error('no job')
+    // Nearly expired, then extended: nobody else can claim it.
+    await t.db
+      .update(schema.jobs)
+      .set({ lockedUntil: new Date(Date.now() + 100) })
+      .where(eq(schema.jobs.id, job.id))
+    expect(await extendLease(t.db, job, 60)).toBe(true)
+    expect(((await rowOf(job.id))?.lockedUntil?.getTime() ?? 0) - Date.now()).toBeGreaterThan(
+      30_000,
+    )
+    expect(await claimJob(t.db, 'ql2', 60)).toBeUndefined()
+    // Once it lapsed and was claimed again, the old claim's heartbeat says so.
+    await expire(job.id)
+    await claimJob(t.db, 'ql2', 60)
+    expect(await extendLease(t.db, job, 60)).toBe(false)
+  })
+})
+
+describe('claiming across queues', () => {
+  it('takes queues in the given priority order, in one statement (no transaction)', async () => {
+    await enqueueJob(t.db, { queue: 'qc-b', payload: { n: 'b' } })
+    await enqueueJob(t.db, { queue: 'qc-a', payload: { n: 'a' } })
+    const spy = vi.spyOn(t.db, 'transaction')
+    try {
+      const first = await claimJob(t.db, ['qc-a', 'qc-b'], 60)
+      const second = await claimJob(t.db, ['qc-a', 'qc-b'], 60)
+      expect([first?.payload, second?.payload]).toEqual([{ n: 'a' }, { n: 'b' }])
+      expect(spy).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+    expect(await claimJob(t.db, ['qc-a', 'qc-b'], 60)).toBeUndefined()
+  })
+
+  it('a queue left out of the list is never claimed', async () => {
+    await enqueueJob(t.db, { queue: 'qc-heavy', payload: {} })
+    expect(await claimJob(t.db, ['qc-light'], 60)).toBeUndefined()
+  })
+})
+
+const row = (status: 'done' | 'failed' | 'pending' | 'running', finishedAt: Date | null) => ({
+  queue: 'qd',
+  payload: {},
+  status,
+  finishedAt,
+})
+
+describe('deleteFinishedJobs', () => {
+  it('deletes done and failed jobs older than the cutoff, in batches, and nothing else', async () => {
+    const old = new Date(Date.now() - 30 * 86_400_000)
+    await t.db
+      .insert(schema.jobs)
+      .values([
+        row('done', old),
+        row('done', old),
+        row('failed', old),
+        row('done', new Date()),
+        row('pending', null),
+        row('running', null),
+      ])
+    const before = new Date(Date.now() - 14 * 86_400_000)
+    expect(await deleteFinishedJobs(t.db, before, 2)).toBe(2)
+    expect(await deleteFinishedJobs(t.db, before, 2)).toBe(1)
+    expect(await deleteFinishedJobs(t.db, before, 2)).toBe(0)
+    const left = await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'qd'))
+    expect(left.map((r) => r.status).toSorted()).toEqual(['done', 'pending', 'running'])
   })
 })
 

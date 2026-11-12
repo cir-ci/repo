@@ -6,14 +6,19 @@ import { runJob } from './run-job.ts'
 import type { startWorker } from './runner.ts'
 
 /**
- * The poll lanes: each claims one job at a time (`FOR UPDATE SKIP LOCKED`, so several worker
+ * The poll lanes (`concurrency` that take builds first, plus `lightLanes` that never take one): each claims one job at a time (`FOR UPDATE SKIP LOCKED`, so several worker
  * processes can share a database), runs it, and sleeps when the queue is empty. A NOTIFY wakes all
  * lanes at once; the poll interval is the fallback for missed notifications.
  */
 export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
-  const pollMs = deps.pollIntervalMs ?? 1_000
+  // NOTIFY wakes the lanes at once, so with a listener the poll is only the fallback (missed
+  // notifications, retries that fall due): a longer wait keeps an idle worker nearly silent.
+  const pollMs = deps.pollIntervalMs ?? (deps.listen ? 5_000 : 1_000)
   const lockSeconds = deps.lockSeconds ?? 600
-  const lanes = deps.concurrency ?? 2
+  const buildLanes = deps.concurrency ?? 2
+  // Lanes that never take a build, so a backlog of builds can't starve webhooks, git checks, email and Slack.
+  const lightLanes = deps.lightLanes ?? 1
+  const lanes = buildLanes + lightLanes
   // Flipped by stop(); a shared object so every lane sees the change.
   const state = { running: true }
   const sleepers = Array.from({ length: lanes }, () => interruptibleSleep())
@@ -32,10 +37,11 @@ export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
     : undefined
 
   const loops = sleepers.map(async (sleeper, lane) => {
+    const light = lane >= buildLanes
     while (state.running) {
       woken[lane] = false
       // oxlint-disable-next-line no-await-in-loop -- a poll loop claims one job at a time
-      const job = await claimNextJob(deps.db, lockSeconds).catch((err: unknown) => {
+      const job = await claimNextJob(deps.db, lockSeconds, { light }).catch((err: unknown) => {
         deps.logger.error({ err }, 'could not claim a job')
       })
       if (!job) {

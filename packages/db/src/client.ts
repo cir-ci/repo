@@ -154,3 +154,26 @@ export async function withAdvisoryLock<T>(
     return fn(tx)
   })
 }
+
+/**
+ * Runs `fn` in a transaction only if no other connection holds the advisory lock on `key`
+ * (`pg_try_advisory_xact_lock`): resolves to `{ ran: false }` at once when another process has it,
+ * so a periodic sweep is skipped, not queued. The lock lasts as long as the transaction; `fn`
+ * should use the transaction it is given.
+ */
+export async function tryAdvisoryLock<T>(
+  db: Database,
+  key: string,
+  fn: (tx: Database) => Promise<T>,
+): Promise<{ ran: true; value: T } | { ran: false }> {
+  return db.transaction(async (tx) => {
+    const result: unknown = await tx.execute(
+      sql`select pg_try_advisory_xact_lock(hashtextextended(${key}, 0)) as locked`,
+    )
+    const rows: unknown =
+      typeof result === 'object' && result !== null ? Reflect.get(result, 'rows') : undefined
+    const locked = Array.isArray(rows) && Reflect.get(rows[0] ?? {}, 'locked') === true
+    if (!locked) return { ran: false as const }
+    return { ran: true as const, value: await fn(tx) }
+  })
+}

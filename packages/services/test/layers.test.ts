@@ -263,6 +263,8 @@ const EXCEPTIONS: Partial<Record<RuleId, Record<string, string>>> = {
       'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
     'packages/services/src/pipeline/process.ts':
       'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
+    'packages/services/src/jobs/sweeps.ts':
+      "Pruning deletes history rows in independent batches (idempotent step by step: a crash loses nothing) with the handle the sweep lock's transaction gives it.",
   },
 }
 

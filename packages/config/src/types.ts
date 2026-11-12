@@ -114,6 +114,8 @@ export interface Config {
   diffThreads?: number
   /** Hours a file nobody uses waits before it is deleted (`GC_GRACE_HOURS`). */
   gcGraceHours: number
+  /** Days a finished (done or failed) background job is kept before it is pruned; 0 keeps them (`JOB_RETENTION_DAYS`). */
+  jobRetentionDays: number
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
   uploadTimeoutMinutes: number
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */

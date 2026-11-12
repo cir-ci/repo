@@ -12,6 +12,7 @@ export {
   migrationsFolder,
   runMigrations,
   type Schema,
+  tryAdvisoryLock,
   withAdvisoryLock,
 } from './client.ts'
 export * from './errors.ts'

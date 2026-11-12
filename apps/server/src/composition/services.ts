@@ -94,6 +94,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
         diffEngine: rt.config.diffEngine,
         ...(rt.config.diffThreads ? { diffThreads: rt.config.diffThreads } : {}),
         gcGraceHours: rt.config.gcGraceHours,
+        jobRetentionDays: rt.config.jobRetentionDays,
         retryBackoff: rt.config.jobRetry,
         webhookTimeoutMs: rt.config.webhookTimeoutMs,
         integrations: { config: integrationConfig(rt.config) },

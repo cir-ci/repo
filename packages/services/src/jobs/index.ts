@@ -2,6 +2,7 @@
 export { deliverNotification } from './deliver-notification.ts'
 export { deliverWebhook } from './deliver-webhook.ts'
 export { integrationEvent } from './integration-event.ts'
+export { pruneFinishedJobs, runExclusive } from './sweeps.ts'
 export { notifyGit } from './notify-git.ts'
 export { sendNotificationEmail } from './send-notification-email.ts'
 export {
@@ -10,6 +11,7 @@ export {
   JOBS_CHANNEL,
   QUEUES,
   completeJob,
+  extendJobLease,
   failJob,
   isJobForDeletedWorkspace,
 } from './queue.ts'

@@ -256,6 +256,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     diffEngine: e.CIRCI_DIFF_ENGINE,
     ...(e.CIRCI_DIFF_THREADS ? { diffThreads: e.CIRCI_DIFF_THREADS } : {}),
     gcGraceHours: e.GC_GRACE_HOURS,
+    jobRetentionDays: e.JOB_RETENTION_DAYS,
     workspaceCreation: e.WORKSPACE_CREATION,
   }
 }

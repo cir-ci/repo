@@ -76,6 +76,7 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(1).max(256).optional(),
   ),
+  JOB_RETENTION_DAYS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(14)),
   GC_GRACE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
   UPLOAD_TIMEOUT_MINUTES: z.preprocess(
     emptyToUndefined,

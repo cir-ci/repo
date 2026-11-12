@@ -121,7 +121,7 @@ async function queueNotice(buildId: string) {
 async function runNext(deps: Omit<notifyGit.Deps, 'db' | 'publicOrigin'> & object) {
   const job = await nextJob()
   const result = await notifyGit({ db: t.db, publicOrigin, ...deps }, job)
-  await completeJob(t.db, job.id)
+  await completeJob(t.db, job)
   return result
 }
 
@@ -257,7 +257,7 @@ describe('notifyGit', () => {
 
     const job = await nextJob()
     expect(await notifyGit(deps, job)).toEqual({ status: 'notified' })
-    await completeJob(t.db, job.id)
+    await completeJob(t.db, job)
 
     expect(fake.checks).toHaveLength(1)
     expect(fake.checks[0]).toMatchObject({ installationId: '99', repo: 'acme/web' })
