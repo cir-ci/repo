@@ -47,4 +47,46 @@
     gap: 4px 8px;
     padding: 6px 8px 6px 16px;
   }
+
+  /*
+   * The buttons always stay on the title's line, and the title (the crumbs) is what gives way: it
+   * shrinks and truncates. One line, so it can (a wrapping line breaks at items' full widths, and
+   * the crumbs would never shrink before the buttons wrapped).
+   */
+  .root {
+    flex-wrap: nowrap;
+  }
+
+  .root > :not(.actions, .spacer) {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /*
+   * A page that puts a row of its own after its title (`data-header-row`: a build's long branch):
+   * the title, then the buttons, on the first line (the title taking all the room left), and the
+   * row under them.
+   */
+  .root:has(> [data-header-row]) {
+    flex-wrap: wrap;
+  }
+
+  .root:has(> [data-header-row]) > :not(.actions, .spacer, [data-header-row]) {
+    flex: 1 1 0;
+  }
+
+  .root:has(> [data-header-row]) > .spacer {
+    flex: none;
+    width: 0;
+  }
+
+  .root:has(> [data-header-row]) > .spacer,
+  .root:has(> [data-header-row]) > .actions {
+    order: 1;
+  }
+
+  .root > [data-header-row] {
+    order: 2;
+    flex: 1 0 100%;
+  }
 }

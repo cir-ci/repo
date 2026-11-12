@@ -395,6 +395,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           )
         }
         after={build.branch ? <Ref value={build.branch} label="branch name" /> : null}
+        afterOwnRow
       />
 
       <div className={page['context']}>

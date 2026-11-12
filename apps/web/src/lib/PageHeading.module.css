@@ -7,3 +7,10 @@
 .find > * {
   width: 100%;
 }
+
+/* What follows the title (a build's branch): inline beside it. */
+.after {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}

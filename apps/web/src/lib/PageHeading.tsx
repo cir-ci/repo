@@ -39,6 +39,7 @@ export function PageHeading({
   title,
   actions,
   after,
+  afterOwnRow = false,
   headingInPage,
   find,
 }: PageHeading.Props) {
@@ -67,7 +68,12 @@ export function PageHeading({
             { label: title },
           ]}
         />
-        {after}
+        {after ? (
+          // Beside the title; with `afterOwnRow`, on a phone a row of its own under it.
+          <div className={styles.after} data-header-row={afterOwnRow ? '' : undefined}>
+            {after}
+          </div>
+        ) : null}
       </PanelHeader>
       <PhoneProjectTabs />
       {phone && find ? <div className={styles.find}>{find}</div> : null}
@@ -96,6 +102,11 @@ export namespace PageHeading {
     find?: ReactNode
     /** Something that belongs beside the title (a branch name), right after the breadcrumb. */
     after?: ReactNode
+    /**
+     * On a phone, `after` gets a row of its own under the title and the buttons (a build's long
+     * branch), instead of sitting beside the title (a count). False.
+     */
+    afterOwnRow?: boolean
     /** The page shows its own visible `<h1>` in the body (Integrations): the crumb is then plain text. */
     headingInPage?: boolean
   }

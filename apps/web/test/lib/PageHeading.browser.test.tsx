@@ -46,6 +46,68 @@ describe('PageHeading', () => {
   })
 })
 
+/** The vertical middle of an element: two on one line share it. */
+const middle = (el: Element) => {
+  const r = el.getBoundingClientRect()
+  return r.top + r.height / 2
+}
+
+describe('PageHeading on a phone', () => {
+  it("keeps the page's buttons on the title's line and moves what follows the title (a branch) below", async () => {
+    await renderPage(
+      <PageHeading
+        crumbs={[
+          workspaceCrumb({ slug: 'acme', name: 'Acme' }),
+          projectCrumb('acme', { slug: 'web-app', name: 'Web app' }),
+        ]}
+        title="Build #34"
+        after={<span>feat/a-rather-long-branch-name</span>}
+        afterOwnRow
+        actions={<button type="button">More</button>}
+      />,
+      { viewport: [390, 844] },
+    )
+    const title = page.getByRole('heading', { name: 'Build #34' })
+    await expect.element(title).toBeVisible()
+    const line = middle(title.element())
+    // The page's own, and the phone's Search.
+    for (const name of ['More', 'Search']) {
+      expect(Math.abs(middle(page.getByRole('button', { name }).element()) - line)).toBeLessThan(4)
+    }
+    // With room left, the title isn't cut short (no spacer shares the line's room with it).
+    expect(title.element().scrollWidth).toBeLessThanOrEqual(title.element().clientWidth)
+    // The branch wrapped under them.
+    expect(
+      page.getByText('feat/a-rather-long-branch-name').element().getBoundingClientRect().top,
+    ).toBeGreaterThan(title.element().getBoundingClientRect().bottom)
+  })
+})
+
+describe('PageHeading on a phone, with a count after the title', () => {
+  it('keeps the count beside the title and the buttons on the same line', async () => {
+    await renderPage(
+      <PageHeading
+        crumbs={[
+          workspaceCrumb({ slug: 'acme', name: 'Acme' }),
+          projectCrumb('acme', { slug: 'web-app', name: 'Web app' }),
+        ]}
+        title="Triage"
+        after={<span>5</span>}
+      />,
+      { viewport: [390, 844] },
+    )
+    const title = page.getByRole('heading', { name: 'Triage' })
+    await expect.element(title).toBeVisible()
+    const count = page.getByText('5', { exact: true }).element()
+    expect(Math.abs(middle(count) - middle(title.element()))).toBeLessThan(4)
+    expect(
+      Math.abs(
+        middle(page.getByRole('button', { name: 'Search' }).element()) - middle(title.element()),
+      ),
+    ).toBeLessThan(4)
+  })
+})
+
 describe('PageTitle', () => {
   it('is a hidden h1 that assistive technology still reads', async () => {
     await renderPage(<PageTitle>Sign in</PageTitle>)
