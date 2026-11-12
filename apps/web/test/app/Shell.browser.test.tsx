@@ -909,6 +909,13 @@ describe('Shell, narrow', () => {
     await expect.element(page.getByRole('heading', { name: 'Reviews page' })).toBeVisible()
     await expect.element(tabs().getByRole('link', { name: /^Reviews/ })).toBeVisible()
     await expect.element(tabs().getByRole('button', { name: 'More' })).toBeVisible()
+    // Reviews sits beside Inbox, then Projects, then More.
+    const order = [...tabs().element().querySelectorAll('a, button')].map((el) =>
+      el.textContent?.replace(/[0-9]/g, '').trim(),
+    )
+    expect(order[0]).toBe('Inbox')
+    expect(order[1]).toBe('Reviews')
+    expect(order.at(-1)).toBe('More')
   })
 
   it('has no top bar: the search button is in the page header, one sticky row', async () => {
@@ -1131,7 +1138,7 @@ describe('Shell, narrow', () => {
       if (!(label instanceof HTMLElement)) throw new Error('the tab has no label')
       expect(getComputedStyle(label).textOverflow).toBe('ellipsis')
       expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
-      // Four tabs share the bar: Inbox, Projects, Reviews, More.
+      // Four tabs share the bar: Inbox, Reviews, Projects, More.
       expect(tab.element().getBoundingClientRect().width).toBeLessThanOrEqual(390 / 4 + 1)
     })
 

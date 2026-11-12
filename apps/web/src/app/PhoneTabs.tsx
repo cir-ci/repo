@@ -30,7 +30,7 @@ import {
 } from './shell-model.ts'
 
 /**
- * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Projects, Reviews and More,
+ * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Reviews, Projects and More,
  * with the sidebar's counts. Inbox and Reviews are real links that navigate through the router;
  * a project's Triage is one of its page icons beside the find field (`PhoneProjectTabs`). Projects shows up to three of your projects' tiles (its label is the project's name when
  * you are in exactly one) and opens a menu of your projects; More opens a menu of the rest, with the workspaces (`PhoneMore`).
@@ -72,6 +72,14 @@ export function PhoneTabs() {
       >
         Inbox
       </BottomBarItem>
+      <BottomBarItem
+        icon={<ReviewsIcon />}
+        {...(reviews ? { href: reviews, onClick: go(reviews) } : {})}
+        selected={section === 'reviews'}
+        {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}
+      >
+        Reviews
+      </BottomBarItem>
       <Menu
         open={projectsOpen}
         onOpenChange={setProjectsOpen}
@@ -94,14 +102,6 @@ export function PhoneTabs() {
           </BottomBarItem>
         }
       />
-      <BottomBarItem
-        icon={<ReviewsIcon />}
-        {...(reviews ? { href: reviews, onClick: go(reviews) } : {})}
-        selected={section === 'reviews'}
-        {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}
-      >
-        Reviews
-      </BottomBarItem>
       <Menu
         open={moreOpen}
         onOpenChange={setMoreOpen}
