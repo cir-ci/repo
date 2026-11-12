@@ -3,6 +3,7 @@ import type { Job } from '@circi/db'
 import {
   completeJob,
   extendJobLease,
+  failExpiredJobs,
   failJob,
   isJobForDeletedWorkspace,
   QUEUES,
@@ -58,8 +59,14 @@ export async function runJob(
     deps.logger.info({ jobId: job.id, queue: job.queue }, 'skipped a job of a deleted workspace')
     return
   }
-  const handler = HANDLERS[job.queue] ?? HANDLERS[QUEUES.processBuild]
-  if (!handler) return
+  const handler = HANDLERS[job.queue]
+  if (!handler) {
+    // A queue this version doesn't know (a newer deploy's job): fail it, retried like any failure.
+    const message = `no handler for queue "${job.queue}"`
+    const outcome = await failJob(deps.db, job, message, deps.retryBackoff).catch(() => 'lost')
+    deps.logger.error({ jobId: job.id, queue: job.queue, outcome }, message)
+    return
+  }
   const fields = { jobId: job.id, ...handler.fields(job) }
   const beat = heartbeat(deps, job)
   try {
@@ -88,4 +95,24 @@ export async function runJob(
     )
     if (!willRetry) await handler.onGiveUp?.(deps, job, message)
   }
+}
+
+/**
+ * Gives up on running jobs whose lease expired with no attempts left (`failExpiredJobs` marks them
+ * failed): each one's give-up step runs, as if its last attempt had failed. Resolves to how many.
+ */
+export async function giveUpExpiredJobs(deps: startWorker.Deps): Promise<number> {
+  const expired = await failExpiredJobs(deps.db)
+  for (const job of expired) {
+    const message = 'lease expired too many times'
+    deps.logger.error(
+      { jobId: job.id, queue: job.queue, attempts: job.attempts },
+      'a job kept losing its worker and was failed',
+    )
+    // oxlint-disable-next-line no-await-in-loop -- a few jobs at most, one after another
+    await HANDLERS[job.queue]?.onGiveUp?.(deps, job, message).catch((err: unknown) => {
+      deps.logger.error({ err, jobId: job.id }, 'the give-up of an expired job failed')
+    })
+  }
+  return expired.length
 }

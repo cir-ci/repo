@@ -12,6 +12,7 @@ export {
   QUEUES,
   completeJob,
   extendJobLease,
+  failExpiredJobs,
   failJob,
   isJobForDeletedWorkspace,
 } from './queue.ts'

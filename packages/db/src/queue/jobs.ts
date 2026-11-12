@@ -1,5 +1,5 @@
 import { DEFAULT_RETRY_BACKOFF, retryDelayMs, type RetryBackoff } from '@circi/core'
-import { and, eq, inArray, lt, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 
 import { jobs } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -59,7 +59,8 @@ export async function enqueueJob(
  * Claims the next due job of any of `queues` in ONE statement (`FOR UPDATE SKIP LOCKED`, so several
  * workers and lanes can poll without taking the same job). The queues are in priority order: the
  * job of an earlier queue wins, then the one due first. A running job whose lock expired (its
- * worker died or stalled) is due again.
+ * worker died or stalled) is due again, unless it has used all its attempts: that one is never
+ * claimed, `failExpiredJobs` fails it.
  *
  * `attempts` is the claim number and the fence: every claim increments it, so a handler that kept
  * running past its lease holds a number that no longer matches the row, and `completeJob`,
@@ -89,7 +90,7 @@ export async function claimJob(
         sql`(select c.id from ${jobs} c
           where c.queue = any(${queueArray})
             and ((c.status = 'pending' and c.run_at <= now())
-              or (c.status = 'running' and c.locked_until < now()))
+              or (c.status = 'running' and c.locked_until < now() and c.attempts < c.max_attempts))
           order by array_position(${queueArray}, c.queue), c.run_at, c.id
           limit 1
           for update skip locked)`,
@@ -97,6 +98,33 @@ export async function claimJob(
     )
     .returning()
   return job
+}
+
+/**
+ * Fails the running jobs whose lease expired with every attempt used: a job that kills its
+ * worker every time (out of memory, a crash) would otherwise be claimed again for ever, or sit
+ * running for ever, and its give-up step would never run. Resolves to the jobs it failed (so the
+ * caller can run each one's give-up); a job whose lease is alive is never touched.
+ */
+export async function failExpiredJobs(db: Database, queues?: readonly string[]): Promise<Job[]> {
+  if (queues?.length === 0) return []
+  return db
+    .update(jobs)
+    .set({
+      status: 'failed',
+      finishedAt: new Date(),
+      lockedUntil: null,
+      lastError: 'lease expired too many times',
+    })
+    .where(
+      and(
+        eq(jobs.status, 'running'),
+        lt(jobs.lockedUntil, sql`now()`),
+        gte(jobs.attempts, jobs.maxAttempts),
+        queues ? inArray(jobs.queue, [...queues]) : undefined,
+      ),
+    )
+    .returning()
 }
 
 /** The claim a job was handed out under: its id and claim number (`attempts`). */

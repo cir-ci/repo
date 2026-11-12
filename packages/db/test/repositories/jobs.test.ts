@@ -8,6 +8,7 @@ import {
   deleteFinishedJobs,
   enqueueJob,
   extendLease,
+  failExpiredJobs,
   failJob,
 } from '#src/queue/index.ts'
 import * as schema from '#src/schema/index.ts'
@@ -98,6 +99,40 @@ const expire = (id: number) =>
     .where(eq(schema.jobs.id, id))
 const rowOf = async (id: number) =>
   (await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, id)))[0]
+
+describe('a job whose worker keeps dying', () => {
+  it('is not claimed again once its attempts are used; failExpiredJobs fails it', async () => {
+    await enqueueJob(t.db, { queue: 'qdie', payload: {}, maxAttempts: 2 })
+    const first = await claimJob(t.db, 'qdie', 60)
+    if (!first) throw new Error('no job')
+    await expire(first.id)
+    const second = await claimJob(t.db, 'qdie', 60)
+    expect(second?.attempts).toBe(2)
+    // A live lease is left alone, even with every attempt used.
+    expect(await failExpiredJobs(t.db, ['qdie'])).toEqual([])
+    await expire(first.id)
+    expect(await claimJob(t.db, 'qdie', 60)).toBeUndefined()
+    expect(await rowOf(first.id)).toMatchObject({ status: 'running', attempts: 2 })
+
+    const failed = await failExpiredJobs(t.db, ['qdie'])
+    expect(failed.map((j) => j.id)).toEqual([first.id])
+    expect(await rowOf(first.id)).toMatchObject({
+      status: 'failed',
+      lockedUntil: null,
+      lastError: 'lease expired too many times',
+    })
+    expect(await failExpiredJobs(t.db, ['qdie'])).toEqual([])
+  })
+
+  it('leaves other queues alone', async () => {
+    await enqueueJob(t.db, { queue: 'qdie2', payload: {}, maxAttempts: 1 })
+    const job = await claimJob(t.db, 'qdie2', 60)
+    if (!job) throw new Error('no job')
+    await expire(job.id)
+    expect(await failExpiredJobs(t.db, ['qother'])).toEqual([])
+    expect(await failExpiredJobs(t.db)).toHaveLength(1)
+  })
+})
 
 describe('job leases', () => {
   it('ignores the complete and the fail of a claim whose lease expired and was taken again', async () => {

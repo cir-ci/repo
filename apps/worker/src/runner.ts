@@ -75,6 +75,8 @@ export namespace startWorker {
     gcGraceHours?: number
     /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
     retentionIntervalMs?: number
+    /** How often running jobs whose lease expired with no attempts left are failed (default 30 s; 0 turns it off). */
+    leaseSweepIntervalMs?: number
     /** How often overdue review requests are looked for (default 5 minutes); 0 turns it off. */
     reviewSweepIntervalMs?: number
     /** How often triage items nobody has go to the person on triage, for projects that want it (default 5 minutes); 0 turns it off. */

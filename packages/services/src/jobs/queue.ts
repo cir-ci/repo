@@ -31,6 +31,14 @@ export async function claimNextJob(
   return queue.claimJob(db, options.light ? LIGHT_QUEUES : ALL_QUEUES, lockSeconds)
 }
 
+/**
+ * Fails the running jobs whose lease expired with no attempts left (their worker keeps dying), in
+ * every queue the worker serves, and returns them so the worker can run each one's give-up.
+ */
+export async function failExpiredJobs(db: Database): Promise<Job[]> {
+  return queue.failExpiredJobs(db, ALL_QUEUES)
+}
+
 /** Marks a claimed job done; false when its lease was lost (the job was claimed again). */
 export async function completeJob(db: Database, claim: Pick<Job, 'id' | 'attempts'>) {
   return queue.completeJob(db, claim)

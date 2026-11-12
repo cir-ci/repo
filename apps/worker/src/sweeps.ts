@@ -10,6 +10,7 @@ import {
 
 import { reviewSweep } from './jobs/review-sweep.ts'
 import { currentLimits } from './limits.ts'
+import { giveUpExpiredJobs } from './run-job.ts'
 import type { startWorker } from './runner.ts'
 
 /**
@@ -97,6 +98,15 @@ export function startSweeps(deps: startWorker.Deps): () => void {
         if (n > 0) logger.info({ items: n }, 'assigned triage items to whoever is on triage')
       }),
       (err) => logger.error({ err }, 'triage auto-assignment failed'),
+    ),
+    // A job whose worker keeps dying is failed once its attempts are used, and gives up.
+    every(
+      deps.leaseSweepIntervalMs ?? 30_000,
+      exclusiveSweep(db, 'expired-leases', async () => {
+        const n = await giveUpExpiredJobs(deps)
+        if (n > 0) logger.warn({ jobs: n }, 'failed jobs whose lease expired too many times')
+      }),
+      (err) => logger.error({ err }, 'could not fail expired jobs'),
     ),
     // Done and failed jobs are history nobody reads after a while; 0 days keeps them.
     every(
