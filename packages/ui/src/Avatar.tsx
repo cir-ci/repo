@@ -75,6 +75,7 @@ function ProjectAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Av
         // The box is reserved while the icon loads, so nothing shifts when it arrives.
         <span
           className={styles.icon}
+          data-avatar-icon=""
           style={{ width: PROJECT_ICON_SIZE[size], height: PROJECT_ICON_SIZE[size] }}
         >
           <Suspense fallback={null}>

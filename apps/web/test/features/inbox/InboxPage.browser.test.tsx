@@ -13,7 +13,7 @@ import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
-import { toastNamed } from '#test/support/toast.ts'
+import { openDialogs, toastNamed } from '#test/support/toast.ts'
 
 const item = (id: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -487,7 +487,7 @@ describe('InboxPage on a phone', () => {
       .element(rows.getByText('Ada requested your review of build #12').first())
       .toBeVisible()
     // The first row is the cursor, but nothing opens until one is tapped.
-    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    expect(openDialogs()).toHaveLength(0)
     expect(page.getByRole('region', { name: 'Notification' }).elements()).toHaveLength(0)
     for (const row of rows.getByRole('button').elements()) {
       expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(56)

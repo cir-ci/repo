@@ -84,25 +84,31 @@ export function runPrefix(runId: string): string {
   return `circi-e2e-${runId}-`
 }
 
-/** Removes every compose project of a run (containers, networks, volumes). Synchronous: used in exit handlers. */
-export function removeRunProjectsSync(runId: string): string[] {
-  const ps = spawnSync(
-    'docker',
-    ['ps', '-a', '--format', '{{.Label "com.docker.compose.project"}}'],
-    { encoding: 'utf8', timeout: 30_000 },
-  )
-  const projects = new Set(
-    ps.stdout
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith(runPrefix(runId))),
-  )
-  for (const project of projects) {
-    spawnSync('docker', ['compose', '-p', project, 'down', '-v', '--remove-orphans', '-t', '2'], {
-      timeout: 120_000,
-    })
+/**
+ * Every e2e compose project on this machine. Read from containers, networks and volumes alike: a
+ * stack whose `up` failed half-way can own a network and no container.
+ */
+export function listE2eProjectsSync(): string[] {
+  const label = '{{.Label "com.docker.compose.project"}}'
+  const projects = new Set<string>()
+  for (const args of [
+    ['ps', '-a', '--format', label],
+    ['network', 'ls', '--format', label],
+    ['volume', 'ls', '--format', label],
+  ]) {
+    const out = spawnSync('docker', args, { encoding: 'utf8', timeout: 30_000 })
+    for (const line of (out.stdout ?? '').split('\n')) {
+      if (line.trim().startsWith('circi-e2e-')) projects.add(line.trim())
+    }
   }
   return [...projects]
+}
+
+/** Removes every compose project of a run (containers, networks, volumes). Synchronous: used in exit handlers. */
+export function removeRunProjectsSync(runId: string): string[] {
+  const projects = listE2eProjectsSync().filter((p) => p.startsWith(runPrefix(runId)))
+  for (const project of projects) removeProjectSync(project)
+  return projects
 }
 
 /** Removes one compose project (containers, networks, volumes). Synchronous: used in exit handlers. */

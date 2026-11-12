@@ -11,7 +11,7 @@ import { BuildPage } from '#features/builds/BuildPage.tsx'
 import { validateBuildSearch } from '#features/builds/search.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { toastNamed } from '#test/support/toast.ts'
+import { openDialogs, toastNamed } from '#test/support/toast.ts'
 
 import { detail, fakeBuildApi } from './fake-build-api.tsx'
 
@@ -186,7 +186,7 @@ describe('the build page on a phone', () => {
     expect(rows).toHaveLength(3)
     for (const row of rows) expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
     await sheet.getByRole('link', { name: /checkout \/ address/ }).click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
     await expect.element(viewerTitle('checkout / address')).toBeVisible()
     await expect.element(bar().getByRole('button', { name: 'Screenshots, 2 / 5' })).toBeVisible()
   })
@@ -202,7 +202,7 @@ describe('the build page on a phone', () => {
       .toHaveAttribute('aria-selected', 'true')
     await expect.element(sheet.getByRole('tabpanel')).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('puts Approve all, Request review and Copy link in the More sheet, not in the bar', async () => {
@@ -269,7 +269,7 @@ describe('the build page on a phone', () => {
     expect(page.getByRole('dialog', { name: 'Comment on this region' }).elements()).toHaveLength(0)
     // A press that does not draw enlarges the image: close that again.
     await userEvent.keyboard('{Escape}')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
     await draw.click()
     await expect.element(draw).toHaveAttribute('aria-pressed', 'true')
     await expect

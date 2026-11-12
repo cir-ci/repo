@@ -6,7 +6,7 @@ import { ProjectSettingsPage } from '#features/project-settings/ProjectSettingsP
 import { iconLabel } from '#features/projects/appearance.ts'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { toastNamed } from '#test/support/toast.ts'
+import { openDialogs, toastNamed } from '#test/support/toast.ts'
 
 /** The icon grid draws its rows in view plus a few either side: far fewer than the 2,000 icons. */
 const DRAWN_AT_MOST = 150
@@ -665,7 +665,7 @@ describe('ProjectSettingsPage', () => {
       await button.click()
       await expect.element(page.getByRole('dialog', { name: 'Icon and color' })).toBeVisible()
       await userEvent.keyboard('{Escape}')
-      await expect.poll(() => page.getByRole('dialog').elements()).toHaveLength(0)
+      await expect.poll(() => openDialogs()).toHaveLength(0)
       await expect.element(button).toHaveFocus()
     })
 

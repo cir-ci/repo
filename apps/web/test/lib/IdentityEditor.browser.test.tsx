@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { IdentityEditor } from '#lib/IdentityEditor.tsx'
 import { renderPage } from '#test/support/render.tsx'
+import { openDialogs } from '#test/support/toast.ts'
 
 const avatar = (
   <Avatar type="workspace" slug="acme" name="Acme" picture={null} size={40} aria-hidden />
@@ -48,7 +49,7 @@ describe('IdentityEditor', () => {
     await expect.element(page.getByRole('dialog', { name: 'Picture' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Upload picture' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    await expect.poll(() => page.getByRole('dialog').elements()).toHaveLength(0)
+    await expect.poll(() => openDialogs()).toHaveLength(0)
     await expect.element(button).toHaveFocus()
   })
 
@@ -60,7 +61,7 @@ describe('IdentityEditor', () => {
     await userEvent.keyboard('{Enter}')
     await expect.element(page.getByRole('dialog', { name: 'Picture' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    await expect.poll(() => page.getByRole('dialog').elements()).toHaveLength(0)
+    await expect.poll(() => openDialogs()).toHaveLength(0)
     await userEvent.keyboard(' ')
     await expect.element(page.getByRole('dialog', { name: 'Picture' })).toBeVisible()
   })

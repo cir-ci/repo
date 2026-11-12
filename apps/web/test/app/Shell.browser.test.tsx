@@ -24,6 +24,7 @@ import { workspace as instanceWorkspace } from '#test/features/instance/fixtures
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 import { headerButton, pageHeader } from '#test/support/header.ts'
 import { expectLimitedToSpace, parentOf } from '#test/support/resize.ts'
+import { openDialogs } from '#test/support/toast.ts'
 
 const overview = (workspace: string, workspaceName: string, project: string) => ({
   workspace: { slug: workspace, name: workspaceName },
@@ -909,7 +910,7 @@ describe('Shell, narrow', () => {
     await expect.element(panel()).toBeVisible()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
-    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    expect(openDialogs()).toHaveLength(0)
     for (const name of [
       'Open navigation',
       'Hide sidebar',
@@ -928,9 +929,9 @@ describe('Shell, narrow', () => {
     await expect.element(tabs().getByRole('link', { name: /^Reviews/ })).toBeVisible()
     await expect.element(tabs().getByRole('button', { name: 'More' })).toBeVisible()
     // Reviews sits beside Inbox, then Projects, then More.
-    // A tab's count and its hidden noun ("4 waiting") follow its name once the counts load.
-    const order = [...tabs().element().querySelectorAll('a, button')].map(
-      (el) => el.textContent?.trim() ?? '',
+    // Once the counts load, a tab's text carries its badge first ("3Inbox, 3 unread"): drop it.
+    const order = [...tabs().element().querySelectorAll('a, button')].map((el) =>
+      (el.textContent?.trim() ?? '').replace(/^\d+\+?/, ''),
     )
     expect(order[0]).toMatch(/^Inbox/)
     expect(order[1]).toMatch(/^Reviews/)
@@ -995,7 +996,7 @@ describe('Shell, narrow', () => {
     expect(sheet.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await sheet.getByRole('link', { name: 'Globex' }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/globex/settings')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it("lists a workspace owner's pages in the sheet, General at its own address", async () => {
@@ -1028,7 +1029,7 @@ describe('Shell, narrow', () => {
       .element(sheet.getByRole('link', { name: 'General' }))
       .toHaveAttribute('href', '/workspaces/acme/settings/general')
     await sheet.getByRole('link', { name: 'Members' }).click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('closes the sections sheet when the page already shown is chosen', async () => {
@@ -1040,7 +1041,7 @@ describe('Shell, narrow', () => {
       .getByRole('dialog', { name: 'Settings sections' })
       .getByRole('link', { name: 'General' })
       .click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('leaves settings with the header Close, back to the page the person came from', async () => {
@@ -1649,7 +1650,7 @@ describe('Shell, phone', () => {
     expect(Math.round(box.height)).toBe(844)
     expect(Math.round(box.width)).toBe(390)
     await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('has no tab bar on a wide screen', async () => {

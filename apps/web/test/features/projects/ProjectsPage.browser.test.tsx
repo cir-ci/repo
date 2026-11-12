@@ -10,7 +10,7 @@ import { pageHeader } from '#test/support/header.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { toastNamed } from '#test/support/toast.ts'
+import { openDialogs, toastNamed } from '#test/support/toast.ts'
 
 import { build } from './support.tsx'
 
@@ -343,10 +343,10 @@ describe('ProjectsPage', () => {
     it('closes with Cancel and Escape', async () => {
       await openWorkspaceDialog()
       await page.getByRole('button', { name: 'Cancel' }).click()
-      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+      await expect.poll(() => openDialogs()).toHaveLength(0)
       useOverlayStore.getState().setNewWorkspaceOpen(true)
       await userEvent.keyboard('{Escape}')
-      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+      await expect.poll(() => openDialogs()).toHaveLength(0)
     })
   })
 

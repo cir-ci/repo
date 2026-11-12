@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { BaselinePage } from '#features/baselines/BaselinePage.tsx'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { openDialogs } from '#test/support/toast.ts'
 
 const API = '/api/projects/acme/web'
 const NAME = 'checkout/payment-form'
@@ -201,7 +202,8 @@ describe('BaselinePage', () => {
     await drag()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]?.body).toMatchObject({ name: NAME, x: expect.any(Number) })
-    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    // The drag didn't enlarge the image (the toast that follows is a dialog too, so name it).
+    expect(page.getByRole('dialog', { name: /build #148 on main/ }).elements()).toHaveLength(0)
   })
 
   it('has no Draw region or Add region button: dragging is how a region is added', async () => {
@@ -248,7 +250,7 @@ describe('BaselinePage', () => {
       at('pointerup', 300, 120)
       await new Promise((resolve) => setTimeout(resolve, 100))
       expect(fake.of('POST')).toHaveLength(0)
-      expect(page.getByRole('dialog').elements()).toHaveLength(0)
+      expect(openDialogs()).toHaveLength(0)
     } finally {
       capture.mockRestore()
     }

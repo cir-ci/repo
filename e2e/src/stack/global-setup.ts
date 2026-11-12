@@ -3,8 +3,15 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { withBuildLock } from './build-lock.ts'
-import { assertDocker, removeRunProjectsSync, run } from './docker.ts'
+import {
+  assertDocker,
+  listE2eProjectsSync,
+  removeProjectSync,
+  removeRunProjectsSync,
+  run,
+} from './docker.ts'
 import { ARTIFACTS_DIR, REPO_ROOT } from './paths.ts'
+import { abandonedProjects, claimRun, processAlive, readOwners, releaseRun } from './runs.ts'
 
 let imageBuild: Promise<void> | undefined
 
@@ -38,6 +45,12 @@ export default async function setup(): Promise<() => Promise<void>> {
   const runId = process.env['E2E_RUN_ID'] ?? randomBytes(3).toString('hex')
   // Test workers are forked after this, so they inherit it and name their projects with it.
   process.env['E2E_RUN_ID'] = runId
+  claimRun(runId)
+  // Stacks of runs that died without their cleanup (SIGKILL) would pile up until Docker runs out
+  // of network address pools; remove them before making ours.
+  const abandoned = abandonedProjects(listE2eProjectsSync(), readOwners(), processAlive)
+  for (const project of abandoned) removeProjectSync(project)
+  if (abandoned.length > 0) console.log(`[e2e] removed abandoned stacks: ${abandoned.join(', ')}`)
   mkdirSync(ARTIFACTS_DIR, { recursive: true })
   // The per-stack phase timings of this run (see stack.ts and timing-reporter.ts).
   rmSync(join(ARTIFACTS_DIR, 'stack-phases.jsonl'), { force: true })
@@ -47,6 +60,7 @@ export default async function setup(): Promise<() => Promise<void>> {
 
   const keep = Boolean(process.env['E2E_KEEP'])
   const cleanup = () => {
+    releaseRun(runId, keep)
     if (keep) return
     const removed = removeRunProjectsSync(runId)
     if (removed.length > 0) console.log(`[e2e] removed leftover stacks: ${removed.join(', ')}`)

@@ -15,7 +15,7 @@ import { pageHeader } from '#test/support/header.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
-import { toastNamed } from '#test/support/toast.ts'
+import { openDialogs, toastNamed } from '#test/support/toast.ts'
 
 const BASE = '/api/projects/acme/web'
 
@@ -661,14 +661,14 @@ describe('TriagePage on a phone', () => {
     await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
     // Nothing is beside the list, and nothing has opened yet.
     expect(page.getByRole('region', { name: 'Details' }).elements()).toHaveLength(0)
-    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    expect(openDialogs()).toHaveLength(0)
     expectNoSidewaysScroll()
     await page.getByRole('list', { name: 'No baseline, 1 item' }).getByRole('button').click()
     const sheet = page.getByRole('dialog', { name: 'Details' })
     await expect.element(sheet).toBeVisible()
     await expect.element(sheet.getByRole('region', { name: 'Details' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('never scrolls sideways, with long names in the rows and the sheet open', async () => {
@@ -701,7 +701,7 @@ describe('TriagePage on a phone', () => {
     server()
     await show()
     await expect.element(pane()).toBeVisible()
-    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    expect(openDialogs()).toHaveLength(0)
   })
 })
 

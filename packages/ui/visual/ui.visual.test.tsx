@@ -40,6 +40,21 @@ const files = new Map<string, Record<string, unknown>>([
   ...Object.entries(extraCases),
 ])
 
+/**
+ * Waits for what a case draws later than its first render: a project avatar's icon is loaded on
+ * demand (the icon map, then the icon's own file), so a shot taken at once can catch the empty
+ * box on one run and the icon on the next.
+ */
+async function settled(root: ParentNode): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        [...root.querySelectorAll('[data-avatar-icon]')].every((box) => box.querySelector('svg')),
+      { timeout: 10_000 },
+    )
+    .toBe(true)
+}
+
 const kebab = (name: string) =>
   name
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -63,6 +78,7 @@ for (const [component, exports] of files) {
             <Case />
           </CirciTheme>,
         )
+        await settled(probe.container)
         const pinned = [...probe.container.querySelectorAll(`[${COLOR_SCHEME_ATTRIBUTE}]`)]
         for (const el of pinned) {
           const scheme = el.getAttribute(COLOR_SCHEME_ATTRIBUTE) ?? 'unknown'
@@ -79,6 +95,8 @@ for (const [component, exports] of files) {
                 <Case />
               </CirciTheme>,
             )
+            // oxlint-disable-next-line no-await-in-loop -- ditto
+            await settled(document.body)
             // No size of its own: a portal (dialog, drawer). Shoot the page.
             const sized = view.container.getBoundingClientRect().height > 0
             const target = sized ? page.elementLocator(view.container) : page

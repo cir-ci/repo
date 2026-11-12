@@ -15,7 +15,7 @@ import { clipboard } from '#lib/use-copy.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { toastNamed, toasts } from '#test/support/toast.ts'
+import { openDialogs, toastNamed, toasts } from '#test/support/toast.ts'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -753,7 +753,7 @@ describe('on a phone', () => {
     const peek = dialog.element().querySelector('aside[aria-label="Peek"]')
     expect(peek && getComputedStyle(peek).display).toBe('none')
     await cancel.click()
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => openDialogs().length).toBe(0)
   })
 
   it('stays a centred dialog on a desktop', async () => {

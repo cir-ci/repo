@@ -423,7 +423,8 @@ describe('invitations and members', () => {
       await page.goto(membersUrl())
       await page.getByRole('button', { name: `Actions for ${lou.name}` }).click()
       await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
-      const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
+      // The confirmation, not the toast that follows (a toast is a dialog too).
+      const dialog = page.getByRole('alertdialog')
       await dialog.getByText(`Remove ${lou.name}?`).waitFor()
       // Cancelling keeps them.
       await dialog.getByRole('button', { name: 'Cancel' }).click()

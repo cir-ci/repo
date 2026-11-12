@@ -12,6 +12,7 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { ADA, mockAuthClient } from '#test/support/auth-client.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { openDialogs } from '#test/support/toast.ts'
 
 const caps = {
   canCreateWorkspace: false,
@@ -292,9 +293,9 @@ describe('New project dialog', () => {
   it('closes with Cancel and Escape before anything is created', async () => {
     await open()
     await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+    await expect.poll(() => openDialogs()).toHaveLength(0)
     await page.getByRole('button', { name: 'New project' }).first().click()
     await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+    await expect.poll(() => openDialogs()).toHaveLength(0)
   })
 })

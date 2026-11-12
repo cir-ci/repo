@@ -157,9 +157,13 @@ describe('worker wake-up by NOTIFY', () => {
     try {
       // The notification the enqueue sends wakes the idle lanes; they find nothing due, ask when
       // the earliest job is, and sleep until then.
-      const id = await enqueueProbe('process-build', new Date(Date.now() + 400))
-      const ms = await untilClaimed(id, 3_000)
-      expect(ms).toBeGreaterThanOrEqual(300)
+      // Timed from before the enqueue: on a busy machine the enqueue alone can take a good part of
+      // the 400 ms, and the job is still due at its run time, not 400 ms after the enqueue returns.
+      const start = Date.now()
+      const id = await enqueueProbe('process-build', new Date(start + 400))
+      await untilClaimed(id, 3_000)
+      const ms = Date.now() - start
+      expect(ms).toBeGreaterThanOrEqual(390)
       expect(ms).toBeLessThan(2_500)
     } finally {
       await worker.stop()
