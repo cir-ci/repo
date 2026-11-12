@@ -33,7 +33,7 @@
   position: sticky;
   top: var(--circi-page-top, 0px);
   box-sizing: border-box;
-  max-height: calc(100dvh - 16px - var(--circi-page-top, 0px));
+  max-height: calc(var(--circi-frame-height, 100dvh) - 18px - var(--circi-page-top, 0px));
   padding: 8px;
   overflow-y: auto;
 }

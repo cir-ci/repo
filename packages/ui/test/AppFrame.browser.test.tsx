@@ -97,7 +97,7 @@ describe('AppFrame compactBar', () => {
           </div>
         }
       >
-        <div style={{ height: 2400 }}>A very long page</div>
+        <div style={{ height: 2400, flexShrink: 0 }}>A very long page</div>
       </AppFrame>,
     )
     const menu = page
@@ -105,14 +105,78 @@ describe('AppFrame compactBar', () => {
       .element()
       .getBoundingClientRect()
     expect(menu.bottom).toBeLessThanOrEqual(window.innerHeight)
-    // Still there after scrolling down the page.
-    window.scrollTo(0, 1500)
+    // Still there after scrolling down the page (the panel scrolls, not the window).
+    const panel = page.getByRole('main').element()
+    panel.scrollTo({ top: 1500 })
+    await expect.poll(() => panel.scrollTop).toBe(1500)
     const after = page
       .getByRole('button', { name: 'Account menu' })
       .element()
       .getBoundingClientRect()
     expect(after.bottom).toBeLessThanOrEqual(window.innerHeight)
     expect(after.top).toBeGreaterThanOrEqual(0)
+  })
+})
+
+const rows = (n: number) => (
+  <AppFrame sidebar="Side">
+    <PanelHeader>
+      <span>Title</span>
+    </PanelHeader>
+    <div style={{ height: n, flexShrink: 0 }}>Page</div>
+  </AppFrame>
+)
+
+const sideBox = () => page.getByRole('navigation').element().parentElement!.getBoundingClientRect()
+const mainBox = () => page.getByRole('main').element().getBoundingClientRect()
+const pageWidth = () => page.getByText('Page').element().getBoundingClientRect().width
+
+describe('AppFrame from 820px up: the panel scrolls, not the window', () => {
+  it('is the window tall, scrolls the panel, and leaves the window with nothing to scroll', async () => {
+    await page.viewport(1280, 800)
+    await render(rows(3000))
+    const main = page.getByRole('main').element()
+    expect(getComputedStyle(main).overflowY).toBe('auto')
+    expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
+    expect(document.scrollingElement!.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    window.scrollTo(0, 500)
+    expect(window.scrollY).toBe(0)
+    const side = page.getByRole('navigation').element().parentElement!
+    expect(side.getBoundingClientRect().height).toBe(window.innerHeight)
+  })
+
+  it('keeps the page header at the top of the panel while the panel scrolls', async () => {
+    await page.viewport(1280, 800)
+    await render(rows(3000))
+    const main = page.getByRole('main').element()
+    const header = main.querySelector('header')!
+    main.scrollTo({ top: 1200 })
+    await expect.poll(() => main.scrollTop).toBe(1200)
+    expect(header.getBoundingClientRect().top).toBeCloseTo(main.getBoundingClientRect().top + 1, 0)
+  })
+
+  it('moves neither the sidebar nor the panel when the content grows past the window', async () => {
+    await page.viewport(1280, 800)
+    const view = await render(rows(100))
+    const before = { side: sideBox(), main: mainBox() }
+    await view.rerender(rows(5000))
+    const after = { side: sideBox(), main: mainBox() }
+    expect(after.side.left).toBe(before.side.left)
+    expect(after.side.width).toBe(before.side.width)
+    expect(after.main.left).toBe(before.main.left)
+    expect(after.main.width).toBe(before.main.width)
+    expect(after.main.height).toBe(before.main.height)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('keeps a stable scrollbar gutter, so a page that grows long does not reflow its content', async () => {
+    await page.viewport(1280, 800)
+    const view = await render(rows(100))
+    const main = page.getByRole('main').element()
+    expect(getComputedStyle(main).scrollbarGutter).toContain('stable')
+    const before = pageWidth()
+    await view.rerender(rows(5000))
+    expect(pageWidth()).toBe(before)
   })
 })
 
@@ -176,7 +240,7 @@ describe('AppFrame resizable sidebar', () => {
     )
     const nav = page.getByRole('navigation', { name: 'Main' }).element()
     expect(bar(nav)).toBe('6px')
-    expect(bar(document.documentElement)).toBe('10px')
+    expect(bar(page.getByRole('main').element())).toBe('10px')
     expect(nav.scrollHeight).toBeGreaterThan(nav.clientHeight)
     nav.scrollTop = 200
     await expect.poll(() => nav.hasAttribute('data-scrolling')).toBe(true)
@@ -217,21 +281,5 @@ describe('AppFrame on a phone: the panel scrolls, not the window', () => {
     await expect.poll(() => main.scrollTop).toBe(1200)
     // Inside the panel's 1px top border.
     expect(header.getBoundingClientRect().top).toBeCloseTo(main.getBoundingClientRect().top + 1, 0)
-  })
-
-  it('keeps the window scrolling and the sidebar in place at 1280px', async () => {
-    await page.viewport(1280, 700)
-    await render(
-      <AppFrame sidebar="Side" compact bottomBar={<div>Tabs</div>}>
-        <div style={{ height: 3000, flexShrink: 0 }}>Long page</div>
-      </AppFrame>,
-    )
-    const main = page.getByRole('main').element()
-    expect(getComputedStyle(main).overflowY).not.toBe('auto')
-    window.scrollTo(0, 800)
-    await expect.poll(() => window.scrollY).toBe(800)
-    expect(main.scrollTop).toBe(0)
-    const side = page.getByRole('navigation').element().parentElement!
-    expect(side.getBoundingClientRect().top).toBe(0)
   })
 })

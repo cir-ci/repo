@@ -65,9 +65,10 @@
   flex-direction: column;
   min-width: 0;
   margin: 0 8px 8px;
-  /* Clip, not hidden: hidden makes the panel a scroll container, and the page header (and the
-     build page's list, toolbar and sidebar) could then never stick to the window as it scrolls.
-     On a phone the panel is the scroller (see the compact rules below). */
+  /* The panel is the scroll container at every width where the frame has a height of its own
+     (from 820px up, and the compact layout below it): the window never scrolls, so the sidebar
+     and the panel never shift sideways. Stacked under 820px (no compact bar) the window scrolls
+     and the panel clips. */
   overflow: clip;
   border: 1px solid var(--circi-line-subtle);
   border-radius: var(--circi-radius-panel);
@@ -161,17 +162,20 @@
 /* From 820px up the sidebar sits beside the panel; below it stacks above. */
 @media (min-width: 820px) {
   /*
-   * The sidebar stays in view while a long page scrolls, so the account menu at its foot is
-   * always reachable. Its height is the frame's minimum height (the viewport by default).
+   * The frame is exactly the viewport's height (less the installed app's title bar), or the
+   * `minHeight` it was given, and the panel is what scrolls: the window has nothing to scroll, so
+   * the scrollbar sits inside the panel at its right edge and nothing beside it moves. The
+   * sidebar is the frame's full height and scrolls on its own.
    */
+  .root {
+    flex-wrap: nowrap;
+    height: var(--circi-frame-height, calc(100dvh - var(--circi-window-top, 0px)));
+  }
+
   .sidebar {
-    position: sticky;
-    top: var(--circi-window-top, 0px);
-    align-self: flex-start;
     flex: 0 0 var(--circi-sidebar-width, 244px);
-    height: var(--circi-frame-height, 100dvh);
-    max-height: calc(100dvh - var(--circi-window-top, 0px));
     width: var(--circi-sidebar-width, 244px);
+    min-height: 0;
   }
 
   .nav {
@@ -182,8 +186,20 @@
     display: none;
   }
 
+  /*
+   * The page's sticky parts stick to the panel's top, which is already below the title bar, so
+   * the window's offset is 0 here (the tab row, when there is one, sets it to its own height).
+   * The gutter is kept even when the page is short, so a page that grows long (Builds against
+   * Triage) doesn't reflow its own content by the scrollbar's width.
+   */
   .main {
+    --circi-window-top: 0px;
+
+    min-height: 0;
     margin: 8px 8px 8px 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
 
   .root[data-sidebar-collapsed] .main {

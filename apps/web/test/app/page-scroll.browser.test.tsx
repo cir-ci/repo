@@ -49,12 +49,12 @@ describe('the page scroller', () => {
     expect(window.scrollY).toBe(0)
   })
 
-  it('is the window at 1280px', async () => {
+  it('is the panel at 1280px too, and the window never scrolls', async () => {
     await open(1280, 700)
-    expect(pageScroller()).toBe(window)
+    expect(pageScroller()).toBe(document.getElementById('content'))
     scrollPageTo(300)
-    await expect.poll(() => window.scrollY).toBe(300)
-    expect(pageScrollTop()).toBe(300)
+    await expect.poll(pageScrollTop).toBe(300)
+    expect(window.scrollY).toBe(0)
   })
 })
 
@@ -73,11 +73,16 @@ describe('the router scrolling', () => {
     expect(window.scrollY).toBe(0)
   })
 
-  it('still starts a new page at the top of the window at 1280px', async () => {
+  it('starts a new page at the top of the panel at 1280px, and puts the panel back on back', async () => {
     const router = await open(1280, 700)
-    window.scrollTo(0, 600)
-    await expect.poll(() => window.scrollY).toBe(600)
+    const panel = document.getElementById('content')!
+    panel.scrollTo({ top: 600 })
+    await expect.poll(() => panel.scrollTop).toBe(600)
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
     await router.navigate({ href: '/b' })
-    await expect.poll(() => window.scrollY).toBe(0)
+    await expect.poll(() => panel.scrollTop).toBe(0)
+    router.history.back()
+    await expect.poll(() => panel.scrollTop).toBe(600)
+    expect(window.scrollY).toBe(0)
   })
 })

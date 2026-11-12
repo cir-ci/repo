@@ -6,14 +6,11 @@
   min-height: 0;
 }
 
-/* With the sidebar beside the panel the list and the review scroll in their own boxes and the
-   window doesn't: the row is exactly what the window has left under the sticky page header
-   (the frame's 8px margins and the panel's borders take the 18px). Under 820px (a phone, or the
-   sidebar stacked above) the page flows with the window as before. */
+/* With the sidebar beside the panel the list and the review scroll in their own boxes: the row
+   fills what the panel has left under its sticky header (at least 320px, and the panel scrolls
+   if it has less). Under 820px (a phone, or the sidebar stacked above) the page flows as before. */
 @media (min-width: 820px) {
   .layout {
-    flex: none;
-    height: calc(100dvh - 18px - var(--circi-page-top, 0px));
     min-height: 320px;
   }
 }

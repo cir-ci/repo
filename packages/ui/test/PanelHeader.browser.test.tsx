@@ -58,22 +58,25 @@ describe('PanelHeader', () => {
     expect(Math.abs(first.left - title.getBoundingClientRect().left)).toBeLessThan(2)
   })
 
-  it('stays at the top of the window while the page scrolls, and gives the panel its height', async () => {
+  it('stays at the top of the panel while the page scrolls, and gives the panel its height', async () => {
     await page.viewport(1200, 600)
     await render(
       <AppFrame sidebar="Side">
         <PanelHeader actions={<button type="button">Approve</button>}>
           <span>Insights</span>
         </PanelHeader>
-        <div style={{ height: 3000 }}>Long page</div>
+        <div style={{ height: 3000, flexShrink: 0 }}>Long page</div>
       </AppFrame>,
     )
     // Inside the main landmark a <header> is not a banner.
     const header = page.getByRole('main').element().querySelector('header')!
-    window.scrollTo(0, 1500)
-    await expect.poll(() => window.scrollY).toBeGreaterThan(1000)
-    await expect.poll(() => header.getBoundingClientRect().top).toBe(0)
     const main = page.getByRole('main').element()
+    main.scrollTo({ top: 1500 })
+    await expect.poll(() => main.scrollTop).toBeGreaterThan(1000)
+    // Inside the panel's 1px top border.
+    await expect
+      .poll(() => header.getBoundingClientRect().top)
+      .toBe(main.getBoundingClientRect().top + 1)
     // The header's height, below the installed app's title bar (none here: 0).
     expect(main.style.getPropertyValue('--circi-page-top')).toBe(
       `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,

@@ -22,7 +22,7 @@ export namespace PanelNotices {
 
 /**
  * The bar at the top of the content panel (44px, taller where it wraps): where you are on the
- * left, the page's actions on the right. It sticks to the top of the window while the page
+ * left, the page's actions on the right. It sticks to the top of the panel while the page
  * scrolls, and gives its height to the panel as `--circi-page-top`, so a page's own sticky parts
  * stop under it.
  */

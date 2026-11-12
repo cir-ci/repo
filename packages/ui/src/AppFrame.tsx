@@ -8,14 +8,17 @@ import styles from './AppFrame.module.css'
  * The app frame: a dim chrome (the sidebar and page ground) around one lifted content panel.
  * Below 820px the sidebar stacks above the panel, or, when `compactBar` is given, is replaced by
  * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`), and the panel
- * fills the screen edge to edge (a phone), with an optional `bottomBar` under it. In that layout
- * the frame is the window's height and the panel scrolls (not the window), so the scrollbar
- * stops at the bar.
+ * fills the screen edge to edge (a phone), with an optional `bottomBar` under it. In that layout,
+ * and from 820px up, the frame is the window's height and the panel scrolls (not the window), so
+ * the scrollbar sits inside the panel (stopping at the bar on a phone) and nothing shifts.
  */
 export function AppFrame(props: AppFrame.Props) {
   const onNavScroll = useScrollingFlag()
-  const height = props.minHeight ?? 'calc(100dvh - var(--circi-window-top, 0px))'
-  const style: CSSProperties & Record<'--circi-frame-height', string | number> = {
+  const height =
+    typeof props.minHeight === 'number'
+      ? `${props.minHeight}px`
+      : (props.minHeight ?? 'calc(100dvh - var(--circi-window-top, 0px))')
+  const style: CSSProperties & Record<'--circi-frame-height', string> = {
     minHeight: height,
     '--circi-frame-height': height,
   }
@@ -59,7 +62,7 @@ export namespace AppFrame {
     sidebarLabel?: string
     /** The page, usually a `PanelHeader` followed by content. */
     children: ReactNode
-    /** Minimum height of the frame; defaults to the full viewport. Set it to embed the frame in a smaller area. */
+    /** The frame's height from 820px up (and its minimum height stacked below it); defaults to the full viewport. Set it to embed the frame in a smaller area. */
     minHeight?: number | string
     /**
      * A bar (44px) shown above the panel below 820px; the sidebar is hidden there, so render the
