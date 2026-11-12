@@ -1,4 +1,4 @@
-import { Badge, Button, TextField } from '@circi/ui'
+import { Badge, Button, Text, TextField } from '@circi/ui'
 
 import type { SecretDraft } from './config-model.ts'
 
@@ -17,6 +17,7 @@ export function SecretField({
   error,
   disabled,
   removable = true,
+  unreadable,
 }: SecretField.Props) {
   const typing = draft.mode === 'replace' || (!saved && draft.mode === 'keep')
   if (typing) {
@@ -56,9 +57,16 @@ export function SecretField({
         </>
       ) : (
         <>
-          <Badge shape="tag" tone="state" state="approved">
-            Saved
-          </Badge>
+          {unreadable ? (
+            // Kept on the server but useless: say so instead of "Saved", beside Replace.
+            <Badge shape="tag" tone="state" state="review">
+              {unreadable}
+            </Badge>
+          ) : (
+            <Badge shape="tag" tone="state" state="approved">
+              Saved
+            </Badge>
+          )}
           <Button
             variant="secondary"
             size="sm"
@@ -79,6 +87,11 @@ export function SecretField({
           ) : null}
         </>
       )}
+      {error ? (
+        <Text as="span" variant="small" tone="failed" role="alert">
+          {error}
+        </Text>
+      ) : null}
     </div>
   )
 }
@@ -95,5 +108,7 @@ export namespace SecretField {
     disabled?: boolean | undefined
     /** Whether the saved one can be removed on its own (a client secret can't). */
     removable?: boolean
+    /** The saved one can't be read with the instance's current secret: the server's sentence, shown in place of "Saved". */
+    unreadable?: string | null | undefined
   }
 }

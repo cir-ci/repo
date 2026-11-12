@@ -246,6 +246,35 @@ describe('the test mail', () => {
   })
 })
 
+describe("a secret that can't be read", () => {
+  const UNREADABLE = "Saved, but can't be read with the current secret: replace it"
+
+  it('says so in place of "Saved", offers Replace, and asks for a new password before a mail save', async () => {
+    const base = configFixture()
+    fakeApi({
+      'GET /api/instance/settings': {
+        body: settingsFixture({
+          config: { ...base, smtp: { ...base.smtp, unreadable: UNREADABLE } },
+        }),
+      },
+      ...GITHUB,
+    })
+    await show()
+    const mail = page.getByRole('region', { name: 'Mail server' })
+    const password = mail.getByRole('group', { name: 'Password' })
+    await expect.element(password.getByText(UNREADABLE)).toBeVisible()
+    expect(password.getByText('Saved', { exact: true }).elements()).toHaveLength(0)
+    // Changing another mail field and saving without a new password is a field error.
+    await mail.getByLabelText('Host').fill('smtp2.acme.io')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .element(password.getByText("Enter the password: the saved one can't be read"))
+      .toBeVisible()
+    await password.getByRole('button', { name: 'Replace' }).click()
+    await expect.element(mail.getByLabelText('New password')).toBeVisible()
+  })
+})
+
 describe('the save bar', () => {
   it.each([[1440], [1100]])(
     'stays at the bottom of the view while the form has changes, at %ipx',

@@ -206,6 +206,7 @@ function ProviderDialog({ provider, free, origin, onClose }: ProviderDialog.Prop
       <SecretField
         label="Client secret"
         saved={provider?.secretSaved === true}
+        unreadable={provider?.unreadable}
         draft={secret}
         onChange={setSecret}
         error={shown ? problems.secret : undefined}

@@ -124,6 +124,10 @@ export function configProblems(config: InstanceAdmin.Config, draft: ConfigDraft)
     if (draft.smtp.user.trim() !== '' && !hasPassword) {
       problems['smtp.password'] = 'Enter the password that goes with the user name'
     }
+    // The server refuses a save that keeps a password it can't read.
+    if (draft.smtp.password.mode === 'keep' && config.smtp.unreadable) {
+      problems['smtp.password'] = "Enter the password: the saved one can't be read"
+    }
     if (draft.smtp.password.mode === 'replace' && draft.smtp.password.value === '') {
       problems['smtp.password'] = 'Enter the password'
     }

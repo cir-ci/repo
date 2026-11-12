@@ -302,6 +302,7 @@ function MailSection({
             <SecretField
               label="Password"
               saved={smtp.passwordSaved}
+              unreadable={smtp.unreadable}
               draft={draft.smtp.password}
               disabled={off}
               error={problems['smtp.password']}
@@ -396,6 +397,7 @@ function SlackSection({
             <SecretField
               label="Client secret"
               saved={slack.secretSaved}
+              unreadable={slack.unreadable}
               draft={draft.slack.secret}
               disabled={disabled}
               error={problems['slack.secret']}
