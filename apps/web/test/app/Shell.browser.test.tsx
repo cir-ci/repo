@@ -914,12 +914,13 @@ describe('Shell, narrow', () => {
     await expect.element(tabs().getByRole('link', { name: /^Reviews/ })).toBeVisible()
     await expect.element(tabs().getByRole('button', { name: 'More' })).toBeVisible()
     // Reviews sits beside Inbox, then Projects, then More.
-    const order = [...tabs().element().querySelectorAll('a, button')].map((el) =>
-      el.textContent?.replace(/[0-9]/g, '').trim(),
+    // A tab's count and its hidden noun ("4 waiting") follow its name once the counts load.
+    const order = [...tabs().element().querySelectorAll('a, button')].map(
+      (el) => el.textContent?.trim() ?? '',
     )
-    expect(order[0]).toBe('Inbox')
-    expect(order[1]).toBe('Reviews')
-    expect(order.at(-1)).toBe('More')
+    expect(order[0]).toMatch(/^Inbox/)
+    expect(order[1]).toMatch(/^Reviews/)
+    expect(order.at(-1)).toMatch(/^More/)
   })
 
   it('has no top bar: the search button is in the page header, one sticky row', async () => {
