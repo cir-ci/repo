@@ -47,7 +47,7 @@ export function PageHeading({
   const clientLink = useClientLink()
   const phone = usePhone()
   const statusRef = useRef<HTMLDivElement>(null)
-  const statusRow = useStatusRow(statusRef, Boolean(status))
+  const statusRow = useStatusRow(statusRef, Boolean(status), title)
   return (
     <PanelHeader
       below={phone ? <PhoneFindRow find={find} /> : null}
@@ -103,13 +103,20 @@ export function PageHeading({
  * natural widths, so the answer doesn't depend on where the chips are now; again whenever the
  * header resizes or the chips change.
  */
-function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): boolean {
+function useStatusRow(
+  ref: RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+  title: string,
+): boolean {
   const [row, setRow] = useState(false)
   useLayoutEffect(() => {
     const status = ref.current
     const header = status?.closest<HTMLElement>('[data-panel-header]')
     if (!enabled || !status || !header) return undefined
-    const measure = () => setRow(lineOverflows(header))
+    const measure = () => {
+      keepTitleWhole(header)
+      setRow(lineOverflows(header))
+    }
     measure()
     const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     resize?.observe(header)
@@ -119,8 +126,22 @@ function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): 
       resize?.disconnect()
       changes.disconnect()
     }
-  }, [ref, enabled])
+  }, [ref, enabled, title])
   return row
+}
+
+/**
+ * The page's title (the last crumb) never gives up width: the crumbs' floor is its own width, so
+ * the crumbs before it and what follows it are what shorten.
+ */
+function keepTitleWhole(header: HTMLElement) {
+  const crumbs = header.querySelector<HTMLElement>('nav[aria-label="Breadcrumb"]')
+  const last = crumbs?.querySelector<HTMLElement>('li:last-child')
+  if (!crumbs || !last) return
+  crumbs.style.setProperty(
+    '--circi-title-floor',
+    `${Math.ceil(last.getBoundingClientRect().width)}px`,
+  )
 }
 
 /** Whether the header's items, each at its natural width, are wider than one line of it. */

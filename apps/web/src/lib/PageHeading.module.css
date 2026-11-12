@@ -25,24 +25,38 @@
 }
 
 /* With status chips the crumbs and what follows them (a branch) never push the buttons off the
-   title's line: they count for nothing when the line breaks (a 0 basis), grow back to their own
-   width, and give way (shortened with an ellipsis) when the line is short. */
+   title's line. The page's own title (the last crumb, the h1) always keeps its full width; the
+   crumbs before it shorten first (an ellipsis, each in its own box so none is drawn over
+   another), then what follows the title. */
 .shrinkCrumbs,
 .shrinkAfter {
+  /* A 0 basis: they count for nothing when the line breaks, grow back to their own width (the
+     crumbs first, by far) and give way when the line is short. */
   flex: 1 1 0;
-  min-width: 0;
   max-width: max-content;
+  min-width: 0;
 }
 
-.shrinkCrumbs li {
+.shrinkCrumbs {
+  flex-grow: 1000;
+  /* Never narrower than the title: PageHeading sets it from the title's width. */
+  min-width: var(--circi-title-floor, 0);
+}
+
+.shrinkCrumbs li:not(:last-child) {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
+}
+
+.shrinkCrumbs li:last-child {
+  flex: none;
 }
 
 .shrinkCrumbs a {
-  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 24px;
 }
 
 /* The status chips (a build's review status, its target, who was asked): beside the buttons, or

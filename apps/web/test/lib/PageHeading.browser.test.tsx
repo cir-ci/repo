@@ -86,6 +86,77 @@ describe('PageHeading on a phone', () => {
   })
 })
 
+function buildHeading() {
+  return (
+    <AppFrame sidebar={<span>Side</span>} compactBar={<span>Bar</span>}>
+      <PageHeading
+        crumbs={[
+          workspaceCrumb({ slug: 'acme', name: 'Acme' }),
+          projectCrumb('acme', { slug: 'web-app', name: 'Component gallery' }),
+          { label: 'Builds', link: { to: '/acme/web-app' } },
+        ]}
+        title="Build #104"
+        after={<span>feat/new-theme-for-the-component-gallery</span>}
+        afterOwnRow
+        status={
+          <>
+            <span>Needs review</span>
+            <span>Overdue 3d</span>
+            <span>4 watching</span>
+          </>
+        }
+        actions={
+          <>
+            <button type="button">Approve all</button>
+            <button type="button">Reject all</button>
+          </>
+        }
+      />
+    </AppFrame>
+  )
+}
+
+describe('PageHeading with status chips on a narrow desktop', () => {
+  it.each([1100, 1000, 900])(
+    'keeps the title at its full width, with the buttons on its line, at %ipx',
+    async (width) => {
+      await renderPage(buildHeading(), { viewport: [width, 800] })
+      const title = page.getByRole('heading', { name: 'Build #104' })
+      await expect.element(title).toBeVisible()
+      const el = title.element()
+      expect(el.scrollWidth).toBeLessThanOrEqual(el.clientWidth)
+      expect(el.getBoundingClientRect().width).toBeGreaterThan(50)
+      const line = middle(el)
+      for (const name of ['Approve all', 'Reject all']) {
+        const button = page.getByRole('button', { name }).element()
+        expect(Math.abs(middle(button) - line)).toBeLessThan(4)
+        expect(button.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+          el.getBoundingClientRect().right,
+        )
+      }
+    },
+  )
+})
+
+describe('PageHeading with status chips on a phone', () => {
+  it('draws no crumb over another', async () => {
+    await renderPage(buildHeading(), { viewport: [390, 844] })
+    await expect.element(page.getByRole('heading', { name: 'Build #104' })).toBeVisible()
+    const nav = page.getByRole('navigation', { name: 'Breadcrumb' }).element()
+    const boxes = [...nav.querySelectorAll('li')].map((li) => li.getBoundingClientRect())
+    for (const [i, box] of boxes.entries()) {
+      const next = boxes[i + 1]
+      if (next) expect(next.left).toBeGreaterThanOrEqual(box.right - 1)
+    }
+    for (const link of nav.querySelectorAll('a')) {
+      const li = link.closest('li')
+      expect(link.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+        (li?.getBoundingClientRect().left ?? 0) - 1,
+      )
+    }
+  })
+})
+
 describe('PageHeading on a phone, with a count after the title', () => {
   it('keeps the count beside the title and the buttons on the same line', async () => {
     await renderPage(
