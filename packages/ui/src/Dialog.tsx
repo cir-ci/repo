@@ -2,6 +2,7 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import type { ReactNode } from 'react'
 
 import { CloseIcon } from './icons.ts'
+import { useRestoreFocus } from './use-restore-focus.ts'
 
 import styles from './Dialog.module.css'
 
@@ -26,6 +27,7 @@ export function Dialog({
   children,
   ...rest
 }: Dialog.Props) {
+  useRestoreFocus(rest.open ?? false)
   return (
     <BaseDialog.Root {...rest} disablePointerDismissal={!dismissible}>
       <BaseDialog.Portal>
