@@ -40,7 +40,8 @@ export const figma = defineIntegration({
   id: 'figma',
   group: 'design',
   name: 'Figma',
-  description: 'Link screenshots to frames, compare with the design, and post results on frames.',
+  description:
+    'Link screenshots to Figma frames. The frame shows beside the screenshot in the build review.',
   logo: 'figma',
   exclusive: { account: true },
   credentials: z.object({

@@ -150,7 +150,8 @@ export const github = defineIntegration({
   id: 'github',
   group: 'git',
   name: 'GitHub',
-  description: 'Build status on the pull request, one summary comment, and sign-in with GitHub.',
+  description:
+    'A check on the pull request with Approve and Reject buttons, one summary comment, and /circi commands.',
   logo: 'github',
   secretless: true,
   replaceOnReconnect: true,

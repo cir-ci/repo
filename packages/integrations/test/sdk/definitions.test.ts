@@ -13,6 +13,16 @@ describe('the definition contract harnesses', () => {
         .toSorted(),
     )
   })
+
+  it('describes only what each kind does today: no sign-in, no design compare, no posting on frames', () => {
+    for (const def of integrationRegistry.all()) {
+      expect(`${def.id}: ${def.description}`).not.toMatch(/sign-in|sign in|compare|post results/i)
+    }
+    expect(integrationRegistry.get('figma')?.description).toBe(
+      'Link screenshots to Figma frames. The frame shows beside the screenshot in the build review.',
+    )
+    expect(integrationRegistry.get('github')?.description).toContain('/circi commands')
+  })
 })
 
 for (const def of integrationRegistry.all()) {

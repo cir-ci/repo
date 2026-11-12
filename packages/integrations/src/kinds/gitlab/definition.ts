@@ -113,7 +113,7 @@ export const gitlab = defineIntegration({
   id: 'gitlab',
   group: 'git',
   name: 'GitLab',
-  description: 'Build status on the merge request, one summary note, and sign-in with GitLab.',
+  description: 'Build status on the merge request, one summary note, and /circi commands.',
   logo: 'gitlab',
   exclusive: { account: true, project: 'group' },
   replaceOnReconnect: true,

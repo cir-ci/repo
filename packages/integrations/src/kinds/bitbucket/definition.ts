@@ -96,7 +96,7 @@ export const bitbucket = defineIntegration({
   id: 'bitbucket',
   group: 'git',
   name: 'Bitbucket',
-  description: 'Build status on the pull request and one summary comment.',
+  description: 'Build status on the pull request, one summary comment, and /circi commands.',
   logo: 'bitbucket',
   exclusive: { account: true, project: 'group' },
   replaceOnReconnect: true,

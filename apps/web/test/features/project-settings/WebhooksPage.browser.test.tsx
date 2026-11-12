@@ -21,6 +21,16 @@ const hook = (id: string, url: string, events = ['build.completed']) => ({
   deliveries: [] as Record<string, unknown>[],
 })
 
+const delivery = (id: string, statusCode: number) => ({
+  deliveryId: id,
+  event: 'build.completed',
+  test: false,
+  attempt: 1,
+  statusCode,
+  error: null,
+  createdAt: at(60_000),
+})
+
 function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
   return fakeApi({
     [`GET ${API}/settings`]: {
@@ -227,16 +237,40 @@ describe('WebhooksPage', () => {
     await expect.element(rows.getByText('Delivered 2 minutes ago')).toBeVisible()
     await expect.element(rows.getByText('Failing: 502, retrying 3/8')).toBeVisible()
     await expect.element(rows.getByText('No deliveries yet')).toBeVisible()
-    // The recent deliveries have their own section, headed by the host; none for a quiet hook.
+    // The recent deliveries have their own section, headed by the address; none for a quiet hook.
     await expect
-      .element(page.getByRole('heading', { name: 'Recent deliveries to deploy.test' }))
+      .element(page.getByRole('heading', { name: 'Recent deliveries to https://deploy.test/gate' }))
       .toBeVisible()
     expect(
-      page.getByRole('heading', { name: /Recent deliveries to quiet\.test/ }).elements(),
+      page.getByRole('heading', { name: /Recent deliveries to https:\/\/quiet\.test/ }).elements(),
     ).toHaveLength(0)
     const table = page.getByRole('table', { name: 'Deliveries to https://deploy.test/gate' })
     await expect.element(table.getByText('Timed out')).toBeVisible()
     await expect.element(table.getByText('1 of 8')).toBeVisible()
+  })
+
+  it('keeps two webhooks on one host apart: one heading and delivery list each', async () => {
+    api({
+      webhooks: [
+        { ...hook('h1', 'http://localhost:9/one'), deliveries: [delivery('d1', 200)] },
+        { ...hook('h2', 'http://localhost:9/two'), deliveries: [delivery('d2', 503)] },
+      ],
+    })
+    await show()
+    const one = page.getByRole('heading', { name: 'Recent deliveries to http://localhost:9/one' })
+    const two = page.getByRole('heading', { name: 'Recent deliveries to http://localhost:9/two' })
+    await expect.element(one).toBeVisible()
+    await expect.element(two).toBeVisible()
+    expect(
+      page
+        .getByRole('heading', { name: 'Recent deliveries to localhost:9', exact: true })
+        .elements(),
+    ).toHaveLength(0)
+    const tableOne = page.getByRole('table', { name: 'Deliveries to http://localhost:9/one' })
+    const tableTwo = page.getByRole('table', { name: 'Deliveries to http://localhost:9/two' })
+    await expect.element(tableOne.getByText('200')).toBeVisible()
+    expect(tableOne.getByText('503').elements()).toHaveLength(0)
+    await expect.element(tableTwo.getByText('503')).toBeVisible()
   })
 
   it('says when there are none, and explains how to check a delivery', async () => {

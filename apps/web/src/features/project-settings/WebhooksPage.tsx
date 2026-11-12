@@ -199,7 +199,7 @@ function Webhooks(props: Webhooks.Props) {
         .map((h) => (
           <SettingsSection
             key={h.id}
-            title={`Recent deliveries to ${hostOf(h.url)}`}
+            title={`Recent deliveries to ${h.url}`}
             description="Any answer other than 2xx is retried. Redirects aren't followed."
             aria-label={`Recent deliveries to ${h.url}`}
           >
@@ -425,15 +425,6 @@ function TestResult({
         : `Test sent to ${url}. Waiting for its delivery…`}
     </Banner>
   )
-}
-
-/** The host of an address, for a heading; the whole text when it doesn't parse. */
-function hostOf(url: string) {
-  try {
-    return new URL(url).host
-  } catch {
-    return url
-  }
 }
 
 /** The delivery badge on a webhook's row, from its newest attempt. */
