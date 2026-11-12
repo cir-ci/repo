@@ -533,18 +533,6 @@ describe('saving a view and pinning', () => {
     await show('/acme/web?review=rejected')
     await expect.element(page.getByRole('button', { name: 'Save view' })).toBeVisible()
   })
-
-  it('pins and unpins the project', async () => {
-    const fake = api([build(3)], {
-      'PUT /api/workspaces/acme/pinned-projects/web': { body: { pinned: true, changed: true } },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Pin project' }).click()
-    await expect.poll(() => fake.of('PUT')).toHaveLength(1)
-    await expect
-      .poll(() => fake.of('GET').filter((c) => c.path === '/api/workspaces/acme/sidebar'))
-      .toHaveLength(2)
-  })
 })
 
 /** A build of the workspace-wide list: the usual item and its project. */

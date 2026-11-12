@@ -208,11 +208,11 @@ describe('WorkspaceStoragePage in the app frame', () => {
     await expect.element(save).toBeVisible()
     const bar = () => save.element().parentElement!.getBoundingClientRect()
     expect(Math.round(bar().bottom)).toBe(window.innerHeight)
-    window.scrollTo(0, document.documentElement.scrollHeight)
-    await expect
-      .poll(() => window.scrollY + window.innerHeight)
-      .toBe(document.documentElement.scrollHeight)
-    // Nothing is left to scroll past the bar, so it stays on the window's bottom edge.
+    // On a phone the panel scrolls, not the window: to its end.
+    const panel = document.querySelector('main')!
+    panel.scrollTo(0, panel.scrollHeight)
+    await expect.poll(() => panel.scrollTop + panel.clientHeight).toBe(panel.scrollHeight)
+    // Nothing is left to scroll past the bar, so it stays on the panel's (the window's) bottom edge.
     expect(Math.round(bar().bottom)).toBe(window.innerHeight)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
