@@ -1,5 +1,5 @@
 import { isSha256 } from '@circi/core'
-import { verifyFileSignature } from '@circi/core/node'
+import { FILE_URL_WINDOW_SECONDS, verifyFileSignature } from '@circi/core/node'
 import { canUserAccessFile, getFile } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
@@ -17,8 +17,16 @@ const LOCATION_TTL_MS = 60_000
 const LOCATION_MAX_ENTRIES = 5_000
 
 /**
+ * Only the images CirCI itself made are served here. Hosted-site assets live in the same table
+ * (`kind: 'asset'`, any content type, including HTML a member published) and must never be
+ * served from the dashboard's origin.
+ */
+const SERVED_KINDS: ReadonlySet<string> = new Set(['screenshot', 'diff', 'thumbnail'])
+const SERVED_TYPES: ReadonlySet<string> = new Set(['image/png', 'image/webp'])
+
+/**
  * `GET /api/files/:sha256`: screenshots, diffs and thumbnails by content hash. The bytes behind a
- * hash never change, so browsers may cache them for good (unlike hosted sites, PLAN §7.6).
+ * hash never change, but access can end, so a cached copy lives no longer than the link's window.
  *
  * Files are shared across workspaces by hash, so a request must show it may read this one:
  *
@@ -26,6 +34,7 @@ const LOCATION_MAX_ENTRIES = 5_000
  *   carried, which that reply's route had authorized) is checked by signature alone: no session
  *   and no access query, and a conditional request is answered before anything is read. The
  *   file's location is read once and remembered for a minute.
+ * - Only `screenshot`, `diff` and `thumbnail` files of PNG or WebP are served; anything else is a 404.
  * - **Otherwise the session** decides, with the access query on every request (a cached copy
  *   must not outlive losing access, so it runs before the 304 shortcut). A link whose signature
  *   is missing, wrong or expired takes this path too, so a long-open page doesn't break while its
@@ -41,6 +50,7 @@ export const dashboardFileRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     locations.delete(hash)
     const file = await getFile(deps.db, hash)
     if (!file || file.status !== 'verified') return undefined
+    if (!SERVED_KINDS.has(file.kind) || !SERVED_TYPES.has(file.contentType ?? '')) return undefined
     if (locations.size >= LOCATION_MAX_ENTRIES) locations.clear()
     const located = { storageKey: file.storageKey, contentType: file.contentType }
     locations.set(hash, { ...located, until: Date.now() + LOCATION_TTL_MS })
@@ -73,11 +83,16 @@ export const dashboardFileRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
       const file = await locate(hash)
       if (!file) return reply.code(404).send({ error: 'Not found' })
       const stream = await deps.storage.get(file.storageKey)
+      // Cached no longer than a link stays valid (a signed link's own expiry, a window for a session).
+      const maxAge = signed
+        ? Math.max(0, Number(exp) - Math.floor(Date.now() / 1000))
+        : FILE_URL_WINDOW_SECONDS
       return reply
-        .header('content-type', file.contentType ?? 'application/octet-stream')
-        .header('cache-control', 'private, max-age=31536000, immutable')
+        .header('content-type', file.contentType)
+        .header('cache-control', `private, max-age=${maxAge}`)
         .header('etag', `"${hash}"`)
         .header('x-content-type-options', 'nosniff')
+        .header('content-security-policy', "sandbox; default-src 'none'")
         .send(stream)
     },
   )

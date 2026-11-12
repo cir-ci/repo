@@ -1,6 +1,8 @@
 import { signFileUrl } from '@circi/core/node'
+import { upsertServerFile } from '@circi/db/repositories'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { png, sha, startDashboard } from '#test/support/dashboard-fixture.ts'
 
 const secret = 'file-link-secret-that-is-long-enough-1234'
@@ -26,11 +28,17 @@ describe('signed file links', () => {
     expect(Object.keys(detail.fileSignatures)).toEqual(expect.arrayContaining([hash, other]))
   })
 
-  it('serves a valid signature with no session, with permanent caching', async () => {
+  it('serves a valid signature with no session, cached no longer than the link lives', async () => {
     const res = await anonymous(link(hash, signed(hash)))
     expect(res.statusCode).toBe(200)
     expect(res.headers['content-type']).toBe('image/png')
-    expect(res.headers['cache-control']).toBe('private, max-age=31536000, immutable')
+    const { exp } = signed(hash)
+    const maxAge = Number(/max-age=(\d+)/.exec(String(res.headers['cache-control']))?.[1])
+    expect(res.headers['cache-control']).toMatch(/^private, max-age=\d+$/)
+    expect(maxAge).toBeLessThanOrEqual(exp - Math.floor(Date.now() / 1000))
+    expect(maxAge).toBeGreaterThan(0)
+    expect(res.headers['content-security-policy']).toBe("sandbox; default-src 'none'")
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
     expect(res.headers.etag).toBe(`"${hash}"`)
     expect(sha(res.rawPayload)).toBe(hash)
   })
@@ -99,5 +107,52 @@ describe('signed file links', () => {
     } finally {
       await plain.close()
     }
+  })
+})
+
+describe('what the files route serves and signs', () => {
+  const htmlBytes = Buffer.from('<script>alert(1)</script>')
+  const htmlHash = sha(htmlBytes)
+  const pngLike = Buffer.from('<h1>other</h1>')
+  const otherHash = sha(pngLike)
+  const build = `/api/projects/${fx.acme.workspaceSlug}/web/builds/2`
+  const send = sender(() => fx.app, fx.acmeCookie)
+
+  it('refuses a signed link to a hosted-site asset, whatever its content type', async () => {
+    await upsertServerFile(fx.db, {
+      sha256: htmlHash,
+      storageKey: `site/${htmlHash}`,
+      kind: 'asset',
+      size: htmlBytes.length,
+      contentType: 'text/html',
+    })
+    expect((await anonymous(link(htmlHash, signed(htmlHash)))).statusCode).toBe(404)
+    // An image content type on an asset is no way round it either.
+    await upsertServerFile(fx.db, {
+      sha256: otherHash,
+      storageKey: `site/${otherHash}`,
+      kind: 'asset',
+      size: pngLike.length,
+      contentType: 'image/png',
+    })
+    expect((await anonymous(link(otherHash, signed(otherHash)))).statusCode).toBe(404)
+  })
+
+  it('does not sign a hash that only appears in text, a comment body included', async () => {
+    const res = await send('POST', `${build}/comments`, { payload: { body: htmlHash } })
+    expect(res.statusCode).toBe(201)
+    const list = await fx.get(`${build}/comments`)
+    expect(list.json().comments[0].body).toBe(htmlHash)
+    expect(list.json().fileSignatures).toBeUndefined()
+    // A hash of another workspace's file in a comment is not signed either.
+    const rivalDetail = (await fx.buildDetail(fx.rivalCookie, fx.rival.workspaceSlug)).json()
+    expect(rivalDetail.fileSignatures).toBeUndefined()
+    await send('POST', `${build}/comments`, { payload: { body: hash } })
+    const again = await fx.get(`${build}/comments`)
+    expect(again.json().fileSignatures).toBeUndefined()
+  })
+
+  it('still signs the image fields of the build detail', () => {
+    expect(Object.keys(detail.fileSignatures)).toEqual(expect.arrayContaining([hash, other]))
   })
 })
