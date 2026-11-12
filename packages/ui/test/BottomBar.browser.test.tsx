@@ -12,9 +12,7 @@ const bar = (
     <BottomBarItem href="/reviews" icon={<ReviewIcon />}>
       Reviews
     </BottomBarItem>
-    <BottomBarItem opensSheet icon={<ReviewIcon />}>
-      More
-    </BottomBarItem>
+    <BottomBarItem icon={<ReviewIcon />}>More</BottomBarItem>
   </BottomBar>
 )
 
@@ -31,9 +29,7 @@ describe('BottomBar', () => {
     const inbox = nav.getByRole('link', { name: /^Inbox/ })
     await expect.element(inbox).toHaveAttribute('aria-current', 'page')
     await expect.element(nav.getByRole('link', { name: 'Reviews' })).toBeVisible()
-    await expect
-      .element(nav.getByRole('button', { name: 'More' }))
-      .toHaveAttribute('aria-haspopup', 'dialog')
+    await expect.element(nav.getByRole('button', { name: 'More' })).toBeVisible()
     for (const item of [
       ...nav.getByRole('link').elements(),
       ...nav.getByRole('button').elements(),

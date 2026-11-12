@@ -24,7 +24,6 @@ export function BottomBarItem({
   selected,
   count,
   countLabel,
-  opensSheet,
   ...rest
 }: BottomBarItem.Props) {
   const props = { children, icon, count, countLabel }
@@ -56,7 +55,7 @@ export function BottomBarItem({
     </a>
   ) : (
     // A button tab passes the rest on, so it can be a menu's trigger (`render`).
-    <button type="button" aria-haspopup={opensSheet ? 'dialog' : undefined} {...rest} {...common}>
+    <button type="button" {...rest} {...common}>
       {content}
     </button>
   )
@@ -85,7 +84,5 @@ export namespace BottomBarItem {
     count?: number | string
     /** What the count counts, for the accessible name ("unread"). */
     countLabel?: string
-    /** The tab opens a sheet (More) rather than a page. */
-    opensSheet?: boolean
   }
 }

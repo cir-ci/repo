@@ -867,9 +867,9 @@ async function openMore(path: string) {
   await page.viewport(390, 844)
   const shell = await renderShell(path)
   await page.getByRole('button', { name: 'More' }).click()
-  const sheet = page.getByRole('dialog', { name: 'More' })
-  await expect.element(sheet).toBeVisible()
-  return { ...shell, sheet }
+  const menu = page.getByRole('menu')
+  await expect.element(menu).toBeVisible()
+  return { ...shell, menu }
 }
 
 describe('Shell, narrow', () => {
@@ -1031,22 +1031,19 @@ describe('Shell, narrow', () => {
   })
 
   describe('More', () => {
-    it('starts with the workspace switcher, which switches workspace', async () => {
-      const { sheet } = await openMore('/')
-      const trigger = sheet.getByRole('button', { name: 'Workspace: Acme' })
-      await expect.element(trigger).toBeVisible()
-      // The switcher is the first thing in the sheet's body, above the lists.
-      const list = sheet.getByRole('navigation', { name: 'More' }).element()
-      expect(
-        trigger.element().compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy()
-      await trigger.click()
-      await page.getByRole('menuitem', { name: /Globex/ }).click()
-      await expect.element(sheet.getByRole('button', { name: 'Workspace: Globex' })).toBeVisible()
-      // The sheet follows the workspace chosen (its projects are on the Projects tab).
+    it('starts with the workspaces, the open one marked, and switching one follows it', async () => {
+      const { menu } = await openMore('/')
+      const first = menu.getByRole('menuitem').first()
+      await expect.element(first).toHaveTextContent('Acme')
+      await expect.element(first).toHaveAttribute('aria-current', 'true')
+      await menu.getByRole('menuitem', { name: /Globex/ }).click()
+      await expect.poll(() => page.getByRole('menu').elements().length).toBe(0)
+      // The menu follows the workspace chosen (its projects are on the Projects tab).
+      await tabs().getByRole('button', { name: 'More' }).click()
+      await expect.element(page.getByRole('menuitem', { name: 'Insights' })).toBeVisible()
       await expect
-        .element(sheet.getByRole('link', { name: 'Insights' }))
-        .toHaveAttribute('href', '/workspaces/globex/insights')
+        .element(page.getByRole('menuitem', { name: /Globex/ }))
+        .toHaveAttribute('aria-current', 'true')
     })
 
     it('offers New workspace where it is allowed', async () => {
@@ -1056,40 +1053,37 @@ describe('Shell, narrow', () => {
         manageableWorkspaces: [],
         refusingWorkspaces: [],
       }
-      const { sheet } = await openMore('/')
-      await sheet.getByRole('button', { name: 'Workspace: Acme' }).click()
-      await page.getByRole('menuitem', { name: 'New workspace' }).click()
-      await expect.poll(() => page.getByRole('dialog', { name: 'More' }).elements().length).toBe(0)
+      const { menu } = await openMore('/')
+      await menu.getByRole('menuitem', { name: 'New workspace' }).click()
+      await expect.poll(() => page.getByRole('menu').elements().length).toBe(0)
     })
 
     it('does not offer New workspace otherwise', async () => {
-      const { sheet } = await openMore('/')
-      await sheet.getByRole('button', { name: 'Workspace: Acme' }).click()
-      await expect.element(page.getByRole('menuitem', { name: /Acme/ })).toBeVisible()
-      expect(page.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
+      const { menu } = await openMore('/')
+      await expect.element(menu.getByRole('menuitem', { name: /Acme/ })).toBeVisible()
+      expect(menu.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
     })
 
     it('keeps the rest: Insights, pinned views, settings and the account', async () => {
-      const { sheet } = await openMore('/')
-      const list = sheet.getByRole('navigation', { name: 'More' })
-      const names = list
-        .getByRole('link')
+      const { menu } = await openMore('/')
+      const names = menu
+        .getByRole('menuitem')
         .elements()
-        .map((el) => el.textContent)
+        .map((el) => el.textContent?.trim())
       expect(names).toEqual(expect.arrayContaining(['Insights', 'Failing on main', 'Settings']))
       // What the Projects menu and the project page's tabs now hold is not repeated here.
-      expect(list.getByRole('link', { name: 'Baselines' }).elements()).toHaveLength(0)
-      expect(list.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
-      expect(list.getByRole('link', { name: /^(web-app|api|storybook)/ }).elements()).toHaveLength(
-        0,
-      )
-      expect(list.getByText('Projects', { exact: true }).elements()).toHaveLength(0)
-      expect(list.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
+      expect(menu.getByRole('menuitem', { name: 'Baselines' }).elements()).toHaveLength(0)
+      expect(menu.getByRole('menuitem', { name: 'Sites' }).elements()).toHaveLength(0)
+      expect(
+        menu.getByRole('menuitem', { name: /^(web-app|api|storybook)/ }).elements(),
+      ).toHaveLength(0)
+      expect(menu.getByRole('menuitem', { name: 'Not pinned' }).elements()).toHaveLength(0)
+      expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(2)
     })
 
     it('signs out from the account entry', async () => {
-      const { sheet } = await openMore('/')
-      await sheet.getByRole('button', { name: 'Sign out' }).click()
+      const { menu } = await openMore('/')
+      await menu.getByRole('menuitem', { name: 'Sign out' }).click()
       await expect.poll(() => auth.signOut.mock.calls.length).toBe(1)
     })
   })
@@ -1548,31 +1542,35 @@ describe('Shell, phone', () => {
     expect(reviews.element().querySelector('svg.lucide-circle-check-big')).not.toBeNull()
   })
 
-  it('opens More as a sheet with Insights, the views and the settings entries, and closes it on a choice', async () => {
+  it('opens More as a menu with Insights, the views and the settings entries, and closes it on a choice', async () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/acme/web-app/triage')
     await tabs().getByRole('button', { name: 'More' }).click()
-    const sheet = page.getByRole('dialog', { name: 'More' })
-    await expect.element(sheet).toBeVisible()
-    const rows = sheet
-      .getByRole('link')
+    const menu = page.getByRole('menu')
+    await expect.element(menu).toBeVisible()
+    const rows = menu
+      .getByRole('menuitem')
       .elements()
-      .map((el) => el.textContent)
-    // The projects are in the Projects tab's sheet, and Baselines and Sites in the project page's tabs.
-    expect(rows).toEqual(['Insights', 'Failing on main', 'Settings'])
-    for (const row of sheet.getByRole('link').elements()) {
-      expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+      .map((el) => el.textContent?.trim())
+    // The projects are in the Projects tab's menu, and Baselines and Sites in the project page's tabs.
+    expect(rows.slice(-4)).toEqual(['Insights', 'Failing on main', 'Settings', 'Sign out'])
+    for (const row of menu.getByRole('menuitem').elements()) {
+      expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(36)
     }
-    await sheet.getByRole('link', { name: 'Insights' }).click()
+    await menu.getByRole('menuitem', { name: 'Insights' }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/insights')
-    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    await expect.poll(() => page.getByRole('menu').elements().length).toBe(0)
+    // On Insights the More tab shows as selected.
+    await expect
+      .element(tabs().getByRole('button', { name: 'More' }))
+      .toHaveAttribute('aria-current', 'page')
   })
 
   it('has one Settings entry in More, and settings is left only by its Close', async () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/inbox')
     await tabs().getByRole('button', { name: 'More' }).click()
-    await page.getByRole('dialog', { name: 'More' }).getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Settings' }).click()
     await expect.poll(() => router.state.location.pathname).toMatch(/^\/workspaces\/acme\/settings/)
     // Settings has its own navigation: no tab bar, a Close in the header, the list in a sheet.
     expect(tabs().elements()).toHaveLength(0)

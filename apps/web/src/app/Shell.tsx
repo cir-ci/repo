@@ -20,7 +20,6 @@ import { usePhone } from '#lib/use-phone.ts'
 
 import { AppContextMenu } from './AppContextMenu.tsx'
 import { useNavPane } from './NavToggle.tsx'
-import { PhoneMore } from './PhoneMore.tsx'
 import { PhoneTabs } from './PhoneTabs.tsx'
 import { PhoneTabSwitcher } from './PhoneTabSwitcher.tsx'
 import { SettingsSections } from './SettingsSections.tsx'
@@ -170,7 +169,6 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       <WindowTitleBar />
       <AppContextMenu />
       <AddToHomeScreenSheet />
-      {phone && !inSettings ? <PhoneMore /> : null}
       {phone ? <PhoneTabSwitcher /> : null}
       {phone && inSettings ? <SettingsSections /> : null}
     </ShortcutLayer>

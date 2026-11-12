@@ -35,7 +35,7 @@ const ENTRY_POINTS = new Set([
   'features/command/model.ts',
   // The command menu's settings sections (Settings · Members, All workspaces, ...).
   'features/command/settings.ts',
-  // The phone's More sheet: the workspace and account settings entries (built from helpers, not route literals).
+  // The phone's More menu: the workspace and account settings entries (built from helpers, not route literals).
   'app/PhoneMore.tsx',
   // The Projects and Settings crumbs, which only settings pages use.
   'lib/crumbs.ts',

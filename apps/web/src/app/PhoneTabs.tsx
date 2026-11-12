@@ -18,6 +18,7 @@ import { ProjectAvatars } from '#lib/ProjectAvatars.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
+import { useMoreMenuItems } from './PhoneMore.tsx'
 import {
   countOrUndefined,
   currentSection,
@@ -32,8 +33,7 @@ import {
  * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Projects, Reviews and More,
  * with the sidebar's counts. Inbox and Reviews are real links that navigate through the router;
  * a project's Triage is one of its page icons beside the find field (`PhoneProjectTabs`). Projects shows up to three of your projects' tiles (its label is the project's name when
- * you are in exactly one) and opens a menu of your projects; More opens the sheet
- * of the rest, with the workspace switcher (`PhoneMore`).
+ * you are in exactly one) and opens a menu of your projects; More opens a menu of the rest, with the workspaces (`PhoneMore`).
  */
 export function PhoneTabs() {
   const navigate = useNavigate()
@@ -46,6 +46,7 @@ export function PhoneTabs() {
   const projects = useYourProjects()
   const projectsOpen = useOverlayStore((s) => s.projectsOpen)
   const setProjectsOpen = useOverlayStore((s) => s.setProjectsOpen)
+  const moreItems = useMoreMenuItems()
   const projectItems = projectMenuItems(projects, (href) => void navigate({ href }))
 
   const reviews = goPath('reviews', { workspace: workspace?.slug })
@@ -101,14 +102,18 @@ export function PhoneTabs() {
       >
         Reviews
       </BottomBarItem>
-      <BottomBarItem
-        icon={<RowMenuIcon />}
-        opensSheet
-        selected={moreOpen || section === 'insights'}
-        onClick={() => setMoreOpen(true)}
-      >
-        More
-      </BottomBarItem>
+      <Menu
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        size="md"
+        align="center"
+        items={moreItems}
+        trigger={
+          <BottomBarItem icon={<RowMenuIcon />} selected={moreOpen || section === 'insights'}>
+            More
+          </BottomBarItem>
+        }
+      />
     </BottomBar>
   )
 }
