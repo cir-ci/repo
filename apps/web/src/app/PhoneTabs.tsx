@@ -7,7 +7,7 @@ import {
   ListChecksIcon,
   Menu,
   RowMenuIcon,
-  ReviewIcon,
+  ReviewsIcon,
 } from '@circi/ui'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import type { MouseEvent } from 'react'
@@ -102,7 +102,7 @@ export function PhoneTabs() {
         }
       />
       <BottomBarItem
-        icon={<ReviewIcon />}
+        icon={<ReviewsIcon />}
         {...(reviews ? { href: reviews, onClick: go(reviews) } : {})}
         selected={section === 'reviews'}
         {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}

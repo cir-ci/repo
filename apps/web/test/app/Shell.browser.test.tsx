@@ -353,6 +353,16 @@ describe('Shell, wide', () => {
     }
   })
 
+  it("draws Reviews with the design's check in a circle, not the comments' icon", async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const reviews = page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: /^Reviews/ })
+    await expect.element(reviews).toBeVisible()
+    expect(reviews.element().querySelector('svg.lucide-circle-check-big')).not.toBeNull()
+  })
+
   it('lists pinned projects first, then the rest A to Z', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
@@ -1507,6 +1517,14 @@ describe('Shell, phone', () => {
     const style = getComputedStyle(main)
     expect(style.borderTopLeftRadius).toBe('0px')
     expect(style.borderLeftWidth).toBe('0px')
+  })
+
+  it("draws Reviews in the bottom bar with the design's check in a circle", async () => {
+    await page.viewport(390, 844)
+    await renderShell('/inbox')
+    const reviews = tabs().getByRole('link', { name: /^Reviews/ })
+    await expect.element(reviews).toBeVisible()
+    expect(reviews.element().querySelector('svg.lucide-circle-check-big')).not.toBeNull()
   })
 
   it('opens More as a sheet with Insights, the views and the settings entries, and closes it on a choice', async () => {

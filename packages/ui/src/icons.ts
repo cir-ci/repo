@@ -99,7 +99,10 @@ export const ExpandMoreIcon = icon(ChevronDown, 'ExpandMoreIcon')
 export const FolderOpenIcon = icon(FolderOpen, 'FolderOpenIcon')
 export const GlobeIcon = icon(Globe, 'GlobeIcon')
 export const HourglassIcon = icon(Hourglass, 'HourglassIcon')
+/** A comment, and the comments of a build (a message square with lines). */
 export const ReviewIcon = icon(MessageSquareText, 'ReviewIcon')
+/** The Reviews page wherever it is named: the sidebar, the phone's bottom bar, a tab, ⌘K (the design's check in a circle). */
+export const ReviewsIcon = icon(CircleCheckBig, 'ReviewsIcon')
 export const RefreshIcon = icon(RefreshCw, 'RefreshIcon')
 export const RemoveCircleIcon = icon(CircleMinus, 'RemoveCircleIcon')
 export const WarningIcon = icon(TriangleAlert, 'WarningIcon')

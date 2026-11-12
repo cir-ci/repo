@@ -11,7 +11,7 @@ import {
   ListChecksIcon,
   ListFilterIcon,
   NavSection,
-  ReviewIcon,
+  ReviewsIcon,
   SearchIcon,
   Tooltip,
   Avatar,
@@ -128,7 +128,7 @@ export function Sidebar({ user }: Sidebar.Props) {
         <NavLink
           to="/workspaces/$workspace/reviews"
           params={{ workspace: workspace.slug }}
-          icon={<ReviewIcon />}
+          icon={<ReviewsIcon />}
           selected={section === 'reviews'}
           {...counted(model?.reviews, ['review waiting', 'reviews waiting'])}
         >

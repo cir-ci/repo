@@ -7,7 +7,7 @@ import {
   InboxIcon,
   type Menu,
   PlusIcon,
-  ReviewIcon,
+  ReviewsIcon,
   SettingsIcon,
   InsightsIcon,
 } from '@circi/ui'
@@ -29,7 +29,7 @@ function pageIcon(href: string): ReactNode {
   if (first === 'account' || first === 'instance') return <SettingsIcon size={16} />
   if (first === 'workspaces') {
     const page = href.split(/[?#]/)[0]?.split('/')[3]
-    if (page === 'reviews') return <ReviewIcon size={16} />
+    if (page === 'reviews') return <ReviewsIcon size={16} />
     if (page === 'insights') return <InsightsIcon size={16} />
     return <SettingsIcon size={16} />
   }

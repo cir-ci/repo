@@ -24,6 +24,7 @@ import {
   LogOutIcon,
   RefreshIcon,
   ReviewIcon,
+  ReviewsIcon,
   SearchIcon,
   SettingsIcon,
   SlidersIcon,
@@ -40,7 +41,7 @@ import styles from './CommandMenu.module.css'
 
 const ICONS: Record<IconKey, ComponentType<IconProps>> = {
   inbox: InboxIcon,
-  reviews: CheckCircleIcon,
+  reviews: ReviewsIcon,
   triage: ListChecksIcon,
   projects: UsersIcon,
   insights: InsightsIcon,
