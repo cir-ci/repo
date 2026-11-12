@@ -47,7 +47,7 @@ export function PageHeading({
   const clientLink = useClientLink()
   const phone = usePhone()
   const statusRef = useRef<HTMLDivElement>(null)
-  const statusRow = useStatusRow(statusRef, Boolean(status), title)
+  const statusRow = useStatusRow(statusRef, Boolean(status))
   return (
     <PanelHeader
       below={phone ? <PhoneFindRow find={find} /> : null}
@@ -103,11 +103,7 @@ export function PageHeading({
  * natural widths, so the answer doesn't depend on where the chips are now; again whenever the
  * header resizes or the chips change.
  */
-function useStatusRow(
-  ref: RefObject<HTMLDivElement | null>,
-  enabled: boolean,
-  title: string,
-): boolean {
+function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): boolean {
   const [row, setRow] = useState(false)
   useLayoutEffect(() => {
     const status = ref.current
@@ -120,13 +116,16 @@ function useStatusRow(
     measure()
     const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     resize?.observe(header)
+    // A new title changes the width the crumbs must keep.
+    const current = header.querySelector('nav[aria-label="Breadcrumb"] li:last-child')
+    if (current) resize?.observe(current)
     const changes = new MutationObserver(measure)
     changes.observe(status, { childList: true, subtree: true, characterData: true })
     return () => {
       resize?.disconnect()
       changes.disconnect()
     }
-  }, [ref, enabled, title])
+  }, [ref, enabled])
   return row
 }
 

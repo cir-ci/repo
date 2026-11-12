@@ -24,20 +24,20 @@ const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> 
   ...over,
 })
 
-describe('historyLabel', () => {
-  const entry = (approvedBy: { id: string; name: string } | null): Snapshot.HistoryEntry => ({
-    build: {
-      number: 3,
-      branch: 'main',
-      status: 'complete',
-      reviewStatus: 'approved',
-      createdAt: '2026-11-08T10:00:00.000Z',
-    },
-    status: 'changed',
-    approvedBy,
-    image: null,
-  })
+const entry = (approvedBy: { id: string; name: string } | null): Snapshot.HistoryEntry => ({
+  build: {
+    number: 3,
+    branch: 'main',
+    status: 'complete',
+    reviewStatus: 'approved',
+    createdAt: '2026-11-08T10:00:00.000Z',
+  },
+  status: 'changed',
+  approvedBy,
+  image: null,
+})
 
+describe('historyLabel', () => {
   it('says by whom, or that it was approved automatically', () => {
     expect(historyLabel(entry({ id: 'u1', name: 'Maya Levi' }))).toBe(
       'Changed, approved by Maya Levi',

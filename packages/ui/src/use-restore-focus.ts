@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 const DIALOGS = '[role="dialog"], [role="alertdialog"]'
 
@@ -11,11 +11,13 @@ const DIALOGS = '[role="dialog"], [role="alertdialog"]'
  */
 export function useRestoreFocus(open: boolean): void {
   const opener = useRef<HTMLElement | null>(null)
-  // During render, before anything inside the overlay can take focus.
-  if (open && opener.current === null) {
+  // A layout effect: it runs before the overlay's own focus handling moves focus inside.
+  useLayoutEffect(() => {
+    if (!open) return undefined
     const active = document.activeElement
-    if (active instanceof HTMLElement && active !== document.body) opener.current = active
-  }
+    opener.current = active instanceof HTMLElement && active !== document.body ? active : null
+    return undefined
+  }, [open])
   useEffect(() => {
     if (!open) return undefined
     return () => {

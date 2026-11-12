@@ -93,7 +93,10 @@ function buildHeading() {
         crumbs={[
           workspaceCrumb({ slug: 'acme', name: 'Acme' }),
           projectCrumb('acme', { slug: 'web-app', name: 'Component gallery' }),
-          { label: 'Builds', link: { to: '/acme/web-app' } },
+          {
+            label: 'Builds',
+            link: { to: '/$workspace/$project', params: { workspace: 'acme', project: 'web-app' } },
+          },
         ]}
         title="Build #104"
         after={<span>feat/new-theme-for-the-component-gallery</span>}
@@ -144,9 +147,8 @@ describe('PageHeading with status chips on a phone', () => {
     await expect.element(page.getByRole('heading', { name: 'Build #104' })).toBeVisible()
     const nav = page.getByRole('navigation', { name: 'Breadcrumb' }).element()
     const boxes = [...nav.querySelectorAll('li')].map((li) => li.getBoundingClientRect())
-    for (const [i, box] of boxes.entries()) {
-      const next = boxes[i + 1]
-      if (next) expect(next.left).toBeGreaterThanOrEqual(box.right - 1)
+    for (const [i, box] of boxes.slice(0, -1).entries()) {
+      expect(boxes[i + 1]!.left).toBeGreaterThanOrEqual(box.right - 1)
     }
     for (const link of nav.querySelectorAll('a')) {
       const li = link.closest('li')
