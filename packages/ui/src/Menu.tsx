@@ -90,7 +90,17 @@ export namespace Menu {
     items: ReadonlyArray<{ label: string; icon: ReactNode; onSelect: () => void }>
   }
 
-  export type Entry = Item | Separator | Content | RadioGroup | IconRow
+  /** An on/off choice (checkerboard): a menu item with `role="menuitemcheckbox"`; the check shows while it is on. It stays open so a change can be seen. */
+  export interface Checkbox {
+    type: 'checkbox'
+    label: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+    /** Close the menu after a pick (default: it stays open). */
+    closeOnClick?: boolean
+  }
+
+  export type Entry = Item | Separator | Content | RadioGroup | IconRow | Checkbox
 
   export interface Props extends Omit<BaseMenu.Root.Props, 'children'> {
     trigger: ReactElement<Record<string, unknown>>

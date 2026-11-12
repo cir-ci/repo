@@ -337,7 +337,7 @@ describe('a link to a comment', () => {
 })
 
 describe('requesting a review', () => {
-  it('shows who was asked on the header button once the request is made', async () => {
+  it('lists who was asked under People in Details once the request is made', async () => {
     const api = fakeBuildApi(detail())
     api.members = [ada, grace]
     await renderBuild()
@@ -356,7 +356,11 @@ describe('requesting a review', () => {
     ]
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
     await expect.element(dialog).not.toBeInTheDocument()
-    await expect.element(page.getByText('Requested from Grace Hopper')).toBeVisible()
+    const people = page.getByRole('tabpanel').getByRole('region', { name: 'People' })
+    await expect.element(people.getByText('Grace Hopper')).toBeVisible()
+    await expect.element(people.getByText(/Asked by Ada Lovelace/)).toBeVisible()
+    // Not in the header any more.
+    expect(page.getByText(/Requested from/).elements()).toHaveLength(0)
   })
 })
 

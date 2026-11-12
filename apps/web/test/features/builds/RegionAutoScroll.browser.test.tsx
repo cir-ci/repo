@@ -9,12 +9,13 @@ vi.mock('#lib/auth-client.ts', () =>
 import { frame, pointIn, stubPointerCapture, type Point } from '#test/support/pointer.ts'
 
 import { detail, type FakeApi, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
+import { chooseDrawing } from './view-options.ts'
 
 let capture: ReturnType<typeof stubPointerCapture>
 beforeEach(async () => {
   // Short enough that the zoomed screenshot overflows the viewer both ways; wide enough (1100px
   // and up) for the viewer to sit beside the list and the sidebar, the window's height its own.
-  await page.viewport(1200, 480)
+  await page.viewport(1200, 400)
   capture = stubPointerCapture()
 })
 afterEach(() => capture.mockRestore())
@@ -27,7 +28,6 @@ const HEIGHT = 600
 const viewerTitle = () => page.getByRole('heading', { level: 2, name: NAME })
 // The baseline is the left column: the build's is mostly out of sight at this width.
 const build = () => page.getByRole('button', { name: /^Enlarge Baseline/ })
-const toggle = () => page.getByRole('group', { name: 'Dragging draws' })
 const marker = () => page.getByRole('button', { name: 'Comment 1' })
 
 const asHtml = (el: Element | null): HTMLElement => {
@@ -158,7 +158,7 @@ describe('scrolling while a region is dragged', () => {
 
   it('keeps ignore regions following the pointer the same way, and posts the scrolled area', async () => {
     const api = await ready()
-    await toggle().getByRole('button', { name: 'Ignore regions' }).click()
+    await chooseDrawing('Ignore regions')
     const image = build().element()
     const from = pointIn(image, 100, 60)
     const gesture = hold(image, from)

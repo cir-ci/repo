@@ -2,6 +2,7 @@ import type { Build } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  baselineHow,
   changeSummary,
   defaultShot,
   formatPercent,
@@ -10,6 +11,7 @@ import {
   needsDecision,
   neighbour,
   nextToReview,
+  openReviewRequests,
   orderShots,
   reviewProgress,
   reviewTargetStatus,
@@ -227,5 +229,36 @@ describe('reviewTargetStatus', () => {
 
   it('has nothing to say without a due time', () => {
     expect(reviewTargetStatus({ hours: 24, dueAt: null }, now)).toBeNull()
+  })
+})
+
+const person = (who: string) => ({ id: who, name: who.toUpperCase(), image: null })
+
+describe('openReviewRequests', () => {
+  it('keeps who asked and when, drops closed requests, and has no asker for an automatic one', () => {
+    const requests = openReviewRequests([
+      { type: 'review_requested', at: 't1', reviewer: person('a'), by: person('x') },
+      { type: 'review_requested', at: 't2', reviewer: person('b'), by: null },
+      { type: 'review_requested', at: 't3', reviewer: person('c'), by: person('x') },
+      { type: 'review_request_closed', at: 't4', reviewer: person('c'), state: 'done' },
+    ])
+    expect(requests.map((r) => [r.person.id, r.by?.id ?? null, r.at])).toEqual([
+      ['a', 'x', 't1'],
+      ['b', null, 't2'],
+    ])
+  })
+})
+
+describe('baselineHow', () => {
+  it('says where an ancestry match started, and the fallback with its reason', () => {
+    expect(baselineHow({ baselineSource: 'provider', ancestryStatus: 'ok' }, 'main')).toBe(
+      'where this branch started',
+    )
+    expect(baselineHow({ baselineSource: 'fallback', ancestryStatus: 'missing' }, 'main')).toBe(
+      "the latest on main: this build's git history wasn't available",
+    )
+    expect(baselineHow({ baselineSource: 'cli', ancestryStatus: 'truncated' }, 'main')).toBe(
+      'where this branch started, as far as its git history reaches',
+    )
   })
 })

@@ -11,7 +11,6 @@ import {
   Ref,
   RowMenuIcon,
   Sheet,
-  Stack,
   StatusIcon,
   TaskDoneIcon,
   Text,
@@ -47,17 +46,14 @@ import { useListNavigation } from '#lib/use-list-navigation.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { buildTitle } from './build-title.ts'
-import { BuildMeta } from './BuildMeta.tsx'
 import { MoreAction, PhoneBuildMore, PhoneReviewBar } from './BuildPhone.tsx'
 import { BuildStateLabel } from './BuildStateLabel.tsx'
-import { CountsSummary } from './CountsSummary.tsx'
 import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
 import { useIgnoreMode } from './ignore-mode.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
 import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
-import { RequestedReviewers } from './RequestedReviewers.tsx'
 import { RequestReviewPicker } from './RequestReviewPicker.tsx'
 import {
   defaultShot,
@@ -70,7 +66,7 @@ import {
   reviewProgress,
   shotBadge,
 } from './review-model.ts'
-import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
+import { ReviewActions, useReviewControls } from './ReviewActions.tsx'
 import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
 import { ReviewTarget } from './ReviewTarget.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
@@ -236,6 +232,11 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const hasBaseline = baseline !== null
   const buildReview = shotReview(build)
   const progress = reviewProgress(data.diffs, buildReview)
+  // Only what needs saying sits under the header: nothing otherwise. The comparison itself
+  // ("Compared with build #33 ...") is in the Details tab.
+  const fallbackBanner = baselineBanner(data)
+  const hasNotices =
+    fallbackBanner !== null || Boolean(review.error) || Boolean(build.errorMessage) || active
 
   /** A screenshot row's right-click menu: its decisions (hidden when not allowed), name, and baseline. */
   const shotMenu = (d: Build.DiffItem) => {
@@ -271,6 +272,11 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
   const shotList = (
     <nav ref={listRef} aria-label="Screenshots" className={phone ? styles.sheetList : page['list']}>
+      {progress.total > 0 && isReviewable(build) ? (
+        <Text variant="small" tone="secondary" as="p" className={styles.progress}>
+          {progress.reviewed} of {progress.total} reviewed
+        </Text>
+      ) : null}
       {groups.map((g) => (
         <div key={g.kind} data-group-id={g.kind} className={styles.group}>
           <ListGroup
@@ -392,11 +398,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             <>
               <BuildStateLabel build={build} hasBaseline={hasBaseline} />
               <ReviewTarget target={data.reviewTarget} />
-              <RequestedReviewers
-                workspace={project.workspaceSlug}
-                project={project.slug}
-                number={build.number}
-              />
               <Watchers watchers={data.watchers} />
             </>
           )
@@ -405,24 +406,16 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         afterOwnRow
       />
 
-      <div className={page['context']}>
-        <Stack direction="row" gap={3} wrap align="center">
-          <BuildMeta build={build} showBranch={false} />
-          {active ? null : <CountsSummary counts={build.counts} review={buildReview} />}
-          {progress.total > 0 && isReviewable(build) ? (
-            <Text variant="small" tone="secondary">
-              {progress.reviewed} of {progress.total} reviewed
-            </Text>
+      {hasNotices ? (
+        <div className={page['context']}>
+          {fallbackBanner}
+          {review.error ? <Banner tone="danger">{review.error.message}</Banner> : null}
+          {build.errorMessage ? <Banner tone="danger">{build.errorMessage}</Banner> : null}
+          {active ? (
+            <Banner tone="info">Processing screenshots. This page updates when it's done.</Banner>
           ) : null}
-        </Stack>
-        <ReviewNote data={data} />
-        <BaselineNote data={data} />
-        {review.error ? <Banner tone="danger">{review.error.message}</Banner> : null}
-        {build.errorMessage ? <Banner tone="danger">{build.errorMessage}</Banner> : null}
-        {active ? (
-          <Banner tone="info">Processing screenshots. This page updates when it's done.</Banner>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {build.status === 'expired' ? (
         <EmptyState icon={<HourglassIcon />} title="This build has expired">
@@ -450,9 +443,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               kind={selectedGroup}
               review={shotDecision(selected, buildReview)}
               mode={mode}
-              baselineNumber={baseline?.number}
-              baselineBranch={baseline?.branch}
-              commitSha={build.commitSha}
               onMode={(m) =>
                 void navigate({ search: (prev) => ({ ...prev, mode: m }), replace: true })
               }
@@ -614,7 +604,12 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           </MoreAction>
         </PhoneBuildMore>
       ) : null}
-      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} designEnabled={designEnabled} />
+      <ShortcutsDialog
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        designEnabled={designEnabled}
+        imageDrag
+      />
     </div>
   )
 }
@@ -627,9 +622,11 @@ export namespace BuildReview {
   }
 }
 
-/** Where the comparison comes from: plain metadata normally, a banner when it's an orphan or a fallback. */
-function BaselineNote({ data }: BaselineNote.Props) {
-  const { build, baseline } = data
+/**
+ * A banner where the comparison needs a warning: the first build (nothing to compare with) or a
+ * fallback baseline. A normal comparison says nothing here; the Details tab names it.
+ */
+function baselineBanner({ build, baseline }: Build.Detail) {
   if (isActive(build.status) || build.status === 'expired') return null
   if (!baseline) {
     return (
@@ -639,33 +636,16 @@ function BaselineNote({ data }: BaselineNote.Props) {
       </Banner>
     )
   }
-  const where = (
-    <>
-      build #{baseline.number} on {baseline.branch ?? 'an unknown branch'} (
+  if (build.baselineSource !== 'fallback') return null
+  return (
+    <Banner tone="warning">
+      Compared with build #{baseline.number} on {baseline.branch ?? 'an unknown branch'} (
       <Text variant="mono" title={baseline.commitSha}>
         {baseline.commitSha.slice(0, 7)}
       </Text>
-      )
-    </>
+      ), the latest on the default branch, because this build's git history wasn't available.
+      Changes merged since this branch was created may show up here. Fetch more history in CI (for
+      example <code>fetch-depth: 0</code>) for an exact comparison.
+    </Banner>
   )
-  if (build.baselineSource === 'fallback') {
-    return (
-      <Banner tone="warning">
-        Compared with {where}, the latest on the default branch, because this build's git history
-        wasn't available. Changes merged since this branch was created may show up here. Fetch more
-        history in CI (for example <code>fetch-depth: 0</code>) for an exact comparison.
-      </Banner>
-    )
-  }
-  return (
-    <Text variant="small" tone="secondary" as="p">
-      Compared with {where}, where this branch started.
-    </Text>
-  )
-}
-
-export namespace BaselineNote {
-  export interface Props {
-    data: Build.Detail
-  }
 }

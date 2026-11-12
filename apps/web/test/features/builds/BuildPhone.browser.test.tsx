@@ -86,6 +86,59 @@ describe('the build page on a phone', () => {
     expectNoSidewaysScroll()
   })
 
+  it("keeps the strip's information in the Details sheet, with the state, target and watchers above Build and People", async () => {
+    const api = fakeBuildApi(
+      detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }),
+    )
+    api.activity = [
+      {
+        type: 'review_requested',
+        at: new Date().toISOString(),
+        reviewer: { id: 'u2', name: 'Grace Hopper', image: null },
+        by: { id: 'u1', name: 'Ada Lovelace', image: null },
+      },
+    ]
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    // Nothing between the header and the viewer.
+    expect(document.querySelector('[class*="context"]')).toBeNull()
+    await bar()
+      .getByRole('button', { name: /^Comments/ })
+      .click()
+    const sheet = page.getByRole('dialog', { name: 'Comments' })
+    await sheet.getByRole('tab', { name: 'Details' }).click()
+    const text = () => sheet.element().textContent ?? ''
+    await expect.element(sheet.getByText('Review target', { exact: true })).toBeVisible()
+    const order = [
+      'Status',
+      'Review target',
+      'Watchers',
+      'Build',
+      'Pull request',
+      'Commit',
+      'People',
+    ]
+    const at = order.map((t) => text().indexOf(t))
+    expect(at.every((i) => i >= 0)).toBe(true)
+    expect(at).toEqual(at.toSorted((x, y) => x - y))
+    await expect.element(sheet.getByText(/Asked by Ada Lovelace/)).toBeVisible()
+    await expect.element(sheet.getByText('build #6 on main', { exact: false })).toBeVisible()
+  })
+
+  it('puts the checkerboard in the same View options menu as a desktop, as a checkbox', async () => {
+    await ready()
+    await page.getByRole('button', { name: 'View options' }).click()
+    await expect
+      .element(page.getByRole('menuitemcheckbox', { name: 'Checkerboard' }))
+      .toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('captions the single image "This build" without its commit or size', async () => {
+    await ready()
+    await expect.element(page.getByText('This build', { exact: true })).toBeVisible()
+    expect(page.getByText('400 × 300').elements()).toHaveLength(0)
+  })
+
   it('approves at once with an Undo toast and moves to the next screenshot to review', async () => {
     const api = await ready()
     await bar().getByRole('button', { name: 'Approve' }).click()

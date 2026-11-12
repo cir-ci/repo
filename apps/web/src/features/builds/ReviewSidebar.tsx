@@ -9,10 +9,10 @@ import { RelativeTime, useNow } from '#lib/RelativeTime.tsx'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { ActivityTab } from './ActivityTab.tsx'
-import { BuildStateLabel } from './BuildStateLabel.tsx'
+import { BuildSection, PeopleSection, PhoneFacts } from './BuildDetails.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { LinkedIssues } from './LinkedIssues.tsx'
-import { openReviewerPeople, reviewTargetStatus } from './review-model.ts'
+import { openReviewRequests } from './review-model.ts'
 import { ScreenshotHistory } from './ScreenshotHistory.tsx'
 import { commentCount } from './timeline.ts'
 
@@ -95,21 +95,21 @@ export namespace ReviewSidebar {
 }
 
 /**
- * What is too much for the page's header and the strip under it (they show the state, target,
- * reviewers, watchers, branch, PR, commit, baseline and upload time): the screenshot on screen
- * through recent builds of the default branch, the build's linked issues, and the decisions so
- * far, the build's and each screenshot's. A phone, with no header chips, lists those facts too.
+ * What the header leaves out: the build's facts (pull request, commit, branch, upload time and the
+ * baseline with how it was chosen), the people asked to review and who asked, the screenshot on
+ * screen through recent builds of the default branch, the linked issues, and the decisions so far,
+ * the build's and each screenshot's. A phone, with no header chips, lists the state, review target
+ * and watchers first.
  */
 function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
-  const { build, baseline, reviews } = data
+  const { build, reviews } = data
   const phone = usePhone()
   const now = useNow()
   const { data: session } = authClient.useSession()
   const { data: activity } = useQuery(
     activityQuery(data.project.workspaceSlug, data.project.slug, build.number),
   )
-  const reviewers = openReviewerPeople(activity?.events ?? [])
-  const target = reviewTargetStatus(data.reviewTarget, now)
+  const requests = openReviewRequests(activity?.events ?? [])
   const watching = data.watchers.some((w) => w.id === session?.user.id)
   // The decision on each snapshot, when it has one (the build's own decisions are listed above).
   const decided = data.diffs.flatMap((d) =>
@@ -119,39 +119,10 @@ function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
     <>
       {phone ? (
         // A phone's header has no status chips: what they say is here instead.
-        <dl className={styles.facts}>
-          <Text as="dt" variant="small" tone="secondary">
-            Status
-          </Text>
-          <dd className={styles.fact}>
-            <BuildStateLabel build={build} hasBaseline={baseline !== null} />
-          </dd>
-          <Text as="dt" variant="small" tone="secondary">
-            Review target
-          </Text>
-          <Text as="dd" tone={target?.overdue ? 'failed' : 'primary'}>
-            {target
-              ? target.long
-              : data.reviewTarget.hours === null
-                ? 'None'
-                : `${data.reviewTarget.hours}h`}
-          </Text>
-          <Text as="dt" variant="small" tone="secondary">
-            Reviewers
-          </Text>
-          <Text as="dd">
-            {reviewers.length > 0 ? reviewers.map((p) => p.name).join(', ') : 'None'}
-          </Text>
-          <Text as="dt" variant="small" tone="secondary">
-            Watchers
-          </Text>
-          <Text as="dd" title={data.watchers.map((w) => w.name).join(', ')}>
-            {data.watchers.length > 0
-              ? `${data.watchers.length}${watching ? " · you're watching" : ''}`
-              : 'Nobody'}
-          </Text>
-        </dl>
+        <PhoneFacts data={data} watching={watching} now={now} />
       ) : null}
+      <BuildSection data={data} />
+      <PeopleSection requests={requests} />
       {snapshotName ? (
         <ScreenshotHistory
           workspace={data.project.workspaceSlug}

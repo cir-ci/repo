@@ -224,3 +224,44 @@ describe('Menu radio group', () => {
     expect(style.outlineWidth).toBe('2px')
   })
 })
+
+function Option(props: { onChange: (value: boolean) => void; closeOnClick?: boolean }) {
+  const [checked, setChecked] = useState(false)
+  return (
+    <Menu
+      trigger={<IconButton label="View options">…</IconButton>}
+      items={[
+        {
+          type: 'checkbox',
+          label: 'Checkerboard',
+          checked,
+          closeOnClick: props.closeOnClick ?? false,
+          onCheckedChange: (next) => {
+            setChecked(next)
+            props.onChange(next)
+          },
+        },
+      ]}
+    />
+  )
+}
+
+describe('Menu checkbox', () => {
+  it('is a menuitemcheckbox that reports its change and keeps its state', async () => {
+    const onChange = vi.fn<(value: boolean) => void>()
+    await render(<Option onChange={onChange} />)
+    await page.getByRole('button', { name: 'View options' }).click()
+    const item = page.getByRole('menuitemcheckbox', { name: 'Checkerboard' })
+    await expect.element(item).toHaveAttribute('aria-checked', 'false')
+    await item.click()
+    await expect.poll(() => onChange).toHaveBeenCalledWith(true)
+    await expect.element(item).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('closes after a pick when asked to', async () => {
+    await render(<Option onChange={() => undefined} closeOnClick />)
+    await page.getByRole('button', { name: 'View options' }).click()
+    await page.getByRole('menuitemcheckbox', { name: 'Checkerboard' }).click()
+    await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
+  })
+})

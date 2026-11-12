@@ -9,6 +9,7 @@ vi.mock('#lib/auth-client.ts', () =>
 import { centerOf, pointerDrag, pointIn, stubPointerCapture } from '#test/support/pointer.ts'
 
 import { detail, type FakeApi, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
+import { chooseDrawing } from './view-options.ts'
 
 let capture: ReturnType<typeof stubPointerCapture>
 beforeEach(async () => {
@@ -26,8 +27,7 @@ const popover = () => page.getByRole('dialog', { name: 'Comment on this region' 
 const trigger = (name: 'Baseline' | 'This build') =>
   page.getByRole('button', { name: new RegExp(`^Enlarge ${name}`) })
 const marker = () => page.getByRole('button', { name: 'Comment 1' })
-const toggle = () => page.getByRole('group', { name: 'Dragging draws' })
-const enlarged = () => page.getByRole('dialog', { name: 'Baseline · #6 on main' })
+const enlarged = () => page.getByRole('dialog', { name: 'Baseline' })
 const overlay = () => page.getByTestId('region-overlay')
 
 const comment = (overrides: Partial<Comment.Item> = {}): Comment.Item => ({
@@ -356,7 +356,7 @@ const within = (actual: number | undefined, expected: number, pixels: number) =>
 
 async function ignoring(setup: (api: FakeApi) => void = ignoreSetup) {
   const api = await ready(setup)
-  await toggle().getByRole('button', { name: 'Ignore regions' }).click()
+  await chooseDrawing('Ignore regions')
   await vi.waitFor(() => expect(document.querySelectorAll('[data-adjustable]')).toHaveLength(2))
   return api
 }

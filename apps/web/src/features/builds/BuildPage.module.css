@@ -1,4 +1,4 @@
-/* The build page's frame: header, a strip of context, then the list beside the viewer. */
+/* The build page's frame: header, banners when something needs saying, then the list beside the viewer. */
 .page {
   display: flex;
   flex: 1 1 auto;

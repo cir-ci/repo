@@ -38,6 +38,7 @@ import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './regio
 import { changeSummary } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { PhoneControls } from './ViewerPhone.tsx'
+import { ViewOptionsMenu } from './ViewOptionsMenu.tsx'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
 
 import styles from './DiffViewer.module.css'
@@ -69,9 +70,6 @@ export function Viewer({
   diff,
   kind,
   review,
-  baselineNumber,
-  baselineBranch,
-  commitSha,
   designEnabled = false,
   regions,
   ignore,
@@ -177,11 +175,15 @@ export function Viewer({
     }
   }
   const summary = changeSummary(diff)
-  const baselineLabel = baselineNumber
-    ? `Baseline · #${baselineNumber} on ${baselineBranch ?? 'an unknown branch'}`
-    : 'Baseline'
+  // Where the baseline comes from and the commit are in the Details tab; the size is said only
+  // when the two differ (the "Size changed" banner says it too).
+  const baselineLabel = 'Baseline'
   const baselineCaption = baselineLabel
-  const buildCaption = commitSha ? `This build · ${commitSha.slice(0, 7)}` : 'This build'
+  const buildCaption = 'This build'
+  const differentSizes =
+    diff.base !== null &&
+    diff.head !== null &&
+    (diff.base.width !== diff.head.width || diff.base.height !== diff.head.height)
   // What the enlarged view can show: the baseline, this build and, in Diff mode, the changed pixels.
   const enlargeable: { key: string; image: Build.ImageRef; caption: string; label: string }[] = [
     ...(diff.base
@@ -295,23 +297,6 @@ export function Viewer({
               </span>
             ) : null}
             {annotatable ? (
-              <Text variant="small" tone="secondary" className={styles.hint}>
-                {ignoring
-                  ? 'Drag on an image to add an ignore region'
-                  : 'Drag on an image to comment on a region'}
-              </Text>
-            ) : null}
-            {ignore && annotatable ? (
-              <SegmentedControl
-                label="Dragging draws"
-                options={DRAW_OPTIONS}
-                value={ignore.mode}
-                onChange={(m) => {
-                  if (m === 'comments' || m === 'ignore') ignore.onMode(m)
-                }}
-              />
-            ) : null}
-            {annotatable ? (
               // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
               <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
                 <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
@@ -325,15 +310,13 @@ export function Viewer({
                 </Tooltip>
               </span>
             ) : null}
-            <Button
-              variant="toggle"
-              size="sm"
-              pressed={checkerboard}
-              onPressedChange={setCheckerboard}
-              title="Checkerboard behind the screenshot"
-            >
-              Checkerboard
-            </Button>
+            <ViewOptionsMenu
+              checkerboard={checkerboard}
+              onCheckerboard={setCheckerboard}
+              {...(ignore && annotatable
+                ? { drawing: { mode: ignore.mode, onMode: ignore.onMode } }
+                : {})}
+            />
             <div className={styles.group}>
               <SegmentedControl
                 label="Zoom"
@@ -425,7 +408,7 @@ export function Viewer({
               <Figure
                 label={baselineLabel}
                 image={diff.base}
-                size={sizeLabel(diff.base)}
+                size={differentSizes ? sizeLabel(diff.base) : undefined}
                 zoom={zoom}
                 annotations={withClick(annotationsFor('baseline'), () => setEnlarged('baseline'))}
                 onEnlarge={() => setEnlarged('baseline')}
@@ -435,7 +418,7 @@ export function Viewer({
               <Figure
                 label={diff.status === 'added' ? 'New in this build' : buildCaption}
                 image={diff.head}
-                size={sizeLabel(diff.head)}
+                size={differentSizes ? sizeLabel(diff.head) : undefined}
                 zoom={zoom}
                 annotations={withClick(annotationsFor('build'), () => setEnlarged('build'))}
                 onEnlarge={() => setEnlarged('build')}
@@ -505,7 +488,7 @@ export function Viewer({
           <Figure
             label="Changed pixels in red"
             image={diff.diff}
-            size={sizeLabel(diff.diff)}
+            size={differentSizes ? sizeLabel(diff.diff) : undefined}
             zoom={zoom}
             annotations={withClick(annotationsFor('build'), () => setEnlarged('diff'))}
             onEnlarge={() => setEnlarged('diff')}
@@ -556,11 +539,6 @@ export namespace Viewer {
     /** The build's review (`shotReview`): the glyph follows it. */
     review: ReviewStatus
     mode: ViewMode
-    baselineNumber: number | undefined
-    /** The baseline's branch, for the enlarged view's caption. */
-    baselineBranch?: string | null | undefined
-    /** This build's commit, for the enlarged view's caption. */
-    commitSha?: string | undefined
     onMode: (m: ViewMode) => void
     /** Absent at the first / last screenshot. */
     onPrevious: (() => void) | undefined
@@ -576,11 +554,6 @@ export namespace Viewer {
     issues?: ReactNode
   }
 }
-
-const DRAW_OPTIONS = [
-  { value: 'comments', label: 'Comments' },
-  { value: 'ignore', label: 'Ignore regions' },
-]
 
 /** What a drag on the picture draws, and the ignore regions of the screenshot while it draws them. */
 export interface IgnoreMode {

@@ -15,7 +15,9 @@ function entryKeys(items: ReadonlyArray<Menu.Entry>) {
           ? `content-${entry.name}`
           : entry.type === 'radio-group' || entry.type === 'icon-row'
             ? `${entry.type}-${entry.name}`
-            : `item-${entry.label}`,
+            : entry.type === 'checkbox'
+              ? `checkbox-${entry.label}`
+              : `item-${entry.label}`,
   }))
 }
 
@@ -53,6 +55,19 @@ export function MenuEntries({ items }: { items: ReadonlyArray<Menu.Entry> }) {
       >
         {entry.node}
       </div>
+    ) : entry.type === 'checkbox' ? (
+      <BaseMenu.CheckboxItem
+        key={key}
+        className={styles.item}
+        checked={entry.checked}
+        onCheckedChange={entry.onCheckedChange}
+        closeOnClick={entry.closeOnClick}
+      >
+        <span className={styles.label}>{entry.label}</span>
+        <BaseMenu.CheckboxItemIndicator className={styles.check}>
+          <CheckIcon size={14} />
+        </BaseMenu.CheckboxItemIndicator>
+      </BaseMenu.CheckboxItem>
     ) : entry.type === 'radio-group' ? (
       <BaseMenu.RadioGroup
         key={key}

@@ -23,17 +23,18 @@
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 4px 8px;
   box-sizing: border-box;
   min-height: 36px;
-  padding: 4px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--circi-line-subtle);
   background: var(--circi-surface-panel);
 }
 
 .title {
   display: flex;
-  flex: 1 1 200px;
+  /* Small enough that the controls and the name share one row at 1280px; the name truncates. */
+  flex: 1 1 88px;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -46,7 +47,9 @@
 }
 
 .summary {
-  flex: none;
+  composes: truncate from '@circi/ui/utilities.module.css';
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .figmaChip {
@@ -64,7 +67,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 4px 8px;
 }
 
 .group {
@@ -230,10 +233,6 @@
     flex: 1 1 100%;
     width: auto;
   }
-}
-
-.hint {
-  min-width: 0;
 }
 
 /* Out of sight until the keyboard reaches it (or it is on). */

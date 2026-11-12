@@ -1,11 +1,10 @@
 import type { Build, ReviewState } from '@circi/api'
-import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip } from '@circi/ui'
+import { Button, CancelIcon, Kbd, TaskDoneIcon, Tooltip } from '@circi/ui'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useReviewSnapshots } from '#features/builds/api/index.ts'
 import { useRejectReasonRequired } from '#features/projects/api/index.ts'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, withUndo } from '#lib/undo.ts'
 
@@ -227,38 +226,5 @@ export namespace ReviewActions {
     review: ReviewControls
     /** The snapshot Reject and Approve act on. */
     snapshotName: string | undefined
-  }
-}
-
-/** One line on who decided and when; nothing while the build still waits for a decision. */
-export function ReviewNote({ data }: ReviewNote.Props) {
-  const { build, reviews } = data
-  if (!isReviewable(build)) return null
-  const latest = reviews[0]
-  // A build still waiting for a decision says so in its chip and the Approve tooltip.
-  if (!latest || build.reviewStatus === 'pending') return null
-  const verb = latest.state === 'approved' ? 'Approved' : 'Rejected'
-  return (
-    <Text variant="small" tone="secondary" as="p">
-      {latest.source === 'auto' ? (
-        <>Approved automatically: a build on the default branch.</>
-      ) : latest.source === 'rerun' ? (
-        <>
-          {verb} automatically: an earlier build of this commit, with the same screenshots, was{' '}
-          {latest.state}.
-        </>
-      ) : (
-        <>
-          {verb} by {latest.userName ?? 'someone whose account was removed'}{' '}
-          <RelativeTime iso={latest.createdAt} />.
-        </>
-      )}
-    </Text>
-  )
-}
-
-export namespace ReviewNote {
-  export interface Props {
-    data: Build.Detail
   }
 }

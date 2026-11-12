@@ -17,7 +17,8 @@ const box = (el: Element) => el.getBoundingClientRect()
 describe('the build page at desktop, in the app frame', () => {
   it('keeps the list, the viewer and the Discussion under the header while the scroller scrolls', async () => {
     const diffs = Array.from({ length: 60 }, (_, i) => shot(`page ${i}`, 'changed'))
-    fakeBuildApi(detail({}, { diffs }))
+    // A banner under the header (there is no strip any more) is what makes the page taller than the window.
+    fakeBuildApi(detail({ baselineSource: 'fallback' }, { diffs }))
     await renderPage(
       <AppFrame sidebar={<span>Side</span>}>
         <BuildPage />

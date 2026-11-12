@@ -4,14 +4,13 @@ import {
   ExpandLessIcon,
   ExpandMoreIcon,
   IconButton,
-  Menu,
-  RowMenuIcon,
   SegmentedControl,
   SquareDashedIcon,
   Text,
 } from '@circi/ui'
 
 import type { ViewMode } from './search.ts'
+import { ViewOptionsMenu } from './ViewOptionsMenu.tsx'
 import type { Zoom } from './zoom.ts'
 
 import styles from './ViewerPhone.module.css'
@@ -90,25 +89,17 @@ export function PhoneControls({
             <SquareDashedIcon />
           </IconButton>
         ) : null}
-        <Menu
-          align="end"
-          size="md"
-          trigger={
-            <IconButton label="View options">
-              <RowMenuIcon />
-            </IconButton>
-          }
-          items={[
+        <ViewOptionsMenu
+          checkerboard={checkerboard}
+          onCheckerboard={onCheckerboard}
+          before={[
             { label: 'Side by side', current: view === null, onSelect: () => onView('side') },
             ...(comparable
               ? [{ label: 'Overlay', current: false, onSelect: () => onView('overlay') }]
               : []),
             { type: 'separator' as const },
-            {
-              label: 'Checkerboard',
-              trailing: checkerboard ? <CheckIcon size={14} /> : undefined,
-              onSelect: () => onCheckerboard(!checkerboard),
-            },
+          ]}
+          after={[
             {
               label: 'Fit to screen',
               trailing: zoom === 'fit' ? <CheckIcon size={14} /> : undefined,

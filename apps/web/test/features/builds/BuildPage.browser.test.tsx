@@ -111,13 +111,15 @@ describe('BuildPage states', () => {
     await vi.waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before))
   })
 
-  it('shows the header, counts, the list and the first change that needs a decision', async () => {
+  it('shows the header, the list and the first change that needs a decision', async () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(page.getByText('Needs review', { exact: true }).first()).toBeVisible()
-    await expect.element(page.getByText('2 changed')).toBeVisible()
-    await expect.element(page.getByText('1 added')).toBeVisible()
-    await expect.element(page.getByText('PR #42')).toBeVisible()
+    const list = page.getByRole('navigation', { name: 'Screenshots' })
+    await expect
+      .element(list.getByRole('button', { name: /Changed/ }))
+      .toHaveTextContent('Changed2')
+    await expect.element(list.getByRole('button', { name: /Added/ })).toHaveTextContent('Added1')
     await expect.element(page.getByRole('button', { name: 'Copy branch name' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: /^Approve all/ })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
@@ -126,8 +128,8 @@ describe('BuildPage states', () => {
     expectOnePrimaryPerArea()
     await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
     // Both images of the comparison, the baseline first.
-    await expect.element(page.getByRole('img', { name: 'Baseline · #6 on main' })).toBeVisible()
-    await expect.element(page.getByRole('img', { name: 'This build · 0123456' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Baseline', exact: true })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'This build', exact: true })).toBeVisible()
   })
 
   it.each([
@@ -135,7 +137,7 @@ describe('BuildPage states', () => {
     ['approved', 'approved', 'Changed, approved'],
     ['rejected', 'rejected', 'Changed, rejected'],
   ] as const)(
-    'a %s build shows %s glyphs on its list rows and count chips, unchanged ones stay neutral',
+    'a %s build shows %s glyphs on its list rows, unchanged ones stay neutral',
     async (reviewStatus, glyph, rowName) => {
       // A rejected build is rejected because its snapshots were; give them the decision.
       const diffs =
@@ -160,17 +162,8 @@ describe('BuildPage states', () => {
       })
       const addedGlyph = reviewStatus === 'pending' ? 'added' : glyph
       expect(added.element().getAttribute('data-status')).toBe(addedGlyph)
-      // The chips read as their text only (the glyph is hidden), and follow the review too.
-      for (const text of ['2 changed', '1 added']) {
-        const chip = page.getByText(text).element()
-        expect(chip.textContent).toBe(text)
-        expect(chip.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
-        const expected = text === '1 added' && reviewStatus === 'pending' ? 'added' : glyph
-        expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(expected)
-      }
-      expect(
-        page.getByText('2 unchanged').element().querySelector('svg')?.getAttribute('data-status'),
-      ).toBe('neutral')
+      // The groups' counts replace the chips the strip used to hold.
+      expect(page.getByText('2 unchanged').elements()).toHaveLength(0)
       // The viewer's header follows it as well.
       const title = viewerTitle().element().parentElement?.querySelector('svg')
       expect(title?.getAttribute('data-status')).toBe(glyph)
@@ -190,9 +183,6 @@ describe('BuildPage states', () => {
       .getByRole('img', { name: 'Failed' })
     await expect.element(failed).toBeVisible()
     expect(failed.element().getAttribute('data-status')).toBe('failed')
-    expect(
-      page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
-    ).toBe('failed')
   })
 
   it('calls a build with nothing to compare against "No baseline" and explains it', async () => {
@@ -229,12 +219,9 @@ describe('BuildPage states', () => {
       ),
     )
     await renderBuild()
+    // The Details tab's decisions say it, with its real outcome; the page has no strip for it.
     await expect
-      .element(
-        page.getByText(
-          'Rejected automatically: an earlier build of this commit, with the same screenshots, was rejected.',
-        ),
-      )
+      .element(page.getByRole('tabpanel').getByText(/Rejected automatically/))
       .toBeVisible()
     expect(page.getByText(/Approved automatically/).elements()).toHaveLength(0)
   })
@@ -375,7 +362,7 @@ describe('view modes', () => {
     await expect
       .element(page.getByRole('button', { name: 'Side by side' }))
       .toHaveAttribute('aria-pressed', 'true')
-    await expect.element(page.getByRole('img', { name: 'This build · 0123456' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'This build' })).toBeVisible()
   })
 
   it('switches mode through the search params', async () => {
@@ -424,12 +411,12 @@ describe('zoom and stepping', () => {
       .toHaveAttribute('aria-pressed', 'true')
     await page.getByRole('button', { name: '100%' }).click()
     await expect
-      .element(page.getByRole('img', { name: 'This build · 0123456' }))
+      .element(page.getByRole('img', { name: 'This build' }))
       .toHaveStyle({ width: '400px' })
     await page.getByRole('button', { name: 'Zoom in' }).click()
     await expect.element(page.getByText('150%')).toBeVisible()
     await expect
-      .element(page.getByRole('img', { name: 'This build · 0123456' }))
+      .element(page.getByRole('img', { name: 'This build' }))
       .toHaveStyle({ width: '600px' })
     await page.getByRole('button', { name: 'Fit' }).click()
     expect(page.getByText('150%').elements()).toHaveLength(0)

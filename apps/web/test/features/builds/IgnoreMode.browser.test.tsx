@@ -6,6 +6,7 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
+import { chooseDrawing, viewOptions } from './view-options.ts'
 
 beforeEach(async () => {
   await page.viewport(1400, 900)
@@ -14,7 +15,6 @@ beforeEach(async () => {
 const NAME = 'checkout / payment'
 const viewerTitle = () => page.getByRole('heading', { level: 2, name: NAME })
 const popover = () => page.getByRole('dialog', { name: 'Comment on this region' })
-const toggle = () => page.getByRole('group', { name: 'Dragging draws' })
 const ignoreList = () => page.getByRole('list', { name: `Regions of ${NAME}` })
 const build = () => page.getByRole('button', { name: /^Enlarge This build/ })
 
@@ -54,16 +54,23 @@ const drag = () =>
 describe('drawing ignore regions on the build page', () => {
   it('is not offered to members', async () => {
     await ready(false)
-    expect(toggle().elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Ignore regions' }).elements()).toHaveLength(0)
+    await viewOptions().click()
+    await expect.element(page.getByRole('menuitemcheckbox', { name: 'Checkerboard' })).toBeVisible()
+    expect(page.getByRole('menuitemradio').elements()).toHaveLength(0)
   })
 
   it('offers owners and admins Comments (chosen) and Ignore regions', async () => {
     await ready(true)
-    await expect.element(toggle()).toBeVisible()
+    await viewOptions().click()
+    const group = page.getByRole('group', { name: 'Dragging draws' })
+    await expect.element(group).toBeVisible()
     await expect
-      .element(toggle().getByRole('button', { name: 'Comments' }))
-      .toHaveAttribute('aria-pressed', 'true')
+      .element(group.getByRole('menuitemradio', { name: 'Comments' }))
+      .toHaveAttribute('aria-checked', 'true')
+    await expect
+      .element(group.getByRole('menuitemradio', { name: 'Ignore regions' }))
+      .toHaveAttribute('aria-checked', 'false')
+    await userEvent.keyboard('{Escape}')
     expect(ignoreList().elements()).toHaveLength(0)
   })
 
@@ -76,17 +83,17 @@ describe('drawing ignore regions on the build page', () => {
 
   it("shows the screenshot's ignore regions in Ignore regions mode and hides the comment popover", async () => {
     await ready(true)
-    await toggle().getByRole('button', { name: 'Ignore regions' }).click()
+    await chooseDrawing('Ignore regions')
     await expect.element(ignoreList().getByText('100 x 50 at 10, 20')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Edit region 1' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Remove region 1' })).toBeVisible()
-    await toggle().getByRole('button', { name: 'Comments' }).click()
+    await chooseDrawing('Comments')
     await expect.element(ignoreList()).not.toBeInTheDocument()
   })
 
   it('saves an ignore region drawn by dragging, through the ignore regions API', async () => {
     const api = await ready(true)
-    await toggle().getByRole('button', { name: 'Ignore regions' }).click()
+    await chooseDrawing('Ignore regions')
     await drag()
     await vi.waitFor(() => expect(api.ignorePosts).toHaveLength(1))
     expect(popover().elements()).toHaveLength(0)
@@ -102,7 +109,7 @@ describe('drawing ignore regions on the build page', () => {
 
   it('has no Add region button: dragging is how an ignore region is added', async () => {
     await ready(true)
-    await toggle().getByRole('button', { name: 'Ignore regions' }).click()
+    await chooseDrawing('Ignore regions')
     await expect.element(ignoreList()).toBeVisible()
     expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
   })

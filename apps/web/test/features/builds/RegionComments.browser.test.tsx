@@ -48,7 +48,7 @@ const drag = (name: 'Baseline' | 'This build', from = { x: 40, y: 30 }, to = { x
 
 /** The selected region, not yet sent (it carries `data-pending`). */
 const pendingRegion = () => document.querySelector<HTMLElement>('[data-pending]')
-const enlarged = () => page.getByRole('dialog', { name: 'Baseline · #6 on main' })
+const enlarged = () => page.getByRole('dialog', { name: 'Baseline' })
 const overlay = () => page.getByTestId('region-overlay')
 
 async function enlargeBaseline() {
@@ -80,7 +80,7 @@ describe('region comments in the enlarged view', () => {
     // Arrow keys belong to the box while it has focus: no image switch.
     await userEvent.keyboard('{ArrowRight}Wrong colour')
     // (The dialog is hidden from role queries while the box traps focus: look for its title.)
-    await expect.element(page.getByText('Baseline · #6 on main').first()).toBeVisible()
+    await expect.element(page.getByText('Baseline').first()).toBeVisible()
     await send.click()
     await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
     expect(api.commentPosts[0]?.regionSide).toBe('baseline')
@@ -145,10 +145,10 @@ describe('region comments in the enlarged view', () => {
 })
 
 describe('region comments are always on', () => {
-  it('has no toggle, says how to comment, and offers the keyboard way', async () => {
+  it('has no toggle, no hint in the toolbar, and offers the keyboard way', async () => {
     await ready()
     expect(page.getByRole('button', { name: 'Comment on a region' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText('Drag on an image to comment on a region')).toBeVisible()
+    expect(page.getByText('Drag on an image to comment on a region').elements()).toHaveLength(0)
     // The toolbar shows no icon for it (the board has none): it appears only while it has focus.
     const key = page.getByRole('button', { name: 'Mark a region with the keyboard' })
     // Clipped to a pixel by its wrapper until focused.
@@ -308,13 +308,13 @@ describe('region comments are always on', () => {
   it('a click without a drag opens the enlarged view instead, and arrows switch images', async () => {
     await ready()
     await trigger('This build').click()
-    const dialog = page.getByRole('dialog', { name: 'This build · 0123456' })
+    const dialog = page.getByRole('dialog', { name: 'This build' })
     await expect.element(dialog).toBeVisible()
     expect(popover().elements()).toHaveLength(0)
     await userEvent.keyboard('{ArrowLeft}')
-    await expect.element(page.getByRole('dialog', { name: 'Baseline · #6 on main' })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Baseline' })).toBeVisible()
     await userEvent.keyboard('{ArrowRight}')
-    await expect.element(page.getByRole('dialog', { name: 'This build · 0123456' })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'This build' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
     await expect.element(dialog).not.toBeInTheDocument()
   })
@@ -322,7 +322,7 @@ describe('region comments are always on', () => {
   it('a drag shorter than 8 pixels is a click', async () => {
     await ready()
     await drag('Baseline', { x: 40, y: 30 }, { x: 44, y: 150 })
-    await expect.element(page.getByRole('dialog', { name: 'Baseline · #6 on main' })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Baseline' })).toBeVisible()
     expect(popover().elements()).toHaveLength(0)
   })
 

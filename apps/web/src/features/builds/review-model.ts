@@ -133,14 +133,37 @@ export function openReviewerPeople(events: readonly Activity.Event[]): Activity.
   return [...open.values()]
 }
 
-/** "Requested from Dana", "Requested from Dana and Omer", "Requested from 3 people". */
-export function requestedFromLabel(people: readonly { name: string }[]): string | undefined {
-  const [first, second] = people
-  if (!first) return undefined
-  if (!second) return `Requested from ${first.name}`
-  return people.length === 2
-    ? `Requested from ${first.name} and ${second.name}`
-    : `Requested from ${people.length} people`
+/** An open request: who was asked, by whom (null: assigned automatically) and when. */
+export interface ReviewRequest {
+  person: Activity.Person
+  by: Activity.Person | null
+  at: string
+}
+
+/** The open requests with who asked and when, in the order they were made. */
+export function openReviewRequests(events: readonly Activity.Event[]): ReviewRequest[] {
+  const open = new Map<string, ReviewRequest>()
+  for (const e of events) {
+    if (e.type === 'review_requested' && e.reviewer)
+      open.set(e.reviewer.id, { person: e.reviewer, by: e.by, at: e.at })
+    else if (e.type === 'review_request_closed' && e.reviewer) open.delete(e.reviewer.id)
+  }
+  return [...open.values()]
+}
+
+/**
+ * How the build's baseline was chosen, for the Details tab: "where this branch started" for an
+ * ancestry match, the fallback's reason, or nothing yet when there is no baseline.
+ */
+export function baselineHow(
+  build: Pick<Build.Detail['build'], 'baselineSource' | 'ancestryStatus'>,
+  defaultBranch: string,
+): string {
+  if (build.baselineSource === 'fallback')
+    return `the latest on ${defaultBranch}: this build's git history wasn't available`
+  return build.ancestryStatus === 'truncated'
+    ? 'where this branch started, as far as its git history reaches'
+    : 'where this branch started'
 }
 
 const MINUTE_MS = 60_000
