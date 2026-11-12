@@ -97,7 +97,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
       <div className={styles.cols}>
         <ScrollArea rootClassName={styles.col} className={styles.colScroll}>
           <SettingsSection title="Details">
-            <SettingsRow label="Requested by">
+            <SettingsRow className={styles.fact} label="Requested by">
               {asker ? (
                 <span className={styles.person}>
                   <Avatar type="user" {...asker} size={20} />
@@ -107,16 +107,18 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
                 'Assigned automatically'
               )}
             </SettingsRow>
-            <SettingsRow label="Reviewer">{r.reviewer.name}</SettingsRow>
+            <SettingsRow className={styles.fact} label="Reviewer">
+              {r.reviewer.name}
+            </SettingsRow>
             {decisionLabel(r) && r.closedAt ? (
-              <SettingsRow label="Decision">
+              <SettingsRow className={styles.fact} label="Decision">
                 <span>
                   {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
                 </span>
               </SettingsRow>
             ) : null}
             {r.dueAt && isAwaited(r, r.build) ? (
-              <SettingsRow label="Review target">
+              <SettingsRow className={styles.fact} label="Review target">
                 {/* One inline span: the control is a flex row, which would add a gap after the text. */}
                 <span>
                   {overdue ? `${overdue}, target ` : 'Due '}
@@ -124,21 +126,23 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
                 </span>
               </SettingsRow>
             ) : null}
-            <SettingsRow label="Branch">
+            <SettingsRow className={styles.fact} label="Branch">
               <span className={styles.mono}>{requestRef(r.build)}</span>
             </SettingsRow>
             {baselineLabel(r) ? (
-              <SettingsRow label="Compared with">
+              <SettingsRow className={styles.fact} label="Compared with">
                 <span className={styles.mono}>{baselineLabel(r)}</span>
               </SettingsRow>
             ) : null}
             {r.build.prNumber === null ? null : (
-              <SettingsRow label="Pull request">#{r.build.prNumber}</SettingsRow>
+              <SettingsRow className={styles.fact} label="Pull request">
+                #{r.build.prNumber}
+              </SettingsRow>
             )}
-            <SettingsRow label="Commit">
+            <SettingsRow className={styles.fact} label="Commit">
               <span className={styles.mono}>{r.build.commitSha.slice(0, 7)}</span>
             </SettingsRow>
-            <SettingsRow label="Screenshots">
+            <SettingsRow className={styles.fact} label="Screenshots">
               <span className={styles.counts}>
                 {counts.length === 0 ? (
                   <span>No changes</span>

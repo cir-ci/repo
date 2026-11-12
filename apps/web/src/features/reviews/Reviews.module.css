@@ -194,6 +194,15 @@
   font-family: var(--circi-font-mono, ui-monospace, monospace);
 }
 
+/*
+ * A Details row: a fact, not a form. Its label takes only its text's width (SettingsRow's 240px
+ * label basis is for settings forms), so in the half-width Details a longer value ("Overdue 8d,
+ * target last week") stays on the label's line instead of wrapping under it.
+ */
+.fact > div:first-child {
+  flex-basis: auto;
+}
+
 .waiting {
   color: var(--circi-text-secondary);
   font-size: 12px;

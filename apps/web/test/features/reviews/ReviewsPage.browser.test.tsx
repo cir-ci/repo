@@ -69,6 +69,9 @@ const show = (url = '/workspaces/acme/reviews', viewport: [number, number] = [12
     validateSearch: validateReviewsSearch,
   })
 
+/** The vertical middle of a box: two on one line share it. */
+const middle = (r: DOMRect) => r.top + r.height / 2
+
 describe('ReviewsPage list header', () => {
   it('fits every tab in the 340px list, so none is clipped', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
@@ -574,6 +577,33 @@ describe('ReviewsPage', () => {
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByText('Review target')).toBeVisible()
     await expect.element(panel.getByText(/Overdue 3h, target/)).toBeVisible()
+  })
+
+  it("keeps each Details value on its label's line in the half-width Details", async () => {
+    await page.viewport(1280, 800)
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [
+            request('r1', 12, { dueAt: '2026-11-08T08:00:00.000Z', overdueByMs: 8 * 86_400_000 }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    const panel = page.getByRole('region', { name: 'Selected review' })
+    const label = panel.getByText('Review target')
+    await expect.element(label).toBeVisible()
+    const value = panel.getByText(/Overdue 8d, target/)
+    await expect.element(value).toBeVisible()
+    // One line: the value's middle is level with the label's (it wrapped under it before).
+    expect(
+      Math.abs(
+        middle(label.element().getBoundingClientRect()) -
+          middle(value.element().getBoundingClientRect()),
+      ),
+    ).toBeLessThan(4)
   })
 
   it('has no Approve or Snooze on the Created by you tab', async () => {
