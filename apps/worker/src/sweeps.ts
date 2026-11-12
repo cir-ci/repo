@@ -13,13 +13,14 @@ import type { startWorker } from './runner.ts'
 /**
  * Wraps a sweep so that it runs once at a time across all worker processes: a pass that starts
  * while the previous one of this process is still going is skipped, and so is one whose
- * Postgres try-lock another process holds. `task` gets the lock's transaction as its database.
+ * Postgres try-lock another process holds. The lock is held on its own connection, so `task` runs
+ * on the normal database with its own short transactions.
  * Resolves to whether the pass ran.
  */
 export function exclusiveSweep(
   db: Database,
   name: string,
-  task: (db: Database) => Promise<void>,
+  task: () => Promise<void>,
 ): () => Promise<boolean> {
   let busy = false
   return async () => {
@@ -54,16 +55,16 @@ export function startSweeps(deps: startWorker.Deps): () => void {
   const timers = [
     every(
       timeoutMinutes > 0 ? (deps.maintenanceIntervalMs ?? 5 * 60_000) : 0,
-      exclusiveSweep(db, 'stalled-builds', async (tx) => {
-        const n = await expireStalledBuilds(tx, new Date(Date.now() - timeoutMinutes * 60_000))
+      exclusiveSweep(db, 'stalled-builds', async () => {
+        const n = await expireStalledBuilds(db, new Date(Date.now() - timeoutMinutes * 60_000))
         if (n > 0) logger.warn({ builds: n }, 'failed builds that stopped uploading')
       }),
       (err) => logger.error({ err }, 'could not expire stalled builds'),
     ),
     every(
       deps.retentionIntervalMs ?? 6 * 3600_000,
-      exclusiveSweep(db, 'retention', async (tx) => {
-        const r = await runRetention(tx, {
+      exclusiveSweep(db, 'retention', async () => {
+        const r = await runRetention(db, {
           graceMs: (deps.gcGraceHours ?? 24) * 3600_000,
           deleteObject: (key) => deps.storage.delete(key),
         })
@@ -73,8 +74,8 @@ export function startSweeps(deps: startWorker.Deps): () => void {
     ),
     every(
       deps.reviewSweepIntervalMs ?? 5 * 60_000,
-      exclusiveSweep(db, 'review', async (tx) => {
-        const n = await reviewSweep({ db: tx })
+      exclusiveSweep(db, 'review', async () => {
+        const n = await reviewSweep({ db })
         if (n > 0) logger.info({ reviewers: n }, 'told reviewers about overdue requests')
       }),
       (err) => logger.error({ err }, 'review sweep failed'),
@@ -82,8 +83,8 @@ export function startSweeps(deps: startWorker.Deps): () => void {
     // The handover (Mondays) and snoozes that ended: items nobody has go to the person on triage.
     every(
       deps.triageAssignIntervalMs ?? 5 * 60_000,
-      exclusiveSweep(db, 'triage-assign', async (tx) => {
-        const n = await autoAssignAllProjects(tx)
+      exclusiveSweep(db, 'triage-assign', async () => {
+        const n = await autoAssignAllProjects(db)
         if (n > 0) logger.info({ items: n }, 'assigned triage items to whoever is on triage')
       }),
       (err) => logger.error({ err }, 'triage auto-assignment failed'),
@@ -91,8 +92,8 @@ export function startSweeps(deps: startWorker.Deps): () => void {
     // Done and failed jobs are history nobody reads after a while; 0 days keeps them.
     every(
       jobRetentionDays > 0 ? (deps.jobPruneIntervalMs ?? 3600_000) : 0,
-      exclusiveSweep(db, 'prune-jobs', async (tx) => {
-        const n = await pruneFinishedJobs(tx, { olderThanDays: jobRetentionDays })
+      exclusiveSweep(db, 'prune-jobs', async () => {
+        const n = await pruneFinishedJobs(db, { olderThanDays: jobRetentionDays })
         if (n > 0) logger.info({ jobs: n }, 'deleted finished jobs')
       }),
       (err) => logger.error({ err }, 'could not prune finished jobs'),

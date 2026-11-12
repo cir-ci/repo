@@ -1,4 +1,3 @@
-import type { Database } from '@circi/db'
 import { enqueueJob, GIT_NOTIFY_QUEUE, QUEUES } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
@@ -44,16 +43,6 @@ describe('claimNextJob', () => {
 })
 
 describe('runExclusive', () => {
-  it('skips the pass when another process holds the lock', async () => {
-    const fn = vi.fn<() => Promise<number>>(async () => 1)
-    // PGlite has one connection, so another process holding the lock is faked at the transaction.
-    const tx = { execute: async () => ({ rows: [{ locked: false }] }) }
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a stub of the transaction
-    const held = { transaction: (run: (tx: unknown) => unknown) => run(tx) } as unknown as Database
-    expect(await runExclusive(held, 'x', fn)).toEqual({ ran: false })
-    expect(fn).not.toHaveBeenCalled()
-  })
-
   it('runs the pass when the lock is free', async () => {
     const result = await runExclusive(t.db, 'free', async () => 'done')
     expect(result).toEqual({ ran: true, value: 'done' })

@@ -2,14 +2,15 @@ import { type Database, tryAdvisoryLock } from '@circi/db'
 import { deleteFinishedJobs } from '@circi/db/queue'
 
 /**
- * Runs a periodic sweep on one process at a time: `fn` runs inside a Postgres try-lock named
- * `sweep:<name>`, and resolves to `{ ran: false }` at once when another process already holds it
- * (a busy sweep is skipped, never queued). `fn` receives the lock's transaction as its database.
+ * Runs a periodic sweep on one process at a time: `fn` runs while a session-level Postgres
+ * try-lock named `sweep:<name>` is held (on its own connection: `fn` uses the normal `db` and
+ * its own short transactions), and resolves to `{ ran: false }` at once when another process already holds it
+ * (a busy sweep is skipped, never queued).
  */
 export async function runExclusive<T>(
   db: Database,
   name: string,
-  fn: (db: Database) => Promise<T>,
+  fn: () => Promise<T>,
 ): Promise<{ ran: true; value: T } | { ran: false }> {
   return tryAdvisoryLock(db, `sweep:${name}`, fn)
 }

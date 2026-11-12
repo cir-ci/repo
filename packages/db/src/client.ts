@@ -156,24 +156,37 @@ export async function withAdvisoryLock<T>(
 }
 
 /**
- * Runs `fn` in a transaction only if no other connection holds the advisory lock on `key`
- * (`pg_try_advisory_xact_lock`): resolves to `{ ran: false }` at once when another process has it,
- * so a periodic sweep is skipped, not queued. The lock lasts as long as the transaction; `fn`
- * should use the transaction it is given.
+ * Runs `fn` only if no other connection holds the session-level advisory lock on `key`
+ * (`pg_try_advisory_lock`): resolves to `{ ran: false }` at once when another process has it, so a
+ * periodic sweep is skipped, not queued. The lock sits on one connection taken from the pool for
+ * the duration; `fn` runs on the normal `db` with its own short transactions, and the lock is
+ * released (and the connection returned) when it ends. Without a pool (the in-process test
+ * database has a single session, so there is nothing to contend with) it just runs `fn`.
  */
 export async function tryAdvisoryLock<T>(
   db: Database,
   key: string,
-  fn: (tx: Database) => Promise<T>,
+  fn: () => Promise<T>,
 ): Promise<{ ran: true; value: T } | { ran: false }> {
-  return db.transaction(async (tx) => {
-    const result: unknown = await tx.execute(
-      sql`select pg_try_advisory_xact_lock(hashtextextended(${key}, 0)) as locked`,
+  const pool: unknown = Reflect.get(db, '$client')
+  if (!(pool instanceof Pool)) return { ran: true, value: await fn() }
+  const client = await pool.connect()
+  let broken = false
+  try {
+    const res = await client.query<{ locked: boolean }>(
+      'select pg_try_advisory_lock(hashtextextended($1, 0)) as locked',
+      [key],
     )
-    const rows: unknown =
-      typeof result === 'object' && result !== null ? Reflect.get(result, 'rows') : undefined
-    const locked = Array.isArray(rows) && Reflect.get(rows[0] ?? {}, 'locked') === true
-    if (!locked) return { ran: false as const }
-    return { ran: true as const, value: await fn(tx) }
-  })
+    if (res.rows[0]?.locked !== true) return { ran: false }
+    try {
+      return { ran: true, value: await fn() }
+    } finally {
+      // If the unlock fails the connection is dropped, which frees the lock with the session.
+      await client
+        .query('select pg_advisory_unlock(hashtextextended($1, 0))', [key])
+        .catch(() => (broken = true))
+    }
+  } finally {
+    client.release(broken)
+  }
 }
