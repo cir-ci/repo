@@ -8,6 +8,34 @@ export async function getSetting(db: Database, key: string): Promise<string | un
   return row?.value
 }
 
+/** The key of the saved general instance settings (JSON `{ workspaceCreation, signIn, limits }`), written by the instance settings service. */
+export const INSTANCE_GENERAL_KEY = 'instance.general'
+
+/**
+ * Retention in days a new project starts with when its workspace has not set its own: the instance
+ * setting "Default retention" saved in the dashboard, else `fallback`. Read at each project
+ * creation, so a change applies at once.
+ */
+export async function getInstanceDefaultRetentionDays(
+  db: Database,
+  fallback: number,
+): Promise<number> {
+  const raw = await getSetting(db, INSTANCE_GENERAL_KEY)
+  if (!raw) return fallback
+  try {
+    const general: unknown = JSON.parse(raw)
+    const limits =
+      typeof general === 'object' && general !== null ? Reflect.get(general, 'limits') : undefined
+    const days =
+      typeof limits === 'object' && limits !== null
+        ? Reflect.get(limits, 'defaultProjectRetentionDays')
+        : undefined
+    return typeof days === 'number' && Number.isInteger(days) && days >= 1 ? days : fallback
+  } catch {
+    return fallback
+  }
+}
+
 export const PUBLIC_URL_CHANGE_KEY = 'public_url_change'
 
 export interface PublicUrlChange {

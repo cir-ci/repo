@@ -1,3 +1,5 @@
+import type { InstanceLockKey } from '@circi/core'
+
 import type { PublicAddress } from './public-url.ts'
 
 export namespace Config {
@@ -104,8 +106,16 @@ export interface Config {
   vapid?: Config.Vapid
   /** The contact in push requests (`VAPID_SUBJECT`, default the dashboard's address). */
   vapidSubject: string
-  /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
-  emailLogin: boolean
+  /**
+   * The instance settings an admin can also change in the dashboard (Instance › Settings), whose
+   * environment variable is set: the variable wins and the dashboard shows them locked. Every
+   * other value below that has such a variable is only the initial value (the default when unset).
+   */
+  lockedSettings: InstanceLockKey[]
+  /** Email login (one-time code / link) is switched on (`AUTH_EMAIL_ENABLED`, default on); it is offered once SMTP is set up. */
+  emailEnabled: boolean
+  /** Largest hosted site in MB (`STATIC_SITES_MAX_MB`, default 200). */
+  staticSitesMaxMb: number
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
   staticSites?: Config.StaticSites
   /** Pixel comparison engine of the diff step (`CIRCI_DIFF_ENGINE`, default `native`). */
@@ -118,7 +128,6 @@ export interface Config {
   jobRetentionDays: number
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
   uploadTimeoutMinutes: number
-  /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   /** The GitHub App: absent when none is configured. */
   github?: Config.GithubApp
   /**
@@ -128,15 +137,18 @@ export interface Config {
   githubApiUrl?: string
   /** The Slack app: absent when none is configured, and Slack then cannot be added. */
   slack?: Config.Slack
-  /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
+  /** Single sign-on providers from `AUTH_*` variables (read-only in the dashboard, which can add more). */
   sso: Config.Sso[]
+  /** Single sign-on is switched on (`AUTH_SSO_ENABLED`, default on). */
+  ssoEnabled: boolean
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
   passwordLogin: boolean
+  /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   webhookAllowPrivate: boolean
   /** Waits between attempts of a failed job: `baseMs` doubling each time, never above `maxMs`. */
   jobRetry: { baseMs: number; maxMs: number }
   /** A webhook receiver that takes longer than this to answer has failed (`WEBHOOK_TIMEOUT_SECONDS`). */
   webhookTimeoutMs: number
-  /** Who may create workspaces in the dashboard: instance admins only, or any member. */
+  /** Who may create workspaces in the dashboard (`WORKSPACE_CREATION`): instance admins only, or any member. */
   workspaceCreation: 'admin' | 'anyone'
 }

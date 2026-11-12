@@ -5,6 +5,7 @@ import {
 } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
+import { getInstanceDefaultRetentionDays } from '#queries/instance-settings.ts'
 import { projects, workspaceSettings } from '#schema/index.ts'
 import { projectVisibleTo } from '#shared/project-visibility.ts'
 import type { Database } from '#src/client.ts'
@@ -28,7 +29,7 @@ const DEFAULTS: WorkspaceSettings = {
   retentionDays: DEFAULT_RETENTION_DAYS,
 }
 
-/** The workspace's settings; the defaults when it has never saved any. */
+/** The workspace's settings; the defaults (the instance's default retention) when it has never saved any. */
 export async function getWorkspaceSettings(
   db: Database,
   workspaceId: string,
@@ -43,7 +44,10 @@ export async function getWorkspaceSettings(
         assignTriageToOnCall: row.assignTriageToOnCall,
         retentionDays: row.retentionDays,
       }
-    : DEFAULTS
+    : {
+        ...DEFAULTS,
+        retentionDays: await getInstanceDefaultRetentionDays(db, DEFAULTS.retentionDays),
+      }
 }
 
 /** Each project's own flaky-gate and triage-assignment settings: null when it inherits the workspace's default. */

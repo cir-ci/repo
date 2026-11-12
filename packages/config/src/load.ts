@@ -1,5 +1,6 @@
 import { isIP } from 'node:net'
 
+import { INSTANCE_ENV, INSTANCE_LOCK_KEYS, type InstanceLockKey } from '@circi/core'
 import { isValidVapidKeys } from '@circi/core/node'
 
 import { isLocalAddress, parsePublicAddress } from './public-url.ts'
@@ -91,9 +92,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
         ? { auth: { user: e.SMTP_USER, password: e.SMTP_PASSWORD } }
         : {}),
     }
-  }
-  if (e.AUTH_EMAIL_ENABLED === true && !smtp) {
-    warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
   }
 
   let vapid: Config.Vapid | undefined
@@ -209,16 +207,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       })
     }
   }
-  const ssoOn = e.AUTH_SSO_ENABLED !== false ? sso : []
-  const passwordLogin = e.AUTH_PASSWORD_ENABLED !== false
-  const emailLogin = Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false
-  if (!passwordLogin && !emailLogin && ssoOn.length === 0) {
-    issues.push(
-      'AUTH_PASSWORD_ENABLED is off and neither email login nor single sign-on is available: ' +
-        'nobody could sign in. Turn password sign-in on, set up SMTP, or configure a provider',
-    )
-  }
-
   const trustedProxies = parseTrustedProxies(e.TRUSTED_PROXIES, issues)
 
   if (issues.length > 0 || typeof publicUrl === 'string') throw new ConfigError(issues)
@@ -237,9 +225,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(e.CIRCI_WEB_DIST ? { webDist: e.CIRCI_WEB_DIST } : {}),
     storage,
     ...(smtp ? { smtp } : {}),
-    emailLogin,
-    passwordLogin,
-    sso: ssoOn,
+    lockedSettings: lockedSettings(env),
+    emailEnabled: e.AUTH_EMAIL_ENABLED !== false,
+    passwordLogin: e.AUTH_PASSWORD_ENABLED !== false,
+    ssoEnabled: e.AUTH_SSO_ENABLED !== false,
+    sso,
+    staticSitesMaxMb: e.STATIC_SITES_MAX_MB,
     ...(staticSites ? { staticSites } : {}),
     ...(github ? { github } : {}),
     ...(githubApiUrl ? { githubApiUrl } : {}),
@@ -259,6 +250,14 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jobRetentionDays: e.JOB_RETENTION_DAYS,
     workspaceCreation: e.WORKSPACE_CREATION,
   }
+}
+
+/** The settings of Instance › Settings whose environment variable is set (and not empty). */
+function lockedSettings(env: Record<string, string | undefined>): InstanceLockKey[] {
+  return INSTANCE_LOCK_KEYS.filter((key) => {
+    const value = env[INSTANCE_ENV[key]]
+    return value !== undefined && value !== ''
+  })
 }
 
 function isAddressOrCidr(entry: string): boolean {

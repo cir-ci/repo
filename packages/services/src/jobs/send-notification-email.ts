@@ -8,6 +8,8 @@ export namespace sendNotificationEmail {
   /** The part of the SMTP mailer the job needs; `@circi/auth`'s `Mailer` fits. */
   export interface Sender {
     send(mail: { to: string; subject: string; text: string }): Promise<void>
+    /** Whether a mail server is set up now (settings can change while running). Absent: yes. */
+    configured?(): Promise<boolean>
   }
 
   export interface Deps {
@@ -28,7 +30,9 @@ export async function sendNotificationEmail(
 ): Promise<sendNotificationEmail.Result> {
   const id = job.payload.notificationId
   if (typeof id !== 'string') return { status: 'skipped', reason: 'malformed job' }
-  if (!deps.mailer) return { status: 'skipped', reason: 'SMTP is not configured' }
+  if (!deps.mailer || (await deps.mailer.configured?.()) === false) {
+    return { status: 'skipped', reason: 'SMTP is not configured' }
+  }
   const data = await getNotificationEmailData(deps.db, id)
   if (!data) return { status: 'skipped', reason: 'notification was deleted' }
   const n = data.notification

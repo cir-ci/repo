@@ -91,6 +91,20 @@ export namespace startWorker {
     retryBackoff?: RetryBackoff
     /** How long a webhook receiver may take to answer (default 10 s). */
     webhookTimeoutMs?: number
+    /**
+     * The limits above, read at every sweep or job, so a change in the instance settings applies
+     * without a restart. When given it replaces `uploadTimeoutMinutes`, `gcGraceHours`,
+     * `jobRetentionDays` and `webhookTimeoutMs`.
+     */
+    limits?: () => Promise<startWorker.Limits>
+  }
+
+  /** The limits an instance admin can change while the worker runs. */
+  export interface Limits {
+    uploadTimeoutMinutes: number
+    gcGraceHours: number
+    jobRetentionDays: number
+    webhookTimeoutMs: number
   }
 
   export interface Running {

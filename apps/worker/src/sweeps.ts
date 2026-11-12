@@ -8,6 +8,7 @@ import {
 } from '@circi/services'
 
 import { reviewSweep } from './jobs/review-sweep.ts'
+import { currentLimits } from './limits.ts'
 import type { startWorker } from './runner.ts'
 
 /**
@@ -50,12 +51,14 @@ function every(everyMs: number, pass: () => Promise<boolean>, onError: (err: unk
  */
 export function startSweeps(deps: startWorker.Deps): () => void {
   const { db, logger } = deps
-  const timeoutMinutes = deps.uploadTimeoutMinutes ?? 60
-  const jobRetentionDays = deps.jobRetentionDays ?? 14
+  const limits = () => currentLimits(deps)
   const timers = [
     every(
-      timeoutMinutes > 0 ? (deps.maintenanceIntervalMs ?? 5 * 60_000) : 0,
+      deps.maintenanceIntervalMs ?? 5 * 60_000,
       exclusiveSweep(db, 'stalled-builds', async () => {
+        const timeoutMinutes = (await limits()).uploadTimeoutMinutes
+        // 0 never times a build out.
+        if (timeoutMinutes <= 0) return
         const n = await expireStalledBuilds(db, new Date(Date.now() - timeoutMinutes * 60_000))
         if (n > 0) logger.warn({ builds: n }, 'failed builds that stopped uploading')
       }),
@@ -65,7 +68,7 @@ export function startSweeps(deps: startWorker.Deps): () => void {
       deps.retentionIntervalMs ?? 6 * 3600_000,
       exclusiveSweep(db, 'retention', async () => {
         const r = await runRetention(db, {
-          graceMs: (deps.gcGraceHours ?? 24) * 3600_000,
+          graceMs: (await limits()).gcGraceHours * 3600_000,
           deleteObject: (key) => deps.storage.delete(key),
         })
         logger.info(r, 'retention pass finished')
@@ -91,8 +94,11 @@ export function startSweeps(deps: startWorker.Deps): () => void {
     ),
     // Done and failed jobs are history nobody reads after a while; 0 days keeps them.
     every(
-      jobRetentionDays > 0 ? (deps.jobPruneIntervalMs ?? 3600_000) : 0,
+      deps.jobPruneIntervalMs ?? 3600_000,
       exclusiveSweep(db, 'prune-jobs', async () => {
+        const jobRetentionDays = (await limits()).jobRetentionDays
+        // 0 keeps finished jobs.
+        if (jobRetentionDays <= 0) return
         const n = await pruneFinishedJobs(db, { olderThanDays: jobRetentionDays })
         if (n > 0) logger.info({ jobs: n }, 'deleted finished jobs')
       }),

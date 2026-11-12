@@ -7,6 +7,7 @@ import { integrationEvent } from '../jobs/integration-event.ts'
 import { notifyGit } from '../jobs/notify-git.ts'
 import { processBuild } from '../jobs/process-build.ts'
 import { deliverNotification } from '../jobs/send-email.ts'
+import { currentLimits } from '../limits.ts'
 import type { startWorker } from '../runner.ts'
 
 type Deps = startWorker.Deps
@@ -60,6 +61,7 @@ const webhook: Handler = {
   fields: (job) => ({ webhookId: job.payload.webhookId, event: job.payload.event }),
   async run(deps, job) {
     const { db, publicOrigin, webhookAllowPrivate: allowPrivate, logger } = deps
+    const timeoutMs = (await currentLimits(deps)).webhookTimeoutMs
     const warn = (obj: object | string, msg?: string) => logger.warn(obj, msg)
     return {
       result: await deliverWebhook(
@@ -68,7 +70,7 @@ const webhook: Handler = {
           warn,
           ...(publicOrigin ? { publicOrigin } : {}),
           ...(allowPrivate ? { allowPrivate } : {}),
-          ...(deps.webhookTimeoutMs ? { timeoutMs: deps.webhookTimeoutMs } : {}),
+          ...(timeoutMs ? { timeoutMs } : {}),
         },
         job,
       ),

@@ -77,42 +77,115 @@ export namespace InstanceAdmin {
     workspaces: Workspace[]
   }
 
-  /** `GET /api/instance/settings`: the effective settings from the environment. No secret is in it. */
+  /** Where a setting's value comes from: its environment variable, the dashboard, or the default. */
+  export type Source = 'env' | 'stored' | 'default'
+
+  /** One editable setting. When `source` is `env` it is locked: "Set by <env>". */
+  export interface Field<T> {
+    value: T
+    source: Source
+    /** The variable that locks it; null unless `source` is `env`. */
+    env: string | null
+  }
+
+  /** A single sign-on provider of the whole instance. No secret is in it: only whether one is saved. */
+  export interface SsoProvider {
+    id: 'github' | 'gitlab' | 'google' | 'oidc'
+    name: string
+    clientId: string
+    /** The OpenID Connect issuer, or a self-managed GitLab's address. */
+    issuer: string | null
+    /** The operator vouches that the provider only reports addresses its users own. */
+    trustedForEmail: boolean
+    secretSaved: boolean
+    /** `env`: defined by `AUTH_<PROVIDER>_*` variables, read-only here. */
+    source: 'env' | 'stored'
+    env: string | null
+  }
+
+  /** The settings an instance admin can change (and the environment can lock). Secrets never appear. */
+  export interface Config {
+    /** Who may create workspaces in the dashboard. */
+    workspaceCreation: Field<'admin' | 'anyone'>
+    /** The sign-in methods the instance allows: the outer limit of every workspace's own. */
+    signIn: { password: Field<boolean>; email: Field<boolean>; sso: Field<boolean> }
+    limits: {
+      /** Retention in days that a new project starts with. */
+      defaultProjectRetentionDays: Field<number>
+      /** Hours an unused file waits before it is deleted. */
+      gcGraceHours: Field<number>
+      /** Minutes after which a build still uploading fails; 0 never. */
+      uploadTimeoutMinutes: Field<number>
+      /** Days a finished background job is kept; 0 keeps them. */
+      jobRetentionDays: Field<number>
+      /** Largest hosted site, in MB. */
+      staticSitesMaxMb: Field<number>
+      /** Seconds a webhook receiver may take to answer. */
+      webhookTimeoutSeconds: Field<number>
+    }
+    /** The mail server. */
+    smtp: {
+      source: 'env' | 'stored' | 'none'
+      env: string | null
+      host: string
+      port: number
+      secure: boolean
+      user: string
+      from: string
+      /** A password is saved (never the password itself). */
+      passwordSaved: boolean
+    }
+    /** The Slack app that installs into workspaces. */
+    slack: {
+      source: 'env' | 'stored' | 'none'
+      env: string | null
+      clientId: string
+      secretSaved: boolean
+    }
+    /** Providers from the environment (read-only) and the ones added here. */
+    sso: SsoProvider[]
+  }
+
+  /** `PUT /api/instance/config/smtp` */
+  export interface SmtpInput {
+    host: string
+    port: number
+    secure: boolean
+    user: string
+    from: string
+    /** Absent keeps the saved password, a string replaces it, null removes it. */
+    password?: string | null
+  }
+
+  /** `PUT /api/instance/config/slack` */
+  export interface SlackInput {
+    clientId: string
+    /** Absent keeps the saved secret. */
+    clientSecret?: string
+  }
+
+  /** `PUT /api/instance/config/sso/:id` */
+  export interface SsoInput {
+    name?: string
+    clientId: string
+    /** Absent keeps the saved secret. */
+    clientSecret?: string
+    issuer?: string
+    trustedForEmail: boolean
+  }
+
+  /** `GET /api/instance/settings`. No secret is in it. */
   export interface Settings {
     publicUrl: string
     /** Hosts that redirect to `publicUrl` (`PREVIOUS_PUBLIC_URLS`). */
     previousPublicHosts: string[]
-    mail: {
-      configured: boolean
-      /** The From address; null without SMTP. */
-      from: string | null
-      host: string | null
-      port: number | null
-      secure: boolean | null
-      /** An SMTP login is set (never the login itself). */
-      authenticated: boolean
-    }
-    auth: {
-      password: boolean
-      /** Email sign-in codes are offered. */
-      email: boolean
-      sso: { id: string; name: string }[]
-    }
-    /** Who may create workspaces in the dashboard. */
-    workspaceCreation: 'admin' | 'anyone'
-    retention: {
-      /** What a new project starts with, in days. */
-      defaultProjectRetentionDays: number
-      /** Hours an unused file waits before it is deleted. */
-      gcGraceHours: number
-      /** Minutes after which a build still uploading fails; 0 never. */
-      uploadTimeoutMinutes: number
-    }
+    config: Config
     githubApp: {
       source: 'env' | 'manifest' | 'none'
       appId: string | null
     }
-    staticSites: { host: string; maxMb: number } | null
+    /** The sites domain (`STATIC_SITES_HOST`); null when hosting is not set up. */
+    staticSites: { host: string } | null
     storage: { driver: 'fs' | 's3'; bucket: string | null }
     webhooksAllowPrivateAddresses: boolean
   }

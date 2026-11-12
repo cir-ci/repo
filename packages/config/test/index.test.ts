@@ -93,25 +93,32 @@ describe('loadConfig', () => {
     }
   })
 
-  it('offers email login only with SMTP, and lets it be switched off', () => {
-    expect(loadConfig(base)).toMatchObject({ emailLogin: false })
+  it('reads the email login switch and the SMTP server separately (the dashboard can set up either later)', () => {
+    expect(loadConfig(base)).toMatchObject({ emailEnabled: true })
+    expect(loadConfig(base).smtp).toBeUndefined()
     const smtp = { ...base, SMTP_HOST: 'smtp.acme.io', SMTP_FROM: 'CirCI <ci@acme.io>' }
     const on = loadConfig(smtp)
-    expect(on.emailLogin).toBe(true)
     expect(on.smtp).toEqual({
       host: 'smtp.acme.io',
       port: 587,
       secure: false,
       from: 'CirCI <ci@acme.io>',
     })
-    expect(loadConfig({ ...smtp, AUTH_EMAIL_ENABLED: 'false' }).emailLogin).toBe(false)
+    expect(loadConfig({ ...smtp, AUTH_EMAIL_ENABLED: 'false' }).emailEnabled).toBe(false)
     expect(loadConfig({ ...smtp, SMTP_PORT: '465' }).smtp?.secure).toBe(true)
   })
 
-  it('warns when email login is asked for without SMTP', () => {
-    const c = loadConfig({ ...base, AUTH_EMAIL_ENABLED: 'true' })
-    expect(c.emailLogin).toBe(false)
-    expect(c.warnings.join()).toContain('SMTP_HOST')
+  it('lists the settings whose variable is set as locked, and no others', () => {
+    expect(loadConfig(base).lockedSettings).toEqual([])
+    const locked = loadConfig({
+      ...base,
+      WORKSPACE_CREATION: 'anyone',
+      GC_GRACE_HOURS: '48',
+      SMTP_HOST: 'smtp.acme.io',
+      SMTP_FROM: 'ci@acme.io',
+      AUTH_PASSWORD_ENABLED: '',
+    })
+    expect(locked.lockedSettings.toSorted()).toEqual(['gcGraceHours', 'smtp', 'workspaceCreation'])
   })
 
   it('needs SMTP_FROM, and user and password together', () => {
@@ -341,13 +348,12 @@ describe('BETTER_AUTH_SECRET', () => {
       ).toThrow(ConfigError)
     })
 
-    it('can be switched off, and counts as a way in when password login is off', () => {
+    it('has a switch, and no longer refuses to start when every method is off (the dashboard refuses that on save)', () => {
       const github = { AUTH_GITHUB_CLIENT_ID: 'gh', AUTH_GITHUB_CLIENT_SECRET: 'ghs' }
-      expect(loadConfig({ ...base, ...github, AUTH_SSO_ENABLED: 'false' }).sso).toEqual([])
-      expect(() => loadConfig({ ...base, AUTH_PASSWORD_ENABLED: 'false' })).toThrow(ConfigError)
-      expect(loadConfig({ ...base, ...github, AUTH_PASSWORD_ENABLED: 'false' }).passwordLogin).toBe(
-        false,
-      )
+      const off = loadConfig({ ...base, ...github, AUTH_SSO_ENABLED: 'false' })
+      expect(off.ssoEnabled).toBe(false)
+      expect(off.sso).toHaveLength(1)
+      expect(loadConfig({ ...base, AUTH_PASSWORD_ENABLED: 'false' }).passwordLogin).toBe(false)
     })
   })
 
