@@ -156,7 +156,10 @@ describe('ReviewsPage', () => {
     await expect.element(page.getByText('Select a review')).not.toBeInTheDocument()
     // "Reviews" is the crumb's; the list has no heading repeating it.
     expect(
-      page.getByRole('complementary', { name: 'Reviews' }).getByText('Reviews', { exact: true }).elements(),
+      page
+        .getByRole('complementary', { name: 'Reviews' })
+        .getByText('Reviews', { exact: true })
+        .elements(),
     ).toHaveLength(0)
   })
 

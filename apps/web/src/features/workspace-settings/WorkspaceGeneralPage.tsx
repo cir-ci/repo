@@ -33,7 +33,7 @@ export function WorkspaceGeneralPage() {
     >
       {data ? (
         <>
-          <SettingsSection title="Display Settings">
+          <SettingsSection title="Details">
             <IdentityRow
               workspace={workspace}
               name={data.name}
@@ -89,7 +89,7 @@ function IdentityRow({ workspace, name, slug, picture, canManage }: IdentityRow.
         }
       >
         <CheckedTextField
-          label="Display Name"
+          label="Display name"
           name="name"
           saved={name}
           disabled={!canManage}
@@ -100,7 +100,7 @@ function IdentityRow({ workspace, name, slug, picture, canManage }: IdentityRow.
           }
         />
         <CheckedTextField
-          label="URL Slug"
+          label="URL slug"
           name="slug"
           saved={slug}
           disabled={!canManage}

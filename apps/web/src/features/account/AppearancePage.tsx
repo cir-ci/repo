@@ -19,7 +19,7 @@ import styles from '#features/workspace-settings/Settings.module.css'
 const CHOICES = [
   { mode: 'system', label: 'System', help: 'Follows your computer' },
   { mode: 'light', label: 'Light', help: 'Near-white panel on warm grey' },
-  { mode: 'dark', label: 'Dark', help: 'The reference look' },
+  { mode: 'dark', label: 'Dark', help: 'Dark panels on a near-black background' },
 ] as const satisfies readonly { mode: ColorMode; label: string; help: string }[]
 
 const line = (width: string, color: string): CSSProperties => ({ width, background: color })

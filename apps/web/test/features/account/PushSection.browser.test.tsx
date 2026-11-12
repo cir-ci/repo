@@ -61,7 +61,7 @@ describe('Push notifications in settings', () => {
     await renderPage(<NotificationsPage />, { api: API })
     await expect.element(page.getByRole('heading', { name: 'In your Inbox' })).toBeVisible()
     await expect.element(page.getByRole('heading', { name: 'Push notifications' })).toBeVisible()
-    await expect.element(page.getByText(/background worker isn't running/)).toBeVisible()
+    await expect.element(page.getByText(/background service isn't running/)).toBeVisible()
     expect(here().elements()).toHaveLength(0)
     expect(page.getByRole('heading', { name: 'What to push' }).elements()).toHaveLength(0)
   })

@@ -6,8 +6,8 @@ import { CheckedTextField } from '#lib/CheckedTextField.tsx'
 import { renderPage } from '#test/support/render.tsx'
 
 const idle: CheckedTextField.Props['mutation'] = { isPending: false, error: null, reset: () => {} }
-const field = () => page.getByRole('textbox', { name: 'Display Name' })
-const check = () => page.getByRole('button', { name: 'Save Display Name' })
+const field = () => page.getByRole('textbox', { name: 'Display name' })
+const check = () => page.getByRole('button', { name: 'Save Display name' })
 
 /**
  * The field beside two buttons: "Refetch" stands in for a new saved value ("Acme Corp") arriving,
@@ -18,7 +18,7 @@ function Harness(props: Partial<CheckedTextField.Props>) {
   return (
     <>
       <CheckedTextField
-        label="Display Name"
+        label="Display name"
         saved={saved}
         mutation={idle}
         onCommit={() => {}}

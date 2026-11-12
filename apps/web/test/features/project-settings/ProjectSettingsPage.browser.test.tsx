@@ -111,13 +111,13 @@ describe('ProjectSettingsPage', () => {
   it('fills the form from the saved settings, converting the threshold to a percentage', async () => {
     api()
     await show()
-    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toHaveValue('Web App')
+    await expect.element(page.getByRole('textbox', { name: 'Display name' })).toHaveValue('Web App')
     await expect.element(page.getByRole('textbox', { name: 'Default Branch' })).toHaveValue('main')
     await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('30')
-    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
+    await expect.element(page.getByRole('textbox', { name: 'URL slug' })).toHaveValue('web')
     await expect
       .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
@@ -144,11 +144,11 @@ describe('ProjectSettingsPage', () => {
       { [`PATCH ${API}/settings`]: { body: { settings: { ...settings, slug: 'web-app' } } } },
     )
     const { router } = await show()
-    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
+    await expect.element(page.getByRole('textbox', { name: 'URL slug' })).toHaveValue('web')
     expect(page.getByText(/stop working/).elements()).toHaveLength(0)
-    await page.getByRole('textbox', { name: 'URL Slug' }).fill('web-app')
+    await page.getByRole('textbox', { name: 'URL slug' }).fill('web-app')
     await expect.element(page.getByText(/stop working/)).toBeVisible()
-    await page.getByRole('button', { name: 'Save URL Slug' }).click()
+    await page.getByRole('button', { name: 'Save URL slug' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
     // Only the address: the rest of the form is untouched.
     expect(fake.of('PATCH')[0]?.body).toEqual({ slug: 'web-app' })
@@ -158,7 +158,7 @@ describe('ProjectSettingsPage', () => {
   it('refuses a slug that is not an address, on the field, and sends nothing', async () => {
     const fake = api()
     await show()
-    await page.getByRole('textbox', { name: 'URL Slug' }).fill('Not An Address')
+    await page.getByRole('textbox', { name: 'URL slug' }).fill('Not An Address')
     await userEvent.keyboard('{Enter}')
     await expect.element(page.getByText(/lowercase letters, digits/)).toBeVisible()
     expect(fake.of('PATCH')).toHaveLength(0)
@@ -179,8 +179,8 @@ describe('ProjectSettingsPage', () => {
       queryFn: () => fetch('/api/workspaces/acme/sidebar').then((r) => r.json()),
     })
     expect(queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated).toBe(false)
-    await expect.element(page.getByRole('textbox', { name: 'URL Slug' })).toHaveValue('web')
-    await page.getByRole('textbox', { name: 'URL Slug' }).fill('web-app')
+    await expect.element(page.getByRole('textbox', { name: 'URL slug' })).toHaveValue('web')
+    await page.getByRole('textbox', { name: 'URL slug' }).fill('web-app')
     await userEvent.keyboard('{Enter}')
     await expect
       .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
@@ -198,8 +198,8 @@ describe('ProjectSettingsPage', () => {
       },
     )
     const { router } = await show()
-    await page.getByRole('textbox', { name: 'URL Slug' }).fill('taken')
-    await page.getByRole('button', { name: 'Save URL Slug' }).click()
+    await page.getByRole('textbox', { name: 'URL slug' }).fill('taken')
+    await page.getByRole('button', { name: 'Save URL slug' }).click()
     // The failure toasts too; the field's own error is the alert (the toast isn't one).
     const alert = page.getByRole('alert')
     await expect.element(alert).toMatchTextContent(/is already taken/)
@@ -264,15 +264,15 @@ describe('ProjectSettingsPage', () => {
     it('shows the picture and the three fields on one row, under one section', async () => {
       api()
       await show()
-      await expect.element(heading('Display Settings')).toBeVisible()
+      await expect.element(heading('Details')).toBeVisible()
       expect(page.getByText('Name and picture').elements()).toHaveLength(0)
       expect(heading('Address and branch').elements()).toHaveLength(0)
       const avatar = page.getByRole('button', { name: 'Change icon and colour' }).element()
       const top = (name: string) => field(name).element().getBoundingClientRect().top
       await page.viewport(1200, 800)
-      await expect.element(field('Display Name')).toBeVisible()
-      for (const name of ['Display Name', 'URL Slug', 'Default Branch']) {
-        expect(Math.abs(top(name) - top('Display Name'))).toBeLessThan(8)
+      await expect.element(field('Display name')).toBeVisible()
+      for (const name of ['Display name', 'URL slug', 'Default Branch']) {
+        expect(Math.abs(top(name) - top('Display name'))).toBeLessThan(8)
         expect(field(name).element().getBoundingClientRect().left).toBeGreaterThan(
           avatar.getBoundingClientRect().right - 1,
         )
@@ -282,21 +282,21 @@ describe('ProjectSettingsPage', () => {
     it('shows the ✓ only while a field differs from what is saved', async () => {
       api()
       await show()
-      const check = page.getByRole('button', { name: 'Save Display Name' })
-      await expect.element(field('Display Name')).toHaveValue('Web App')
+      const check = page.getByRole('button', { name: 'Save Display name' })
+      await expect.element(field('Display name')).toHaveValue('Web App')
       expect(check.elements()).toHaveLength(0)
-      await field('Display Name').fill('Web')
+      await field('Display name').fill('Web')
       await expect.element(check).toBeVisible()
-      await field('Display Name').fill('Web App')
+      await field('Display name').fill('Web App')
       await expect.element(check).not.toBeInTheDocument()
     })
 
     it('saves the name with the ✓, only the name, and the form stays untouched', async () => {
       const fake = api()
       await show()
-      await expect.element(field('Display Name')).toHaveValue('Web App')
-      await field('Display Name').fill('Web')
-      await page.getByRole('button', { name: 'Save Display Name' }).click()
+      await expect.element(field('Display name')).toHaveValue('Web App')
+      await field('Display name').fill('Web')
+      await page.getByRole('button', { name: 'Save Display name' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
       expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
@@ -307,8 +307,8 @@ describe('ProjectSettingsPage', () => {
       const fake = api()
       fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Name is too long' } })
       await show()
-      await expect.element(field('Display Name')).toHaveValue('Web App')
-      await field('Display Name').fill('Webby')
+      await expect.element(field('Display name')).toHaveValue('Web App')
+      await field('Display name').fill('Webby')
       await userEvent.keyboard('{Enter}')
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
@@ -317,20 +317,20 @@ describe('ProjectSettingsPage', () => {
     it('puts the saved text back on Escape and sends nothing', async () => {
       const fake = api()
       await show()
-      await field('Display Name').fill('Web')
+      await field('Display name').fill('Web')
       await userEvent.keyboard('{Escape}')
-      await expect.element(field('Display Name')).toHaveValue('Web App')
-      expect(page.getByRole('button', { name: 'Save Display Name' }).elements()).toHaveLength(0)
+      await expect.element(field('Display name')).toHaveValue('Web App')
+      expect(page.getByRole('button', { name: 'Save Display name' }).elements()).toHaveLength(0)
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
     it('does nothing when a field is left half edited', async () => {
       const fake = api()
       await show()
-      await field('Display Name').fill('Web')
+      await field('Display name').fill('Web')
       await field('Diff threshold').click()
-      await expect.element(field('Display Name')).toHaveValue('Web')
-      await expect.element(page.getByRole('button', { name: 'Save Display Name' })).toBeVisible()
+      await expect.element(field('Display name')).toHaveValue('Web')
+      await expect.element(page.getByRole('button', { name: 'Save Display name' })).toBeVisible()
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
@@ -556,7 +556,7 @@ describe('ProjectSettingsPage', () => {
     api({ canManage: false })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings')
-    expect(page.getByRole('textbox', { name: 'Display Name' }).elements()).toHaveLength(0)
+    expect(page.getByRole('textbox', { name: 'Display name' }).elements()).toHaveLength(0)
   })
 
   it("says the project doesn't exist for a 404, and retries other errors", async () => {
@@ -571,7 +571,7 @@ describe('ProjectSettingsPage', () => {
     await expect.element(page.getByText('db down')).toBeVisible()
     fake.set(`GET ${API}/settings`, { body: response() })
     await page.getByRole('button', { name: 'Try again' }).click()
-    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Display name' })).toBeVisible()
   })
 
   describe('GitHub', () => {
@@ -785,7 +785,7 @@ describe('ProjectSettingsPage', () => {
   it('has no CI token or webhooks on this page: they have their own', async () => {
     api()
     await show()
-    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Display name' })).toBeVisible()
     expect(heading('CI token').elements()).toHaveLength(0)
     expect(heading('Webhooks').elements()).toHaveLength(0)
   })

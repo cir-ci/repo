@@ -26,7 +26,6 @@ import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { copyLinkItem, menuEntries, openInNewTabItem, snoozeItems } from '#lib/row-menu.ts'
-import { usePhone } from '#lib/use-phone.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
@@ -35,6 +34,7 @@ import { toast } from '#lib/toast.ts'
 import { refreshAll, withUndo } from '#lib/undo.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import {
   firstName,

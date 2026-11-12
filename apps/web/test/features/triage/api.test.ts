@@ -78,9 +78,13 @@ describe('labels', () => {
   it('words the rotation chip with the day the turn passes on', () => {
     const rotation = { members: [], onTriage: { id: 'u', name: 'Ada', image: null }, until: null }
     expect(rotationText(rotation)).toBe('On triage: Ada')
+    expect(rotationText(rotation, 'u')).toBe("You're on triage")
     // 2026-11-16 is a Monday; noon keeps the weekday the same in every time zone.
     expect(rotationText({ ...rotation, until: '2026-11-16T12:00:00.000Z' })).toBe(
-      'On triage: Ada until Mon',
+      'On triage until Mon: Ada',
+    )
+    expect(rotationText({ ...rotation, until: '2026-11-16T12:00:00.000Z' }, 'u')).toBe(
+      "You're on triage until Mon",
     )
     expect(rotationText({ ...rotation, onTriage: null })).toBeUndefined()
   })

@@ -19,6 +19,12 @@ describe('Checkbox', () => {
     expect(onCheckedChange.mock.calls.map(([c]) => c)).toEqual([true, false])
   })
 
+  it('has a label row of at least 24px', async () => {
+    await render(<Checkbox label="Notify me" />)
+    const row = page.getByText('Notify me').element().closest('label')
+    expect(row?.getBoundingClientRect().height).toBeGreaterThanOrEqual(24)
+  })
+
   it('toggles when its label text is clicked', async () => {
     await render(<Checkbox label="Notify me" />)
     await page.getByText('Notify me').click()

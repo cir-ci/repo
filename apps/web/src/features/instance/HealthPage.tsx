@@ -149,12 +149,8 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
       items={[
         {
           label: 'Passing',
+          // The label says it: no second "Passing" badge beside the count.
           value: counts.passing,
-          extra: (
-            <Badge shape="tag" tone="state" state="approved">
-              Passing
-            </Badge>
-          ),
         },
         {
           label: 'Need a look',
@@ -211,10 +207,13 @@ function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
           detail
         )
       }
+      // A badge only for what needs attention: a passing check is the quiet row.
       status={
-        <Badge shape="tag" tone="state" state={FINDING_LEVEL[f.level].state}>
-          {FINDING_LEVEL[f.level].label}
-        </Badge>
+        f.level === 'ok' ? undefined : (
+          <Badge shape="tag" tone="state" state={FINDING_LEVEL[f.level].state}>
+            {FINDING_LEVEL[f.level].label}
+          </Badge>
+        )
       }
     />
   )

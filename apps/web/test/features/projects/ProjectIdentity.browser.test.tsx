@@ -26,8 +26,8 @@ const show = (canManage: boolean) =>
 describe('ProjectIdentity', () => {
   it('disables the three fields for someone who cannot manage, with no ✓ and no avatar button', async () => {
     await show(false)
-    await expect.element(field('Display Name')).toBeDisabled()
-    await expect.element(field('URL Slug')).toBeDisabled()
+    await expect.element(field('Display name')).toBeDisabled()
+    await expect.element(field('URL slug')).toBeDisabled()
     await expect.element(field('Default Branch')).toBeDisabled()
     expect(page.getByRole('button', { name: /^Save / }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: 'Change icon and colour' }).elements()).toHaveLength(0)
@@ -35,8 +35,8 @@ describe('ProjectIdentity', () => {
 
   it('enables them for someone who can', async () => {
     await show(true)
-    await expect.element(field('Display Name')).toBeEnabled()
-    await expect.element(field('URL Slug')).toBeEnabled()
+    await expect.element(field('Display name')).toBeEnabled()
+    await expect.element(field('URL slug')).toBeEnabled()
     await expect.element(field('Default Branch')).toBeEnabled()
   })
 })

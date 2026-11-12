@@ -14,7 +14,7 @@ const PARTS = [
   ['failed', '!'],
 ] as const
 
-/** Compact counts ("~4 +1"), or the word for a build with nothing to count yet or no changes. */
+/** Counts with their noun ("4 changed", "1 added"), or the word for a build with nothing to count yet or no changes. */
 export function changesCell(build: Build.ListItem): ChangesCell {
   const state = buildState(build)
   if (state.kind === 'uploading' || state.kind === 'processing')

@@ -23,6 +23,8 @@ export function ProjectAvatars<T extends ProjectAvatars.Item>({
   tooltips = link !== undefined,
   overflow = true,
   limit = LIMIT,
+  size = 20,
+  linkLabel,
   ...rest
 }: ProjectAvatars.Props<T>) {
   const clientLink = useClientLink()
@@ -32,6 +34,7 @@ export function ProjectAvatars<T extends ProjectAvatars.Item>({
   return (
     <AvatarStack
       shape="rounded"
+      size={size}
       {...rest}
       more={{
         count: hidden.length,
@@ -51,14 +54,14 @@ export function ProjectAvatars<T extends ProjectAvatars.Item>({
             name={project.name}
             color={project.color}
             icon={project.icon}
-            size={20}
+            size={size}
           />
         )
         const item =
           link === undefined ? (
             <span>{avatar}</span>
           ) : (
-            <a aria-label={project.name} {...clientLink(link(project))}>
+            <a aria-label={linkLabel?.(project) ?? project.name} {...clientLink(link(project))}>
               {avatar}
             </a>
           )
@@ -97,6 +100,10 @@ export namespace ProjectAvatars {
     tooltips?: boolean
     /** The "+N" chip for the projects past `limit`; true. */
     overflow?: boolean
+    /** The accessible name of a project's link; its name when left out ("Open web's setting"). */
+    linkLabel?: (project: T) => string
+    /** Avatar size in px; 20 when left out (24 or more where each is a link: a touch target). */
+    size?: 20 | 24
     /** Avatars drawn before the "+N" chip; 8 when left out. */
     limit?: number
   }

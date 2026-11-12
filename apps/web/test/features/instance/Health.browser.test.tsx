@@ -131,19 +131,20 @@ describe('the health page', () => {
     await expect.element(services.getByText('Storage', { exact: true })).toBeVisible()
     await expect.element(services.getByText('Local disk, writable.')).toBeVisible()
     await expect.element(services.getByText('/var/lib/circi/files')).toBeVisible()
-    await expect.element(services.getByText('Passing')).toBeVisible()
+    // A passing row has no badge.
+    expect(services.getByText('Passing').elements()).toHaveLength(0)
     const domains = page.getByRole('region', { name: 'Domains and cookies' })
     await expect
       .element(domains.getByText('www.acme.io sets _ga with Domain=acme.io'))
       .toBeVisible()
     await expect.element(domains.getByText('Check', { exact: true })).toBeVisible()
-    await expect.element(domains.getByText('Passing')).toBeVisible()
+    expect(domains.getByText('Passing').elements()).toHaveLength(0)
     // The page says its own piece about cookies; the developer path in the doctor's reminder is gone.
     expect(document.body.textContent).not.toContain('docs/reference')
     await expect.element(domains.getByText(/may live on the sites domain/)).toBeVisible()
   })
 
-  it('summarises the checks as counts with their badges', async () => {
+  it('summarises the checks as counts, with badges only for what needs a look or fails', async () => {
     fakeApi(ROUTES)
     await show()
     const summary = page.getByRole('region', { name: 'Summary' })
@@ -154,7 +155,7 @@ describe('the health page', () => {
       .elements()
       .map((d) => d.textContent)
     // Two checks pass, one needs a look, none fail, and the reminder note is not counted.
-    expect(counts).toEqual(['2', 'Passing', '1', 'Check', '0', 'Failing'])
+    expect(counts).toEqual(['2', '1', 'Check', '0', 'Failing'])
   })
 
   it('turns the move into numbered steps, Done where the configuration shows it', async () => {

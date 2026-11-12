@@ -163,20 +163,30 @@ describe('ProjectsPage', () => {
     await expect.element(page.getByText('#7')).toBeVisible()
     await expect.element(page.getByText('feature/x')).toBeVisible()
     await expect.element(page.getByText('acme/web-app')).toBeVisible()
-    await expect.element(page.getByText('Connect a CI job')).toBeVisible()
-    await expect.element(page.getByText('npx circi upload ./screenshots --wait')).toBeVisible()
+    // A project has a build: no "Connect a CI job" block.
+    expect(page.getByText('Connect a CI job').elements()).toHaveLength(0)
     await expect.element(page.getByText('No builds yet')).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'No builds yet' })).toBeVisible()
   })
 
-  it('shows the Connect a CI job panel under the list even when every project has builds', async () => {
+  it('shows the Connect a CI job panel while no project has a build', async () => {
     fakeApi({
-      'GET /api/projects': { body: { projects: [overview('acme', 'web-app', build(7))] } },
+      'GET /api/projects': { body: { projects: [overview('acme', 'web-app')] } },
       'GET /api/capabilities': { body: caps() },
     })
     await show()
     await expect.element(page.getByText('Connect a CI job')).toBeVisible()
     await expect.element(page.getByText('npx circi upload ./screenshots --wait')).toBeVisible()
+  })
+
+  it('hides the Connect a CI job panel once any project has a build', async () => {
+    fakeApi({
+      'GET /api/projects': { body: { projects: [overview('acme', 'web-app', build(7))] } },
+      'GET /api/capabilities': { body: caps() },
+    })
+    await show()
+    await expect.element(page.getByRole('link', { name: /web-app/ })).toBeVisible()
+    expect(page.getByText('Connect a CI job').elements()).toHaveLength(0)
   })
 
   it('has no New workspace button in the header (it lives in the workspace switcher)', async () => {

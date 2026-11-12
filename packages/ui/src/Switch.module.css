@@ -7,6 +7,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* The whole row is the label: at least a 24px target. */
+  min-height: 24px;
   color: var(--circi-text-primary);
   font-size: 13px;
   line-height: 1.5;

@@ -153,7 +153,7 @@ function unsupportedText(): string {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return "This browser can't receive push notifications. Chrome, Edge, Firefox and Safari 16.4 or later can."
   }
-  return "Notifications aren't available here yet: the app's background worker isn't running. Reload the page, and if this stays, use another browser."
+  return "Notifications aren't available here yet: this browser's background service isn't running. Reload the page, and if this stays, use another browser."
 }
 
 function DeviceRow({

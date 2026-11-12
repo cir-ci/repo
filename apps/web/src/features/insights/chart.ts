@@ -191,7 +191,7 @@ export function linePath(points: readonly Dot[], area = false): string {
 /** How a count moved against the one before: fewer is better. */
 export type FlakyMove = 'better' | 'worse' | 'same'
 
-/** "▼ 5 since W36": the change from the first week to the last; grey when nothing changed. */
+/** "▼ 5 fewer since W36": the change from the first week to the last; grey when nothing changed. */
 export function flakyDelta(
   weeks: readonly Insights.Week[],
 ): { text: string; label: string; tone: 'good' | 'bad' | 'neutral' } | null {
@@ -207,13 +207,13 @@ export function flakyDelta(
     }
   }
   return {
-    text: `${diff < 0 ? '▼' : '▲'} ${Math.abs(diff)} since ${since}`,
+    text: `${diff < 0 ? '▼' : '▲'} ${Math.abs(diff)} ${diff < 0 ? 'fewer' : 'more'} since ${since}`,
     label: `${diff < 0 ? 'Down' : 'Up'} ${Math.abs(diff)} since week ${isoWeek(first.weekStart)}, ${diff < 0 ? 'better' : 'worse'}`,
     tone: diff < 0 ? 'good' : 'bad',
   }
 }
 
-/** "▲ 9 vs before": failed builds against the stretch before; grey when equal. */
+/** "▲ 9 more than before": failed builds against the stretch before; grey when equal. */
 export function failedDelta(
   now: number,
   before: number,
@@ -221,7 +221,7 @@ export function failedDelta(
   const diff = now - before
   if (diff === 0) return { text: '● same as before', label: 'Unchanged', tone: 'neutral' }
   return {
-    text: `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)} vs before`,
+    text: `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)} ${diff > 0 ? 'more' : 'fewer'} than before`,
     label: `${diff > 0 ? 'Up' : 'Down'} ${Math.abs(diff)}, ${diff > 0 ? 'worse' : 'better'}`,
     tone: diff > 0 ? 'bad' : 'good',
   }
@@ -248,7 +248,10 @@ export interface StackedBar {
 /** Outcomes per bucket as stacks, bottom to top, on an axis of 40, 80, 120... */
 export function outcomeStacks(weeks: readonly Insights.Week[], bucket: Bucket = 'week') {
   const totals = weeks.map((w) => OUTCOME_KEYS.reduce((sum, k) => sum + w.outcomes[k], 0))
-  const axis = axisFor(Math.max(0, ...totals), { multiple: 40 })
+  const peak = Math.max(0, ...totals)
+  // Whole steps that fit the data: a quiet project's axis doesn't reach 40 for a peak of 5.
+  const multiple = peak <= 8 ? 2 : peak <= 24 ? 4 : peak <= 60 ? 10 : peak <= 160 ? 20 : 40
+  const axis = axisFor(peak, { multiple })
   return {
     ...axis,
     bars: weeks.map((w, i): StackedBar => ({

@@ -14,6 +14,27 @@
   min-height: 320px;
 }
 
+.thumb {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: center;
+  width: 48px;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-inline);
+  background: var(--circi-surface-raised);
+}
+
+/* The top of the screenshot, the part that tells pages apart. */
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
 .age {
   flex: none;
   width: 28px;

@@ -179,6 +179,8 @@ describe('TriagePage', () => {
       .element(film.getByRole('link', { name: 'Open home in build #3, same' }))
       .toBeVisible()
     await expect.element(page.getByText('Last 10 commits on main')).toBeVisible()
+    // The tilde has a visible legend.
+    await expect.element(page.getByText('~ changed in that build')).toBeVisible()
     await expect.element(page.getByText('Where it changes')).toBeVisible()
   })
 
@@ -230,7 +232,7 @@ describe('TriagePage', () => {
       [`GET ${BASE}/triage`]: { body: queue([item('home')], { id: 'u2', name: 'Grace Hopper' }) },
     })
     await show()
-    await expect.element(page.getByLabelText('On triage: Grace Hopper until Mon')).toBeVisible()
+    await expect.element(page.getByLabelText('On triage until Mon: Grace Hopper')).toBeVisible()
     // Settings is a closed area: no link from the triage page into the project's settings.
     expect(page.getByRole('link', { name: 'Rules' }).elements()).toHaveLength(0)
   })
@@ -647,10 +649,8 @@ describe('TriagePage on a phone', () => {
     expect(pageHeader().getBoundingClientRect().height).toBeLessThanOrEqual(52)
     // The chip is the avatar there; its name is still the accessible one.
     await expect.element(page.getByLabelText(/Grace Hopper/).first()).toBeInTheDocument()
-    // The whole row is the tap target: no "Open in build" chip is shown.
-    for (const chip of page.getByText('Open in build ↗').elements()) {
-      expect(chip.getBoundingClientRect().width).toBe(0)
-    }
+    // The row has no "Open in build" chip (the pane's preview says it once).
+    expect(page.getByRole('list').getByText('Open in build ↗').elements()).toHaveLength(0)
     expectNoSidewaysScroll()
   })
 

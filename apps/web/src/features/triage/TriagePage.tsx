@@ -212,7 +212,7 @@ export function TriagePage() {
   })
 
   const failed = [assign, snooze, dismiss, rerun].find((m) => m.error)?.error
-  const chip = data ? rotationText(data.rotation) : undefined
+  const chip = data ? rotationText(data.rotation, session?.user.id) : undefined
 
   return (
     <>
@@ -305,11 +305,7 @@ export function TriagePage() {
                                       select(item)
                                       setSheetFor(itemId(item))
                                     }}
-                                    // Enter and a double click do the same; the chip says so (a mouse target only: on a phone the whole row is the tap target).
-                                    action={{
-                                      label: 'Open in build ↗',
-                                      onAction: () => open(item),
-                                    }}
+                                    // Enter, a double click and the menu open the build; the preview in the pane says so once.
                                     title={<span aria-hidden="true">{itemTitle(item)}</span>}
                                     subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
                                     trailing={
@@ -619,6 +615,10 @@ function Film({
           )
         })}
       </ol>
+      {/* The tilde is a mark, not a word: say it here (a title tooltip is no help on a phone). */}
+      <Text as="p" variant="small" tone="tertiary">
+        ~ changed in that build
+      </Text>
     </Section>
   )
 }

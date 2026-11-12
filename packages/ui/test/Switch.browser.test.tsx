@@ -12,6 +12,16 @@ describe('Switch', () => {
     await expect.element(sw).toHaveAttribute('aria-checked', 'false')
   })
 
+  it('has a label row of at least 24px, a click anywhere on it toggles', async () => {
+    await render(<Switch label="Auto-approve" />)
+    const row = page.getByText('Auto-approve').element().closest('label')
+    expect(row?.getBoundingClientRect().height).toBeGreaterThanOrEqual(24)
+    await page.getByText('Auto-approve').click()
+    await expect
+      .element(page.getByRole('switch', { name: 'Auto-approve' }))
+      .toHaveAttribute('aria-checked', 'true')
+  })
+
   it('toggles with Space and with a click, reporting each change', async () => {
     const onCheckedChange = vi.fn<(checked: boolean) => void>()
     await render(<Switch label="Auto-approve" onCheckedChange={onCheckedChange} />)

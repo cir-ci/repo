@@ -1,10 +1,8 @@
 import { flakyReasonText } from '@circi/core'
-import { Banner, Button, Link, Avatar, Text } from '@circi/ui'
+import { Banner, Button, Link, Avatar, Text, Tooltip } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { Fragment } from 'react'
 
-import { baselineLink } from '#features/baselines/links.ts'
 import {
   type BuildFilters,
   hasFilters,
@@ -14,7 +12,7 @@ import {
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
 import { BuildsFind } from '#features/builds/list/BuildsFind.tsx'
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
-import { flakyQuery, settingsQuery, projectQuery } from '#features/projects/api/index.ts'
+import { flakyQuery, projectQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
@@ -38,9 +36,6 @@ export function ProjectPage() {
     placeholderData: (previous) => (previous?.project.slug === project ? previous : undefined),
   })
   const { data: flaky } = useQuery(flakyQuery(workspace, project))
-  // Only owners and admins reach the project's settings and add ignore regions (the settings are cached).
-  const { data: settings } = useQuery(settingsQuery(workspace, project))
-  const canManage = settings?.canManage === true
   const { data: sidebar } = useSidebarModel(workspace)
   // Pinning and the project's settings are in its right-click menu (and the sidebar's), not here.
   const sidebarProject = sidebar?.projects.find((p) => p.slug === project)
@@ -104,25 +99,32 @@ export function ProjectPage() {
         ) : null}
         <GitAttentionBanner attention={data?.gitAttention} />
         {flaky && flaky.flaky.length > 0 ? (
+          // One line (a phone's screen is short): the count and a way to Triage, which lists each
+          // screenshot with its reason and where to ignore the part that changes.
           <Banner
             tone="flaky"
-            title={`These screenshots are flaky on ${data?.project.defaultBranch ?? 'the default branch'}:`}
+            action={
+              <Link
+                {...clientLink({
+                  to: '/$workspace/$project/triage',
+                  params: { workspace, project },
+                })}
+              >
+                Open Triage
+              </Link>
+            }
           >
-            {flaky.flaky.map((f, index) => (
-              <Fragment key={f.name}>
-                {index > 0 ? ', ' : null}
-                {canManage ? (
-                  <Link {...clientLink(baselineLink(workspace, project, f.name))}>{f.name}</Link>
-                ) : (
-                  f.name
-                )}{' '}
-                ({flakyReasonText(f.reason, { inline: true })})
-              </Fragment>
-            ))}
-            . They are probably not stable (a clock, an animation, random content).{' '}
-            {canManage
-              ? 'Choose a screenshot to ignore the part that changes.'
-              : 'Ask an owner or admin of this project to ignore the part that changes.'}
+            <Tooltip
+              content={`These change with no code change on ${data?.project.defaultBranch ?? 'the default branch'}: ${flaky.flaky
+                .map((f) => `${f.name} (${flakyReasonText(f.reason, { inline: true })})`)
+                .join(
+                  ', ',
+                )}. They are probably not stable (a clock, an animation, random content).`}
+            >
+              <strong>
+                {flaky.flaky.length} flaky {flaky.flaky.length === 1 ? 'screenshot' : 'screenshots'}
+              </strong>
+            </Tooltip>
           </Banner>
         ) : null}
         <BuildsBrowser

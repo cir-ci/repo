@@ -271,7 +271,7 @@ describe('InsightsPage', () => {
     it('shows failed builds with their delta against before, and an empty state', async () => {
       await show(fullReport())
       const c = card('Failed builds per week')
-      await expect.element(c.getByText('9 vs before', { exact: true })).toBeVisible()
+      await expect.element(c.getByText('9 more than before', { exact: true })).toBeVisible()
       await expect.element(c.getByLabelText('Up 9, worse')).toBeVisible()
       await expect.element(c.getByText('31 failed builds in 90 days.')).toBeVisible()
       await userEvent.click(c.getByRole('button', { name: 'View as table' }))

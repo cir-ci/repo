@@ -80,7 +80,7 @@ export interface Delta {
   direction: 'up' | 'down' | 'flat'
   /** Whether the move is good, bad, or just a fact. */
   tone: 'good' | 'bad' | 'neutral'
-  /** Short, with the arrow: "▼ 2.7h · 44%". */
+  /** Short, with the arrow: "▼ 2.7h less · 44%". */
   text: string
   /** Full words for assistive tech. */
   label: string
@@ -125,16 +125,18 @@ export function delta(
   let words: string
   if (options.unit === 'points') {
     if (Math.round(size * 100) === 0) return flat
-    short = `${Math.round(size * 100)} points`
-    words = short
+    words = `${Math.round(size * 100)} points`
+    short = `${words} ${direction === 'up' ? 'higher' : 'lower'}`
   } else if (options.unit === 'count') {
-    short = String(size)
-    words = short
+    words = String(size)
+    short = `${size} ${direction === 'up' ? 'more' : 'fewer'}`
   } else if (options.unit === 'hours') {
-    short = previous === 0 ? formatHours(size) : `${formatHours(size)} · ${percent}`
+    const more = direction === 'up' ? 'more' : 'less'
+    short =
+      previous === 0 ? `${formatHours(size)} ${more}` : `${formatHours(size)} ${more} · ${percent}`
     words = hoursInWords(size)
   } else {
-    short = percent
+    short = previous === 0 ? percent : `${percent} ${direction === 'up' ? 'more' : 'less'}`
     words = percent
   }
   const improved =

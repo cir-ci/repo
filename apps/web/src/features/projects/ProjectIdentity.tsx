@@ -47,7 +47,7 @@ export function ProjectIdentity({
   const icon: string | null = isProjectIconName(appearance.icon) ? appearance.icon : null
 
   return (
-    <SettingsSection title="Display Settings">
+    <SettingsSection title="Details">
       <SettingsRow>
         <IdentityFields
           avatar={
@@ -77,7 +77,7 @@ export function ProjectIdentity({
           }
         >
           <CheckedTextField
-            label="Display Name"
+            label="Display name"
             name="name"
             saved={name}
             disabled={!canManage}
@@ -88,7 +88,7 @@ export function ProjectIdentity({
             }
           />
           <CheckedTextField
-            label="URL Slug"
+            label="URL slug"
             name="slug"
             saved={slug}
             disabled={!canManage}

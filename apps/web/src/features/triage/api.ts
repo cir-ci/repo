@@ -103,13 +103,23 @@ export function blockingText(item: Triage.Item): string {
     : `${item.blocking} pull requests show it as changed`
 }
 
-/** "On triage: Ada until Mon", or undefined without a rotation. */
-export function rotationText(rotation: Triage.Queue['rotation']): string | undefined {
-  if (!rotation.onTriage) return undefined
-  const until = rotation.until
-    ? ` until ${new Date(rotation.until).toLocaleDateString('en', { weekday: 'short' })}`
-    : ''
-  return `On triage: ${rotation.onTriage.name}${until}`
+/**
+ * Who is on triage and until when: "You're on triage until Mon" when it is you, otherwise "On
+ * triage until Mon: Ada" ("On triage: Ada" with no end day); undefined without a rotation.
+ */
+export function rotationText(
+  rotation: Triage.Queue['rotation'],
+  userId?: string,
+): string | undefined {
+  const person = rotation.onTriage
+  if (!person) return undefined
+  const day = rotation.until
+    ? new Date(rotation.until).toLocaleDateString('en', { weekday: 'short' })
+    : undefined
+  if (userId !== undefined && person.id === userId) {
+    return `You're on triage${day ? ` until ${day}` : ''}`
+  }
+  return day ? `On triage until ${day}: ${person.name}` : `On triage: ${person.name}`
 }
 
 // -- Optimistic changes to the cached queue ------------------------------------------------------

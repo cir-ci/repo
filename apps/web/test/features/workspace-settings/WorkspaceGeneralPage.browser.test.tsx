@@ -54,11 +54,11 @@ const triage = () => page.getByRole('region', { name: 'Triage defaults' })
 const inherit = (n: number) =>
   Array.from({ length: n }, (_, i) => project(`project-${i + 1}`, `Project ${i + 1}`))
 const openPicture = () => page.getByRole('button', { name: 'Change picture' }).click()
-const name = () => page.getByRole('textbox', { name: 'Display Name' })
-const slug = () => page.getByRole('textbox', { name: 'URL Slug' })
+const name = () => page.getByRole('textbox', { name: 'Display name' })
+const slug = () => page.getByRole('textbox', { name: 'URL slug' })
 // The ✓ beside each identity field, there only while its text differs from what is saved.
-const saveName = () => page.getByRole('button', { name: 'Save Display Name' })
-const saveSlug = () => page.getByRole('button', { name: 'Save URL Slug' })
+const saveName = () => page.getByRole('button', { name: 'Save Display name' })
+const saveSlug = () => page.getByRole('button', { name: 'Save URL slug' })
 // Save changes belongs to the build settings below (merge gate and triage defaults).
 const save = () => page.getByRole('button', { name: 'Save changes' })
 const flaky = () => page.getByRole('checkbox', { name: /Flaky-only changes block merging/ })
@@ -88,7 +88,7 @@ describe('WorkspaceGeneralPage, the way up', () => {
   it('has no way up for an owner or admin who is not an instance admin', async () => {
     await page.viewport(1000, 900)
     await openAs(false)
-    await expect.element(page.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Display name' })).toBeVisible()
     expect(page.getByRole('link', { name: 'Acme Inc' }).elements()).toHaveLength(0)
   })
 })
@@ -176,11 +176,11 @@ describe('WorkspaceGeneralPage', () => {
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    const section = page.getByRole('region', { name: 'Display Settings' })
+    const section = page.getByRole('region', { name: 'Details' })
     await expect.element(section).toBeVisible()
     await expect.element(section.getByRole('button', { name: 'Change picture' })).toBeVisible()
-    await expect.element(section.getByRole('textbox', { name: 'Display Name' })).toBeVisible()
-    await expect.element(section.getByRole('textbox', { name: 'URL Slug' })).toBeVisible()
+    await expect.element(section.getByRole('textbox', { name: 'Display name' })).toBeVisible()
+    await expect.element(section.getByRole('textbox', { name: 'URL slug' })).toBeVisible()
     // The merge gate defaults are their own sections, not part of this one.
     expect(section.getByRole('checkbox').elements()).toHaveLength(0)
     // The old sections and the Address form are gone.
@@ -263,6 +263,16 @@ describe('WorkspaceGeneralPage', () => {
       await expect.element(merge().getByRole('link', { name: 'Web app' })).toBeVisible()
       await expect.element(merge().getByRole('link', { name: 'Docs' })).toBeVisible()
       await expect.element(merge().getByText('inherit this')).toBeVisible()
+      // Named for what they open, 24px or more, and not overlapping.
+      await expect.element(merge().getByRole('link', { name: "Open Docs's setting" })).toBeVisible()
+      const boxes = merge()
+        .getByRole('link')
+        .elements()
+        .map((el) => el.getBoundingClientRect())
+      for (const box of boxes) expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(24)
+      for (let i = 1; i < boxes.length; i++) {
+        expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right)
+      }
       await merge().getByRole('link', { name: 'Docs' }).hover()
       await expect.element(page.getByRole('tooltip')).toHaveTextContent('Docs')
     })

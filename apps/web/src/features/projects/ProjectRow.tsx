@@ -1,5 +1,5 @@
 import type { Project } from '@circi/api'
-import { Avatar, ListRow, StatusIcon, Text, visuallyHidden } from '@circi/ui'
+import { Avatar, ListRow, StatusIcon, Text } from '@circi/ui'
 
 import { buildState } from '#features/builds/build-state.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -68,13 +68,7 @@ export function ProjectRow({ item: { workspace: owner, project, latestBuild } }:
             {cell?.kind === 'counts' ? (
               <span className={styles.counts}>
                 {cell.counts.map((c) => (
-                  <span key={c.glyph} title={c.title}>
-                    <span aria-hidden="true">
-                      {c.glyph}
-                      {c.count}
-                    </span>
-                    <span style={visuallyHidden}>{c.title}</span>
-                  </span>
+                  <span key={c.glyph}>{c.title}</span>
                 ))}
               </span>
             ) : cell ? (

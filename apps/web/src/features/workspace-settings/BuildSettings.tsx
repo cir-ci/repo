@@ -136,14 +136,27 @@ function Followers({ split, link }: Followers.Props) {
           'No project inherits this'
         ) : (
           <>
-            <ProjectAvatars projects={inheriting} link={link} />
+            <ProjectAvatars
+              projects={inheriting}
+              link={link}
+              size={24}
+              overlap={-4}
+              linkLabel={(project) => `Open ${project.name}'s setting`}
+            />
             {inheriting.length === 1 ? 'inherits this' : 'inherit this'}
           </>
         )}
       </span>
       {overriding.length > 0 ? (
         <span className={styles.followGroup}>
-          <ProjectAvatars projects={overriding} link={link} note={(project) => project.value} />
+          <ProjectAvatars
+            projects={overriding}
+            link={link}
+            size={24}
+            overlap={-4}
+            linkLabel={(project) => `Open ${project.name}'s setting`}
+            note={(project) => project.value}
+          />
           {overriding.length === 1 ? 'sets its own' : 'set their own'}
         </span>
       ) : null}

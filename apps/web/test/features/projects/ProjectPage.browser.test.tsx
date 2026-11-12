@@ -224,38 +224,19 @@ describe('ProjectPage', () => {
     ],
   }
 
-  it('warns about flaky screenshots on the default branch and asks an owner or admin to ignore them (members)', async () => {
+  it('says in one line how many screenshots are flaky and links to Triage, in the flaky colour and glyph', async () => {
     api([build(8)], flakyReport)
     await show()
-    const banner = page.getByRole('status').filter({ hasText: 'are flaky on' })
+    const banner = page.getByRole('status').filter({ hasText: '2 flaky screenshots' })
     await expect.element(banner).toBeVisible()
-    // Drawn in the flaky colour, with the flaky glyph.
     await expect.element(banner).toHaveAttribute('data-tone', 'flaky')
     expect(banner.element().querySelector('[data-status="flaky"]')).not.toBeNull()
+    // The long explanation is not in the banner.
+    expect(banner.element().textContent).not.toMatch(/probably not stable/)
     await expect
-      .poll(() => banner.element().textContent)
-      .toMatch(
-        /clock \(came back to an earlier image 3 times\), nav\/ticker \(differed across 2 runs of one commit\)/,
-      )
-    await expect
-      .poll(() => banner.element().textContent)
-      .toMatch(/Ask an owner or admin of this project to ignore the part that changes\./)
-    expect(banner.element().textContent).not.toMatch(/circi admin/)
-    expect(banner.getByRole('link').elements()).toHaveLength(0)
-  })
-
-  it('links each flaky screenshot to its baseline page, where its ignore regions are, for owners and admins', async () => {
-    api([build(8)], flakyReport, null, true)
-    await show()
-    const banner = page.getByRole('status').filter({ hasText: 'are flaky on' })
-    await expect
-      .element(banner.getByRole('link', { name: 'nav/ticker' }))
-      .toHaveAttribute('href', '/acme/web/baselines/nav/ticker')
-    await expect
-      .element(banner.getByRole('link', { name: 'clock' }))
-      .toHaveAttribute('href', '/acme/web/baselines/clock')
-    await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to ignore/)
-    expect(banner.element().textContent).not.toMatch(/circi admin/)
+      .element(banner.getByRole('link', { name: 'Open Triage' }))
+      .toHaveAttribute('href', '/acme/web/triage')
+    expect(banner.element().getBoundingClientRect().height).toBeLessThan(60)
   })
 
   it('pages back through older builds and returns to the newest', async () => {

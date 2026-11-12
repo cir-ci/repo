@@ -1,6 +1,7 @@
 import type { Baseline, Flaky } from '@circi/api'
 import { flakyReasonText } from '@circi/core'
 import {
+  Badge,
   ContextMenu,
   EmptyState,
   ImagesIcon,
@@ -14,7 +15,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { flakyQuery } from '#features/projects/api/index.ts'
+import { fileUrl } from '#features/builds/api/index.ts'
+import { flakyQuery, ignoreRegionsQuery } from '#features/projects/api/index.ts'
 import { useCrumbNames } from '#features/projects/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
@@ -48,6 +50,11 @@ export function BaselinesPage() {
   const { data } = query
   const flaky = useQuery(flakyQuery(workspace, project))
   const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.reason]))
+  // Marks only for exceptions: flaky ones and ones with ignore regions.
+  const regions = useQuery(ignoreRegionsQuery(workspace, project))
+  const ignoredOf = new Map<string, number>()
+  for (const r of regions.data?.regions ?? [])
+    ignoredOf.set(r.name, (ignoredOf.get(r.name) ?? 0) + 1)
   const [filter, setFilter] = useFindParam()
   const [selectedId, setSelectedId] = useState<string>()
 
@@ -148,10 +155,15 @@ export function BaselinesPage() {
                                     selected={baselineId(item) === selectedId}
                                     {...clientLink(baselineLink(workspace, project, item.name))}
                                     leading={
-                                      <StatusIcon
-                                        status="approved"
-                                        label={`Baseline on ${loaded.project.defaultBranch}`}
-                                      />
+                                      <span className={styles.thumb}>
+                                        {item.thumbnailSha256 ? (
+                                          <img
+                                            src={fileUrl(item.thumbnailSha256)}
+                                            alt=""
+                                            loading="lazy"
+                                          />
+                                        ) : null}
+                                      </span>
                                     }
                                     title={
                                       <>
@@ -179,6 +191,12 @@ export function BaselinesPage() {
                                     }}
                                     trailing={
                                       <>
+                                        {ignoredOf.has(item.name) ? (
+                                          <Badge shape="tag">
+                                            {ignoredOf.get(item.name)} ignored{' '}
+                                            {ignoredOf.get(item.name) === 1 ? 'region' : 'regions'}
+                                          </Badge>
+                                        ) : null}
                                         {flakyOf.has(item.name) ? (
                                           <FlakyChip
                                             reason={flakyOf.get(item.name)!}

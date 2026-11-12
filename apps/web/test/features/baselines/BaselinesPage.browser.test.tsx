@@ -10,6 +10,7 @@ import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/projects/acme/web/baselines'
 const FLAKY = '/api/projects/acme/web/flaky'
+const REGIONS = '/api/projects/acme/web/ignore-regions'
 const noFlaky = json({ builds: 10, flaky: [] })
 const open = () =>
   renderPage(<BaselinesPage />, {
@@ -105,6 +106,36 @@ describe('BaselinesPage', () => {
     })
     await expect.element(page.getByRole('textbox', { name: 'Find baselines' })).toHaveValue('home')
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
+  })
+
+  it('shows a thumbnail per row, no all-green check, and a mark only for ignored regions', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([item('checkout/payment', 'default', 12), item('home', 'default', 9)]),
+      [`GET ${FLAKY}`]: noFlaky,
+      [`GET ${REGIONS}`]: json({
+        regions: [
+          {
+            id: 'r1',
+            name: 'home',
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+            createdAt: 'x',
+            createdBy: null,
+          },
+        ],
+      }),
+    })
+    await open()
+    const rows = page.getByRole('link', { name: /checkout\/payment|home/ })
+    await expect.element(rows.first()).toBeVisible()
+    expect(page.getByRole('img', { name: /Baseline on main/ }).elements()).toHaveLength(0)
+    const thumbs = [...document.querySelectorAll('li a img')]
+    expect(thumbs).toHaveLength(2)
+    expect(thumbs[0]?.getAttribute('src')).toContain('-t')
+    await expect.element(page.getByText('1 ignored region')).toBeVisible()
+    expect(page.getByText('ignored region', { exact: false }).elements()).toHaveLength(1)
   })
 
   it('marks a flaky screenshot with a chip saying why, which opens it in Triage, and shows the age compactly', async () => {

@@ -87,7 +87,7 @@ describe('formatting', () => {
 describe('delta', () => {
   it('says whether a move is better', () => {
     expect(delta(3, 6, { better: 'lower' })).toMatchObject({
-      text: '▼ 50%',
+      text: '▼ 50% less',
       tone: 'good',
       label: 'Down 50%, better',
     })
@@ -97,15 +97,15 @@ describe('delta', () => {
 
   it('writes durations with hours and a percentage, counts plain, rates in points', () => {
     expect(delta(3.4, 6.1, { better: 'lower', unit: 'hours' })).toMatchObject({
-      text: '▼ 2.7h · 44%',
+      text: '▼ 2.7h less · 44%',
       label: 'Down 2.7 hours, better',
     })
     expect(delta(31, 22, { better: 'lower', unit: 'count' })).toMatchObject({
-      text: '▲ 9',
+      text: '▲ 9 more',
       label: 'Up 9, worse',
     })
     expect(delta(0.97, 0.95, { better: 'higher', unit: 'points' })).toMatchObject({
-      text: '▲ 2 points',
+      text: '▲ 2 points higher',
       tone: 'good',
     })
   })
@@ -183,6 +183,14 @@ describe('chart data', () => {
     expect(outcomeSentence(bars[0]!)).toBe('44 approved, 59 auto-approved, 0 rejected, 4 failed')
     expect(empty).toBe(false)
     expect(outcomeStacks([emptyWeek('2026-11-02T00:00:00Z')]).empty).toBe(true)
+    // The axis fits the data: a peak of 5 reaches 6, not 40.
+    expect(
+      outcomeStacks([
+        week('2026-11-02T00:00:00Z', {
+          outcomes: { approved: 3, autoApproved: 2, rejected: 0, failed: 0 },
+        }),
+      ]).top,
+    ).toBe(6)
   })
 
   it('puts the decision axis at the next 10 above the 90th percentile, and breaks lines at gaps', () => {
@@ -202,8 +210,8 @@ describe('chart data', () => {
     const { top, bars } = failedBars([week('2026-11-02T00:00:00Z', { failedBuilds: 5 })])
     expect(top).toBe(6)
     expect(bars[0]?.height).toBeCloseTo(83.3, 0)
-    expect(failedDelta(31, 22)).toMatchObject({ text: '▲ 9 vs before', tone: 'bad' })
-    expect(failedDelta(19, 22)).toMatchObject({ text: '▼ 3 vs before', tone: 'good' })
+    expect(failedDelta(31, 22)).toMatchObject({ text: '▲ 9 more than before', tone: 'bad' })
+    expect(failedDelta(19, 22)).toMatchObject({ text: '▼ 3 fewer than before', tone: 'good' })
     expect(failedDelta(2, 2)).toMatchObject({ text: '● same as before', tone: 'neutral' })
   })
 
@@ -259,7 +267,7 @@ describe('summary tiles', () => {
     expect(t[0]).toMatchObject({
       value: '3.4h',
       note: '90th percentile 11h, vs the 90 days before',
-      delta: { text: '▼ 2.7h · 44%' },
+      delta: { text: '▼ 2.7h less · 44%' },
     })
     expect(t[1]).toMatchObject({
       value: '7.8h',
@@ -272,7 +280,7 @@ describe('summary tiles', () => {
     expect(t[4]?.note).toBe('92 of 400 finished builds')
     expect(t[5]).toMatchObject({
       value: '31',
-      delta: { text: '▲ 9', tone: 'bad' },
+      delta: { text: '▲ 9 more', tone: 'bad' },
       note: '7.2% of finished builds',
     })
   })
@@ -309,10 +317,10 @@ describe('the flaky delta', () => {
   it('says how many fewer or more since the first week, grey when equal', () => {
     expect(
       flakyDelta([w('2026-10-26T00:00:00.000Z', 12), w('2026-11-02T00:00:00.000Z', 7)]),
-    ).toMatchObject({ text: '▼ 5 since W44', tone: 'good' })
+    ).toMatchObject({ text: '▼ 5 fewer since W44', tone: 'good' })
     expect(
       flakyDelta([w('2026-10-26T00:00:00.000Z', 2), w('2026-11-02T00:00:00.000Z', 3)]),
-    ).toMatchObject({ text: '▲ 1 since W44', tone: 'bad' })
+    ).toMatchObject({ text: '▲ 1 more since W44', tone: 'bad' })
     expect(
       flakyDelta([w('2026-10-26T00:00:00.000Z', 4), w('2026-11-02T00:00:00.000Z', 4)]),
     ).toMatchObject({ tone: 'neutral' })

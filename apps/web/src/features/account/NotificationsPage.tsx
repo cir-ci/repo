@@ -67,7 +67,7 @@ export function NotificationsPage() {
           {installed ? <PushSection preferences={data} /> : null}
           <SettingsSection
             title="Email"
-            description="Only the two things that need you soon can be emailed. Switches save as soon as you flip them."
+            description="Only the two things that need you soon can be emailed."
             bare={!mailConfigured}
           >
             {mailConfigured ? (

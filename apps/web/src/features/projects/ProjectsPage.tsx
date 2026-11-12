@@ -146,16 +146,19 @@ export function ProjectsPage() {
                     </section>
                   )
                 })}
-                <section className={styles.connect} aria-labelledby="projects-connect">
-                  <p id="projects-connect" className={styles.connectTitle}>
-                    Connect a CI job
-                  </p>
-                  <Text as="p" variant="small" tone="secondary">
-                    Each project gets a token. Upload screenshots after your tests run and CirCI
-                    compares them with the default branch.
-                  </Text>
-                  <pre className={styles.code}>npx circi upload ./screenshots --wait</pre>
-                </section>
+                {/* Only until something has been uploaded: after that the person knows how. */}
+                {projects.some((p) => p.latestBuild) ? null : (
+                  <section className={styles.connect} aria-labelledby="projects-connect">
+                    <p id="projects-connect" className={styles.connectTitle}>
+                      Connect a CI job
+                    </p>
+                    <Text as="p" variant="small" tone="secondary">
+                      Each project gets a token. Upload screenshots after your tests run and CirCI
+                      compares them with the default branch.
+                    </Text>
+                    <pre className={styles.code}>npx circi upload ./screenshots --wait</pre>
+                  </section>
+                )}
               </>
             )
           }

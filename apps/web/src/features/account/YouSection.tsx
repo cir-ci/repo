@@ -29,7 +29,7 @@ export function YouSection({ user }: YouSection.Props) {
 
   return (
     <div className={styles.form}>
-      <SettingsSection title="Display Settings">
+      <SettingsSection title="Details">
         <SettingsRow>
           <IdentityFields
             avatar={
@@ -52,7 +52,7 @@ export function YouSection({ user }: YouSection.Props) {
             }
           >
             <CheckedTextField
-              label="Display Name"
+              label="Display name"
               name="name"
               autoComplete="name"
               saved={user.name}
