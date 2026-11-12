@@ -337,7 +337,8 @@ describe('the viewer', () => {
     await expect.element(page.getByRole('menuitemcheckbox', { name: 'Checkerboard' })).toBeVisible()
   })
 
-  it('keeps the toolbar to one row at 1280px, with no hint text in it', async () => {
+  it('keeps the toolbar to one row when the viewer has room, with no hint text in it', async () => {
+    await page.viewport(1700, 900)
     const api = fakeBuildApi(detail())
     api.canManage = true
     await renderBuild()
@@ -345,6 +346,17 @@ describe('the viewer', () => {
     expect(page.getByText(/^Drag on an image/).elements()).toHaveLength(0)
     const toolbar = viewerTitle().element().closest('[class*="toolbar"]')
     expect(toolbar?.getBoundingClientRect().height).toBeLessThanOrEqual(48)
+  })
+
+  it('keeps the screenshot name readable when the viewer is narrow: the controls take a row of their own', async () => {
+    await page.viewport(1100, 900)
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const name = viewerTitle().element()
+    expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      Math.min(96, name.scrollWidth),
+    )
   })
 
   it('lists dragging on an image in the keyboard shortcuts', async () => {

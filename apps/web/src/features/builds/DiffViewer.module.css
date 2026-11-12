@@ -33,8 +33,9 @@
 
 .title {
   display: flex;
-  /* Small enough that the controls and the name share one row at 1280px; the name truncates. */
-  flex: 1 1 88px;
+  /* The name stays readable (at least about 180px with its summary); the controls share its row
+     while they fit beside that, and take a row of their own when the viewer is narrower. */
+  flex: 1 1 180px;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -42,13 +43,15 @@
 
 .name {
   composes: truncate from '@circi/ui/utilities.module.css';
-  min-width: 0;
+  flex: 0 1 auto;
+  min-width: 96px;
   margin: 0;
 }
 
 .summary {
   composes: truncate from '@circi/ui/utilities.module.css';
-  flex: 0 1 auto;
+  /* Gives way before the name does. */
+  flex: 0 100 auto;
   min-width: 0;
 }
 
