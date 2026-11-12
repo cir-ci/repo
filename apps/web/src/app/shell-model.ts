@@ -116,18 +116,6 @@ export function sidebarProjects(
   return { shown, total: all.length }
 }
 
-/**
- * The project the phone's Triage tab and More sheet's Baselines open: the open one, else the first
- * with something to triage, else the first (pinned ones first).
- */
-export function phoneProject(
-  projects: readonly Sidebar.Project[] | undefined,
-  open?: string,
-): Sidebar.Project | undefined {
-  const ordered = orderProjects(projects ?? [])
-  return ordered.find((t) => t.slug === open) ?? ordered.find((t) => t.triage > 0) ?? ordered[0]
-}
-
 /** One of your projects, in whichever workspace, as the phone's Projects tab and sheet show it. */
 export interface YourProject {
   workspace: { slug: string; name: string }

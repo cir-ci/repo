@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { NavToggleButton } from '#app/NavToggle.tsx'
 import { PhoneEnd } from '#app/PhoneHeader.tsx'
-import { PhoneProjectTabs } from '#app/PhoneProjectTabs.tsx'
+import { PhoneProjectTabs, usePhoneProjectTabs } from '#app/PhoneProjectTabs.tsx'
 
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
@@ -75,9 +75,23 @@ export function PageHeading({
           </div>
         ) : null}
       </PanelHeader>
-      <PhoneProjectTabs />
-      {phone && find ? <div className={styles.find}>{find}</div> : null}
+      {phone ? <PhoneFindRow find={find} /> : null}
     </>
+  )
+}
+
+/**
+ * A phone's row under the page header: the page's find field, and on a project's pages the icons
+ * of its pages (Builds, Triage, Baselines) on its right. Nothing when the page has neither.
+ */
+function PhoneFindRow({ find }: { find: ReactNode }) {
+  const tabs = usePhoneProjectTabs()
+  if (!find && !tabs) return null
+  return (
+    <div className={styles.find}>
+      {find ? <div className={styles.findField}>{find}</div> : null}
+      {tabs ? <PhoneProjectTabs /> : null}
+    </div>
   )
 }
 

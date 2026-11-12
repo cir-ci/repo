@@ -1,10 +1,19 @@
-/* A phone: the find field is a full-width row under the page header, not part of the sticky bar. */
+/* A phone: a row under the page header, not part of the sticky bar: the find field takes the row,
+   and on a project's pages the icons of its pages sit on its right. */
 .find {
-  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
   border-bottom: 1px solid var(--circi-line-subtle);
 }
 
-.find > * {
+.findField {
+  flex: 1;
+  min-width: 0;
+}
+
+.findField > * {
   width: 100%;
 }
 

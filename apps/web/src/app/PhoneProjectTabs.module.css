@@ -1,6 +1,29 @@
-/* A strip under the page header, not a panel host: the page below is the content. */
+/* Icons beside the find field, not a panel host: the page below is the content. */
 .root {
   flex: none;
+}
+
+/* A compact strip: no padding or rule of its own (the row has them), icon-sized tabs. */
+.tabs > [role='tablist'] {
+  gap: 2px;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.tabs [role='tab'] {
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+}
+
+.icon {
+  display: inline-flex;
+}
+
+.icon > svg {
+  width: 18px;
+  height: 18px;
 }
 
 .panel {

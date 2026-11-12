@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { PageHeading, PageTitle, projectCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { fakeApi } from '#test/support/fetch.ts'
+import { sidebarModel } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 describe('PageHeading', () => {
@@ -105,6 +107,24 @@ describe('PageHeading on a phone, with a count after the title', () => {
         middle(page.getByRole('button', { name: 'Search' }).element()) - middle(title.element()),
       ),
     ).toBeLessThan(4)
+  })
+})
+
+describe('PageHeading on a phone, on a project page', () => {
+  it("puts the find field and the project's page icons on one row, the icons on the right", async () => {
+    fakeApi({ 'GET /api/workspaces/acme/sidebar': { body: sidebarModel({ projects: [] }) } })
+    await renderPage(<PageHeading title="Builds" find={<input aria-label="Find builds" />} />, {
+      route: '/$workspace/$project',
+      url: '/acme/web-app',
+      viewport: [390, 844],
+    })
+    const pages = page.getByRole('tablist', { name: 'Project pages' })
+    await expect.element(pages).toBeVisible()
+    const find = page.getByRole('textbox', { name: 'Find builds' }).element()
+    expect(Math.abs(middle(find) - middle(pages.element()))).toBeLessThan(4)
+    expect(pages.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(
+      find.getBoundingClientRect().right,
+    )
   })
 })
 

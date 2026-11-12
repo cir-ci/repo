@@ -1137,7 +1137,8 @@ describe('Shell, narrow', () => {
       if (!(label instanceof HTMLElement)) throw new Error('the tab has no label')
       expect(getComputedStyle(label).textOverflow).toBe('ellipsis')
       expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
-      expect(tab.element().getBoundingClientRect().width).toBeLessThanOrEqual(390 / 5 + 1)
+      // Four tabs share the bar: Inbox, Projects, Reviews, More.
+      expect(tab.element().getBoundingClientRect().width).toBeLessThanOrEqual(390 / 4 + 1)
     })
 
     it('opens a menu of your projects: pinned first, then by workspace, with triage counts', async () => {
@@ -1463,13 +1464,15 @@ describe('Shell, phone', () => {
     await page.viewport(390, 844)
     await renderShell('/inbox')
     await expect.element(tabs()).toBeVisible()
-    // Reviews and Triage are links once the sidebar model says which workspace and project.
-    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(3)
+    // Reviews is a link once the sidebar model says which workspace. No Triage: a project's
+    // Triage is one of its page icons beside the find field.
+    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(2)
     const names = tabs()
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
-    expect(names).toEqual(['3Inbox, 3 unread', '2Reviews, 2 waiting', 'Triage'])
+    expect(names).toEqual(['3Inbox, 3 unread', '2Reviews, 2 waiting'])
+    expect(tabs().getByText('Triage').elements()).toHaveLength(0)
     // Projects opens a sheet, like More.
     await expect.element(tabs().getByRole('button', { name: 'Projects' })).toBeVisible()
     await expect
@@ -1491,10 +1494,10 @@ describe('Shell, phone', () => {
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 
-  it('moves between Inbox, Reviews and Triage without a reload', async () => {
+  it('moves between Inbox and Reviews without a reload', async () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/inbox')
-    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(3)
+    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(2)
     await tabs()
       .getByRole('link', { name: /^Reviews/ })
       .click()
@@ -1502,8 +1505,26 @@ describe('Shell, phone', () => {
     await expect
       .element(tabs().getByRole('link', { name: /^Reviews/ }))
       .toHaveAttribute('aria-current', 'page')
-    await tabs().getByRole('link', { name: 'Triage' }).click()
-    // The first project with work waiting.
+  })
+
+  it("puts a project's pages as icons beside its find field, and they open those pages", async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderShell('/acme/web-app')
+    const pages = page.getByRole('tablist', { name: 'Project pages' })
+    await expect.element(pages).toBeVisible()
+    // Icons, named for their pages.
+    const names = pages
+      .getByRole('tab')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual(['Builds', 'Triage', 'Baselines'])
+    for (const tab of pages.getByRole('tab').elements()) {
+      expect(tab.querySelector('svg')).not.toBeNull()
+    }
+    await expect
+      .element(pages.getByRole('tab', { name: 'Builds' }))
+      .toHaveAttribute('aria-selected', 'true')
+    await pages.getByRole('tab', { name: 'Triage' }).click()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
   })
 

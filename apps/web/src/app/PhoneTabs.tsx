@@ -4,12 +4,11 @@ import {
   BottomBarItem,
   FolderOpenIcon,
   InboxIcon,
-  ListChecksIcon,
   Menu,
   RowMenuIcon,
   ReviewsIcon,
 } from '@circi/ui'
-import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import type { MouseEvent } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
@@ -23,7 +22,6 @@ import {
   countOrUndefined,
   currentSection,
   goPath,
-  phoneProject,
   projectSections,
   PROJECT_STACK_LIMIT,
   projectsTabLabel,
@@ -31,33 +29,26 @@ import {
 } from './shell-model.ts'
 
 /**
- * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Projects, Reviews, Triage and
- * More, with the sidebar's counts. Inbox, Reviews and Triage are real links that navigate through
- * the router. Projects shows up to three of your projects' tiles (its label is the project's name when
+ * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Projects, Reviews and More,
+ * with the sidebar's counts. Inbox and Reviews are real links that navigate through the router;
+ * a project's Triage is one of its page icons beside the find field (`PhoneProjectTabs`). Projects shows up to three of your projects' tiles (its label is the project's name when
  * you are in exactly one) and opens a menu of your projects; More opens the sheet
  * of the rest, with the workspace switcher (`PhoneMore`).
  */
 export function PhoneTabs() {
   const navigate = useNavigate()
-  const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const { data: model } = useSidebarModel(workspace?.slug)
   const moreOpen = useOverlayStore((s) => s.moreOpen)
   const setMoreOpen = useOverlayStore((s) => s.setMoreOpen)
-  const project = phoneProject(model?.projects, params.project)
   const projects = useYourProjects()
   const projectsOpen = useOverlayStore((s) => s.projectsOpen)
   const setProjectsOpen = useOverlayStore((s) => s.setProjectsOpen)
   const projectItems = projectMenuItems(projects, (href) => void navigate({ href }))
 
   const reviews = goPath('reviews', { workspace: workspace?.slug })
-  const triage = goPath('triage', {
-    workspace: workspace?.slug,
-    project: project?.slug,
-    projects: model?.projects,
-  })
   const inbox = countOrUndefined(model?.inboxUnread)
   const waiting = countOrUndefined(model?.reviews)
 
@@ -93,6 +84,7 @@ export function PhoneTabs() {
               projectsOpen ||
               section === 'projects' ||
               section === 'builds' ||
+              section === 'triage' ||
               section === 'baselines' ||
               section === 'sites'
             }
@@ -108,13 +100,6 @@ export function PhoneTabs() {
         {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}
       >
         Reviews
-      </BottomBarItem>
-      <BottomBarItem
-        icon={<ListChecksIcon />}
-        {...(triage ? { href: triage, onClick: go(triage) } : {})}
-        selected={section === 'triage'}
-      >
-        Triage
       </BottomBarItem>
       <BottomBarItem
         icon={<RowMenuIcon />}

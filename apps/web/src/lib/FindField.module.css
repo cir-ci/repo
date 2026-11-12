@@ -28,6 +28,11 @@
 /* A phone: a find field is 36px high (not the 44px of a form field) and the text stays 16px, so
    iOS doesn't zoom in on focus. */
 @media (max-width: 819.98px) {
+  /* Its row under the page header is the whole width (beside a project's page icons). */
+  .root {
+    width: 100%;
+  }
+
   .root input {
     height: 36px;
     font-size: 16px;
