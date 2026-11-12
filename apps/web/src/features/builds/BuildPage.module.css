@@ -1,7 +1,9 @@
-/* The build page's frame: header, a strip of context, then the list beside the viewer. */
+/* The build page's frame: header, a strip of context, then the list beside the viewer. It fills
+   the panel's scroller at least and grows with its content (never squeezed to the window: below
+   1100px the sidebar stacks under the viewer and the scroller scrolls them). */
 .page {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   flex-direction: column;
   min-width: 0;
 }
@@ -17,7 +19,7 @@
 .body {
   position: relative;
   display: grid;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   grid-template-columns: var(--circi-rail-width, 240px) minmax(0, 1fr) var(
       --circi-side-width,
       340px
@@ -55,7 +57,9 @@
 @media (max-width: 1099.98px) {
   .body {
     grid-template-columns: var(--circi-rail-width, 240px) minmax(0, 1fr);
-    grid-template-rows: minmax(min-content, 1fr) auto;
+    /* The viewer's row is at least its content's height (its screenshot area could otherwise
+       shrink to nothing and draw over the sidebar's row). */
+    grid-template-rows: minmax(max-content, 1fr) auto;
   }
 
   /* The sidebar's row runs under the list here: a sticky list would ride over it. */

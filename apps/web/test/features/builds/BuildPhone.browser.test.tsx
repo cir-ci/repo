@@ -265,7 +265,7 @@ const mid = (el: Element) => {
 }
 
 describe('the build page header on a desktop', () => {
-  it('keeps the buttons on the title line and moves the status chips under them when short of room', async () => {
+  it('keeps the buttons on the title line; the status chips sit beside them, or on a line of their own on the left', async () => {
     fakeBuildApi(detail())
     await page.viewport(1700, 900)
     await renderBuild()
@@ -273,27 +273,21 @@ describe('the build page header on a desktop', () => {
     const approve = page.getByRole('button', { name: /^Approve$/ })
     await expect.element(approve).toBeVisible()
     const chip = page.getByText('Needs review', { exact: true }).first()
-    // Room enough: one line, the chips beside the buttons, on their left.
+    // Room enough: one line, the chips just left of the buttons.
     expect(Math.abs(mid(chip.element()) - mid(approve.element()))).toBeLessThan(4)
     expect(chip.element().getBoundingClientRect().right).toBeLessThan(
       approve.element().getBoundingClientRect().left,
     )
-    // Short of room (narrower by the free room and half the chips): the buttons stay on the
-    // title's line; the chips take the line under them.
-    const chips = document
-      .querySelector('[data-header-status] > :last-child')!
-      .getBoundingClientRect()
-    // What follows the title (its branch) ends the left side.
-    const left = document.querySelector('[data-header-row]') ?? title.element()
-    const free = chips.left - left.getBoundingClientRect().right
-    await page.viewport(Math.round(1700 - free - chips.width / 2), 900)
+    // Short of room: the buttons keep the title's line (the crumbs give way); the chips take a
+    // line of their own under it, starting on the left.
+    await page.viewport(900, 900)
     await expect
       .poll(() => chip.element().getBoundingClientRect().top)
       .toBeGreaterThan(approve.element().getBoundingClientRect().bottom - 1)
-    expect(
-      Math.abs(
-        approve.element().getBoundingClientRect().top - title.element().getBoundingClientRect().top,
-      ),
-    ).toBeLessThan(12)
+    expect(Math.abs(mid(approve.element()) - mid(title.element()))).toBeLessThan(4)
+    const header = approve.element().closest('header')!.getBoundingClientRect()
+    expect(chip.element().getBoundingClientRect().left - header.left).toBeLessThan(40)
+    // Nothing spills past the header.
+    expect(approve.element().getBoundingClientRect().right).toBeLessThanOrEqual(header.right)
   })
 })

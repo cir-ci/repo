@@ -87,6 +87,17 @@
   min-height: min(50vh, 100%);
 }
 
+/* Stacked (under 1100px, the sidebar under the viewer and the page scrolling as one column): the
+   screenshots' area is its content's height (shrinking only to keep the viewer within the window),
+   so the viewer's row holds all of it and nothing draws over the sidebar below. */
+@media (max-width: 1099.98px) {
+  .area,
+  .ground {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+}
+
 /* The ground is plain; the Checkerboard toggle makes it a checkerboard, so transparent pixels and
    size-change padding show. */
 .ground {

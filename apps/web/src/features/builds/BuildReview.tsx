@@ -345,7 +345,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         void navigate({ search: (prev) => ({ ...prev, shot: name }), replace: true })
         setFocusedComment(id)
       }}
-      onRequestReview={() => setRequesting(true)}
     />
   )
 

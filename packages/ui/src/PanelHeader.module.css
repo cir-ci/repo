@@ -21,6 +21,16 @@
   flex: 1;
 }
 
+/* A page with status chips (`data-header-status`) fills the room with its crumbs instead, so the
+   chips sit right beside the buttons. */
+.root:has(> [data-header-status]) > .spacer {
+  display: none;
+}
+
+.root:has(> [data-header-status]) > .actions {
+  margin-left: auto;
+}
+
 /*
  * The page's actions are one group: beside the crumbs it sits at the right (the spacer pushes it
  * there); when it doesn't fit, the whole group moves to the next line and starts at the left,
@@ -34,21 +44,6 @@
   align-items: center;
   gap: inherit;
   max-width: 100%;
-}
-
-/* With chips about the page's state among the actions (`data-header-status`), the actions take
-   the line's room left after the title, never less than the buttons, so the buttons stay on the
-   title's line and the chips wrap under them first. */
-/* ...and the title lines up with the buttons' line, not the middle of both lines. */
-.root:has(> .actions [data-header-status]) {
-  align-items: first baseline;
-}
-
-.actions:has([data-header-status]) {
-  /* Nearly all of the free room, so the spacer doesn't keep half of it from the chips. */
-  flex: 999 1 0;
-  justify-content: flex-end;
-  min-width: min-content;
 }
 
 /* A phone: one compact row (the menu and search buttons live in it). Its controls are 36px with a

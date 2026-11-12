@@ -1,5 +1,5 @@
 import { Breadcrumbs, PanelHeader, visuallyHidden } from '@circi/ui'
-import type { ReactNode } from 'react'
+import { type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 
 import { NavToggleButton } from '#app/NavToggle.tsx'
 import { PhoneEnd } from '#app/PhoneHeader.tsx'
@@ -46,28 +46,22 @@ export function PageHeading({
 }: PageHeading.Props) {
   const clientLink = useClientLink()
   const phone = usePhone()
+  const statusRef = useRef<HTMLDivElement>(null)
+  const statusRow = useStatusRow(statusRef, Boolean(status))
   return (
     <PanelHeader
       below={phone ? <PhoneFindRow find={find} /> : null}
       actions={
         <>
           {phone ? null : find}
-          {status ? (
-            // The buttons first, so they keep the title's line; the chips are drawn to their left
-            // and, when they don't fit there, take the line under the buttons.
-            <div className={styles.withStatus} data-header-status="">
-              <div className={styles.buttons}>{actions}</div>
-              <div className={styles.status}>{status}</div>
-            </div>
-          ) : (
-            actions
-          )}
+          {actions}
           <PhoneEnd />
         </>
       }
     >
       <NavToggleButton />
       <Breadcrumbs
+        {...(status ? { className: styles.shrinkCrumbs } : {})}
         currentIsHeading={!headingInPage}
         items={[
           ...crumbs.map((crumb) => ({
@@ -80,12 +74,75 @@ export function PageHeading({
       />
       {after ? (
         // Beside the title; with `afterOwnRow`, on a phone a row of its own under it.
-        <div className={styles.after} data-header-row={afterOwnRow ? '' : undefined}>
+        <div
+          className={status ? `${styles.after} ${styles.shrinkAfter}` : styles.after}
+          data-header-row={afterOwnRow ? '' : undefined}
+        >
           {after}
+        </div>
+      ) : null}
+      {status ? (
+        // Beside the buttons while the whole line fits; otherwise a line of its own, on the left
+        // under the title. The buttons keep the title's line either way (the crumbs give way).
+        <div
+          ref={statusRef}
+          className={styles.status}
+          data-header-status=""
+          data-row={statusRow ? '' : undefined}
+        >
+          {status}
         </div>
       ) : null}
     </PanelHeader>
   )
+}
+
+/**
+ * Whether the page's status chips need a line of their own: when the title (at its full width),
+ * what follows it, the chips and the buttons don't all fit on one line. Measured from the items'
+ * natural widths, so the answer doesn't depend on where the chips are now; again whenever the
+ * header resizes or the chips change.
+ */
+function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): boolean {
+  const [row, setRow] = useState(false)
+  useLayoutEffect(() => {
+    const status = ref.current
+    const header = status?.closest<HTMLElement>('[data-panel-header]')
+    if (!enabled || !status || !header) return undefined
+    const measure = () => setRow(lineOverflows(header))
+    measure()
+    const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    resize?.observe(header)
+    const changes = new MutationObserver(measure)
+    changes.observe(status, { childList: true, subtree: true, characterData: true })
+    return () => {
+      resize?.disconnect()
+      changes.disconnect()
+    }
+  }, [ref, enabled])
+  return row
+}
+
+/** Whether the header's items, each at its natural width, are wider than one line of it. */
+function lineOverflows(header: HTMLElement): boolean {
+  const style = getComputedStyle(header)
+  const room =
+    header.clientWidth -
+    Number.parseFloat(style.paddingLeft) -
+    Number.parseFloat(style.paddingRight)
+  const gap = Number.parseFloat(style.columnGap) || 0
+  const items = [...header.children].filter(
+    (el): el is HTMLElement => el instanceof HTMLElement && getComputedStyle(el).display !== 'none',
+  )
+  let total = gap * Math.max(0, items.length - 1)
+  for (const el of items) {
+    const before = el.style.cssText
+    el.style.flex = 'none'
+    el.style.width = 'max-content'
+    total += el.getBoundingClientRect().width
+    el.style.cssText = before
+  }
+  return total > room + 0.5
 }
 
 /**

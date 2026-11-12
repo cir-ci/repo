@@ -36,6 +36,12 @@ describe('the build page at desktop, in the app frame', () => {
     const [viewer, discussion] = [body.children[1]!, body.lastElementChild!]
     const main = page.getByRole('main').element()
     const header = document.querySelector('header')!
+    // The header's height reaches the panel (its chips may take a line of their own) after a frame.
+    await expect
+      .poll(() =>
+        main.closest<HTMLElement>('[data-panel]')?.style.getPropertyValue('--circi-panel-top'),
+      )
+      .toContain(`${box(main.previousElementSibling!).height}px`)
     expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
     const stuck = () => [list.element(), viewer, discussion].map((el) => box(el).top)
     // Under the header from the start, and the scroller itself starts under the header.
@@ -49,5 +55,35 @@ describe('the build page at desktop, in the app frame', () => {
       expect(box(el).top).toBeGreaterThanOrEqual(box(main).top - 1)
       expect(box(el).top).toBeLessThanOrEqual(box(main).top + 1)
     }
+  })
+})
+
+describe('the build page under 1100px, in the app frame', () => {
+  it('stacks the Discussion under the viewer, holding all of the viewer, and scrolls them as one', async () => {
+    fakeBuildApi(detail())
+    await renderPage(
+      <AppFrame sidebar={<span>Side</span>}>
+        <BuildPage />
+      </AppFrame>,
+      {
+        route: '$workspace/$project/builds/$number',
+        url: '/acme/web-app/builds/7',
+        announcer: true,
+        validateSearch: validateBuildSearch,
+        viewport: [1000, 700],
+      },
+    )
+    const discussion = page.getByRole('complementary', { name: 'Build discussion' })
+    await expect.element(discussion).toBeVisible()
+    const list = page.getByRole('navigation', { name: 'Screenshots' }).element()
+    const viewer = list.parentElement!.children[1]!
+    // The viewer's row holds all of the viewer: nothing of it draws over the Discussion below.
+    await expect.poll(() => viewer.scrollHeight).toBeLessThanOrEqual(box(viewer).height + 1)
+    expect(box(discussion.element()).top).toBeGreaterThanOrEqual(box(viewer).bottom - 1)
+    // The Discussion is opaque and above the list's resize line.
+    expect(getComputedStyle(discussion.element()).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    // The page is taller than the panel and the panel scrolls it.
+    const main = page.getByRole('main').element()
+    expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
   })
 })

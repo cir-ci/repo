@@ -13,7 +13,7 @@
 /* Under 1100px it closes the page's column at its natural height: the page scrolls, not the sidebar. */
 @media (max-width: 1099.98px) {
   .sidebar {
-    position: static;
+    position: relative;
     max-height: none;
     border-top: 1px solid var(--circi-line-subtle);
   }
@@ -210,10 +210,12 @@
   border-color: var(--circi-state-failed);
 }
 
-/* Below 1100px the sidebar drops under the viewer instead of squeezing it. */
+/* Below 1100px the sidebar drops under the viewer instead of squeezing it, drawn over the list's
+   resize line (which runs the body's full height). */
 @media (max-width: 1099.98px) {
   .sidebar {
-    position: static;
+    position: relative;
+    z-index: 4;
     max-height: none;
     border-inline-start: 0;
     border-top: 1px solid var(--circi-line-subtle);

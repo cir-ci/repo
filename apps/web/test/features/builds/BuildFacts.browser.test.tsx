@@ -55,7 +55,7 @@ describe('the build header', () => {
 })
 
 describe('the Details tab', () => {
-  it('lists the build facts: status, reviewers, review target, pull request and watchers', async () => {
+  it("lists only what the page doesn't already show: reviewers and watchers, not the state, target, PR, branch, commit, baseline or upload", async () => {
     const api = fakeBuildApi(
       detail(
         {},
@@ -80,31 +80,28 @@ describe('the Details tab', () => {
     ]
     await renderBuild()
     const dl = facts()
-    await expect.element(dl.getByText('Status', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText('Needs review')).toBeVisible()
     await expect.element(dl.getByText('Grace Hopper', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText('21h left of 24h')).toBeVisible()
-    await expect.element(dl.getByText('acme/web-app#412')).toBeVisible()
     await expect.element(dl.getByText("3 · you're watching")).toBeVisible()
-    // The existing rows stay.
-    await expect.element(dl.getByText('Branch', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText('Commit', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText('Compared with', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText('Uploaded', { exact: true })).toBeVisible()
+    // The header and the strip under it show these already.
+    for (const label of [
+      'Status',
+      'Review target',
+      'Pull request',
+      'Branch',
+      'Commit',
+      'Compared with',
+      'Uploaded',
+    ]) {
+      expect(dl.getByText(label, { exact: true }).elements()).toHaveLength(0)
+    }
+    expect(page.getByRole('button', { name: 'Request a review' }).elements()).toHaveLength(0)
   })
 
-  it('says how late a review is, against the target', async () => {
-    fakeBuildApi(detail({}, { reviewTarget: { hours: 24, dueAt: inHours(-3) } }))
-    await renderBuild()
-    await expect.element(facts().getByText('Overdue 3h, past the 24h target')).toBeVisible()
-  })
-
-  it('leaves out "you\'re watching" for someone who isn\'t notified, and the pull request when there is none', async () => {
+  it('leaves out "you\'re watching" for someone who isn\'t notified', async () => {
     fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper' }], pullRequest: null }))
     await renderBuild()
     await expect.element(facts().getByText('1', { exact: true })).toBeVisible()
     expect(page.getByText("you're watching").elements()).toHaveLength(0)
-    expect(facts().getByText('Pull request').elements()).toHaveLength(0)
   })
 
   it('titles the decisions list "By screenshot"', async () => {
