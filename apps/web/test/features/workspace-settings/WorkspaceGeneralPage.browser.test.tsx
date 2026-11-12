@@ -251,17 +251,23 @@ describe('WorkspaceGeneralPage', () => {
     expect(saveSlug().elements()).toHaveLength(0)
     await expect.element(save()).toBeDisabled()
     // The merge gate default says who follows it and who sets their own, as project avatars.
-    await expect.element(page.getByRole('link', { name: 'Web app' }).first()).toBeVisible()
+    await expect
+      .element(page.getByRole('link', { name: "Open Web app's setting" }).first())
+      .toBeVisible()
     await expect.element(page.getByText('inherits this').first()).toBeVisible()
-    await expect.element(page.getByRole('link', { name: 'marketing-site' }).first()).toBeVisible()
+    await expect
+      .element(page.getByRole('link', { name: "Open marketing-site's setting" }).first())
+      .toBeVisible()
     await expect.element(page.getByText('sets its own').first()).toBeVisible()
   })
 
   describe('projects under the defaults', () => {
     it('shows each inheriting project as an avatar link named after it, with its name in a tooltip', async () => {
       await open([project('web', 'Web app'), project('docs', 'Docs')])
-      await expect.element(merge().getByRole('link', { name: 'Web app' })).toBeVisible()
-      await expect.element(merge().getByRole('link', { name: 'Docs' })).toBeVisible()
+      await expect
+        .element(merge().getByRole('link', { name: "Open Web app's setting" }))
+        .toBeVisible()
+      await expect.element(merge().getByRole('link', { name: "Open Docs's setting" })).toBeVisible()
       await expect.element(merge().getByText('inherit this')).toBeVisible()
       // Named for what they open, 24px or more, and not overlapping.
       await expect.element(merge().getByRole('link', { name: "Open Docs's setting" })).toBeVisible()
@@ -273,20 +279,20 @@ describe('WorkspaceGeneralPage', () => {
       for (let i = 1; i < boxes.length; i++) {
         expect(boxes[i]!.left).toBeGreaterThanOrEqual(boxes[i - 1]!.right)
       }
-      await merge().getByRole('link', { name: 'Docs' }).hover()
+      await merge().getByRole('link', { name: "Open Docs's setting" }).hover()
       await expect.element(page.getByRole('tooltip')).toHaveTextContent('Docs')
     })
 
     it('goes to the project’s merge gate setting from the merge gate defaults', async () => {
       const { router } = await open([project('web', 'Web app')])
-      await merge().getByRole('link', { name: 'Web app' }).click()
+      await merge().getByRole('link', { name: "Open Web app's setting" }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/general')
       expect(router.state.location.hash).toBe('merge-gate')
     })
 
     it('goes to the project’s assign-to-triage setting from the triage defaults', async () => {
       const { router } = await open([project('web', 'Web app')])
-      await triage().getByRole('link', { name: 'Web app' }).click()
+      await triage().getByRole('link', { name: "Open Web app's setting" }).click()
       await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/reviews')
       expect(router.state.location.hash).toBe('assign-on-call')
     })
@@ -294,10 +300,10 @@ describe('WorkspaceGeneralPage', () => {
     it('puts the setting in the links’ addresses, so a new tab opens at it', async () => {
       await open([project('web', 'Web app')])
       await expect
-        .element(merge().getByRole('link', { name: 'Web app' }))
+        .element(merge().getByRole('link', { name: "Open Web app's setting" }))
         .toHaveAttribute('href', '/acme/web/settings/general#merge-gate')
       await expect
-        .element(triage().getByRole('link', { name: 'Web app' }))
+        .element(triage().getByRole('link', { name: "Open Web app's setting" }))
         .toHaveAttribute('href', '/acme/web/settings/reviews#assign-on-call')
     })
 
@@ -348,8 +354,10 @@ describe('WorkspaceGeneralPage', () => {
         project('docs', 'Docs', { flakyBlocksMerge: true }),
       ])
       await expect.element(merge().getByText('set their own')).toBeVisible()
-      await expect.element(merge().getByRole('link', { name: 'marketing-site' })).toBeVisible()
-      await merge().getByRole('link', { name: 'marketing-site' }).hover()
+      await expect
+        .element(merge().getByRole('link', { name: "Open marketing-site's setting" }))
+        .toBeVisible()
+      await merge().getByRole('link', { name: "Open marketing-site's setting" }).hover()
       await expect.element(page.getByRole('tooltip')).toHaveTextContent('marketing-site: off')
       // Triage has no overrides here, so it has no "set their own".
       expect(
