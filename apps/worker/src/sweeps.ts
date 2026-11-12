@@ -1,6 +1,7 @@
 import type { Database } from '@circi/db'
 import {
   autoAssignAllProjects,
+  backfillTriageProblems,
   expireStalledBuilds,
   pruneFinishedJobs,
   runExclusive,
@@ -52,6 +53,11 @@ function every(everyMs: number, pass: () => Promise<boolean>, onError: (err: unk
 export function startSweeps(deps: startWorker.Deps): () => void {
   const { db, logger } = deps
   const limits = () => currentLimits(deps)
+  // Once per database, on the first start after the table that counts triage items appeared.
+  void exclusiveSweep(db, 'triage-backfill', async () => {
+    const n = await backfillTriageProblems(db)
+    if (n > 0) logger.info({ projects: n }, 'filled in the triage counts of existing projects')
+  })().catch((err: unknown) => logger.error({ err }, 'could not fill in the triage counts'))
   const timers = [
     every(
       deps.maintenanceIntervalMs ?? 5 * 60_000,

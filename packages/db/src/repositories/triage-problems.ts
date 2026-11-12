@@ -78,3 +78,9 @@ export async function refreshTriageProblems(
     }
   })
 }
+
+/** Every project's ID, for a pass over all of them (`backfillTriageProblems`). */
+export async function listProjectIds(db: Database): Promise<string[]> {
+  const rows = await db.select({ id: projects.id }).from(projects).orderBy(projects.createdAt)
+  return rows.map((r) => r.id)
+}

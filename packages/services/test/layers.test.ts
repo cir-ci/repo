@@ -259,6 +259,8 @@ const EXCEPTIONS: Partial<Record<RuleId, Record<string, string>>> = {
       "`recordUndo` is called inside the transaction of the service whose change it records (its doc comment): it takes the caller's handle and opens none.",
     'packages/services/src/integration-admin/events.ts':
       "A building block called inside the transaction of the service that changed something (its doc comment): it takes the caller's handle and opens none.",
+    'packages/services/src/triage/backfill.ts':
+      'A one-off pass over every project: each refresh opens its own transaction and lock, and one transaction around all of them would hold a connection and a lock per project for the whole pass.',
     'packages/services/src/pipeline/files.ts':
       'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
     'packages/services/src/pipeline/process.ts':
