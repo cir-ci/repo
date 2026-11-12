@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { AppFrame, ResizeHandle } from '#src/index.ts'
+import { AppFrame, PanelHeader, ResizeHandle } from '#src/index.ts'
 
 // Headless Chromium draws overlay scrollbars (no layout width): read the sizes the CSS sets.
 const bar = (el: Element) => getComputedStyle(el, '::-webkit-scrollbar').width
@@ -180,5 +180,58 @@ describe('AppFrame resizable sidebar', () => {
     expect(nav.scrollHeight).toBeGreaterThan(nav.clientHeight)
     nav.scrollTop = 200
     await expect.poll(() => nav.hasAttribute('data-scrolling')).toBe(true)
+  })
+})
+
+const framed = () => (
+  <AppFrame sidebar="Side" compact bottomBar={<div style={{ height: 56 }}>Tabs</div>}>
+    <PanelHeader>
+      <span>Title</span>
+    </PanelHeader>
+    <div style={{ height: 3000, flexShrink: 0 }}>Long page</div>
+  </AppFrame>
+)
+
+describe('AppFrame on a phone: the panel scrolls, not the window', () => {
+  it('is the window tall, scrolls the panel, and ends the panel where the bottom bar starts', async () => {
+    await page.viewport(390, 844)
+    await render(framed())
+    const main = page.getByRole('main').element()
+    const tabBar = page.getByText('Tabs').element()
+    expect(getComputedStyle(main).overflowY).toBe('auto')
+    expect(main.scrollHeight).toBeGreaterThan(main.clientHeight)
+    expect(main.getBoundingClientRect().bottom).toBeCloseTo(tabBar.getBoundingClientRect().top, 0)
+    expect(tabBar.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0)
+    // The window itself has nothing to scroll.
+    expect(document.scrollingElement!.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    window.scrollTo(0, 500)
+    expect(window.scrollY).toBe(0)
+  })
+
+  it('keeps the page header at the top of the panel while the panel scrolls', async () => {
+    await page.viewport(390, 844)
+    await render(framed())
+    const main = page.getByRole('main').element()
+    const header = main.querySelector('header')!
+    main.scrollTo({ top: 1200 })
+    await expect.poll(() => main.scrollTop).toBe(1200)
+    // Inside the panel's 1px top border.
+    expect(header.getBoundingClientRect().top).toBeCloseTo(main.getBoundingClientRect().top + 1, 0)
+  })
+
+  it('keeps the window scrolling and the sidebar in place at 1280px', async () => {
+    await page.viewport(1280, 700)
+    await render(
+      <AppFrame sidebar="Side" compact bottomBar={<div>Tabs</div>}>
+        <div style={{ height: 3000, flexShrink: 0 }}>Long page</div>
+      </AppFrame>,
+    )
+    const main = page.getByRole('main').element()
+    expect(getComputedStyle(main).overflowY).not.toBe('auto')
+    window.scrollTo(0, 800)
+    await expect.poll(() => window.scrollY).toBe(800)
+    expect(main.scrollTop).toBe(0)
+    const side = page.getByRole('navigation').element().parentElement!
+    expect(side.getBoundingClientRect().top).toBe(0)
   })
 })

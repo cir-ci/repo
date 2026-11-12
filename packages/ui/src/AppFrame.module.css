@@ -66,7 +66,8 @@
   min-width: 0;
   margin: 0 8px 8px;
   /* Clip, not hidden: hidden makes the panel a scroll container, and the page header (and the
-     build page's list, toolbar and sidebar) could then never stick to the window as it scrolls. */
+     build page's list, toolbar and sidebar) could then never stick to the window as it scrolls.
+     On a phone the panel is the scroller (see the compact rules below). */
   overflow: clip;
   border: 1px solid var(--circi-line-subtle);
   border-radius: var(--circi-radius-panel);
@@ -132,10 +133,25 @@
     min-height: 52px;
   }
 
-  /* The tab bar stays in view while the page scrolls. */
+  /*
+   * The frame is exactly the window's height and the panel is what scrolls, so the scrollbar
+   * stops at the tab bar under it (a plain flex item, outside the scrolling area) instead of
+   * running over it. Anything in the page that sticks sticks within the panel, whose top is 0:
+   * the window's title-bar offset (`--circi-window-top`) is the frame's own padding here.
+   */
+  .root[data-compact] {
+    height: calc(100dvh - var(--circi-window-top, 0px));
+  }
+
+  .root[data-compact] .main {
+    --circi-window-top: 0px;
+
+    min-height: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+  }
+
   .root[data-compact] .bottom {
-    position: sticky;
-    bottom: 0;
     z-index: var(--circi-z-bar, 5);
     display: block;
     flex: none;

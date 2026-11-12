@@ -8,7 +8,9 @@ import styles from './AppFrame.module.css'
  * The app frame: a dim chrome (the sidebar and page ground) around one lifted content panel.
  * Below 820px the sidebar stacks above the panel, or, when `compactBar` is given, is replaced by
  * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`), and the panel
- * fills the screen edge to edge (a phone), with an optional `bottomBar` pinned under it.
+ * fills the screen edge to edge (a phone), with an optional `bottomBar` under it. In that layout
+ * the frame is the window's height and the panel scrolls (not the window), so the scrollbar
+ * stops at the bar.
  */
 export function AppFrame(props: AppFrame.Props) {
   const onNavScroll = useScrollingFlag()
@@ -41,7 +43,7 @@ export function AppFrame(props: AppFrame.Props) {
         </nav>
         {props.sidebarCollapsed ? null : props.sidebarHandle}
       </div>
-      <main className={styles.main} id="content" tabIndex={-1}>
+      <main className={styles.main} id="content" tabIndex={-1} data-scroll-restoration-id="content">
         {props.children}
       </main>
       {props.bottomBar ? <div className={styles.bottom}>{props.bottomBar}</div> : null}

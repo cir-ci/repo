@@ -488,4 +488,21 @@ describe('tabs on a phone, installed', () => {
     await page.getByRole('button', { name: 'Pin tab' }).click()
     await expect.poll(() => store().tabs.filter((t) => t.pinned)).toHaveLength(1)
   })
+
+  it('saves the panel scroll when leaving a tab and puts it back on return, leaving the window alone', async () => {
+    await phone()
+    const panel = document.getElementById('content')!
+    const filler = document.createElement('div')
+    filler.style.cssText = 'height: 3000px; flex-shrink: 0'
+    panel.append(filler)
+    panel.scrollTo({ top: 400 })
+    await expect.poll(() => panel.scrollTop).toBe(400)
+    const first = store().tabs[0]!.id
+    store().openNew()
+    await expect.poll(() => store().tabs.find((t) => t.id === first)?.scroll).toBe(400)
+    expect(window.scrollY).toBe(0)
+    store().activate(first)
+    await expect.poll(() => document.getElementById('content')!.scrollTop).toBe(400)
+    expect(window.scrollY).toBe(0)
+  })
 })

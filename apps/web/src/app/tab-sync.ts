@@ -1,5 +1,6 @@
 import type { RouterHistory } from '@tanstack/react-router'
 
+import { pageScrollTop, scrollPageTo } from '#lib/page-scroller.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf, activeTab } from '#lib/tabs.ts'
 
@@ -65,9 +66,9 @@ const SCROLL_WAIT_MS = 1500
 function restoreScroll(top: number): void {
   const started = Date.now()
   const attempt = () => {
-    window.scrollTo({ top })
+    scrollPageTo(top)
     // The page may not be tall enough yet (its data is loading): try again a few times.
-    if (Math.abs(window.scrollY - top) > 2 && Date.now() - started < SCROLL_WAIT_MS) {
+    if (Math.abs(pageScrollTop() - top) > 2 && Date.now() - started < SCROLL_WAIT_MS) {
       requestAnimationFrame(attempt)
     }
   }
@@ -133,7 +134,7 @@ export function installTabSync(history: RouterHistory): () => void {
       if (left) {
         passing = true
         try {
-          store.getState().setScroll(left.id, window.scrollY)
+          store.getState().setScroll(left.id, pageScrollTop())
         } finally {
           passing = false
         }
@@ -150,7 +151,7 @@ export function installTabSync(history: RouterHistory): () => void {
     }
     const scroll = activeTab(store.getState()).scroll
     if (scroll !== undefined) restoreScroll(scroll)
-    else window.scrollTo({ top: 0 })
+    else scrollPageTo(0)
   })
 
   // The window opened on the saved tab's page, not necessarily the address it was launched at.

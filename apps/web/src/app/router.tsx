@@ -73,12 +73,22 @@ export const PENDING = {
   defaultPendingMinMs: 300,
 } as const
 
+/**
+ * Scroll restoration for the window and, on a phone, the content panel (`AppFrame`'s `main#content`
+ * scrolls there, not the window): a new page starts the panel at the top, and back/forward put it
+ * back (it carries `data-scroll-restoration-id`).
+ */
+export const SCROLL = {
+  scrollRestoration: true,
+  scrollToTopSelectors: ['#content'],
+}
+
 export function createAppRouter(options: { history?: RouterHistory } = {}) {
   return createRouter({
     routeTree,
     defaultPreload: 'intent',
     ...PENDING,
-    scrollRestoration: true,
+    ...SCROLL,
     ...(options.history ? { history: options.history } : {}),
   })
 }
