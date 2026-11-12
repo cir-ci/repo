@@ -12,8 +12,12 @@ import { Providers } from './app/providers.tsx'
 import { router } from './app/router.tsx'
 import { startPwa } from './features/pwa/start.ts'
 import { dismissBootScreen } from './lib/boot-screen.ts'
+import { isInstalled } from './lib/document-title.ts'
 
 startPwa()
+// Before the router's first redirect drops the launch address (`?source=pwa`): a launch as the app
+// is remembered for the session, so full screen (the manifest's first choice) keeps the app's tabs.
+isInstalled()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('#root missing from index.html')

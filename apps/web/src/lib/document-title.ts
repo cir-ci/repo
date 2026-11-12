@@ -19,6 +19,14 @@ const matches = (query: string) =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia(query).matches
 
+function remember(): void {
+  try {
+    window.sessionStorage.setItem(SEEN_INSTALLED, '1')
+  } catch {
+    // No storage: the launch address and the display mode still say so while they last.
+  }
+}
+
 function seenInstalled(): boolean {
   try {
     return window.sessionStorage.getItem(SEEN_INSTALLED) === '1'
@@ -28,17 +36,26 @@ function seenInstalled(): boolean {
 }
 
 /**
- * Whether the dashboard runs as the installed app (its own window, no browser tabs). Full screen is
- * a display mode of its own, so it counts when this window was the installed app before it (this
- * session) or has no browser toolbar: the installed app keeps its tabs in full screen.
+ * Launched as the app: the manifest's `start_url` is `/?source=pwa`, so a window that opened there
+ * is the installed app, whatever its display mode (full screen, the manifest's first choice, is
+ * also what a browser's own full screen reports). iOS's home-screen apps also say `standalone`.
+ */
+function launchedAsApp(): boolean {
+  if (typeof window === 'undefined') return false
+  const ios = (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  return ios || new URLSearchParams(window.location.search).get('source') === 'pwa'
+}
+
+/**
+ * Whether the dashboard runs as the installed app (its own window, no browser tabs): its own
+ * display modes (standalone, window-controls-overlay), or launched as the app (`launchedAsApp`),
+ * or full screen in a window that was the installed app before (this session; the launch address
+ * is gone after the first navigation) or has no browser toolbar. Once true, it stays true for the
+ * session, so the app keeps its tabs whatever the display mode becomes.
  */
 export function isInstalled(): boolean {
-  if (matches(INSTALLED)) {
-    try {
-      window.sessionStorage.setItem(SEEN_INSTALLED, '1')
-    } catch {
-      // No storage: full screen then relies on the toolbar check alone.
-    }
+  if (matches(INSTALLED) || launchedAsApp()) {
+    remember()
     return true
   }
   return matches(FULLSCREEN) && (seenInstalled() || !window.toolbar.visible)
