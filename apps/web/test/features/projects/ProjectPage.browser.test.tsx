@@ -102,7 +102,7 @@ describe('ProjectPage', () => {
     expect(link.element().textContent).toContain('Build #8 · mobile')
     await expect.element(page.getByText('PR #4')).toBeVisible()
     await expect.element(page.getByText('feature/y')).toBeVisible()
-    await expect.element(page.getByText('2 failed')).toBeVisible()
+    await expect.element(page.getByText("2 couldn't be read")).toBeVisible()
     await expect.element(page.getByText('1 added')).toBeVisible()
     // The default build name isn't repeated.
     await expect.element(page.getByRole('link', { name: /Build #7/ })).toBeVisible()
@@ -139,7 +139,11 @@ describe('ProjectPage', () => {
       expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(own ?? glyph)
     }
     expect(
-      page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
+      page
+        .getByText("1 couldn't be read")
+        .element()
+        .querySelector('svg')
+        ?.getAttribute('data-status'),
     ).toBe('failed')
   })
 
