@@ -46,6 +46,8 @@ const drag = (name: 'Baseline' | 'This build', from = { x: 40, y: 30 }, to = { x
     targetPosition: to,
   })
 
+/** The selected region, not yet sent (it carries `data-pending`). */
+const pendingRegion = () => document.querySelector<HTMLElement>('[data-pending]')
 const enlarged = () => page.getByRole('dialog', { name: 'Baseline · #6 on main' })
 const overlay = () => page.getByTestId('region-overlay')
 
@@ -226,6 +228,45 @@ describe('region comments are always on', () => {
     await userEvent.click(title)
     await expect.element(popover()).toBeVisible()
     await expect.element(popover().getByRole('textbox')).toHaveValue('keep me')
+    expect(api.commentPosts).toEqual([])
+  })
+
+  it('drags the selected region about with its box open and its field focused, before anything is typed', async () => {
+    const api = await ready()
+    await drag('This build')
+    await expect.element(popover()).toBeVisible()
+    const before = pendingRegion()!.getBoundingClientRect()
+    // Pressing the region to move it is not a click outside the box: nothing closes.
+    await userEvent.dragAndDrop(
+      page.elementLocator(pendingRegion()!),
+      page.elementLocator(pendingRegion()!),
+      {
+        sourcePosition: { x: 20, y: 20 },
+        targetPosition: { x: 60, y: 50 },
+      },
+    )
+    await expect.element(popover()).toBeVisible()
+    expect(pendingRegion()).not.toBeNull()
+    await expect.poll(() => pendingRegion()!.getBoundingClientRect().left).not.toBe(before.left)
+    // The box followed, and typing goes on in it.
+    await expect.element(popover().getByRole('textbox')).toHaveFocus()
+    expect(api.commentPosts).toEqual([])
+  })
+
+  it('a click on the selected region closes it and its box while nothing is typed, and keeps both once something is', async () => {
+    const api = await ready()
+    await drag('This build')
+    await expect.element(popover()).toBeVisible()
+    await userEvent.click(pendingRegion()!)
+    await expect.element(popover()).not.toBeInTheDocument()
+    await expect.poll(pendingRegion).toBeNull()
+
+    await drag('This build')
+    await userEvent.keyboard('keep me')
+    await userEvent.click(pendingRegion()!)
+    await expect.element(popover()).toBeVisible()
+    await expect.element(popover().getByRole('textbox')).toHaveValue('keep me')
+    expect(pendingRegion()).not.toBeNull()
     expect(api.commentPosts).toEqual([])
   })
 

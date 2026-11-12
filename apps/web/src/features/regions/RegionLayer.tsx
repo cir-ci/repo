@@ -178,11 +178,27 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
   const { drawing, alwaysDraw = false } = annotations
   const pendingRef = useRef<HTMLSpanElement>(null)
   const onAdjustPending = annotations.onAdjustPending
-  // The draft can be dragged about before it is sent; the comment box follows it.
+  // Whether the comment box has nothing typed (it says so as it changes; a new draft starts empty).
+  const composerEmpty = useRef(true)
+  // Clicking the selected region again with nothing typed drops the draft: the region and the box
+  // close, as a click outside the box does. With text typed it stays, so nothing is lost.
+  const dropIfEmpty = () => {
+    if (annotations.composer && composerEmpty.current) annotations.composer.onCancel()
+  }
+  // The draft can be dragged about before it is sent; the comment box follows it. A press that
+  // never becomes a drag is a click.
   const pendingBox = useAdjustable(
     annotations.pending ?? START_REGION,
-    onAdjustPending ? { onCommit: onAdjustPending } : undefined,
+    onAdjustPending ? { onCommit: onAdjustPending, onClick: dropIfEmpty } : undefined,
   )
+  // Not draggable: the click is the region's own (and the layer under it mustn't start a new one).
+  const pendingClick =
+    !onAdjustPending && annotations.composer
+      ? {
+          onPointerDown: (e: PointerEvent<HTMLElement>) => e.stopPropagation(),
+          onClick: dropIfEmpty,
+        }
+      : {}
 
   return (
     <div
@@ -216,6 +232,7 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
           data-pending=""
           style={regionStyle(pendingBox.region)}
           {...pendingBox.props}
+          {...pendingClick}
         >
           {annotations.onAdjustPending ? <RegionHandles /> : null}
         </span>
@@ -229,6 +246,10 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
             `${annotations.pending.x}:${annotations.pending.y}:${annotations.pending.width}:${annotations.pending.height}`
           }
           anchor={pendingRef}
+          moved={`${pendingBox.region.x}:${pendingBox.region.y}:${pendingBox.region.width}:${pendingBox.region.height}`}
+          onEmptyChange={(empty) => {
+            composerEmpty.current = empty
+          }}
           {...annotations.composer}
         />
       ) : null}
@@ -311,11 +332,19 @@ function RegionComposer({
   error,
   author,
   members = NO_MEMBERS,
+  onEmptyChange,
+  moved,
 }: RegionComposer.Props) {
   const [body, setBody] = useState('')
   const field = useRef<HTMLTextAreaElement>(null)
+  // The region was dragged somewhere new: typing goes on in the box, as it did before the drag.
+  const firstPlace = useRef(moved)
+  useEffect(() => {
+    if (moved !== firstPlace.current) field.current?.focus()
+  }, [moved])
   const text = body.trim()
   const empty = text === '' && !sending
+  useEffect(() => onEmptyChange?.(empty), [empty, onEmptyChange])
 
   const send = () => {
     if (text !== '' && !sending) onSend(text)
@@ -333,7 +362,13 @@ function RegionComposer({
       className={styles.popover}
       onOpenChange={(open, details) => {
         if (open || details.reason === 'focus-out') return
-        if (details.reason === 'outside-press' && !empty) return
+        if (details.reason === 'outside-press') {
+          // A press on the region itself is not outside: it starts a drag that moves the region
+          // (the box follows), and a plain click on it is answered by the region (RegionLayer).
+          const target = details.event.target
+          if (target instanceof Node && anchor.current?.contains(target)) return
+          if (!empty) return
+        }
         onCancel()
       }}
       popupProps={{
@@ -394,6 +429,10 @@ export namespace RegionComposer {
   export interface Props extends Callbacks {
     /** The marker of the region: the box points at it. */
     anchor: RefObject<HTMLElement | null>
+    /** Told whether nothing is typed, as that changes: a click on the region drops an empty draft. */
+    onEmptyChange?: (empty: boolean) => void
+    /** Where the region is now: when a drag moves it, the field takes focus back. */
+    moved?: string
   }
 }
 
