@@ -309,6 +309,26 @@ describe('tabs in the installed app', () => {
     expect(activeTab().querySelector('[role="tab"]')?.getAttribute('aria-selected')).toBe('true')
   })
 
+  it("keeps every tab's width when a page changes its title (no jitter)", async () => {
+    installedAs('standalone')
+    await page.viewport(1280, 800)
+    await renderApp()
+    await page.getByRole('button', { name: 'New tab' }).click()
+    await expect.poll(() => tabs().elements()).toHaveLength(2)
+    await tabs().first().click()
+    await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
+    const widths = () =>
+      tabs()
+        .elements()
+        .map((el) => el.parentElement!.getBoundingClientRect().width)
+    const before = widths()
+    // The tabs' width is their own, not their titles': 180px each while there's room.
+    expect(before).toEqual([180, 180])
+    await page.getByRole('button', { name: 'Go to members' }).click()
+    await expect.poll(() => tabs().first().element().textContent).toBe('Inbox page')
+    expect(widths()).toEqual(before)
+  })
+
   it('opens a tab from the menu, and each tab keeps its own page', async () => {
     installedAs('standalone')
     await renderApp()

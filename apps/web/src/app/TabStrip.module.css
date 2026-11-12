@@ -26,6 +26,12 @@
   display: flex;
   flex: 0 1 180px;
   align-items: center;
+  /*
+   * A set width, not only a flex basis: the list sizes itself from its tabs' widths, and without
+   * one that is their text's width, so every tab resized (and the strip jittered) whenever a page's
+   * title changed. Tabs still shrink evenly, to 96px, when the row is short of room.
+   */
+  width: 180px;
   min-width: 96px;
   height: calc(100% - 4px);
   /* The title bar around the tabs drags the window; the tabs and their buttons are for clicking. */
@@ -37,6 +43,7 @@
 
 .tab[data-pinned] {
   flex: 0 0 auto;
+  width: auto;
   min-width: 0;
 }
 
