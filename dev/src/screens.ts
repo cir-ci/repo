@@ -17,13 +17,26 @@ export interface Screen {
   buttonX?: number
   /** A banner across the top of the content. */
   banner?: string
+  /** Page size when it is not the usual 960 by 600 (a size change shows in the diff). */
+  width?: number
+  height?: number
+  /** A dark strip along the bottom covering this share of the page: that share is the diff score. */
+  band?: number
+  /** The page background, when it is not the light grey (a large change). */
+  background?: string
+  /** A "clock" in the header, a few blocks wide: something an ignore region can hide. */
+  clock?: number
+  /** Written as bytes that are not a PNG, so the pipeline reports the screenshot as unreadable. */
+  broken?: boolean
 }
 
-const WIDTH = 960
-const HEIGHT = 600
+const DEFAULT_WIDTH = 960
+const DEFAULT_HEIGHT = 600
 const HEADER = 56
 
 function svg(screen: Screen): string {
+  const WIDTH = screen.width ?? DEFAULT_WIDTH
+  const HEIGHT = screen.height ?? DEFAULT_HEIGHT
   const sidebar = screen.sidebar ?? 0
   const columns = screen.columns ?? 3
   const left = sidebar + 32
@@ -32,11 +45,16 @@ function svg(screen: Screen): string {
   const cardWidth = (contentWidth - gap * (columns - 1)) / columns
   let top = HEADER + 32
   const parts: string[] = [
-    `<rect width="${WIDTH}" height="${HEIGHT}" fill="#f6f7f9"/>`,
+    `<rect width="${WIDTH}" height="${HEIGHT}" fill="${screen.background ?? '#f6f7f9'}"/>`,
     `<rect width="${WIDTH}" height="${HEADER}" fill="${screen.accent}"/>`,
     `<rect x="24" y="18" width="120" height="20" rx="4" fill="#ffffff" opacity="0.85"/>`,
     `<circle cx="${WIDTH - 40}" cy="28" r="14" fill="#ffffff" opacity="0.85"/>`,
   ]
+  if (screen.clock) {
+    parts.push(
+      `<rect x="700" y="18" width="${40 + screen.clock * 12}" height="20" rx="4" fill="#ffffff" opacity="0.85"/>`,
+    )
+  }
   if (sidebar > 0) {
     parts.push(
       `<rect y="${HEADER}" width="${sidebar}" height="${HEIGHT - HEADER}" fill="#e6e8ec"/>`,
@@ -69,6 +87,10 @@ function svg(screen: Screen): string {
       `<rect x="${x + 16}" y="${y + 100}" width="64" height="20" rx="4" fill="${screen.accent}" opacity="0.25"/>`,
     )
   }
+  if (screen.band) {
+    const h = Math.max(1, Math.round(screen.band * HEIGHT))
+    parts.push(`<rect y="${HEIGHT - h}" width="${WIDTH}" height="${h}" fill="#1d2433"/>`)
+  }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}">${parts.join('')}</svg>`
 }
 
@@ -76,6 +98,7 @@ function svg(screen: Screen): string {
 const rendered = new Map<string, Promise<Buffer>>()
 
 function render(screen: Screen): Promise<Buffer> {
+  if (screen.broken) return Promise.resolve(Buffer.from('this is not a png, just some text'))
   const key = JSON.stringify(screen)
   let png = rendered.get(key)
   if (!png) {
@@ -174,3 +197,38 @@ export const together =
   (...changes: Change[]): Change =>
   (screens) =>
     changes.reduce((current, change) => change(current), screens)
+
+/** A dark strip over this share of the page: a Small (up to .1), Medium (.15 to .3) or bigger diff. */
+export const band = (name: string, share: number | undefined): Change =>
+  on(name, (s) => {
+    const { band: _old, ...rest } = s
+    return share ? { ...rest, band: share } : rest
+  })
+
+/** A new page background: nearly every pixel changes, a Large diff. */
+export const background = (name: string, color: string | undefined): Change =>
+  on(name, (s) => {
+    const { background: _old, ...rest } = s
+    return color ? { ...rest, background: color } : rest
+  })
+
+/** The page gets another size (a "size changed" diff). */
+export const resize = (name: string, width: number, height: number): Change =>
+  on(name, (s) => ({ ...s, width, height }))
+
+/** The header clock shows another time. */
+export const tick = (name: string, clock: number): Change => on(name, (s) => ({ ...s, clock }))
+
+/** The page's screenshot is not a readable PNG. */
+export const broken = (name: string): Change => on(name, (s) => ({ ...s, broken: true }))
+
+/** `count` pages called `<prefix>/<n>`, each a little different: for a build with a lot of screenshots. */
+export function gallery(prefix: string, count: number, accentColor: string): Screen[] {
+  return Array.from({ length: count }, (_, i) => ({
+    name: `${prefix}/${String(i + 1).padStart(3, '0')}`,
+    accent: accentColor,
+    cards: 1 + (i % 6),
+    columns: 1 + (i % 3),
+    ...(i % 4 === 0 ? { sidebar: 200 } : {}),
+  }))
+}

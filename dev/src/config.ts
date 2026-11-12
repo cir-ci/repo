@@ -68,6 +68,8 @@ export interface SeedWorkspace {
   deleted?: boolean
   /** Invitations that stay pending. */
   invitations?: readonly { email: string; role: 'admin' | 'member' }[]
+  /** The defaults for its projects, as the workspace settings page saves them. */
+  settings?: { flakyBlocksMerge?: boolean; assignTriageToOnCall?: boolean; retentionDays?: number }
 }
 
 export const WORKSPACES: readonly SeedWorkspace[] = [
@@ -85,7 +87,11 @@ export const WORKSPACES: readonly SeedWorkspace[] = [
       { who: 'tomas', role: 'member' },
       { who: 'amara', role: 'member' },
     ],
-    invitations: [{ email: 'new.hire@example.com', role: 'member' }],
+    invitations: [
+      { email: 'new.hire@example.com', role: 'member' },
+      { email: 'contractor@example.com', role: 'admin' },
+    ],
+    settings: { flakyBlocksMerge: true, assignTriageToOnCall: true, retentionDays: 180 },
   },
   {
     name: 'Northwind',
@@ -98,6 +104,8 @@ export const WORKSPACES: readonly SeedWorkspace[] = [
       { who: 'ines', role: 'member' },
     ],
     domain: 'northwind.example',
+    invitations: [{ email: 'seasonal@northwind.example', role: 'member' }],
+    settings: { flakyBlocksMerge: false, assignTriageToOnCall: false, retentionDays: 90 },
   },
   {
     name: 'Pixel Studio',
@@ -107,6 +115,7 @@ export const WORKSPACES: readonly SeedWorkspace[] = [
       { who: 'owner', role: 'admin' },
       { who: 'tomas', role: 'member' },
     ],
+    settings: { retentionDays: 365 },
   },
   {
     name: 'Old Labs',
@@ -137,7 +146,19 @@ export interface SeedProject {
   }[]
   /** Who has the project pinned in their sidebar. */
   pinnedBy: readonly PersonKey[]
+  /**
+   * What the project settings page saves (`PATCH /settings`): the diff threshold is a share (0.005
+   * is 0.5%). `reviewOverdueNotify` is a person, sent as their ID.
+   */
+  settings?: Record<string, number | boolean | string | null>
+  reviewOverdueNotify?: PersonKey
+  /** Webhooks that point at nothing, so their deliveries show as failures. */
+  webhooks?: readonly { url: string; events: readonly string[] }[]
+  /** Rectangles (pixels) ignored when comparing the screenshots with this name. */
+  ignore?: readonly { name: string; x: number; y: number; width: number; height: number }[]
 }
+
+const DEAD = 'http://localhost:9'
 
 export const PROJECTS: readonly SeedProject[] = [
   {
@@ -153,6 +174,26 @@ export const PROJECTS: readonly SeedProject[] = [
       { kind: 'snapshot-name', pattern: 'dashboard/*', reviewers: ['owner', 'member'] },
     ],
     pinnedBy: ['owner', 'member'],
+    settings: {
+      diffThreshold: 0.005,
+      retentionDays: 365,
+      reviewTargetHours: 48,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: true,
+      flakyAfterChanges: 3,
+      requireRejectReason: true,
+      closeReviewsOnNewerBuild: true,
+      snoozeDefaultDays: 2,
+    },
+    reviewOverdueNotify: 'owner',
+    webhooks: [
+      { url: `${DEAD}/hooks/circi`, events: ['build.completed', 'build.reviewed'] },
+      { url: `${DEAD}/hooks/audit`, events: ['build.completed'] },
+    ],
+    ignore: [
+      { name: 'home', x: 700, y: 10, width: 200, height: 36 },
+      { name: 'dashboard/overview', x: 600, y: 10, width: 300, height: 36 },
+    ],
   },
   {
     workspace: 'acme',
@@ -165,6 +206,19 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['daniel', 'tomas'],
     rules: [{ kind: 'build-name', pattern: 'docs*', reviewers: ['daniel'] }],
     pinnedBy: ['owner'],
+    settings: {
+      diffThreshold: 0.02,
+      retentionDays: 180,
+      reviewTargetHours: 24,
+      blockMergeOnChanges: false,
+      autoApproveNoChanges: false,
+      flakyAfterChanges: 4,
+      flakyBlocksMerge: true,
+      reRequestOnNewerBuild: true,
+      snoozeDefaultDays: 5,
+    },
+    reviewOverdueNotify: 'daniel',
+    webhooks: [{ url: `${DEAD}/hooks/chat-bridge`, events: ['build.reviewed'] }],
   },
   {
     workspace: 'acme',
@@ -176,6 +230,15 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['sofia', 'liam', 'member'],
     rules: [{ kind: 'snapshot-name', pattern: 'storybook/modal*', reviewers: ['sofia'] }],
     pinnedBy: ['member'],
+    settings: {
+      diffThreshold: 0,
+      retentionDays: 120,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: true,
+      flakyAfterChanges: 2,
+      flakyBlocksMerge: false,
+      requireRejectReason: false,
+    },
   },
   {
     // The member isn't in this one, so it is hidden from them.
@@ -188,6 +251,15 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['amara', 'sofia'],
     rules: [{ kind: 'snapshot-name', pattern: 'tokens/*', reviewers: ['amara', 'sofia'] }],
     pinnedBy: ['owner'],
+    settings: {
+      diffThreshold: 0.005,
+      retentionDays: 365,
+      reviewTargetHours: 72,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: false,
+      flakyAfterChanges: 5,
+      closeReviewsOnNewerBuild: false,
+    },
   },
   {
     workspace: 'acme',
@@ -199,6 +271,16 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['hannah', 'amara'],
     rules: [{ kind: 'snapshot-name', pattern: 'blog/*', reviewers: ['hannah'] }],
     pinnedBy: ['owner', 'member'],
+    settings: {
+      diffThreshold: 0.02,
+      retentionDays: 90,
+      reviewTargetHours: 12,
+      blockMergeOnChanges: false,
+      autoApproveNoChanges: true,
+      flakyAfterChanges: 3,
+    },
+    reviewOverdueNotify: 'hannah',
+    webhooks: [{ url: `${DEAD}/slack/marketing`, events: ['build.completed'] }],
   },
   {
     workspace: 'acme',
@@ -210,6 +292,57 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['tomas', 'liam', 'member'],
     rules: [],
     pinnedBy: [],
+    settings: {
+      diffThreshold: 0.005,
+      retentionDays: 75,
+      reviewTargetHours: 8,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: false,
+      flakyAfterChanges: 3,
+      flakyBlocksMerge: true,
+    },
+  },
+  {
+    // The big one: 150 screenshots a build, for the lists and the Reviews groups.
+    workspace: 'acme',
+    name: 'Component gallery',
+    slug: 'component-gallery',
+    color: 'moss',
+    icon: 'layout-grid',
+    members: ['owner', 'member', 'sofia', 'amara', 'priya'],
+    rotation: ['amara', 'priya', 'owner'],
+    rules: [{ kind: 'snapshot-name', pattern: 'gallery/00*', reviewers: ['sofia'] }],
+    pinnedBy: ['owner'],
+    settings: {
+      diffThreshold: 0.005,
+      retentionDays: 365,
+      reviewTargetHours: 36,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: true,
+      flakyAfterChanges: 3,
+    },
+  },
+  {
+    // Short retention and "approval required": old builds expire, no-change builds wait for a look.
+    workspace: 'acme',
+    name: 'Admin console',
+    slug: 'admin-console',
+    color: 'plum',
+    icon: 'shield',
+    members: ['owner', 'member', 'daniel', 'liam'],
+    rotation: ['liam', 'daniel'],
+    rules: [{ kind: 'snapshot-name', pattern: 'admin/billing*', reviewers: ['daniel'] }],
+    pinnedBy: ['member'],
+    settings: {
+      diffThreshold: 0.02,
+      retentionDays: 30,
+      reviewTargetHours: 4,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: false,
+      autoApproveDefaultBranch: false,
+      flakyAfterChanges: 4,
+    },
+    reviewOverdueNotify: 'owner',
   },
   {
     workspace: 'northwind',
@@ -221,6 +354,14 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['kwame', 'priya'],
     rules: [{ kind: 'snapshot-name', pattern: 'checkout/*', reviewers: ['kwame'] }],
     pinnedBy: ['member'],
+    settings: {
+      diffThreshold: 0.02,
+      retentionDays: 90,
+      reviewTargetHours: 24,
+      blockMergeOnChanges: true,
+      autoApproveNoChanges: true,
+    },
+    webhooks: [{ url: `${DEAD}/orders/notify`, events: ['build.reviewed'] }],
   },
   {
     workspace: 'pixel-studio',
@@ -232,6 +373,7 @@ export const PROJECTS: readonly SeedProject[] = [
     rotation: ['sofia'],
     rules: [],
     pinnedBy: ['owner'],
+    settings: { diffThreshold: 0, retentionDays: 365, blockMergeOnChanges: false },
   },
   {
     // No builds: its workspace is the deleted one.

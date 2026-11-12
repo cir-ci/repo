@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -279,7 +280,10 @@ async function configureProject(p: SeedProject, world: World): Promise<void> {
   // Builds up to three months old stay until the seed's data is wiped.
   await call(actor, 'PATCH', `${base}/settings`, {
     retentionDays: 365,
-    ...(p.slug === SEED.project.slug ? { reviewTargetHours: 48 } : {}),
+    ...p.settings,
+    ...(p.reviewOverdueNotify
+      ? { reviewOverdueNotifyUserId: idOf(p.reviewOverdueNotify, world) }
+      : {}),
   })
   for (const rule of p.rules) {
     // eslint-disable-next-line no-await-in-loop -- rules are ordered: the first match wins
@@ -295,11 +299,12 @@ async function configureProject(p: SeedProject, world: World): Promise<void> {
       startsOn: mondayOfThisWeek(),
     })
   }
-  await Promise.all(
-    p.pinnedBy.map((who) =>
+  await Promise.all([
+    ...p.pinnedBy.map((who) =>
       call(who, 'PUT', `/workspaces/${p.workspace}/pinned-projects/${p.slug}`),
     ),
-  )
+    ...(p.ignore ?? []).map((region) => call(actor, 'POST', `${base}/ignore-regions`, region)),
+  ])
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -316,6 +321,42 @@ interface Built {
 const gitFor = (repo: string, env: Record<string, string>) => (args: string[]) =>
   run('git', args, { cwd: repo, env })
 
+/** A step with its commit, made up front so the uploads of independent builds can run side by side. */
+interface Planned {
+  step: Step
+  sha: string
+  author: (typeof PEOPLE)[PersonKey]
+}
+
+/** How many pull requests of one project upload at the same time (the builds on main go one by one). */
+const WAVE = 4
+
+/**
+ * The steps in groups that can upload together: a build on main, a re-run, a build left half
+ * uploaded or a second push to a branch is compared with what the one before it left, so it starts
+ * a group of its own; pull requests of different branches only read main and share one.
+ */
+function waves(planned: Planned[]): Planned[][] {
+  const groups: Planned[][] = []
+  let current: Planned[] = []
+  const flush = () => {
+    if (current.length > 0) groups.push(current)
+    current = []
+  }
+  for (const item of planned) {
+    const alone = item.step.branch === 'main' || item.step.rerun === true
+    if (alone) {
+      flush()
+      groups.push([item])
+    } else {
+      if (current.length >= WAVE || current.some((c) => c.step.branch === item.step.branch)) flush()
+      current.push(item)
+    }
+  }
+  flush()
+  return groups
+}
+
 async function seedProjectHistory(p: SeedProject, steps: Step[], world: World): Promise<Built[]> {
   const token = world.tokens.get(p.slug)
   if (!token) throw new Error(`No token for ${p.slug}`)
@@ -331,77 +372,104 @@ async function seedProjectHistory(p: SeedProject, steps: Step[], world: World): 
   await initial(['init', '-q', '-b', 'main'])
   await initial(['commit', '-q', '--allow-empty', '-m', 'Initial commit'])
 
-  const built: Built[] = []
   // Oldest first, so build numbers follow the dates.
   const ordered = steps.toSorted((a, b) => b.daysAgo - a.daysAgo)
-  for (const step of ordered) {
+  const planned: Planned[] = []
+  const lastShaOf = new Map<string, string>()
+  for (const [index, step] of ordered.entries()) {
     const author = PEOPLE[step.author]
-    const git = gitFor(repo, {
-      GIT_AUTHOR_NAME: author.name,
-      GIT_AUTHOR_EMAIL: author.email,
-      GIT_COMMITTER_NAME: author.name,
-      GIT_COMMITTER_EMAIL: author.email,
-    })
-    // eslint-disable-next-line no-await-in-loop -- each commit branches from the one before on main
-    await git(['checkout', '-q', '-B', step.branch, 'main'])
-    // eslint-disable-next-line no-await-in-loop -- as above
-    await git(['commit', '-q', '--allow-empty', '-m', step.message])
-    // eslint-disable-next-line no-await-in-loop -- as above
-    const sha = await git(['rev-parse', 'HEAD'])
-    if (step.branch === 'main') {
-      // A pull request's ancestry is read from origin/<base>, as in a CI checkout.
-      // eslint-disable-next-line no-await-in-loop -- as above
-      await git(['update-ref', 'refs/remotes/origin/main', 'main'])
-    }
-
-    const dir = join(STATE_DIR, 'seed-screens', `${p.slug}-${sha.slice(0, 12)}`)
-    // eslint-disable-next-line no-await-in-loop -- one build at a time per project
-    await rm(dir, { recursive: true, force: true })
-    // eslint-disable-next-line no-await-in-loop -- as above
-    await writeScreens(dir, step.screens)
-    const ci = {
-      cwd: repo,
-      dir,
-      apiUrl: URLS.server,
-      token,
-      fetch: false,
-      pollIntervalMs: 250,
-      log: (line: string) => log('seed', `${p.slug}: ${line}`),
-      env: {
-        // Buildkite's variables carry the author's name and email, which the server matches to a member.
-        BUILDKITE: 'true',
-        BUILDKITE_BUILD_AUTHOR: author.name,
-        BUILDKITE_BUILD_AUTHOR_EMAIL: author.email,
-        CIRCI_COMMIT: sha,
-        CIRCI_BRANCH: step.branch,
-        ...(step.pr ? { CIRCI_PR_NUMBER: String(step.pr), CIRCI_BASE_BRANCH: 'main' } : {}),
-      },
-      ...(step.name ? { name: step.name } : {}),
-    }
-    let number: number
-    if (step.failed) {
-      // A build whose second CI shard never arrived. The worker fails such a build once its
-      // upload window has passed; the seed can't wait that long, so it records the same
-      // outcome with SQL (see `backdate`).
-      // eslint-disable-next-line no-await-in-loop -- as above
-      const half = await upload({
-        ...ci,
-        wait: false,
-        shard: { index: 0, total: 2, nonce: `seed-${p.slug}-${sha.slice(0, 8)}` },
-      })
-      number = half.build.number
+    let sha: string | undefined
+    if (step.rerun) {
+      // CI runs the same commit again.
+      sha = lastShaOf.get(step.branch)
+    } else if (step.noAncestry) {
+      // A commit this checkout doesn't have, so there is no history to find a baseline in.
+      sha = createHash('sha1').update(`${p.slug}-${step.branch}-${index}`).digest('hex')
     } else {
+      const git = gitFor(repo, {
+        GIT_AUTHOR_NAME: author.name,
+        GIT_AUTHOR_EMAIL: author.email,
+        GIT_COMMITTER_NAME: author.name,
+        GIT_COMMITTER_EMAIL: author.email,
+      })
+      // eslint-disable-next-line no-await-in-loop -- each commit branches from the one before on main
+      await git(['checkout', '-q', '-B', step.branch, 'main'])
       // eslint-disable-next-line no-await-in-loop -- as above
-      const result = await upload({ ...ci, wait: true })
-      if (result.exitCode === 2) throw new Error(`Upload of ${p.slug} ${step.branch} failed`)
-      number = result.build.number
+      await git(['commit', '-q', '--allow-empty', '-m', step.message])
+      // eslint-disable-next-line no-await-in-loop -- as above
+      sha = await git(['rev-parse', 'HEAD'])
+      if (step.branch === 'main') {
+        // A pull request's ancestry is read from origin/<base>, as in a CI checkout.
+        // eslint-disable-next-line no-await-in-loop -- as above
+        await git(['update-ref', 'refs/remotes/origin/main', 'main'])
+      }
     }
-    built.push({ workspace: p.workspace, step, number })
-    // eslint-disable-next-line no-await-in-loop -- as above
-    await interact(p, step, number, world)
+    if (!sha) throw new Error(`${p.slug}: no commit to run again on ${step.branch}`)
+    lastShaOf.set(step.branch, sha)
+    planned.push({ step, sha, author })
   }
   await run('git', ['checkout', '-q', 'main'], { cwd: repo })
+
+  const built: Built[] = []
+  for (const group of waves(planned)) {
+    // eslint-disable-next-line no-await-in-loop -- a group needs the builds before it to be done
+    const results = await Promise.all(group.map((item) => uploadStep(p, item, repo, token, world)))
+    built.push(...results)
+  }
   return built
+}
+
+async function uploadStep(
+  p: SeedProject,
+  { step, sha, author }: Planned,
+  repo: string,
+  token: string,
+  world: World,
+): Promise<Built> {
+  const dir = join(
+    STATE_DIR,
+    'seed-screens',
+    `${p.slug}-${sha.slice(0, 12)}${step.rerun ? '-rerun' : ''}`,
+  )
+  await rm(dir, { recursive: true, force: true })
+  await writeScreens(dir, step.screens)
+  const ci = {
+    cwd: repo,
+    dir,
+    apiUrl: URLS.server,
+    token,
+    fetch: false,
+    pollIntervalMs: 100,
+    log: (line: string) => log('seed', `${p.slug}: ${line}`),
+    env: {
+      // Buildkite's variables carry the author's name and email, which the server matches to a member.
+      BUILDKITE: 'true',
+      BUILDKITE_BUILD_AUTHOR: author.name,
+      BUILDKITE_BUILD_AUTHOR_EMAIL: author.email,
+      CIRCI_COMMIT: sha,
+      CIRCI_BRANCH: step.branch,
+      ...(step.pr ? { CIRCI_PR_NUMBER: String(step.pr), CIRCI_BASE_BRANCH: 'main' } : {}),
+    },
+    ...(step.name ? { name: step.name } : {}),
+  }
+  let number: number
+  if (step.failed || step.partial) {
+    // A build whose second CI shard never arrived. The worker fails such a build once its upload
+    // window has passed; the seed can't wait that long, so a failed one gets the same outcome
+    // with SQL (see `backdate`) and a partial one is left "uploading".
+    const half = await upload({
+      ...ci,
+      wait: false,
+      shard: { index: 0, total: 2, nonce: `seed-${p.slug}-${sha.slice(0, 8)}` },
+    })
+    number = half.build.number
+  } else {
+    const result = await upload({ ...ci, wait: true })
+    if (result.exitCode === 2) throw new Error(`Upload of ${p.slug} ${step.branch} failed`)
+    number = result.build.number
+  }
+  await interact(p, step, number, world)
+  return { workspace: p.workspace, step, number }
 }
 
 /**
@@ -430,6 +498,16 @@ async function interact(p: SeedProject, step: Step, number: number, world: World
       if (!c.reply) lastThread = stringIn(asRecord(made).comment ?? made, 'id')
     })
   }
+  for (const r of step.snapshotReviews) {
+    // eslint-disable-next-line no-await-in-loop -- decisions in the order they were made
+    await tolerant(`snapshot review of ${base}`, () =>
+      call(r.by, 'POST', `${base}/snapshots/review`, {
+        snapshotNames: r.names,
+        decision: r.decision,
+        ...(r.reason ? { reason: r.reason } : {}),
+      }),
+    )
+  }
   for (const r of step.reviews) {
     // eslint-disable-next-line no-await-in-loop -- as above
     await tolerant(`review of ${base}`, () =>
@@ -443,6 +521,11 @@ async function interact(p: SeedProject, step: Step, number: number, world: World
 
 /** Every project's builds, the projects in parallel (the builds of one follow each other on main). */
 async function seedHistory(world: World): Promise<void> {
+  await Promise.all(
+    WORKSPACES.flatMap((w) =>
+      w.settings ? [call(w.owner, 'PATCH', `/workspaces/${w.slug}/settings`, w.settings)] : [],
+    ),
+  )
   await Promise.all(PROJECTS.map((p) => configureProject(p, world)))
   const projects = PROJECTS.filter((p) => HISTORY[p.slug])
   const results = await Promise.all(
@@ -453,6 +536,10 @@ async function seedHistory(world: World): Promise<void> {
     }),
   )
   await backdate(results.flat())
+  // Retention as an operator runs it (`circi admin storage gc`): builds older than their project's
+  // retention expire (the project with a 30-day retention has some).
+  const gc = await admin(['storage', 'gc'])
+  log('seed', `Retention expired ${String(asRecord(JSON.parse(gc)).expiredBuilds)} builds`)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -464,7 +551,10 @@ async function tolerant(what: string, fn: () => Promise<unknown>): Promise<void>
   try {
     await fn()
   } catch (error) {
-    log('seed', `Skipped ${what}: ${error instanceof Error ? error.message : String(error)}`)
+    const message = error instanceof Error ? error.message : String(error)
+    // A build whose diff came out empty (below the threshold) has nothing to decide: expected.
+    if (message.includes('has no changes to review')) return
+    log('seed', `Skipped ${what}: ${message}`)
   }
 }
 
@@ -472,6 +562,7 @@ const view = (who: PersonKey, workspace: string, body: Record<string, unknown>) 
   call(who, 'POST', `/workspaces/${workspace}/views`, body)
 
 async function seedActivity(world: World): Promise<void> {
+  await seedReviewActivity(world)
   // Triage: flaky screens handed to people.
   const triage = (
     who: PersonKey,
@@ -509,6 +600,23 @@ async function seedActivity(world: World): Promise<void> {
     }),
     view('member', 'acme', { name: 'Needs review', filters: { review: 'pending' }, pinned: true }),
     view('member', 'acme', { name: 'Failed builds', filters: { status: 'error' } }),
+    view('member', 'acme', { name: 'Rejected', filters: { review: 'rejected' } }),
+    view('member', 'acme', {
+      name: 'Stuck uploads',
+      project: 'mobile-web',
+      filters: { status: 'uploading' },
+    }),
+    view('owner', 'acme', {
+      name: 'Expired in Admin console',
+      project: 'admin-console',
+      filters: { status: 'expired' },
+    }),
+    view('owner', 'acme', {
+      name: 'Gallery to review',
+      project: 'component-gallery',
+      filters: { review: 'pending' },
+      pinned: true,
+    }),
     view('priya', 'acme', { name: 'Approved', filters: { review: 'approved' } }),
     view('elena', 'northwind', {
       name: 'Needs review',
@@ -517,35 +625,18 @@ async function seedActivity(world: World): Promise<void> {
     }),
   ])
 
-  // Webhooks, added now so they don't fail against nothing for every build above.
-  await Promise.all([
-    admin([
-      'webhook',
-      'add',
-      '--org',
-      'acme',
-      '--project',
-      'web-app',
-      '--url',
-      'http://localhost:4010/hooks/circi',
-      '--events',
-      'build.completed,build.reviewed',
-      '--json',
-    ]),
-    admin([
-      'webhook',
-      'add',
-      '--org',
-      'acme',
-      '--project',
-      'api-server',
-      '--url',
-      'http://localhost:4010/hooks/chat-bridge',
-      '--events',
-      'build.reviewed',
-      '--json',
-    ]),
-  ])
+  // Webhooks that point at nothing, added now so they don't fail for every build above; each gets
+  // a test event, so the delivery list shows failures.
+  await Promise.all(
+    PROJECTS.flatMap((p) =>
+      (p.webhooks ?? []).map(async (hook) => {
+        const owner = workspaceOf(p.workspace).owner
+        const made = await call(owner, 'POST', `${projectPath(p)}/webhooks`, hook)
+        const id = stringIn(asRecord(asRecord(made).webhook), 'id')
+        await call(owner, 'POST', `${projectPath(p)}/webhooks/${id}/test`)
+      }),
+    ),
+  )
 
   // Invitations that stay pending (better-auth's own endpoint, which also sends the email).
   for (const w of WORKSPACES) {
@@ -658,7 +749,7 @@ async function backdate(built: Built[]): Promise<void> {
         from seed_builds d where n.build_id = d.build_id`,
       `update builds b set created_at = d.ready - interval '90 seconds',
           finalized_at = case when b.finalized_at is null then null else d.ready - interval '45 seconds' end,
-          completed_at = d.ready
+          completed_at = case when b.status in ('pending', 'uploading', 'processing') then null else d.ready end
         from seed_builds d where b.id = d.build_id`,
       `update builds b set status = 'error', completed_at = d.ready,
           error_message = 'Timed out waiting for 1 of 2 shard(s): shard 2. The CI job(s) that should have uploaded them probably failed or never ran.'
@@ -686,4 +777,137 @@ function sql(statement: string): Promise<string> {
     '-c',
     statement,
   ])
+}
+
+// ---------------------------------------------------------------------------------------------
+// What people did with their Reviews and Inbox: snoozes, dismissals, nudges, triage choices.
+// ---------------------------------------------------------------------------------------------
+
+interface OpenRequest {
+  id: string
+  workspace: string
+  project: string
+  requestedById: string | null
+  overdueByMs: number
+}
+
+async function openRequests(who: PersonKey, tab: string): Promise<OpenRequest[]> {
+  const list = asRecord(await call(who, 'GET', `/reviews?tab=${tab}`))
+  const requests = Array.isArray(list.requests) ? list.requests : []
+  return requests.map((r: unknown) => {
+    const row = asRecord(r)
+    const requester = row.requestedBy === null ? null : asRecord(row.requestedBy)
+    return {
+      id: stringIn(row, 'id'),
+      workspace: stringIn(row.workspace, 'slug'),
+      project: stringIn(row.project, 'slug'),
+      requestedById: requester ? stringIn(requester, 'id') : null,
+      overdueByMs: typeof row.overdueByMs === 'number' ? row.overdueByMs : 0,
+    }
+  })
+}
+
+const requestPath = (r: OpenRequest) =>
+  `/projects/${r.workspace}/${r.project}/review-requests/${r.id}`
+
+/** Reviewers put some requests off, drop one, and the ones who asked nudge an overdue one. */
+async function seedReviewActivity(world: World): Promise<void> {
+  const kinds = ['tomorrow', 'next_week', 'next_push'] as const
+  const reviewers: PersonKey[] = ['owner', 'member', 'priya', 'daniel', 'sofia']
+  const lists = await Promise.all(reviewers.map((who) => openRequests(who, 'for-you')))
+  const jobs: Promise<unknown>[] = []
+  for (const [i, who] of reviewers.entries()) {
+    const open = lists[i] ?? []
+    // The first (most urgent) stays open; the next ones are snoozed, one dropped.
+    for (const [k, request] of open.slice(1, 4).entries()) {
+      jobs.push(
+        tolerant(`snooze of ${request.id}`, () =>
+          call(who, 'POST', `${requestPath(request)}/snooze`, { kind: kinds[k % kinds.length] }),
+        ),
+      )
+    }
+    const dropped = open[4]
+    if (dropped) {
+      jobs.push(
+        tolerant(`dismissal of ${dropped.id}`, () =>
+          call(who, 'POST', `${requestPath(dropped)}/dismiss`),
+        ),
+      )
+    }
+  }
+  await Promise.all(jobs)
+  // Whoever asked tells an overdue reviewer again.
+  const asked = await Promise.all(reviewers.map((who) => openRequests(who, 'all-open')))
+  const nudges = asked
+    .flat()
+    .filter((r) => r.overdueByMs > 0 && r.requestedById)
+    .slice(0, 4)
+  await Promise.all(
+    nudges.map((r) => {
+      const asker = [...world.ids.entries()].find(([, id]) => id === r.requestedById)?.[0]
+      return asker
+        ? tolerant(`nudge of ${r.id}`, () => call(asker, 'POST', `${requestPath(r)}/nudge`))
+        : Promise.resolve()
+    }),
+  )
+
+  // Inbox: some notices snoozed (the Snoozed tab), some marked read, one removed.
+  const inboxers: PersonKey[] = ['owner', 'member', 'priya', 'daniel']
+  await Promise.all(
+    inboxers.map(async (who) => {
+      const list = asRecord(await call(who, 'GET', '/inbox?tab=for-you'))
+      const items = (Array.isArray(list.items) ? list.items : []).map((x: unknown) =>
+        stringIn(x, 'id'),
+      )
+      const choices = ['tomorrow', 'next_week'] as const
+      await Promise.all([
+        ...items
+          .slice(1, 3)
+          .map((id, k) =>
+            tolerant(`inbox snooze ${id}`, () =>
+              call(who, 'POST', `/inbox/${id}/snooze`, { choice: choices[k % 2] }),
+            ),
+          ),
+        ...items
+          .slice(4, 6)
+          .map((id) =>
+            tolerant(`inbox read ${id}`, () =>
+              call(who, 'POST', `/inbox/${id}/read`, { read: true }),
+            ),
+          ),
+        ...items
+          .slice(6, 7)
+          .map((id) => tolerant(`inbox remove ${id}`, () => call(who, 'DELETE', `/inbox/${id}`))),
+      ])
+    }),
+  )
+
+  // Triage: assignments, one snoozed, one dismissed, in the projects that have flaky screenshots.
+  for (const [who, project, assignee] of [
+    ['owner', 'web-app', 'priya'],
+    ['owner', 'design-system', 'amara'],
+    ['daniel', 'api-server', 'tomas'],
+    ['sofia', 'storybook', 'liam'],
+  ] as const) {
+    // eslint-disable-next-line no-await-in-loop -- one project at a time
+    await tolerant(`triage in ${project}`, async () => {
+      const queue = asRecord(await call(who, 'GET', `/projects/acme/${project}/triage`))
+      const items = (Array.isArray(queue.items) ? queue.items : []).map(asRecord)
+      const ref = (i: number) => {
+        const item = items[i]
+        return item ? { kind: stringIn(item, 'kind'), key: stringIn(item, 'key') } : undefined
+      }
+      const [first, second, third] = [ref(0), ref(1), ref(2)]
+      const base = `/projects/acme/${project}/triage`
+      await Promise.all([
+        first
+          ? call(who, 'POST', `${base}/assign`, { ...first, assigneeId: idOf(assignee, world) })
+          : undefined,
+        second
+          ? call(who, 'POST', `${base}/snooze`, { ...second, choice: 'next_week' })
+          : undefined,
+        third ? call(who, 'POST', `${base}/dismiss`, third) : undefined,
+      ])
+    })
+  }
 }

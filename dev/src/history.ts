@@ -6,10 +6,16 @@ import {
   STORYBOOK,
   accent,
   addPage,
+  background,
   banner,
+  band,
+  broken,
   buttonLeft,
   cards,
+  gallery,
   pagesOf,
+  resize,
+  tick,
   removePage,
   same,
   together,
@@ -21,6 +27,14 @@ export interface ReviewStep {
   state: 'approved' | 'rejected'
   reason?: string
   hours: number
+}
+
+/** Decisions on some screenshots of a build (`names`), or on every one without a decision yet. */
+export interface SnapshotReviewStep {
+  by: PersonKey
+  decision: 'approved' | 'rejected'
+  names: string[] | 'undecided'
+  reason?: string
 }
 
 /** A comment on a build (or on one screenshot, or a spot on it), `hours` after the build was ready. */
@@ -52,9 +66,19 @@ export interface Step {
   comments: CommentStep[]
   /** People the author asks to look at it. */
   requests: PersonKey[]
+  /** Decisions on single screenshots (after the build-wide `reviews`). */
+  snapshotReviews: SnapshotReviewStep[]
+  /** CI ran the same commit again (same screenshots): the server carries the earlier decision over. */
+  rerun?: boolean
+  /** The checkout has no history to compare with, so the baseline is the latest build on main. */
+  noAncestry?: boolean
+  /** One of two shards arrived and the other never will: the build stays "uploading". */
+  partial?: boolean
 }
 
 interface Extras {
+  snapshotReviews?: SnapshotReviewStep[]
+  noAncestry?: boolean
   reviews?: ReviewStep[]
   comments?: CommentStep[]
   requests?: PersonKey[]
@@ -80,18 +104,72 @@ const say = (
 function timeline(project: string, base: Screen[]) {
   let main = base
   const steps: Step[] = []
-  const push = (step: Omit<Step, 'project' | 'reviews' | 'comments' | 'requests'> & Extras) => {
+  /** The pages on main after each build on it, oldest first: what a pull request of that day was compared with. */
+  const mains: { daysAgo: number; screens: Screen[] }[] = [{ daysAgo: 1000, screens: base }]
+  const mainAt = (daysAgo: number): Screen[] =>
+    mains.findLast((m) => m.daysAgo >= daysAgo)?.screens ?? base
+  const push = (
+    step: Omit<Step, 'project' | 'reviews' | 'comments' | 'requests' | 'snapshotReviews'> & Extras,
+    track = true,
+  ) => {
     const { merge: _merge, ...rest } = step
+    if (track && step.branch === 'main' && !step.name && !step.failed && !step.partial) {
+      mains.push({ daysAgo: step.daysAgo, screens: step.screens })
+    }
     steps.push({
       reviews: [],
       comments: [],
       requests: [],
+      snapshotReviews: [],
       ...rest,
       project,
     })
   }
   return {
     steps,
+    mainAt,
+    /** The same commit again, as CI does when a job is re-run: same screenshots, an earlier decision carries over. */
+    rerun(daysAgo: number, branch: string) {
+      const earlier = steps.findLast((x) => x.branch === branch && !x.failed && !x.partial)
+      if (!earlier) throw new Error(`${project}: nothing to re-run on ${branch}`)
+      push({
+        daysAgo,
+        branch,
+        message: earlier.message,
+        author: earlier.author,
+        screens: earlier.screens,
+        rerun: true,
+        ...(earlier.pr ? { pr: earlier.pr } : {}),
+      })
+    },
+    /** A pull request compared with the pages main had on that day, which leaves main alone (for the filler). */
+    prAt(
+      daysAgo: number,
+      branch: string,
+      number: number,
+      message: string,
+      author: PersonKey,
+      change: Change,
+      extras: Extras = {},
+    ) {
+      push({
+        daysAgo,
+        branch,
+        pr: number,
+        message,
+        author,
+        screens: change(mainAt(daysAgo)),
+        ...extras,
+      })
+    },
+    /** A build on main that adds nothing new: the pages main had that day. */
+    nightly(daysAgo: number, message: string, author: PersonKey) {
+      push({ daysAgo, branch: 'main', message, author, screens: mainAt(daysAgo) }, false)
+    },
+    /** A build whose second shard never comes and that nothing has failed yet. */
+    partial(daysAgo: number, message: string, author: PersonKey) {
+      push({ daysAgo, branch: 'main', message, author, screens: main, partial: true })
+    },
     /** A build on the default branch. Its changes are approved automatically; the first one is approved by hand. */
     main(
       daysAgo: number,
@@ -147,6 +225,179 @@ const flipDashboard = (i: number): Change =>
     buttonLeft('settings/billing', i % 2 === 0),
   )
 const flipCart = (i: number): Change => banner('m/cart', i % 2 === 0 ? '#ffd166' : undefined)
+
+// ---------------------------------------------------------------------------------------------
+// Filler: many more pull requests per project, spread over the weeks, with every size of change.
+// ---------------------------------------------------------------------------------------------
+
+type Timeline = ReturnType<typeof timeline>
+
+/** A small seeded random generator, so every first run seeds the same data. */
+function random(seed: string): () => number {
+  let a = 0
+  for (const ch of seed) a = (Math.imul(a, 31) + ch.charCodeAt(0)) >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** What a pull request does to one page; the share of the page that changes is the diff score. */
+const KINDS = [
+  'small',
+  'none',
+  'medium',
+  'tiny',
+  'large',
+  'small',
+  'size',
+  'add',
+  'medium',
+  'none',
+  'remove',
+  'small',
+  'huge',
+  'tiny',
+] as const
+type Kind = (typeof KINDS)[number]
+
+const TITLES = [
+  'Tighten the spacing',
+  'Update the icons',
+  'Refresh the empty state',
+  'Rework the header',
+  'Align the cards',
+  'New loading skeleton',
+  'Larger touch targets',
+  'Fix the overflow',
+  'Swap the illustration',
+  'Polish the focus ring',
+  'Table density option',
+  'Restyle the tabs',
+  'Better error message',
+  'Tune the dark mode',
+]
+
+function changeFor(kind: Kind, page: string, extra: string, pages: string[], i: number): Change {
+  switch (kind) {
+    case 'tiny':
+      return band(page, 0.003)
+    case 'small':
+      return band(page, i % 2 === 0 ? 0.04 : 0.09)
+    case 'medium':
+      return band(page, 0.2)
+    case 'large':
+      return band(page, 0.4)
+    case 'huge':
+      return background(page, '#fde7c8')
+    case 'size':
+      return resize(page, 960, 640)
+    case 'add':
+      return addPage({ name: extra, accent: '#3355dd', cards: 2, columns: 2 })
+    case 'remove':
+      return removePage(pages.at(-1) ?? page)
+    default:
+      return same
+  }
+}
+
+interface Fill {
+  /** From this many days ago to that many days ago. */
+  from: number
+  to: number
+  count: number
+  /** Branch and page prefix; PR numbers start at `first`. */
+  prefix: string
+  first: number
+  pages: string[]
+  authors: PersonKey[]
+  reviewers: PersonKey[]
+  /** Builds in the last days stay undecided, and ask these people. */
+  pendingDays?: number
+}
+
+/**
+ * Pull requests that are never merged (main stays as the story above left it), so each is
+ * compared with the pages main had that day. About half are decided, a few rejected with a
+ * comment thread, the newest wait for a review.
+ */
+function fill(t: Timeline, f: Fill): void {
+  const rand = random(`${t.steps[0]?.project}-${f.prefix}`)
+  const span = f.from - f.to
+  const pendingDays = f.pendingDays ?? 7
+  for (let i = 0; i < f.count; i++) {
+    const daysAgo = f.from - (span * i) / Math.max(1, f.count - 1) + (i % 5) * 0.013
+    const kind = KINDS[(i + Math.floor(rand() * 3)) % KINDS.length] ?? 'small'
+    const page = f.pages[Math.floor(rand() * Math.max(1, f.pages.length - 2))] ?? 'home'
+    const author = f.authors[i % f.authors.length] ?? 'owner'
+    const reviewer =
+      f.reviewers.find((r, k) => r !== author && k === i % f.reviewers.length) ??
+      f.reviewers.find((r) => r !== author) ??
+      author
+    const other = f.reviewers.find((r) => r !== reviewer && r !== author) ?? reviewer
+    const decided = daysAgo > pendingDays && kind !== 'none' && i % 3 !== 2
+    const hours = 2 + Math.floor(rand() * 40)
+    const reviews: ReviewStep[] = []
+    const comments: CommentStep[] = []
+    if (decided) {
+      if (i % 4 === 1) {
+        reviews.push(reject(reviewer, 'This is not what the design shows.', hours))
+        comments.push(
+          say(reviewer, hours - 1, 'Compare the lower part with the design.', {
+            snapshot: page,
+            region: i % 2 === 0 ? REGION : LOWER,
+          }),
+          say(author, hours, 'Good catch, fixing it.', { reply: true }),
+        )
+        if (i % 8 === 1)
+          comments.push(say(reviewer, hours + 1, 'Thanks, looks right now.', { reply: true }))
+      } else reviews.push(approve(reviewer, hours))
+    }
+    const waiting = !decided && kind !== 'none'
+    const tail = i % 11 === 3 ? ` (${f.prefix} ${i})` : ''
+    t.prAt(
+      daysAgo,
+      `${f.prefix}/${TITLES[i % TITLES.length]?.toLowerCase().replaceAll(' ', '-')}-${i}`,
+      f.first + i,
+      `${TITLES[i % TITLES.length]}${tail}`,
+      author,
+      changeFor(kind, page, `${f.prefix}/new-${i}`, f.pages, i),
+      {
+        reviews,
+        comments,
+        // Asked, then decided (the Reviewed tab), or still waiting (For you, Created, Overdue).
+        ...(waiting
+          ? { requests: i % 2 === 0 ? [reviewer, other] : [reviewer] }
+          : decided && i % 2 === 0
+            ? { requests: [reviewer] }
+            : {}),
+      },
+    )
+  }
+}
+
+/** Alternating changes on main, `n` of them from `from` days ago (a page that keeps changing back and forth). */
+function flips(t: Timeline, page: string, from: number, n: number, authors: PersonKey[]): void {
+  for (let i = 0; i < n; i++) {
+    t.main(
+      from - i,
+      `Tweak ${page} (${i + 1})`,
+      authors[i % authors.length] ?? 'owner',
+      banner(page, i % 2 === 0 ? '#06d6a0' : undefined),
+    )
+  }
+}
+
+/** Builds on the default branch that change nothing: the runs Insights and the list show. */
+function mainRun(t: Timeline, from: number, to: number, count: number, authors: PersonKey[]): void {
+  for (let i = 0; i < count; i++) {
+    const daysAgo = from - ((from - to) * i) / Math.max(1, count - 1) + 0.02
+    t.nightly(daysAgo, `Nightly build ${i + 1}`, authors[i % authors.length] ?? 'owner')
+  }
+}
 
 function webApp(): Step[] {
   const t = timeline('web-app', BASELINE)
@@ -359,6 +610,48 @@ function webApp(): Step[] {
     },
   )
   t.pr(0.4, 'feat/export', 18, 'Export to CSV', 'hannah', cards('settings/profile', 4, 2), {})
+  // Depth: a run of nightly builds, CI re-runs, a build without history, an unreadable screenshot.
+  t.rerun(46.4, 'feat/new-charts')
+  t.rerun(51.4, 'feat/dark-footer')
+  t.prAt(
+    20.5,
+    'fix/detached-ci',
+    120,
+    'CI checkout without history',
+    'liam',
+    band('settings/profile', 0.12),
+    { noAncestry: true, requests: ['owner'] },
+  )
+  t.prAt(10, 'fix/export-broken', 121, 'Broken export screenshot', 'hannah', broken('pricing'), {
+    requests: ['member'],
+  })
+  t.prAt(
+    8,
+    'chore/clock',
+    122,
+    'Show the time in the header',
+    'priya',
+    together(tick('home', 3), tick('dashboard/overview', 5)),
+  )
+  t.partial(0.01, 'Upload from a runner that stopped', 'liam')
+  mainRun(t, 85, 3.4, 22, ['owner', 'priya', 'member'])
+  fill(t, {
+    from: 87,
+    to: 0.3,
+    count: 40,
+    prefix: 'ui',
+    first: 100,
+    pages: [
+      'home',
+      'login',
+      'pricing',
+      'dashboard/overview',
+      'settings/profile',
+      'settings/billing',
+    ],
+    authors: ['member', 'sofia', 'liam', 'hannah', 'priya'],
+    reviewers: ['owner', 'member', 'priya'],
+  })
   return t.steps
 }
 
@@ -444,6 +737,28 @@ function api(): Step[] {
     accent('docs/changelog', '#5b2fd0'),
     {},
   )
+  t.rerun(53.9, 'feat/webhooks-docs')
+  t.prAt(
+    14,
+    'fix/errors-page',
+    120,
+    'Broken error codes screenshot',
+    'tomas',
+    broken('docs/errors'),
+    {},
+  )
+  flips(t, 'docs/overview', 9, 6, ['daniel', 'priya'])
+  mainRun(t, 84, 10, 14, ['daniel', 'tomas'])
+  fill(t, {
+    from: 86,
+    to: 0.5,
+    count: 24,
+    prefix: 'docs',
+    first: 100,
+    pages: ['docs/overview', 'docs/auth', 'docs/endpoints', 'docs/errors', 'docs/changelog'],
+    authors: ['tomas', 'priya', 'daniel'],
+    reviewers: ['daniel', 'priya', 'owner'],
+  })
   return t.steps
 }
 
@@ -515,6 +830,35 @@ function storybook(): Step[] {
     accent('storybook/modal', '#118ab2'),
     {},
   )
+  t.rerun(19.8, 'feat/button-loading')
+  t.prAt(
+    12,
+    'fix/tooltip-asset',
+    120,
+    'Corrupt tooltip screenshot',
+    'liam',
+    broken('storybook/tooltip'),
+    {},
+  )
+  flips(t, 'storybook/button', 9, 5, ['sofia', 'liam'])
+  mainRun(t, 85, 10, 14, ['sofia', 'liam'])
+  fill(t, {
+    from: 86,
+    to: 0.5,
+    count: 22,
+    prefix: 'sb',
+    first: 100,
+    pages: [
+      'storybook/button',
+      'storybook/card',
+      'storybook/modal',
+      'storybook/tooltip',
+      'storybook/tabs',
+      'storybook/table',
+    ],
+    authors: ['liam', 'sofia', 'member'],
+    reviewers: ['sofia', 'member', 'liam'],
+  })
   return t.steps
 }
 
@@ -588,6 +932,26 @@ function designSystem(): Step[] {
     accent('components/input', '#1f7a50'),
     {},
   )
+  t.rerun(39.8, 'feat/input-states')
+  t.rerun(63.7, 'feat/spacing-scale')
+  flips(t, 'tokens/colors', 9, 7, ['amara', 'sofia'])
+  mainRun(t, 86, 10, 12, ['amara', 'sofia'])
+  fill(t, {
+    from: 86,
+    to: 0.6,
+    count: 22,
+    prefix: 'ds',
+    first: 100,
+    pages: [
+      'tokens/colors',
+      'tokens/spacing',
+      'tokens/typography',
+      'components/button',
+      'components/input',
+    ],
+    authors: ['amara', 'sofia', 'owner'],
+    reviewers: ['sofia', 'amara', 'owner'],
+  })
   return t.steps
 }
 
@@ -635,6 +999,27 @@ function marketing(): Step[] {
     requests: ['owner'],
   })
   t.pr(2, 'blog/changelog', 57, 'Changelog post', 'amara', cards('blog/post', 5, 1), {})
+  t.prAt(
+    18,
+    'fix/ci-no-history',
+    120,
+    'Preview build without history',
+    'amara',
+    band('about', 0.15),
+    { noAncestry: true },
+  )
+  mainRun(t, 86, 3, 16, ['hannah', 'amara'])
+  fill(t, {
+    from: 87,
+    to: 0.4,
+    count: 24,
+    prefix: 'mk',
+    first: 100,
+    pages: ['home', 'blog/index', 'blog/post', 'pricing', 'about', 'careers'],
+    authors: ['hannah', 'amara', 'member'],
+    reviewers: ['hannah', 'owner', 'amara'],
+    pendingDays: 10,
+  })
   return t.steps
 }
 
@@ -679,6 +1064,20 @@ function mobileWeb(): Step[] {
   t.main(4, 'Free shipping banner (5)', 'liam', flipCart(4))
   t.pr(2, 'feat/search-bar', 66, 'Search bar', 'tomas', cards('m/home', 5, 1), {
     requests: ['member', 'liam'],
+  })
+  t.partial(0.01, 'Emulator upload cut off', 'tomas')
+  t.prAt(9, 'fix/menu-asset', 120, 'Corrupt menu screenshot', 'liam', broken('m/menu'), {})
+  mainRun(t, 83, 13, 12, ['tomas', 'liam'])
+  fill(t, {
+    from: 82,
+    to: 0.3,
+    count: 22,
+    prefix: 'mw',
+    first: 100,
+    pages: ['m/home', 'm/menu', 'm/cart', 'm/checkout', 'm/account'],
+    authors: ['tomas', 'liam', 'member'],
+    reviewers: ['member', 'tomas', 'liam'],
+    pendingDays: 9,
   })
   return t.steps
 }
@@ -747,6 +1146,17 @@ function storefront(): Step[] {
     buttonLeft('checkout/payment', true),
     {},
   )
+  mainRun(t, 85, 4, 10, ['kwame', 'elena'])
+  fill(t, {
+    from: 85,
+    to: 0.5,
+    count: 18,
+    prefix: 'sf',
+    first: 100,
+    pages: ['catalog', 'product', 'checkout/cart', 'checkout/payment', 'checkout/done'],
+    authors: ['kwame', 'priya', 'member'],
+    reviewers: ['elena', 'kwame', 'priya'],
+  })
   return t.steps
 }
 
@@ -771,6 +1181,165 @@ function portfolio(): Step[] {
       requests: ['owner'],
     },
   )
+  mainRun(t, 68, 4, 6, ['sofia', 'tomas'])
+  fill(t, {
+    from: 66,
+    to: 0.5,
+    count: 12,
+    prefix: 'pf',
+    first: 100,
+    pages: ['home', 'work', 'about', 'contact'],
+    authors: ['sofia', 'tomas'],
+    reviewers: ['owner', 'sofia', 'tomas'],
+  })
+  return t.steps
+}
+
+/** Nearly every page of a big redesign changes, by a different amount. */
+function redesign(screens: Screen[]): Screen[] {
+  return screens.map((s, i) => {
+    if (!s.name.startsWith('gallery/')) return s
+    const k = i % 10
+    if (k === 0) return { ...s, band: 0.4 }
+    if (k === 1 || k === 2) return { ...s, band: 0.2 }
+    if (k >= 3 && k <= 5) return { ...s, band: 0.05 }
+    if (k === 6) return { ...s, band: 0.003 }
+    if (k === 7 && i < 70) return { ...s, width: 960, height: 640 }
+    return s
+  })
+}
+
+function componentGallery(): Step[] {
+  const t = timeline('component-gallery', gallery('gallery', 150, '#2f9e6b'))
+  t.main(88, 'Seed the gallery', 'amara', same, { reviews: [approve('sofia', 3)] })
+  // 150 screenshots a build: 15 large, 30 medium, 45 small, 15 below the threshold, some bigger.
+  const everything = together(
+    redesign,
+    addPage({ name: 'gallery/151', accent: '#2f9e6b', cards: 3, columns: 3 }),
+    addPage({ name: 'gallery/152', accent: '#2f9e6b', cards: 2, columns: 2 }),
+    addPage({ name: 'gallery/153', accent: '#2f9e6b', cards: 5, columns: 1 }),
+    removePage('gallery/149'),
+    removePage('gallery/150'),
+  )
+  t.pr(60, 'feat/redesign-everything', 201, 'Redesign every component', 'sofia', everything, {
+    requests: ['amara', 'priya'],
+    reviews: [reject('amara', 'Too much at once: split the redesign by area.', 20)],
+    comments: [
+      say('amara', 18, 'The first rows are far off from the design.', {
+        snapshot: 'gallery/011',
+        region: REGION,
+      }),
+      say('sofia', 19, 'They follow the new tokens. Which part is off?', { reply: true }),
+      say('amara', 20, 'The paddings: they should be 24px, not 16px.', { reply: true }),
+    ],
+    snapshotReviews: [
+      {
+        by: 'priya',
+        decision: 'approved',
+        names: Array.from(
+          { length: 30 },
+          // The small changes: pages 10j+4 and 10j+5.
+          (_, i) => `gallery/${String(Math.floor(i / 2) * 10 + 4 + (i % 2)).padStart(3, '0')}`,
+        ),
+      },
+      {
+        by: 'amara',
+        decision: 'rejected',
+        reason: 'The spacing is off.',
+        names: ['gallery/011', 'gallery/012', 'gallery/021', 'gallery/022'],
+      },
+    ],
+  })
+  t.pr(
+    57,
+    'feat/redesign-everything',
+    201,
+    'Redesign every component, spacing fixed',
+    'sofia',
+    together(everything, band('gallery/011', 0.05), band('gallery/012', 0.05)),
+    {
+      snapshotReviews: [{ by: 'amara', decision: 'approved', names: 'undecided' }],
+      reviews: [approve('amara', 30)],
+      merge: 1,
+    },
+  )
+  t.prAt(
+    30,
+    'fix/ci-no-history',
+    202,
+    'CI job without git history',
+    'priya',
+    band('gallery/040', 0.08),
+    { noAncestry: true, requests: ['sofia'] },
+  )
+  t.prAt(11, 'fix/broken-thumb', 203, 'Corrupt screenshot', 'amara', broken('gallery/007'), {})
+  mainRun(t, 55, 2, 14, ['amara', 'sofia'])
+  fill(t, {
+    from: 55,
+    to: 0.3,
+    count: 16,
+    prefix: 'gl',
+    first: 210,
+    pages: Array.from({ length: 40 }, (_, i) => `gallery/${String(i + 1).padStart(3, '0')}`),
+    authors: ['sofia', 'amara', 'priya'],
+    reviewers: ['amara', 'priya', 'owner'],
+  })
+  // The same size again, with nothing decided yet.
+  t.prAt(
+    1.5,
+    'feat/new-theme',
+    230,
+    'A new theme for all components',
+    'amara',
+    (screens) =>
+      screens.map((s, i) =>
+        i % 3 === 0 ? { ...s, background: '#fde7c8' } : i % 3 === 1 ? { ...s, band: 0.18 } : s,
+      ),
+    { requests: ['sofia', 'priya', 'owner'] },
+  )
+  return t.steps
+}
+
+function adminConsole(): Step[] {
+  const t = timeline(
+    'admin-console',
+    pagesOf('#5b2fd0', [
+      'admin/users',
+      'admin/billing',
+      'admin/roles',
+      'admin/audit-log',
+      'admin/settings',
+      'admin/billing-history',
+    ]),
+  )
+  t.main(86, 'First console build', 'daniel', same, { reviews: [approve('owner', 2)] })
+  t.failed(75, 'Run the console tests on the new runner', 'liam')
+  t.pr(70, 'feat/roles-page', 301, 'Roles page', 'daniel', cards('admin/roles', 5, 2), {
+    reviews: [approve('owner', 10)],
+    merge: 0.5,
+  })
+  t.failed(22, 'Staging deploy timed out', 'daniel')
+  t.partial(0.01, 'Upload from a runner that stopped', 'liam')
+  t.rerun(69.7, 'feat/roles-page')
+  mainRun(t, 84, 2, 18, ['daniel', 'liam'])
+  fill(t, {
+    from: 84,
+    to: 0.3,
+    count: 26,
+    prefix: 'ad',
+    first: 310,
+    pages: [
+      'admin/users',
+      'admin/billing',
+      'admin/roles',
+      'admin/audit-log',
+      'admin/settings',
+      'admin/billing-history',
+    ],
+    authors: ['daniel', 'liam', 'member'],
+    reviewers: ['owner', 'daniel', 'member'],
+    pendingDays: 8,
+  })
   return t.steps
 }
 
@@ -784,4 +1353,6 @@ export const HISTORY: Record<string, Step[]> = {
   'mobile-web': mobileWeb(),
   storefront: storefront(),
   portfolio: portfolio(),
+  'component-gallery': componentGallery(),
+  'admin-console': adminConsole(),
 }
