@@ -34,7 +34,13 @@ import type { StorageDriver } from '@circi/storage'
 import { completeBuild } from '#src/builds/lifecycle.ts'
 
 import { mapLimit } from './concurrency.ts'
-import { createFetcher, createLoader, type Loader, storeServerFile } from './files.ts'
+import {
+  createFetcher,
+  createLoader,
+  type Loader,
+  type RefCountedLoader,
+  storeServerFile,
+} from './files.ts'
 
 /** The build pipeline (PLAN §7.2–7.3), run by the worker's `process-build` job. */
 
@@ -52,6 +58,8 @@ export namespace processBuild {
     diffEngine?: DiffEngine
     /** Parallel image operations per build. Each holds a few decoded screenshots in memory. */
     concurrency?: number
+    /** Called with the loader that holds the build's image bytes in memory (tests watch it empty out). */
+    onLoader?: (loader: RefCountedLoader) => void
   }
 
   export type Result =
@@ -125,25 +133,13 @@ export async function processBuild(
     const found = shots.find((b) => b.name === shot.name)
     if (found) base.push(found)
   }
-  const pairs = pairScreenshots(head, base)
-  const rows: NewScreenshotDiff[] = pairs.map((p) => ({
-    buildId: build.id,
-    name: p.name,
-    headScreenshotId: 'head' in p ? p.head.id : null,
-    baseScreenshotId: 'base' in p ? p.base.id : null,
-    status: p.status === 'compare' ? null : p.status,
-    score: p.status === 'unchanged' ? 0 : null,
-    jobStatus: p.status === 'compare' ? 'pending' : 'done',
-  }))
-  await replaceBuildDiffs(db, build.id, rows)
-
-  // 3. Thumbnails (and validation), once per distinct file that has none yet. A thumbnail and
+  // 2b. Thumbnails (and validation), for the head's files and the baseline's, once per distinct file that has none yet. A thumbnail and
   // the dimensions belong to the content-addressed file, so a screenshot whose bytes were seen in
   // any earlier build costs no download and no encode; the screenshots then copy them in SQL.
   const fetchFile = createFetcher(db, storage)
   const invalid = new Map<string, string>() // by file hash
   const needThumbnail = await listFilesWithoutThumbnail(db, [
-    ...new Set(head.map((s) => s.fileSha256)),
+    ...new Set([...head, ...base].map((s) => s.fileSha256)),
   ])
   await mapLimit(needThumbnail, concurrency, async (sha) => {
     try {
@@ -154,6 +150,21 @@ export async function processBuild(
     }
   })
   await copyFileThumbnailsToScreenshots(db, build.id)
+  // A baseline screenshot the server can't decode (its own build recorded it as unreadable) is no
+  // baseline: its head is compared with nothing and shows as added, instead of failing here too.
+  const readableBase = base.filter((b) => !invalid.has(b.fileSha256))
+
+  const pairs = pairScreenshots(head, readableBase)
+  const rows: NewScreenshotDiff[] = pairs.map((p) => ({
+    buildId: build.id,
+    name: p.name,
+    headScreenshotId: 'head' in p ? p.head.id : null,
+    baseScreenshotId: 'base' in p ? p.base.id : null,
+    status: p.status === 'compare' ? null : p.status,
+    score: p.status === 'unchanged' ? 0 : null,
+    jobStatus: p.status === 'compare' ? 'pending' : 'done',
+  }))
+  await replaceBuildDiffs(db, build.id, rows)
 
   // 4. Pixel diffs for same-name pairs with different bytes. Outcomes are collected and written
   // in set-based batches; the bytes of a file are dropped after the last pair that reads it.
@@ -167,6 +178,7 @@ export async function processBuild(
       uses.set(sha, (uses.get(sha) ?? 0) + 1)
   }
   const loader = createLoader(db, storage, uses)
+  deps.onLoader?.(loader)
   const statuses: string[] = []
   const results: DiffResult[] = []
   await mapLimit(pairs, concurrency, async (pair) => {
@@ -185,6 +197,9 @@ export async function processBuild(
     const headInvalid = invalid.get(pair.head.fileSha256)
     if (headInvalid) {
       fail(headInvalid, 'failed')
+      // Neither file is read now: let go of the counts, or the base's bytes would stay for good.
+      loader.release(pair.base.fileSha256)
+      loader.release(pair.head.fileSha256)
       return
     }
     try {
@@ -243,8 +258,12 @@ export async function processBuild(
     conclusion === 'changes_detected' ? await buildFlakyDecision(db, build) : undefined
   const decided = flakyDecision ? { flakyDecision } : {}
   let outcome: setBuildResult.Input = { conclusion, approval: 'none', ...decided }
+  // A build with an unreadable screenshot is never decided for anyone: approving the readable rest
+  // would make the whole build an approved baseline that the next build can't be compared with.
+  const hasUnreadable = statuses.includes('failed')
   if (conclusion === 'changes_detected') {
     if (
+      !hasUnreadable &&
       baseBuild !== undefined &&
       project.autoApproveDefaultBranch &&
       build.prNumber === null &&
@@ -255,8 +274,9 @@ export async function processBuild(
       // A CI re-run of a commit whose exact screenshots someone already decided on: approved
       // stays approved, rejected stays rejected, until someone decides again or an image changes.
       const earlier = await findDecidedRerunOf(db, build)
-      if (earlier?.state === 'approved') outcome = { conclusion, approval: 'rerun', ...decided }
-      else if (earlier) {
+      if (earlier?.state === 'approved') {
+        if (!hasUnreadable) outcome = { conclusion, approval: 'rerun', ...decided }
+      } else if (earlier) {
         outcome = { conclusion, approval: 'rerun-rejected', carriedFrom: earlier.id, ...decided }
       }
     }

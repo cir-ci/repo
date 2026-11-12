@@ -12,7 +12,12 @@ import {
 } from '@circi/db/repositories'
 import { files } from '@circi/db/schema'
 import { createTestDb, seedProject } from '@circi/db/testing'
-import type { diffImages, makeThumbnail, readPngInfo } from '@circi/diff'
+import {
+  InvalidImageError,
+  type diffImages,
+  type makeThumbnail,
+  type readPngInfo,
+} from '@circi/diff'
 import { contentKey, FsStorage } from '@circi/storage'
 import { sha256 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -34,11 +39,12 @@ afterAll(async () => {
 })
 
 /** The image functions, faked and counted: the bytes here are labels, not PNGs. */
-function fakeDiff() {
+function fakeDiff(unreadable: string[] = []) {
   const calls = { readPngInfo: 0, makeThumbnail: 0, diffImages: 0 }
   const diff = {
-    readPngInfo: async (): Promise<readPngInfo.Info> => {
+    readPngInfo: async (png: Buffer): Promise<readPngInfo.Info> => {
       calls.readPngInfo += 1
+      if (unreadable.includes(png.toString())) throw new InvalidImageError('not a PNG')
       return { width: 40, height: 30 }
     },
     makeThumbnail: async (png: Buffer): Promise<makeThumbnail.Result> => {
@@ -157,6 +163,104 @@ describe('processBuild image work', () => {
     expect(rows).toHaveLength(12)
     expect(rows.every((r) => r.status === 'changed' && r.jobStatus === 'done')).toBe(true)
     expect(rows.every((r) => r.changedPixels === 1 && r.diffFileSha256)).toBe(true)
+  })
+})
+
+describe('processBuild with unreadable screenshots', () => {
+  it('lets go of the baseline bytes of a pair whose head is unreadable', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const b1 = await uploadBuild(
+      project.id,
+      { commitSha: 'ccc0001', branch: 'main' },
+      { a: 'shared-base', b: 'shared-base' },
+    )
+    await processBuild({ db: t.db, storage, diff: fakeDiff().diff }, b1.id)
+    await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
+
+    // Both pairs read the same base file; the second one's head can't be read.
+    const b2 = await uploadBuild(
+      project.id,
+      { commitSha: 'ccc0002', branch: 'feature', ancestorShas: ['ccc0001'] },
+      { a: 'new-a', b: 'broken' },
+    )
+    let seen: { size(): number; peak(): number } | undefined
+    await processBuild(
+      {
+        db: t.db,
+        storage,
+        diff: fakeDiff(['broken']).diff,
+        concurrency: 1,
+        onLoader: (l) => (seen = l),
+      },
+      b2.id,
+    )
+    const rows = await listBuildDiffs(t.db, b2.id)
+    expect(rows.map((r) => [r.name, r.status])).toEqual([
+      ['a', 'changed'],
+      ['b', 'failed'],
+    ])
+    expect(seen?.size()).toBe(0)
+  })
+
+  it('treats a screenshot whose baseline is unreadable as added, not failed', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const f1 = fakeDiff(['bad-bytes'])
+    const b1 = await uploadBuild(
+      project.id,
+      { commitSha: 'ddd0001', branch: 'main' },
+      { home: 'bad-bytes', other: 'other-bytes' },
+    )
+    await processBuild({ db: t.db, storage, diff: f1.diff }, b1.id)
+    expect((await listBuildDiffs(t.db, b1.id)).map((r) => [r.name, r.status])).toEqual([
+      ['home', 'failed'],
+      ['other', 'added'],
+    ])
+    await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
+
+    // The next build resolves b1 as its baseline; home is readable now.
+    const f2 = fakeDiff(['bad-bytes'])
+    const b2 = await uploadBuild(
+      project.id,
+      { commitSha: 'ddd0002', branch: 'feature', ancestorShas: ['ddd0001'] },
+      { home: 'fine-bytes', other: 'other-bytes' },
+    )
+    await processBuild({ db: t.db, storage, diff: f2.diff }, b2.id)
+    expect((await getBuild(t.db, b2.id))?.baseBuildId).toBe(b1.id)
+    expect((await listBuildDiffs(t.db, b2.id)).map((r) => [r.name, r.status])).toEqual([
+      ['home', 'added'],
+      ['other', 'unchanged'],
+    ])
+    expect(f2.calls.diffImages).toBe(0)
+  })
+
+  it('does not auto-approve a default-branch build that has an unreadable screenshot', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const b1 = await uploadBuild(
+      project.id,
+      { commitSha: 'eee0001', branch: 'main' },
+      { home: 'home-v1', login: 'login-v1' },
+    )
+    await processBuild({ db: t.db, storage, diff: fakeDiff().diff }, b1.id)
+    await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
+
+    const good = await uploadBuild(
+      project.id,
+      { commitSha: 'eee0002', branch: 'main', ancestorShas: ['eee0001'] },
+      { home: 'home-v2', login: 'login-v1' },
+    )
+    await processBuild({ db: t.db, storage, diff: fakeDiff().diff }, good.id)
+    expect(await getBuild(t.db, good.id)).toMatchObject({ reviewStatus: 'approved' })
+
+    const broken = await uploadBuild(
+      project.id,
+      { commitSha: 'eee0003', branch: 'main', ancestorShas: ['eee0002'] },
+      { home: 'home-v3', login: 'login-broken' },
+    )
+    await processBuild({ db: t.db, storage, diff: fakeDiff(['login-broken']).diff }, broken.id)
+    expect(await getBuild(t.db, broken.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      reviewStatus: 'pending',
+    })
   })
 })
 
