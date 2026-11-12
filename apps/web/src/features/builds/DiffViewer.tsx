@@ -2,6 +2,7 @@ import type { Build, Comment, Figma, IgnoreRegion, ReviewStatus } from '@circi/a
 import {
   Banner,
   Button,
+  Collapsible,
   EmptyState,
   EnlargeTrigger,
   ExpandLessIcon,
@@ -374,10 +375,15 @@ export function Viewer({
             title="Couldn't read this screenshot"
             icon={<StatusIcon status="failed" size={32} decorative />}
           >
-            <Text as="span" variant="mono">
-              {diff.name}
+            {/* The name is in the header and the upload instruction in the banner above. */}
+            <Text as="p" variant="small" tone="secondary">
+              The file isn't a PNG the server could decode.
             </Text>
-            : {unreadableReason(diff.errorMessage)}. Upload the build again with a valid PNG.
+            <Collapsible title="Technical details">
+              <Text as="code" variant="mono">
+                {unreadableReason(diff.errorMessage)}
+              </Text>
+            </Collapsible>
           </EmptyState>
         ) : null}
         {regions?.error && !ignoring ? <Banner tone="danger">{regions.error}</Banner> : null}

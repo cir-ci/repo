@@ -243,13 +243,15 @@ describe('BuildPage states', () => {
     await expect
       .element(page.getByRole('heading', { name: "Couldn't read this screenshot" }))
       .toBeVisible()
+    // A plain sentence; the library's own words sit behind a disclosure, and the pane doesn't
+    // repeat the name or the instruction the header and the banner give.
     await expect
-      .element(
-        page.getByText(
-          /broken: the file is corrupt or truncated\. Upload the build again with a valid PNG\./,
-        ),
-      )
+      .element(page.getByText("The file isn't a PNG the server could decode."))
       .toBeVisible()
+    expect(page.getByText(/Upload the build again/).elements()).toHaveLength(0)
+    expect(page.getByText(/corrupt or truncated/).elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Technical details' }).click()
+    await expect.element(page.getByText('the file is corrupt or truncated')).toBeVisible()
     expect(
       page.getByRole('img', { name: /in this build|in the baseline/ }).elements(),
     ).toHaveLength(0)
@@ -335,7 +337,11 @@ describe('BuildPage states', () => {
     )
     await renderBuild()
     await expect.element(page.getByText('Upload was incomplete')).toBeVisible()
-    await expect.element(page.getByText(/login: Not a PNG/)).toBeVisible()
+    await expect
+      .element(page.getByText("The file isn't a PNG the server could decode."))
+      .toBeVisible()
+    await page.getByRole('button', { name: 'Technical details' }).click()
+    await expect.element(page.getByText('Not a PNG', { exact: true })).toBeVisible()
   })
 
   it('shows an added screenshot without view modes', async () => {
