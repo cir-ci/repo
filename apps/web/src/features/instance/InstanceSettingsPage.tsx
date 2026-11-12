@@ -1,5 +1,6 @@
 import type { InstanceAdmin } from '@circi/api'
 import {
+  Banner,
   Button,
   Checkbox,
   ConfirmDialog,
@@ -31,6 +32,7 @@ import {
   limitBounds,
   lockedBy,
   mailServer,
+  noSignInLeft,
   saveRequests,
 } from './config-model.ts'
 import { GithubAppSection } from './GithubAppSection.tsx'
@@ -205,9 +207,16 @@ function SignInSection({ config, draft, update, disabled }: PartProps) {
       {row(
         'sso',
         'Single sign-on',
-        'The providers below. It needs at least one.',
+        config.sso.length === 0
+          ? 'No provider is set up yet: add one below for it to work.'
+          : 'The providers below.',
         config.signIn.sso,
       )}
+      {noSignInLeft(config, draft) ? (
+        <Banner tone="warning">
+          No sign-in method would be left, so nobody could sign in, you included.
+        </Banner>
+      ) : null}
     </SettingsSection>
   )
 }

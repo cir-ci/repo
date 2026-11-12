@@ -135,6 +135,7 @@ function ProviderDialog({ provider, free, origin, onClose }: ProviderDialog.Prop
   return (
     <FormDialog
       open
+      initialFocus={() => document.getElementById(provider ? 'sso-client-id' : 'sso-provider')}
       onClose={onClose}
       title={provider ? `Edit ${provider.name}` : 'Add a single sign-on provider'}
       submitLabel={provider ? 'Save provider' : 'Add provider'}
@@ -168,6 +169,7 @@ function ProviderDialog({ provider, free, origin, onClose }: ProviderDialog.Prop
     >
       {provider ? null : (
         <Select
+          id="sso-provider"
           label="Provider"
           value={id}
           items={free.map((value) => ({ value, label: PROVIDER_LABELS[value] }))}
@@ -195,6 +197,7 @@ function ProviderDialog({ provider, free, origin, onClose }: ProviderDialog.Prop
         />
       ) : null}
       <TextField
+        id="sso-client-id"
         label="Client ID"
         value={clientId}
         error={shown ? problems.clientId : undefined}

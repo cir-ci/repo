@@ -6,10 +6,35 @@ import {
   isDirty,
   lockedBy,
   mailServer,
+  noSignInLeft,
   saveRequests,
 } from '#features/instance/config-model.ts'
 
 import { configFixture } from './fixtures.ts'
+
+describe('noSignInLeft', () => {
+  it('is true only when no method could sign anyone in', () => {
+    const config = configFixture()
+    const draft = draftOf(config)
+    expect(noSignInLeft(config, draft)).toBe(false)
+    draft.signIn.password = false
+    expect(noSignInLeft(config, draft)).toBe(false)
+    draft.signIn.email = false
+    // Single sign-on is on and a provider exists.
+    expect(noSignInLeft(config, draft)).toBe(config.sso.length === 0)
+    draft.signIn.sso = false
+    expect(noSignInLeft(config, draft)).toBe(true)
+  })
+
+  it('does not count single sign-on without a provider', () => {
+    const config = configFixture({ sso: [] })
+    const draft = draftOf(config)
+    draft.signIn.password = false
+    draft.signIn.email = false
+    expect(draft.signIn.sso).toBe(true)
+    expect(noSignInLeft(config, draft)).toBe(true)
+  })
+})
 
 describe('the settings draft', () => {
   it('starts as what is saved, with nothing to send', () => {

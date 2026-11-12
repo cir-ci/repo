@@ -137,6 +137,19 @@
   gap: 8px;
 }
 
+/* A long form: while it has changes the bar stays at the bottom of the view, so Save is never
+   scrolled away. (A phone's bar is sticky by `saveBar`.) */
+@media (min-width: 820px) {
+  .footer:not([data-clean]) {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    padding: 12px 0;
+    border-top: 1px solid var(--circi-line-subtle);
+    background: var(--circi-surface-panel);
+  }
+}
+
 .rowActions {
   display: flex;
   flex-wrap: wrap;

@@ -224,6 +224,15 @@ export function saveRequests(config: InstanceAdmin.Config, draft: ConfigDraft): 
   return requests
 }
 
+/**
+ * Whether nobody could sign in once the draft is saved: password and email code are off, and
+ * single sign-on is off or has no provider to sign in with.
+ */
+export function noSignInLeft(config: InstanceAdmin.Config, draft: ConfigDraft): boolean {
+  const { password, email, sso } = draft.signIn
+  return !password && !email && !(sso && config.sso.length > 0)
+}
+
 /** The smallest and largest value a limit accepts, for the field. */
 export const limitBounds = (key: InstanceLimitKey) => INSTANCE_LIMIT_BOUNDS[key]
 

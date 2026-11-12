@@ -246,7 +246,70 @@ describe('the test mail', () => {
   })
 })
 
+describe('the save bar', () => {
+  it.each([[1440], [1100]])(
+    'stays at the bottom of the view while the form has changes, at %ipx',
+    async (width) => {
+      fakeApi({ 'GET /api/instance/settings': { body: settingsFixture() }, ...GITHUB })
+      await page.viewport(width, 500)
+      await show()
+      const save = page.getByRole('button', { name: 'Save changes' })
+      await expect.element(save).toBeDisabled()
+      await page.getByLabelText('New projects keep builds for').fill('45')
+      await expect.element(save).toBeEnabled()
+      const bar = document.querySelector('[data-save-bar]')!
+      // The form is taller than the view, yet the bar is inside it.
+      expect(document.documentElement.scrollHeight).toBeGreaterThan(500)
+      await expect.poll(() => bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(500)
+      await expect.poll(() => bar.getBoundingClientRect().top).toBeGreaterThan(300)
+    },
+  )
+})
+
+describe('the sign-in methods', () => {
+  it('warns before saving when no method would be left', async () => {
+    fakeApi({ 'GET /api/instance/settings': { body: settingsFixture() }, ...GITHUB })
+    await show()
+    const section = page.getByRole('region', { name: 'Sign-in methods allowed on this instance' })
+    expect(section.getByText(/No sign-in method would be left/).elements()).toHaveLength(0)
+    await section.getByRole('checkbox', { name: 'Password' }).click()
+    await section.getByRole('checkbox', { name: 'Email code' }).click()
+    await expect
+      .element(section.getByText(/No sign-in method would be left/))
+      .not.toBeInTheDocument()
+    await section.getByRole('checkbox', { name: 'Single sign-on' }).click()
+    await expect.element(section.getByText(/No sign-in method would be left/)).toBeVisible()
+  })
+
+  it('says single sign-on has no provider yet, instead of that it needs one', async () => {
+    fakeApi({
+      'GET /api/instance/settings': {
+        body: settingsFixture({ config: configFixture({ sso: [] }) }),
+      },
+      ...GITHUB,
+    })
+    await show()
+    await expect.element(page.getByText('No providers yet')).toBeVisible()
+    await expect.element(page.getByText(/No provider is set up yet/)).toBeVisible()
+    expect(page.getByText(/needs at least one/).elements()).toHaveLength(0)
+  })
+})
+
 describe('single sign-on providers', () => {
+  it('opens Add provider on its first field, labelled, and gives focus back on Cancel', async () => {
+    fakeApi({ 'GET /api/instance/settings': { body: settingsFixture() }, ...GITHUB })
+    await show()
+    const add = page.getByRole('button', { name: 'Add provider' })
+    await add.click()
+    const dialog = page.getByRole('dialog')
+    const provider = dialog.getByRole('combobox', { name: 'Provider' })
+    await expect.element(provider).toBeVisible()
+    await expect.poll(() => document.activeElement).toBe(provider.element())
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    await expect.poll(() => document.activeElement).toBe(add.element())
+  })
+
   it('adds one in a dialog, with a write-only secret, and says so in a toast', async () => {
     const fake = fakeApi({
       'GET /api/instance/settings': { body: settingsFixture() },
