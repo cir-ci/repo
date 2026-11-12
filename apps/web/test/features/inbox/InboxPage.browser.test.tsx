@@ -85,6 +85,22 @@ describe('InboxPage', () => {
     await expect.element(page.getByRole('tablist', { name: 'Inbox' })).toBeVisible()
   })
 
+  it('fits a long mention beside the open notification: the list gives way, nothing runs past the panel', async () => {
+    await page.viewport(1300, 800)
+    const snippet = `@owner ${'this needs another look before we ship it, '.repeat(12)}`
+    fakeApi({
+      'GET /api/inbox': list([item('n1', { kind: 'mentioned', payload: { snippet } })]),
+    })
+    await show('/inbox?item=n1')
+    const pane = page.getByRole('heading', { name: /mentioned you on/ })
+    await expect.element(pane.first()).toBeVisible()
+    // The list and the pane stay inside the page's width (no wider than the window here), so the
+    // pane isn't clipped at the panel's edge.
+    const split = document.querySelector<HTMLElement>('[class*="split"]')!
+    expect(split.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
+    expect(split.scrollWidth).toBeLessThanOrEqual(split.clientWidth)
+  })
+
   it('marks read or unread with U', async () => {
     let readAt: string | null = null
     const api = fakeApi({
