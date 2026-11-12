@@ -19,7 +19,7 @@ import { workspaceSettingsRoutes } from '#features/workspace-settings/routes.ts'
 import { PageSkeleton } from '#lib/PageSkeleton.tsx'
 
 import { rootRoute } from './root-route.ts'
-import { WorkspaceRedirect } from './WorkspaceRedirect.tsx'
+import { WorkspaceHome, WorkspaceRedirect } from './WorkspaceRedirect.tsx'
 
 /** `/reviews` and `/insights` alone belong to a workspace: they open it in the one chosen last, else the first. */
 const workspaceRedirects = (['reviews', 'insights'] as const).map((page) =>
@@ -29,6 +29,13 @@ const workspaceRedirects = (['reviews', 'insights'] as const).map((page) =>
     component: () => <WorkspaceRedirect page={page} />,
   }),
 )
+
+/** `/acme` alone opens that workspace's Projects (static first segments like `/inbox` win over it). */
+const workspaceHome = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace',
+  component: WorkspaceHome,
+})
 
 /**
  * `/login` is the sign-in page, which the shell shows at any address while nobody is signed in;
@@ -58,6 +65,7 @@ const routeTree = rootRoute.addChildren([
   ...workspaceSettingsRoutes,
   ...integrationsRoutes,
   ...instanceRoutes,
+  workspaceHome,
   ...workspaceRedirects,
   loginRedirect,
 ])

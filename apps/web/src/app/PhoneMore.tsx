@@ -47,8 +47,8 @@ export function useMoreMenuItems(): (Menu.Item | Menu.Separator | Menu.Content)[
   if (workspace) {
     items.push({
       type: 'content',
-      name: 'Workspaces',
-      node: <span className={styles.heading}>Workspaces</span>,
+      name: 'Workspace',
+      node: <span className={styles.heading}>Workspace</span>,
     })
     for (const w of workspaces) {
       items.push({
@@ -81,7 +81,14 @@ export function useMoreMenuItems(): (Menu.Item | Menu.Separator | Menu.Content)[
       icon: <InsightsIcon />,
       onSelect: () => go(`/workspaces/${ws}/insights`),
     })
-    for (const view of pinnedViews(model?.views))
+    const views = pinnedViews(model?.views)
+    if (views.length > 0)
+      items.push({
+        type: 'content',
+        name: 'Views',
+        node: <span className={styles.heading}>Views</span>,
+      })
+    for (const view of views)
       items.push({
         label: view.name,
         icon: <ListFilterIcon />,
@@ -91,7 +98,8 @@ export function useMoreMenuItems(): (Menu.Item | Menu.Separator | Menu.Content)[
   }
   // One way into settings, as on the desktop's menu: the workspace's, else the account's.
   items.push({
-    label: 'Settings',
+    // Says which settings it opens: the open workspace's, else the account's.
+    label: workspace ? `${workspace.name} settings` : 'Account settings',
     icon: <SettingsIcon />,
     onSelect: () =>
       go(

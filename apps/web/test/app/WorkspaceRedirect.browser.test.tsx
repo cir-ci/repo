@@ -112,6 +112,23 @@ describe('/reviews and /insights without a workspace', () => {
   })
 })
 
+describe('/<workspace> alone', () => {
+  it('opens the Projects page for a workspace the person can see', async () => {
+    const { router } = await open('/acme', [overview('beta', 'Beta'), overview('acme', 'Acme')])
+    await expect.poll(() => router.state.location.pathname).toBe('/')
+    await expect
+      .element(page.getByRole('heading', { name: "This page doesn't exist" }))
+      .not.toBeInTheDocument()
+  })
+
+  it("says the page doesn't exist for one they can't see", async () => {
+    await open('/nope', [overview('acme', 'Acme')])
+    await expect
+      .element(page.getByRole('heading', { name: "This page doesn't exist" }))
+      .toBeVisible()
+  })
+})
+
 describe('/login while signed in', () => {
   it('goes to the app instead of saying the page does not exist', async () => {
     const { router } = await open('/login', [overview('acme', 'Acme')])

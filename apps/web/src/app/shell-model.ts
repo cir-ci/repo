@@ -199,6 +199,10 @@ export const projectsTabLabel = (projects: readonly YourProject[]): string =>
 /** How many project tiles the Projects tab's icon stacks. */
 export const PROJECT_STACK_LIMIT = 3
 
+/** A project's triage count with its noun: "5 to triage", or "Nothing to triage". */
+export const triageNote = (n: number | undefined): string =>
+  n ? `${n} to triage` : 'Nothing to triage'
+
 /** A count is shown only when there is something waiting. */
 export const countOrUndefined = (n: number | undefined): number | undefined => (n ? n : undefined)
 

@@ -528,7 +528,7 @@ describe('Shell, search button', () => {
     await expect.element(page.getByText('⌘K')).toBeVisible()
     await search.click()
     await expect
-      .element(page.getByRole('combobox', { name: 'Search or run a command' }))
+      .element(page.getByRole('combobox', { name: 'Search or type a command' }))
       .toHaveFocus()
   })
 })
@@ -641,7 +641,21 @@ describe('Shell, settings', () => {
         .getByRole('link')
         .elements()
         .map((el) => el.textContent),
-    ).toEqual(['web-app', 'storybook', 'api', 'All projects'])
+    ).toEqual([
+      'web-app',
+      // The open project's own settings pages, under it.
+      'General',
+      'Members',
+      'CI token',
+      'Reviews and triage',
+      'Webhooks',
+      'Ignore regions',
+      'Sites',
+      'storybook',
+      'api',
+      'All projects',
+    ])
+    // On its hub the project's entry is the current page.
     await expect
       .element(projects.getByRole('link', { name: 'web-app' }))
       .toHaveAttribute('aria-current', 'page')
@@ -1048,13 +1062,13 @@ describe('Shell, narrow', () => {
       const first = menu.getByRole('menuitem').first()
       await expect.element(first).toHaveTextContent('Acme')
       await expect.element(first).toHaveAttribute('aria-current', 'true')
-      await menu.getByRole('menuitem', { name: /Globex/ }).click()
+      await menu.getByRole('menuitem', { name: /^Globex(?! settings)/ }).click()
       await expect.poll(() => page.getByRole('menu').elements().length).toBe(0)
       // The menu follows the workspace chosen (its projects are on the Projects tab).
       await tabs().getByRole('button', { name: 'More' }).click()
       await expect.element(page.getByRole('menuitem', { name: 'Insights' })).toBeVisible()
       await expect
-        .element(page.getByRole('menuitem', { name: /Globex/ }))
+        .element(page.getByRole('menuitem', { name: /^Globex(?! settings)/ }))
         .toHaveAttribute('aria-current', 'true')
     })
 
@@ -1072,7 +1086,7 @@ describe('Shell, narrow', () => {
 
     it('does not offer New workspace otherwise', async () => {
       const { menu } = await openMore('/')
-      await expect.element(menu.getByRole('menuitem', { name: /Acme/ })).toBeVisible()
+      await expect.element(menu.getByRole('menuitem', { name: /^Acme(?! settings)/ })).toBeVisible()
       expect(menu.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
     })
 
@@ -1082,7 +1096,9 @@ describe('Shell, narrow', () => {
         .getByRole('menuitem')
         .elements()
         .map((el) => el.textContent?.trim())
-      expect(names).toEqual(expect.arrayContaining(['Insights', 'Failing on main', 'Settings']))
+      expect(names).toEqual(
+        expect.arrayContaining(['Insights', 'Failing on main', 'Acme settings']),
+      )
       // What the Projects menu and the project page's tabs now hold is not repeated here.
       expect(menu.getByRole('menuitem', { name: 'Baselines' }).elements()).toHaveLength(0)
       expect(menu.getByRole('menuitem', { name: 'Sites' }).elements()).toHaveLength(0)
@@ -1091,6 +1107,12 @@ describe('Shell, narrow', () => {
       ).toHaveLength(0)
       expect(menu.getByRole('menuitem', { name: 'Not pinned' }).elements()).toHaveLength(0)
       expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('groups the menu under Workspace and Views headings', async () => {
+      const { menu } = await openMore('/')
+      await expect.element(menu.getByText('Workspace', { exact: true })).toBeVisible()
+      await expect.element(menu.getByText('Views', { exact: true })).toBeVisible()
     })
 
     it('signs out from the account entry', async () => {
@@ -1160,17 +1182,22 @@ describe('Shell, narrow', () => {
       expect(
         names.map((n) =>
           n
-            ?.split(/[0-9·]/)[0]
-            ?.replace('Acme', '')
-            .trim(),
+            ?.replace(/Acme|Globex/, '')
+            .split(/[0-9·]|Nothing/)[0]
+            ?.trim(),
         ),
       ).toEqual(['web-app', 'api', 'storybook', 'portal', 'All projects'])
       // The pinned project from a workspace of several names its workspace, with its count.
       await expect
         .poll(() => menu.getByRole('menuitem', { name: /^web-app/ }).element().textContent)
-        .toContain('Acme · 4')
+        .toContain('Acme · 4 to triage')
       // A separator between the groups and before All projects.
       expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(3)
+      // Every row has its secondary text, with the noun on the count.
+      for (const row of menu.getByRole('menuitem').elements()) {
+        if (row.textContent?.includes('All projects')) continue
+        expect(row.textContent).toMatch(/to triage/)
+      }
     })
 
     it('lists one workspace with no separators between projects', async () => {
@@ -1526,7 +1553,14 @@ describe('Shell, phone', () => {
     expect(names).toEqual(['Builds', 'Triage', 'Baselines'])
     for (const tab of pages.getByRole('tab').elements()) {
       expect(tab.querySelector('svg')).not.toBeNull()
+      // 44px targets.
+      const box = tab.getBoundingClientRect()
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
     }
+    // A tooltip names each icon.
+    await pages.getByRole('tab', { name: 'Triage' }).hover()
+    await expect.element(page.getByRole('tooltip', { name: 'Triage' })).toBeVisible()
     await expect
       .element(pages.getByRole('tab', { name: 'Builds' }))
       .toHaveAttribute('aria-selected', 'true')
@@ -1565,7 +1599,7 @@ describe('Shell, phone', () => {
       .elements()
       .map((el) => el.textContent?.trim())
     // The projects are in the Projects tab's menu, and Baselines and Sites in the project page's tabs.
-    expect(rows.slice(-4)).toEqual(['Insights', 'Failing on main', 'Settings', 'Sign out'])
+    expect(rows.slice(-4)).toEqual(['Insights', 'Failing on main', 'Acme settings', 'Sign out'])
     for (const row of menu.getByRole('menuitem').elements()) {
       expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(36)
     }
@@ -1582,7 +1616,7 @@ describe('Shell, phone', () => {
     await page.viewport(390, 844)
     const { router } = await renderShell('/inbox')
     await tabs().getByRole('button', { name: 'More' }).click()
-    await page.getByRole('menu').getByRole('menuitem', { name: 'Settings' }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Acme settings' }).click()
     await expect.poll(() => router.state.location.pathname).toMatch(/^\/workspaces\/acme\/settings/)
     // Settings has its own navigation: no tab bar, a Close in the header, the list in a sheet.
     expect(tabs().elements()).toHaveLength(0)

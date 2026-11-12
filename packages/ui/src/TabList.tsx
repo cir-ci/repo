@@ -2,6 +2,7 @@ import { Tabs } from '@base-ui/react/tabs'
 import type { ReactNode } from 'react'
 
 import { cx } from './cx.ts'
+import { Tooltip } from './Tooltip.tsx'
 
 import styles from './TabList.module.css'
 
@@ -36,11 +37,20 @@ export function TabList<T extends string>({
         className={styles.list}
         data-size={size === 'sm' ? 'sm' : undefined}
       >
-        {tabs.map((tab) => (
-          <Tabs.Tab key={tab.value} value={tab.value} className={styles.tab}>
-            {tab.label}
-          </Tabs.Tab>
-        ))}
+        {tabs.map((tab) => {
+          const item = (
+            <Tabs.Tab key={tab.value} value={tab.value} className={styles.tab}>
+              {tab.label}
+            </Tabs.Tab>
+          )
+          return tab.tooltip ? (
+            <Tooltip key={tab.value} content={tab.tooltip}>
+              {item}
+            </Tooltip>
+          ) : (
+            item
+          )
+        })}
         <Tabs.Indicator className={styles.indicator} />
       </Tabs.List>
       <Tabs.Panel value={value} className={cx(styles.panel, panelClassName)}>
@@ -54,6 +64,8 @@ export namespace TabList {
   export interface Tab<T extends string> {
     value: T
     label: ReactNode
+    /** A tooltip on the tab: for a tab that shows only an icon. */
+    tooltip?: string
   }
   export interface Props<T extends string> {
     label: string

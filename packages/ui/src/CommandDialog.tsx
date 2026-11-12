@@ -15,6 +15,7 @@ export function CommandDialog({
   label,
   wide = false,
   initialFocus,
+  finalFocus,
   children,
   ...rest
 }: CommandDialog.Props) {
@@ -32,6 +33,7 @@ export function CommandDialog({
             className={styles.popup}
             data-wide={wide ? '' : undefined}
             {...(initialFocus === undefined ? {} : { initialFocus })}
+            {...(finalFocus === undefined ? {} : { finalFocus })}
           >
             <span className={styles.grabber} aria-hidden="true" />
             <BaseDialog.Title className={styles.hidden}>{label}</BaseDialog.Title>
@@ -53,6 +55,8 @@ export namespace CommandDialog {
     wide?: boolean
     /** What gets focus when it opens, when the first tabbable element is not the one (a chip before the field). */
     initialFocus?: BaseDialog.Popup.Props['initialFocus']
+    /** Where focus goes when it closes (what opened it, when no trigger did: the keyboard shortcut). */
+    finalFocus?: BaseDialog.Popup.Props['finalFocus']
     children?: ReactNode
   }
 }

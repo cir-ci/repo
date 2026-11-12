@@ -17,9 +17,11 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
+import { Fragment } from 'react'
 
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
+import { PROJECT_SETTINGS_PAGES, type ProjectSettingsKey } from '#app/shell-model.ts'
 import { workspacesQuery } from '#features/instance/api/admin.ts'
 import { onInstancePage } from '#features/instance/hub-model.ts'
 import { capabilitiesQuery } from '#features/projects/api/index.ts'
@@ -207,27 +209,40 @@ export function SettingsNav() {
         <NavSection label="Projects">
           {(model?.projects ?? []).map((project) => {
             const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(project.slug)}/settings`
+            const inside = pathname === base || pathname.startsWith(`${base}/`)
             return (
-              <NavLink
-                key={project.slug}
-                to="/$workspace/$project/settings"
-                params={{ workspace: workspace.slug, project: project.slug }}
-                icon={
-                  <Avatar
-                    type="project"
-                    aria-hidden
-                    slug={project.slug}
-                    name={project.name}
-                    color={project.color}
-                    icon={project.icon}
-                    size={18}
+              <Fragment key={project.slug}>
+                <NavLink
+                  to="/$workspace/$project/settings"
+                  params={{ workspace: workspace.slug, project: project.slug }}
+                  icon={
+                    <Avatar
+                      type="project"
+                      aria-hidden
+                      slug={project.slug}
+                      name={project.name}
+                      color={project.color}
+                      icon={project.icon}
+                      size={18}
+                    />
+                  }
+                  // The project's entry is the current page on its hub; on a page below it the page's own
+                  // entry (under the project) is, and the project keeps the quieter highlight.
+                  selected={pathname === base}
+                  within={inside}
+                >
+                  {project.name}
+                </NavLink>
+                {inside ? (
+                  <ProjectSections
+                    workspace={workspace.slug}
+                    project={project.slug}
+                    base={base}
+                    pathname={pathname}
+                    canManage={canManage}
                   />
-                }
-                // Every page of the project's settings belongs to its entry: the hub and the pages below it.
-                selected={pathname === base || pathname.startsWith(`${base}/`)}
-              >
-                {project.name}
-              </NavLink>
+                ) : null}
+              </Fragment>
             )
           })}
           <NavLink
@@ -243,6 +258,52 @@ export function SettingsNav() {
         </NavSection>
       ) : null}
     </>
+  )
+}
+
+const PROJECT_PAGE_PATHS = {
+  general: '/$workspace/$project/settings/general',
+  members: '/$workspace/$project/settings/members',
+  token: '/$workspace/$project/settings/token',
+  reviews: '/$workspace/$project/settings/reviews',
+  webhooks: '/$workspace/$project/settings/webhooks',
+  'ignore-regions': '/$workspace/$project/settings/ignore-regions',
+  sites: '/$workspace/$project/settings/sites',
+} as const satisfies Record<ProjectSettingsKey, string>
+
+/** Pages of a project's settings every member has; the rest are for owners and admins. */
+const MEMBER_PAGES: ReadonlySet<ProjectSettingsKey> = new Set(['members', 'ignore-regions'])
+
+/**
+ * The open project's settings pages (General, Members, CI token, ...) under its entry, so its
+ * sub-pages have sibling navigation without leaving settings. Owners and admins get all of them,
+ * members Members and Ignore regions (the hub's rule).
+ */
+function ProjectSections({
+  workspace,
+  project,
+  base,
+  pathname,
+  canManage,
+}: {
+  workspace: string
+  project: string
+  base: string
+  pathname: string
+  canManage: boolean
+}) {
+  return PROJECT_SETTINGS_PAGES.filter((page) => canManage || MEMBER_PAGES.has(page.key)).map(
+    (page) => (
+      <NavLink
+        key={page.key}
+        sub
+        to={PROJECT_PAGE_PATHS[page.key]}
+        params={{ workspace, project }}
+        selected={pathname === `${base}${page.path}` || pathname.startsWith(`${base}${page.path}/`)}
+      >
+        {page.label}
+      </NavLink>
+    ),
   )
 }
 

@@ -21,6 +21,7 @@ import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useMoreMenuItems } from './PhoneMore.tsx'
 import {
   countOrUndefined,
+  triageNote,
   currentSection,
   goPath,
   projectSections,
@@ -148,8 +149,8 @@ function projectMenuItems(
   for (const section of projectSections(projects)) {
     if (items.length > 0) items.push({ type: 'separator' })
     for (const t of section.projects) {
-      const triage = countOrUndefined(t.triage)
-      const note = [section.showWorkspace ? t.workspace.name : undefined, triage]
+      // Every row has secondary text, with the noun on the count.
+      const note = [section.showWorkspace ? t.workspace.name : undefined, triageNote(t.triage)]
         .filter((part) => part !== undefined)
         .join(' · ')
       items.push({
@@ -165,7 +166,7 @@ function projectMenuItems(
             size={18}
           />
         ),
-        ...(note === '' ? {} : { trailing: note }),
+        trailing: note,
         onSelect: () =>
           go(`/${encodeURIComponent(t.workspace.slug)}/${encodeURIComponent(t.slug)}`),
       })

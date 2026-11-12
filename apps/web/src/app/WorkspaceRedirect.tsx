@@ -1,12 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { Navigate } from '@tanstack/react-router'
+import { Navigate, useParams } from '@tanstack/react-router'
 
 import { capabilitiesQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { NotFound } from './NotFound.tsx'
-import { listWorkspaces, pickLandingWorkspace, readRememberedWorkspace } from './shell-model.ts'
+import {
+  listWorkspaces,
+  pickLandingWorkspace,
+  readRememberedWorkspace,
+  rememberWorkspace,
+} from './shell-model.ts'
 
 const TITLES = { reviews: 'Reviews', insights: 'Insights' } as const
 
@@ -52,6 +57,34 @@ export function WorkspaceRedirect({ page }: WorkspaceRedirect.Props) {
               replace
             />
           )
+        }}
+      </QueryBoundary>
+    </>
+  )
+}
+
+/**
+ * A workspace's address alone (`/acme`): the Projects page, in that workspace, when it is one the
+ * person can see; the page that doesn't exist otherwise (a workspace they can't see looks the same
+ * as one that isn't there).
+ */
+export function WorkspaceHome() {
+  const { workspace } = useParams({ from: '/$workspace' })
+  const projects = useQuery(projectsQuery())
+  const caps = useQuery(capabilitiesQuery())
+  return (
+    <>
+      {projects.data ? null : <PageHeading title="Workspace" />}
+      <QueryBoundary<NonNullable<typeof projects.data>>
+        query={caps.isPending ? { ...projects, data: undefined } : projects}
+        announce="Opening the workspace"
+      >
+        {(data) => {
+          const known = listWorkspaces(data.projects, caps.data?.manageableWorkspaces)
+          if (!known.some((w) => w.slug === workspace)) return <NotFound />
+          // The shell follows the workspace this browser chose.
+          rememberWorkspace(workspace)
+          return <Navigate to="/" replace />
         }}
       </QueryBoundary>
     </>

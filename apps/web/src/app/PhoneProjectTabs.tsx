@@ -78,6 +78,7 @@ function Tabs({ current }: { current: ProjectPage }) {
         label="Project pages"
         tabs={pages.map((page) => ({
           value: page,
+          tooltip: PAGE_LABEL[page],
           label: (
             <>
               <span className={styles.icon} aria-hidden="true">

@@ -194,6 +194,31 @@ describe('the command menu, empty', () => {
     await expect.element(field()).toHaveAttribute('placeholder', 'Search or type a command')
   })
 
+  it('highlights a Go to or Recent row on open, not a "This page" action like Copy link', async () => {
+    api()
+    await show('/acme/web/builds/7', '/$workspace/$project/builds/$number')
+    await openMenu()
+    const selected = page.getByRole('option', { selected: true })
+    await expect.element(selected).toBeVisible()
+    await expect.element(selected).not.toHaveAccessibleName(/Copy link/)
+    const group = selected.element().closest('[role="group"]')
+    expect(group?.getAttribute('aria-labelledby')).not.toBeNull()
+    expect(group?.textContent).not.toMatch(/Copy link to this page/)
+  })
+
+  it('names the field as its placeholder says, and gives focus back to where it was on Esc', async () => {
+    api()
+    await show()
+    const opener = page.getByRole('button', { name: 'Search' })
+    opener.element().focus()
+    await expect.element(opener).toHaveFocus()
+    await openMenu()
+    await expect.element(field()).toHaveAccessibleName('Search or type a command')
+    await expect.element(field()).toHaveAttribute('placeholder', 'Search or type a command')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(opener).toHaveFocus()
+  })
+
   it('draws an action with a verb and its keys, and no kind label', async () => {
     api()
     await onBuild()
@@ -816,10 +841,7 @@ describe('the footer', () => {
     api()
     await show()
     await openMenu()
-    // The first row is the page's own action: Enter runs it, and it has no new tab.
-    await vi.waitFor(() => expect(hintsText()).toContain('↵ Run'))
-    expect(hintsText()).not.toContain('New tab')
-    await page.getByRole('option', { name: 'Inbox', exact: true }).hover()
+    // The first row highlighted is a Go to row (not a page action): Enter goes there, in a new tab with ⌘.
     await vi.waitFor(() => expect(hintsText()).toContain('↵ Go to'))
     expect(hintsText()).toContain('⌘↵ New tab')
     await userEvent.type(field(), 'theme')

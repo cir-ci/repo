@@ -88,12 +88,24 @@ describe('SettingsNav', () => {
   })
 
   it('has a Projects section: each project opens its settings hub, then All projects opens the list', async () => {
-    await show()
+    // On its hub the project's pages are listed under it.
+    await show({ route: '/$workspace/$project/settings', url: '/acme/web/settings' })
     const projects = page.getByRole('region', { name: 'Projects' })
     await expect.element(projects).toBeVisible()
     await expect
       .poll(() => names(projects.getByRole('link')))
-      .toEqual(['Web App', 'Storybook', 'All projects'])
+      .toEqual([
+        'Web App',
+        'General',
+        'Members',
+        'CI token',
+        'Reviews and triage',
+        'Webhooks',
+        'Ignore regions',
+        'Sites',
+        'Storybook',
+        'All projects',
+      ])
     await expect
       .element(projects.getByRole('link', { name: 'Storybook' }))
       .toHaveAttribute('href', '/acme/storybook/settings')
@@ -166,9 +178,13 @@ describe('SettingsNav', () => {
 
   it('marks the project while any page of its settings is open, and not the others or All projects', async () => {
     await show()
+    // On a page of the project's settings, that page's entry (under the project) is the current one.
+    await expect
+      .element(page.getByRole('link', { name: 'Reviews and triage' }))
+      .toHaveAttribute('aria-current', 'page')
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
-      .toHaveAttribute('aria-current', 'page')
+      .not.toHaveAttribute('aria-current')
     await expect
       .element(page.getByRole('link', { name: 'Storybook' }))
       .not.toHaveAttribute('aria-current')
@@ -176,8 +192,38 @@ describe('SettingsNav', () => {
       .element(page.getByRole('link', { name: 'All projects' }))
       .not.toHaveAttribute('aria-current')
     await expect
-      .element(page.getByRole('link', { name: 'Members' }))
+      .element(page.getByRole('link', { name: 'Members', exact: true }).first())
       .not.toHaveAttribute('aria-current')
+  })
+
+  it("lists the open project's settings pages under it, for owners and admins, and links them", async () => {
+    await show()
+    const projects = page.getByRole('region', { name: 'Projects' })
+    await expect
+      .poll(() => names(projects.getByRole('link')))
+      .toEqual([
+        'Web App',
+        'General',
+        'Members',
+        'CI token',
+        'Reviews and triage',
+        'Webhooks',
+        'Ignore regions',
+        'Sites',
+        'Storybook',
+        'All projects',
+      ])
+    await expect
+      .element(projects.getByRole('link', { name: 'CI token' }))
+      .toHaveAttribute('href', '/acme/web/settings/token')
+  })
+
+  it('lists only Members and Ignore regions under the project for others, and none under another project', async () => {
+    await show({ canManage: false })
+    const projects = page.getByRole('region', { name: 'Projects' })
+    await expect
+      .poll(() => names(projects.getByRole('link')))
+      .toEqual(['Web App', 'Members', 'Ignore regions', 'Storybook', 'All projects'])
   })
 
   it('marks the project on its hub too', async () => {
@@ -266,12 +312,14 @@ describe('SettingsNav', () => {
       // Acme is the workspace being viewed: highlighted, quieter than the page itself.
       await expect.element(acme).toHaveAttribute('data-within', '')
       await expect.element(acme).not.toHaveAttribute('aria-current')
-      // The project is the page.
+      // The project's page is current under it; the project keeps the quieter highlight.
+      const projects = page.getByRole('region', { name: 'Projects' })
       await expect
-        .element(
-          page.getByRole('region', { name: 'Projects' }).getByRole('link', { name: 'Web App' }),
-        )
+        .element(projects.getByRole('link', { name: 'Reviews and triage' }))
         .toHaveAttribute('aria-current', 'page')
+      await expect
+        .element(projects.getByRole('link', { name: 'Web App' }))
+        .toHaveAttribute('data-within', '')
       // Another workspace isn't marked.
       await expect
         .element(workspaces.getByRole('link', { name: 'Globex' }))
@@ -379,7 +427,7 @@ describe('SettingsNav', () => {
         'a project page',
         '/$workspace/$project/settings/reviews',
         '/acme/web/settings/reviews',
-        ['Web App'],
+        ['Reviews and triage'],
       ],
       ['All workspaces', '/instance/workspaces', '/instance/workspaces', ['All workspaces']],
       ['an account page', '/account/profile', '/account/profile', ['Profile']],
@@ -435,7 +483,7 @@ describe('SettingsNav', () => {
         'a project page',
         '/$workspace/$project/settings/reviews',
         '/acme/web/settings/reviews',
-        ['Web App'],
+        ['Reviews and triage'],
       ],
     ])('for an owner or admin on %s', async (_name, route, url, expected) => {
       await show({ route, url })

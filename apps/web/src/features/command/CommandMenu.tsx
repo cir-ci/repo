@@ -27,6 +27,7 @@ import { CommandRow } from './CommandRow.tsx'
 import type { Chip, Entry, RowAction } from './entry.ts'
 import {
   buildList,
+  defaultIndex,
   flatten,
   footerHints,
   isReal,
@@ -106,10 +107,22 @@ export function CommandMenu({
   const [chips, setChips] = useState<Chip[]>([])
   const [contextCleared, setContextCleared] = useState(false)
   const [stack, setStack] = useState<PageState[]>([])
-  const [active, setActive] = useState(0)
+  const [active, setActive] = useState<number | null>(null)
   const afterClose = useRef<(() => void) | undefined>(undefined)
   const listId = useId()
   const fieldRef = useRef<HTMLInputElement>(null)
+  // The last element focused outside the menu: the shortcut has no trigger for the dialog to return to.
+  const outside = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    const remember = (event: FocusEvent) => {
+      const target = event.target
+      if (target instanceof HTMLElement && !target.closest('[role="dialog"]')) {
+        outside.current = target
+      }
+    }
+    document.addEventListener('focusin', remember)
+    return () => document.removeEventListener('focusin', remember)
+  }, [])
   const page = stack.at(-1)
   const now = Date.now()
   const [tip, setTip] = useState(0)
@@ -193,7 +206,10 @@ export function CommandMenu({
       ]
     : view.groups
   const flat = flatten(groups)
-  const current = flat.length === 0 ? -1 : Math.min(active, flat.length - 1)
+  const current =
+    flat.length === 0
+      ? -1
+      : Math.min(active ?? defaultIndex(groups, q !== '' || page !== undefined), flat.length - 1)
   const highlighted = current < 0 ? undefined : flat[current]
   const optionId = (i: number) => `${listId}-${i}`
   const words = page ? wordsOf(text) : wordsOf(q)
@@ -216,7 +232,7 @@ export function CommandMenu({
     setText('')
     setChips([])
     setStack([])
-    setActive(0)
+    setActive(null)
     setContextCleared(false)
     setTip(Math.floor(Math.random() * TIP_COUNT))
   }, [open])
@@ -231,7 +247,7 @@ export function CommandMenu({
     setText('')
     setChips([])
     setStack([])
-    setActive(0)
+    setActive(null)
     setContextCleared(false)
   }
 
@@ -245,7 +261,7 @@ export function CommandMenu({
   function widen() {
     setChips((c) => c.filter((x) => x.type !== 'project'))
     setContextCleared(true)
-    setActive(0)
+    setActive(null)
   }
 
   function openTab(path: string) {
@@ -287,7 +303,7 @@ export function CommandMenu({
       }
       setStack((s) => [...s, { page: 'reason', action }])
       setText('')
-      setActive(0)
+      setActive(null)
     })
   }
 
@@ -320,7 +336,7 @@ export function CommandMenu({
     if ('page' in found) {
       setStack((s) => [...s, { page: found.page, subject: found.subject }])
       setText('')
-      setActive(0)
+      setActive(null)
     } else runAction(found)
     return true
   }
@@ -389,11 +405,11 @@ export function CommandMenu({
           },
         ])
         setText('')
-        setActive(0)
+        setActive(null)
         return
       case 'chip':
         setChips((c) => (c.some((x) => sameChip(x, target.chip)) ? c : [...c, target.chip]))
-        setActive(0)
+        setActive(null)
         return
       case 'widen':
         widen()
@@ -401,7 +417,7 @@ export function CommandMenu({
       case 'clear':
         setText('')
         setChips([])
-        setActive(0)
+        setActive(null)
         return
       case 'retry':
         retry()
@@ -422,7 +438,7 @@ export function CommandMenu({
         return
       case 'clearSearches':
         if (workspace) useRecentSearchesStore.getState().clear(workspace)
-        setActive(0)
+        setActive(null)
         return
       case 'run':
         runAction(target.action)
@@ -444,20 +460,20 @@ export function CommandMenu({
   function back() {
     setStack((s) => s.slice(0, -1))
     setText('')
-    setActive(0)
+    setActive(null)
   }
 
   function type(value: string) {
     if (page) {
       // In a nested list the text finds a row (or is the reason), whatever it starts with.
       setText(value)
-      setActive(0)
+      setActive(null)
       return
     }
     const typed = readTyped(value, chips, projects)
     setChips(typed.chips)
     setText(typed.text)
-    setActive(0)
+    setActive(null)
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -489,7 +505,7 @@ export function CommandMenu({
       if (highlighted && hasRowActions(highlighted) && !page) {
         setStack((s) => [...s, { page: 'row', entry: highlighted }])
         setText('')
-        setActive(0)
+        setActive(null)
       }
     } else if (e.key === 'Backspace' && text === '') {
       if (page) {
@@ -498,10 +514,10 @@ export function CommandMenu({
       } else if (chips.length > 0) {
         e.preventDefault()
         setChips(withoutLastChip(chips))
-        setActive(0)
+        setActive(null)
       } else if (view.showContext) {
         setContextCleared(true)
-        setActive(0)
+        setActive(null)
       }
     } else if (e.key === 'ArrowLeft' && page && text === '') {
       e.preventDefault()
@@ -512,7 +528,7 @@ export function CommandMenu({
         e.preventDefault()
         setChips(done.chips)
         setText(done.text)
-        setActive(0)
+        setActive(null)
       }
     }
   }
@@ -544,6 +560,11 @@ export function CommandMenu({
       label="Command menu"
       wide
       initialFocus={fieldRef}
+      // Esc (or a choice that leaves the page as it is) gives focus back to where it was before ⌘K.
+      finalFocus={() => {
+        const before = outside.current
+        return before?.isConnected === true ? before : true
+      }}
     >
       <div className={styles.main}>
         <div className={styles.field}>
@@ -573,7 +594,7 @@ export function CommandMenu({
             ref={fieldRef}
             className={styles.input}
             role="combobox"
-            aria-label="Search or run a command"
+            aria-label={page ? PAGE_META[page.page].placeholder : placeholderFor(chips)}
             // The list is always on screen, but only "expanded" while it has something to choose.
             aria-expanded={flat.length > 0}
             aria-controls={listId}

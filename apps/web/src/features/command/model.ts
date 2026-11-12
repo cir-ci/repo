@@ -1340,6 +1340,16 @@ export function footerHints(input: {
 export const flatten = (groups: readonly Entry.GroupView[]): Entry[] =>
   groups.flatMap((g) => g.entries)
 
+/**
+ * Which row is highlighted before anyone moves: the first row, except that with nothing typed the
+ * "This page" actions (Copy link, ...) are skipped, so Enter goes to the first Go to / Recent
+ * result rather than copying a link.
+ */
+export function defaultIndex(groups: readonly Entry.GroupView[], typed: boolean): number {
+  if (typed || groups[0]?.id !== 'page') return 0
+  return groups[0].entries.length < flatten(groups).length ? groups[0].entries.length : 0
+}
+
 // Running a registry action ---------------------------------------------------------------
 
 /** The key presses that make the shortcut layer run a registry key spec (`mod+shift+c`, `g i`). */
