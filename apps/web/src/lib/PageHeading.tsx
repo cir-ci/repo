@@ -42,6 +42,7 @@ export function PageHeading({
   afterOwnRow = false,
   headingInPage,
   find,
+  status,
 }: PageHeading.Props) {
   const clientLink = useClientLink()
   const phone = usePhone()
@@ -51,7 +52,16 @@ export function PageHeading({
       actions={
         <>
           {phone ? null : find}
-          {actions}
+          {status ? (
+            // The buttons first, so they keep the title's line; the chips are drawn to their left
+            // and, when they don't fit there, take the line under the buttons.
+            <div className={styles.withStatus} data-header-status="">
+              <div className={styles.buttons}>{actions}</div>
+              <div className={styles.status}>{status}</div>
+            </div>
+          ) : (
+            actions
+          )}
           <PhoneEnd />
         </>
       }
@@ -119,6 +129,12 @@ export namespace PageHeading {
      * branch), instead of sitting beside the title (a count). False.
      */
     afterOwnRow?: boolean
+    /**
+     * Chips about the page's state (a build's review status, its target, who was asked), to the
+     * left of the buttons. They wrap on their own: short of room they move to a line under the
+     * buttons (and wrap among themselves there), so the buttons keep the title's line.
+     */
+    status?: ReactNode
     /** The page shows its own visible `<h1>` in the body (Integrations): the crumb is then plain text. */
     headingInPage?: boolean
   }

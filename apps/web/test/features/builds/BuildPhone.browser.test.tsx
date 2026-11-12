@@ -257,3 +257,43 @@ describe('the build page on a desktop', () => {
     expect(page.getByRole('button', { name: 'Draw a region' }).elements()).toHaveLength(0)
   })
 })
+
+/** The vertical middle of an element. */
+const mid = (el: Element) => {
+  const box = el.getBoundingClientRect()
+  return box.top + box.height / 2
+}
+
+describe('the build page header on a desktop', () => {
+  it('keeps the buttons on the title line and moves the status chips under them when short of room', async () => {
+    fakeBuildApi(detail())
+    await page.viewport(1700, 900)
+    await renderBuild()
+    const title = page.getByRole('heading', { level: 1 })
+    const approve = page.getByRole('button', { name: /^Approve$/ })
+    await expect.element(approve).toBeVisible()
+    const chip = page.getByText('Needs review', { exact: true }).first()
+    // Room enough: one line, the chips beside the buttons, on their left.
+    expect(Math.abs(mid(chip.element()) - mid(approve.element()))).toBeLessThan(4)
+    expect(chip.element().getBoundingClientRect().right).toBeLessThan(
+      approve.element().getBoundingClientRect().left,
+    )
+    // Short of room (narrower by the free room and half the chips): the buttons stay on the
+    // title's line; the chips take the line under them.
+    const chips = document
+      .querySelector('[data-header-status] > :last-child')!
+      .getBoundingClientRect()
+    // What follows the title (its branch) ends the left side.
+    const left = document.querySelector('[data-header-row]') ?? title.element()
+    const free = chips.left - left.getBoundingClientRect().right
+    await page.viewport(Math.round(1700 - free - chips.width / 2), 900)
+    await expect
+      .poll(() => chip.element().getBoundingClientRect().top)
+      .toBeGreaterThan(approve.element().getBoundingClientRect().bottom - 1)
+    expect(
+      Math.abs(
+        approve.element().getBoundingClientRect().top - title.element().getBoundingClientRect().top,
+      ),
+    ).toBeLessThan(12)
+  })
+})

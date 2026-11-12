@@ -371,14 +371,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             </IconButton>
           ) : (
             <>
-              <BuildStateLabel build={build} hasBaseline={hasBaseline} />
-              <ReviewTarget target={data.reviewTarget} />
               <IssueAction data={data} snapshotName={selected?.name ?? null} />
-              <RequestedReviewers
-                workspace={project.workspaceSlug}
-                project={project.slug}
-                number={build.number}
-              />
               <RequestReviewPicker
                 open={requesting}
                 onOpenChange={setRequesting}
@@ -391,6 +384,19 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               {isReviewable(build) ? (
                 <ReviewActions review={review} snapshotName={selected?.name} />
               ) : null}
+            </>
+          )
+        }
+        status={
+          phone ? null : (
+            <>
+              <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+              <ReviewTarget target={data.reviewTarget} />
+              <RequestedReviewers
+                workspace={project.workspaceSlug}
+                project={project.slug}
+                number={build.number}
+              />
             </>
           )
         }

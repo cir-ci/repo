@@ -23,3 +23,34 @@
   align-items: center;
   min-width: 0;
 }
+
+/* The buttons and the chips about the page's state, the buttons first in the order lines break
+   in (row-reverse draws them on the right): the chips move to the line under the buttons when
+   they don't fit beside them, and wrap among themselves there. */
+.withStatus {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.buttons {
+  display: flex;
+  flex: none;
+  gap: inherit;
+  align-items: center;
+}
+
+.status {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  /* A chip moves whole to the next line; its own words never break. */
+  white-space: nowrap;
+}
