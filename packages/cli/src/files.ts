@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
+
+import { UsageError } from './errors.ts'
 
 export namespace collectScreenshots {
   export interface Screenshot {
@@ -15,45 +17,79 @@ export namespace collectScreenshots {
 }
 
 const MAX_BYTES = 25 * 1024 * 1024
+/** Files read and hashed at once: enough to keep the disk busy, few enough to stay under the descriptor limit. */
+const HASH_CONCURRENCY = 8
 
 /**
- * Finds every `*.png` under `dir` (skipping hidden folders and node_modules), hashes it, and
- * reads an optional `<file>.png.json` sidecar with metadata (browser, viewport, test…).
+ * Finds every `*.png` under `dir` (skipping hidden folders and node_modules; symbolic links to
+ * files and folders are followed, a link back up the tree is not), hashes it, and reads an
+ * optional `<file>.png.json` sidecar with metadata (browser, viewport, test…).
  */
 export async function collectScreenshots(dir: string): Promise<collectScreenshots.Screenshot[]> {
-  const paths = await walk(dir)
-  const shots = await Promise.all(
-    paths.map(async (path): Promise<collectScreenshots.Screenshot> => {
-      const { size } = await stat(path)
-      if (size > MAX_BYTES) throw new Error(`${path} is ${size} bytes; the limit is ${MAX_BYTES}`)
-      const metadata = await readSidecar(`${path}.json`)
-      const shot: collectScreenshots.Screenshot = {
-        name: relative(dir, path)
-          .split(sep)
-          .join('/')
-          .replace(/\.png$/i, ''),
-        path,
-        sha256: await hashFile(path),
-        size,
-      }
-      if (metadata) shot.metadata = metadata
-      return shot
-    }),
-  )
+  const info = await stat(dir).catch(() => undefined)
+  if (!info) throw new UsageError(`No such directory: ${dir}`)
+  if (!info.isDirectory()) throw new UsageError(`${dir} is not a directory`)
+  const paths = await walk(dir, [])
+  const shots = await mapLimit(paths, HASH_CONCURRENCY, async (path) => {
+    const { size } = await stat(path)
+    if (size > MAX_BYTES) {
+      throw new UsageError(
+        `${path} is ${(size / 1024 / 1024).toFixed(1)} MB; the limit is ${MAX_BYTES / 1024 / 1024} MB per screenshot`,
+      )
+    }
+    const metadata = await readSidecar(`${path}.json`)
+    const shot: collectScreenshots.Screenshot = {
+      name: relative(dir, path)
+        .split(sep)
+        .join('/')
+        .replace(/\.png$/i, ''),
+      path,
+      sha256: await hashFile(path),
+      size,
+    }
+    if (metadata) shot.metadata = metadata
+    return shot
+  })
   return shots.toSorted((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 
-async function walk(dir: string): Promise<string[]> {
+/** `ancestors` are the real paths of the folders above, so a link that loops back is skipped. */
+async function walk(dir: string, ancestors: string[]): Promise<string[]> {
+  const real = await realpath(dir)
+  if (ancestors.includes(real)) return []
+  const chain = [...ancestors, real]
   const entries = await readdir(dir, { withFileTypes: true })
   const nested = await Promise.all(
     entries.map(async (e): Promise<string[]> => {
       if (e.name.startsWith('.') || e.name === 'node_modules') return []
       const full = join(dir, e.name)
-      if (e.isDirectory()) return walk(full)
-      return e.isFile() && /\.png$/i.test(e.name) ? [full] : []
+      // A link is judged by what it points at; a dangling one is skipped.
+      const target = e.isSymbolicLink() ? await stat(full).catch(() => undefined) : e
+      if (!target) return []
+      if (target.isDirectory()) return walk(full, chain)
+      return target.isFile() && /\.png$/i.test(e.name) ? [full] : []
     }),
   )
   return nested.flat()
+}
+
+/** `fn` over `items`, at most `limit` at a time; results keep the order of `items`. */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = Array.from<R>({ length: items.length })
+  // One iterator shared by the lanes: each pulls the next item when it is free.
+  const pending = items.entries()
+  const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    for (const [index, item] of pending) {
+      // oxlint-disable-next-line no-await-in-loop -- each lane takes one item at a time
+      results[index] = await fn(item)
+    }
+  })
+  await Promise.all(lanes)
+  return results
 }
 
 async function hashFile(path: string): Promise<string> {
@@ -69,9 +105,16 @@ async function readSidecar(path: string): Promise<Record<string, unknown> | unde
   } catch {
     return undefined
   }
-  const parsed: unknown = JSON.parse(text)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (err) {
+    throw new UsageError(
+      `${path} isn't valid JSON (${err instanceof Error ? err.message : String(err)})`,
+    )
+  }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(`${path} must contain a JSON object`)
+    throw new UsageError(`${path} must contain a JSON object`)
   }
   return Object.fromEntries(Object.entries(parsed))
 }

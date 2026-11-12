@@ -3,6 +3,7 @@ import { updateWorkspaceSignIn } from '@circi/services'
 import type { Command } from 'commander'
 
 import { withRuntime } from '#cli/lib/output.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 
 /** `circi admin auth enable|disable <method>` */
 export function addAuthCommands(admin: Command): void {
@@ -20,7 +21,7 @@ export function addAuthCommands(admin: Command): void {
       .action((method: string, opts: { org: string }) =>
         withRuntime(async (rt) => {
           if (method !== 'email' && method !== 'password') {
-            throw new Error('method must be "email" or "password"')
+            throw new UsageError('method must be "email" or "password"')
           }
           const workspace = await getWorkspaceBySlug(rt.db.db, opts.org)
           const value = action === 'enable'

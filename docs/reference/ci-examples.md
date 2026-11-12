@@ -101,4 +101,8 @@ Vitest deals the files out by name, not by duration, so the shards are not equal
 
 ## Exit codes
 
-`0` pass, `1` visual changes block the merge (with `--wait`), `2` error.
+- `0`: uploaded; with `--wait` also: the build passed, or the git host's check is the merge gate.
+- `1`: with `--wait`, visual changes need review and this job is the gate. Approve them in the dashboard, then re-run the job.
+- `2`: an error. Bad flags or setup, the server couldn't be reached, the build failed to process (the server's reason is printed), or `--wait` timed out (`--timeout`).
+
+Errors print one line (`error: No such directory: ./screenshotz`); add `--debug` or set `DEBUG=1` for the stack trace. API calls are retried with backoff on network errors and 5xx answers, and time out after 30 seconds each. The CLI follows symbolic links to screenshots and folders, and prints how many screenshots it found. In a full clone it never changes the repository's history; only an already shallow checkout is deepened.

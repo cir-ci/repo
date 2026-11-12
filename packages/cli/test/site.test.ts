@@ -95,6 +95,28 @@ describe('uploadSite', () => {
     expect(query.has('descends')).toBe(false)
   })
 
+  it("leaves descends unset when it can't ask what the branch serves, and says so", async () => {
+    const { lines } = await run(
+      { retryDelayMs: 1 },
+      { failFirst: [{ match: 'GET /v1/sites/served', status: 500, times: 99 }] },
+    )
+    const query = new URL(`http://x${fake.to('/v1/sites?')[0]?.path}`).searchParams
+    expect(query.has('descends')).toBe(false)
+    // It was asked more than once (retried), and the upload still went ahead.
+    expect(fake.to('/v1/sites/served').length).toBeGreaterThan(1)
+    expect(lines.join('\n')).toContain("couldn't ask what main serves now")
+  })
+
+  it('retries the question and uses the answer when the server recovers', async () => {
+    await run(
+      { retryDelayMs: 1 },
+      { failFirst: [{ match: 'GET /v1/sites/served', status: 503, times: 2 }] },
+    )
+    const query = new URL(`http://x${fake.to('/v1/sites?')[0]?.path}`).searchParams
+    // Recovered with "nothing served yet": the explicit null, so the commit starts the branch.
+    expect(query.get('descends')).toBe('true')
+  })
+
   it('refuses without a commit', async () => {
     fake = await new FakeCirci().start()
     await expect(

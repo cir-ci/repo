@@ -5,6 +5,7 @@ import * as tar from 'tar'
 
 import { ApiClient } from './api.ts'
 import { detectCi } from './ci-env.ts'
+import { errorLine } from './errors.ts'
 import { gitRunner, isAncestor, localHead, remoteBranchTip } from './git.ts'
 import { UsageError } from './upload.ts'
 
@@ -22,6 +23,8 @@ export namespace uploadSite {
     cwd?: string
     env?: Record<string, string | undefined>
     fetchImpl?: typeof fetch
+    /** First backoff between retries of a failed API call, in milliseconds (default 500). */
+    retryDelayMs?: number
     log?: (line: string) => void
   }
 
@@ -89,6 +92,7 @@ export async function uploadSite(options: uploadSite.Options): Promise<uploadSit
     baseUrl: options.apiUrl,
     token: options.token,
     ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+    ...(options.retryDelayMs !== undefined ? { retryDelayMs: options.retryDelayMs } : {}),
   })
   const name = options.name ?? 'site'
   const archive = await packSite(options.dir)
@@ -107,9 +111,17 @@ export async function uploadSite(options: uploadSite.Options): Promise<uploadSit
     const tip = await remoteBranchTip(git, ci.branch)
     if (tip) query.branch_tip = tip
     else {
-      const served = await client.servedCommit(name, ci.branch).catch(() => null)
-      if (served && (await isAncestor(git, served))) query.descends = 'true'
-      else if (served === null) query.descends = 'true'
+      // Only the server's explicit "nothing served yet" (null) says the branch is free to take;
+      // when it can't be asked, say nothing and let the server decide.
+      let served: string | null | undefined
+      try {
+        served = await client.servedCommit(name, ci.branch)
+      } catch (err) {
+        served = undefined
+        log(`warning: couldn't ask what ${ci.branch} serves now (${errorLine(err)}); continuing`)
+      }
+      if (served === null) query.descends = 'true'
+      else if (served && (await isAncestor(git, served))) query.descends = 'true'
     }
   }
 

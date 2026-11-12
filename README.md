@@ -13,7 +13,8 @@ CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screen
 - Every `*.png` under the directory is a screenshot, named by its path (`settings/profile.png` → `settings/profile`). An optional `<file>.png.json` next to it adds metadata.
 - Commit, branch and PR are read from the CI environment (GitHub Actions, GitLab, Bitbucket, Gitea/Forgejo, CircleCI, Buildkite, Jenkins, Azure Pipelines); `CIRCI_COMMIT`, `CIRCI_BRANCH`, `CIRCI_PR_NUMBER` and `CIRCI_BASE_BRANCH` override them.
 - Shallow CI checkouts are fine: the CLI fetches the base branch and just enough history to find the right baseline.
-- `--wait` exit codes: `0` pass, `1` visual changes need review (blocks the merge), `2` error.
+- `--wait` exit codes: `0` pass, `1` visual changes need review (blocks the merge), `2` error, including a build the server couldn't process (its reason is printed). `circi upload --help` explains them; `--debug` or `DEBUG=1` shows stack traces.
+- The CLI follows symbolic links, retries transient server errors with backoff, and never shortens a full clone's history.
 
 ## Webhooks
 

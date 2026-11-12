@@ -22,6 +22,15 @@ export interface FakeCirciOptions {
   failUploads?: number
   /** `POST /v1/sites` answers this status instead of 200. */
   siteStatus?: number
+  /** The build's status in `GET /v1/builds/:id/status` (default `complete`, or `processing` while pending). */
+  buildStatus?: string
+  /** `errorMessage` in that answer. */
+  errorMessage?: string | null
+  /**
+   * The first `times` requests whose `METHOD path` starts with `match` answer `status` (an error
+   * body) before the route runs; status 0 drops the connection instead.
+   */
+  failFirst?: { match: string; status: number; times: number }[]
 }
 
 /**
@@ -36,6 +45,7 @@ export class FakeCirci {
   private finalizes = 0
   private failedUploads = 0
   private pending: string[] = []
+  private failed = new Map<string, number>()
 
   private readonly options: FakeCirciOptions
 
@@ -98,6 +108,20 @@ export class FakeCirci {
   }
 
   private route(method: string, url: URL, body: Buffer, res: ServerResponse) {
+    for (const rule of this.options.failFirst ?? []) {
+      const key = `${rule.match}|${rule.status}`
+      if (!`${method} ${url.pathname}`.startsWith(rule.match)) continue
+      const count = this.failed.get(key) ?? 0
+      if (count >= rule.times) continue
+      this.failed.set(key, count + 1)
+      if (rule.status === 0) {
+        res.socket?.destroy()
+      } else {
+        res.writeHead(rule.status, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ error: `injected ${rule.status}` }))
+      }
+      return
+    }
     const reply = (status: number, json?: unknown) => {
       res.writeHead(status, { 'content-type': 'application/json' })
       res.end(json === undefined ? '' : JSON.stringify(json))
@@ -143,11 +167,14 @@ export class FakeCirci {
       const state = outcomes[Math.min(this.polls, outcomes.length - 1)] ?? 'pass'
       this.polls += 1
       reply(200, {
-        build: this.build(),
+        build: {
+          ...this.build(),
+          status: this.options.buildStatus ?? (state === 'pending' ? 'processing' : 'complete'),
+        },
         counts: { added: 1, removed: 0, changed: 2, unchanged: 3, failed: 0, total: 6 },
         outcome: { state, summary: state === 'pass' ? 'All clear' : 'Changes found' },
         gate: this.options.gate ?? 'exit-code',
-        errorMessage: null,
+        errorMessage: this.options.errorMessage ?? null,
       })
     } else if (method === 'GET' && path === '/v1/sites/served') {
       reply(200, { commit: this.options.servedCommit ?? null })

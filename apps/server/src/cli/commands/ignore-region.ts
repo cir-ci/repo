@@ -4,6 +4,7 @@ import type { Command } from 'commander'
 
 import { withRuntime } from '#cli/lib/output.ts'
 import { projectOf } from '#cli/lib/project.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 
 /** `circi admin ignore add|list|remove` */
 export function addIgnoreCommands(admin: Command): void {
@@ -20,7 +21,7 @@ export function addIgnoreCommands(admin: Command): void {
       withRuntime(async (rt) => {
         const [x, y, width, height] = opts.region.split(',').map((n) => Number(n.trim()))
         if ([x, y, width, height].some((n) => n === undefined || Number.isNaN(n))) {
-          throw new Error('--region must look like 10,20,300,40')
+          throw new UsageError('--region must look like 10,20,300,40')
         }
         const project = await projectOf(rt, opts.org, opts.project)
         const added = await createIgnoreRegion(rt.db.db, {

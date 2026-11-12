@@ -74,7 +74,7 @@ export async function collectAncestry(
   const head = options.headSha
 
   if (!(await hasCommit(git, head)) && doFetch) {
-    await tryRun(git, ['fetch', '--no-tags', `--depth=${DEEPEN_STEP}`, remote, head])
+    await tryRun(git, ['fetch', '--no-tags', ...(await depthArgs(git)), remote, head])
   }
   if (!(await hasCommit(git, head))) {
     return {
@@ -115,7 +115,7 @@ export async function collectAncestry(
     await tryRun(git, [
       'fetch',
       '--no-tags',
-      `--depth=${DEEPEN_STEP}`,
+      ...(await depthArgs(git)),
       remote,
       `+refs/heads/${options.baseBranch}:${baseRef}`,
     ])
@@ -186,6 +186,14 @@ export async function localHead(git: gitRunner.Runner): Promise<{ sha?: string; 
 
 async function hasCommit(git: gitRunner.Runner, sha: string): Promise<boolean> {
   return (await tryRun(git, ['cat-file', '-e', `${sha}^{commit}`])) !== undefined
+}
+
+/**
+ * `--depth` writes `.git/shallow`: on a full clone it would cut the user's history for good, so
+ * only a repository that is already shallow gets it. A full clone fetches what is missing whole.
+ */
+async function depthArgs(git: gitRunner.Runner): Promise<string[]> {
+  return (await isShallow(git)) ? [`--depth=${DEEPEN_STEP}`] : []
 }
 
 async function isShallow(git: gitRunner.Runner): Promise<boolean> {

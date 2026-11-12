@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ApiClient, ApiError } from '#src/api.ts'
+import { ApiClient, ApiError, backoffDelay, NetworkError } from '#src/api.ts'
 
+import { closedAddress } from './support/closed-port.ts'
 import { FakeCirci } from './support/fake-circi.ts'
 
 // A fresh server per test: `failUploads` counts down, so a shared one would fail whichever test
@@ -25,6 +26,15 @@ const instruction = (
   auth: 'none',
   ...over,
 })
+
+const quick = (extra: Partial<ApiClient.Options> = {}, base = '') =>
+  new ApiClient({ baseUrl: base, token: 't', retryDelayMs: 1, ...extra })
+
+/** A fetch that never answers until the request's own timeout aborts it. */
+const hanging: typeof fetch = (_url, init) =>
+  new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+  })
 
 describe('ApiClient', () => {
   it('trims trailing slashes from the base URL and sends the project token', async () => {
@@ -72,6 +82,118 @@ describe('ApiClient', () => {
     await expect(
       lonely.upload(instruction({ url: `${fake.url}/nowhere` }), new Uint8Array([1])),
     ).rejects.toThrow(/Upload of aaaaaaaaaaaa failed: 404/)
+  })
+
+  describe('retries and timeouts', () => {
+    it('resends a read after 5xx answers and dropped connections', async () => {
+      const flaky = await new FakeCirci({
+        failFirst: [
+          { match: 'GET /v1/project', status: 502, times: 1 },
+          { match: 'GET /v1/project', status: 0, times: 1 },
+          { match: 'GET /v1/project', status: 503, times: 1 },
+        ],
+      }).start()
+      try {
+        await expect(quick({}, flaky.url).project()).resolves.toMatchObject({ slug: 'web' })
+        expect(flaky.to('/v1/project')).toHaveLength(4)
+      } finally {
+        await flaky.stop()
+      }
+    })
+
+    it('gives up after the allowed attempts with the last error', async () => {
+      const down = await new FakeCirci({
+        failFirst: [{ match: 'GET /v1/project', status: 500, times: 99 }],
+      }).start()
+      try {
+        await expect(quick({ attempts: 3 }, down.url).project()).rejects.toMatchObject({
+          status: 500,
+        })
+        expect(down.to('/v1/project')).toHaveLength(3)
+      } finally {
+        await down.stop()
+      }
+    })
+
+    it("doesn't retry a client error", async () => {
+      const refusing = await new FakeCirci({
+        failFirst: [{ match: 'GET /v1/project', status: 401, times: 99 }],
+      }).start()
+      try {
+        await expect(quick({}, refusing.url).project()).rejects.toMatchObject({ status: 401 })
+        expect(refusing.to('/v1/project')).toHaveLength(1)
+      } finally {
+        await refusing.stop()
+      }
+    })
+
+    it('never resends a plain build creation after an answer that may have been processed', async () => {
+      const flaky = await new FakeCirci({
+        failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }],
+      }).start()
+      try {
+        await expect(quick({}, flaky.url).createBuild({ files: [] })).rejects.toMatchObject({
+          status: 500,
+        })
+        expect(flaky.to('/v1/builds')).toHaveLength(1)
+      } finally {
+        await flaky.stop()
+      }
+    })
+
+    it('resends a plain build creation after a gateway error, which the app never saw', async () => {
+      const flaky = await new FakeCirci({
+        failFirst: [{ match: 'POST /v1/builds', status: 503, times: 1 }],
+      }).start()
+      try {
+        await expect(quick({}, flaky.url).createBuild({ files: [] })).resolves.toMatchObject({
+          build: { number: 7 },
+        })
+        expect(flaky.to('/v1/builds')).toHaveLength(2)
+      } finally {
+        await flaky.stop()
+      }
+    })
+
+    it('times out a request that never answers, with a message that names the server', async () => {
+      const err = await new ApiClient({
+        baseUrl: 'https://ci.example.test',
+        token: 't',
+        fetch: hanging,
+        timeoutMs: 20,
+        attempts: 1,
+      })
+        .project()
+        .catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(NetworkError)
+      expect(err).toMatchObject({
+        message: "Couldn't reach https://ci.example.test (timed out)",
+        code: 'TIMEOUT',
+      })
+    })
+
+    it('says a refused connection plainly', async () => {
+      const address = await closedAddress()
+      const err = await new ApiClient({ baseUrl: address, token: 't', attempts: 1 })
+        .project()
+        .catch((e: unknown) => e)
+      expect(err).toMatchObject({ message: `Couldn't reach ${address} (connection refused)` })
+    })
+
+    it("doesn't retry an address that isn't a URL", async () => {
+      const err = await new ApiClient({ baseUrl: 'ci.acme', token: 't', retryDelayMs: 1 })
+        .project()
+        .catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(NetworkError)
+      expect(err).toMatchObject({ message: "Couldn't reach ci.acme (not a valid URL)" })
+    })
+  })
+
+  describe('backoffDelay', () => {
+    it('doubles each retry, scaled by 50-100% jitter', () => {
+      expect([1, 2, 3, 4].map((n) => backoffDelay(n, 100, () => 1))).toEqual([100, 200, 400, 800])
+      expect([1, 2, 3].map((n) => backoffDelay(n, 100, () => 0))).toEqual([50, 100, 200])
+    })
   })
 
   it("reports an error from the site upload with the server's message", async () => {

@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 
 import { withRuntime } from '#cli/lib/output.ts'
 import { projectOf } from '#cli/lib/project.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 import { useStoredGithubApp } from '#composition/github-app.ts'
 import { integrationConfig } from '#composition/integration-config.ts'
 
@@ -22,8 +23,9 @@ export function addGithubCommands(admin: Command): void {
     .action((opts: { org: string; project: string; repo: string; installation: string }) =>
       withRuntime(async (rt) => {
         if (!/^[\w.-]+\/[\w.-]+$/.test(opts.repo))
-          throw new Error('--repo must look like owner/name')
-        if (!/^\d+$/.test(opts.installation)) throw new Error('--installation must be a number')
+          throw new UsageError('--repo must look like owner/name')
+        if (!/^\d+$/.test(opts.installation))
+          throw new UsageError('--installation must be a number')
         const project = await projectOf(rt, opts.org, opts.project)
         // The App from the environment, or the one created in the dashboard.
         const config = integrationConfig(rt.config)

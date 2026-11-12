@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -65,6 +65,58 @@ async function shallowClone(branch: string): Promise<string> {
   })
   return dir
 }
+
+/** A full clone of one branch: all of its history, but not the other branches. */
+async function fullClone(branch: string): Promise<string> {
+  n += 1
+  const dir = join(root, `full-${n}`)
+  await exec(
+    'git',
+    ['clone', '-q', '--single-branch', '--branch', branch, `file://${remote}`, dir],
+    { env },
+  )
+  return dir
+}
+
+describe('collectAncestry in a full clone', () => {
+  it('finds the fork point without turning the clone shallow', async () => {
+    const dir = await fullClone('feature')
+    const before = await git(dir, 'rev-list', '--count', 'HEAD')
+    const res = await collectAncestry(gitRunner(dir), {
+      headSha: c.f2 ?? '',
+      baseBranch: 'main',
+      isBaseBranchBuild: false,
+    })
+    expect(res).toEqual({ status: 'ok', mergeBaseSha: c.m2, ancestorShas: [c.m2, c.m1] })
+    expect(await git(dir, 'rev-parse', '--is-shallow-repository')).toBe('false')
+    await expect(readFile(join(dir, '.git', 'shallow'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await git(dir, 'rev-list', '--count', 'HEAD')).toBe(before)
+    // The fetch brought the base branch in whole.
+    expect(await git(dir, 'rev-list', '--count', 'refs/remotes/origin/main')).toBe('4')
+  })
+
+  it('fetches a head it lacks without cutting history either', async () => {
+    const dir = await fullClone('main')
+    const res = await collectAncestry(gitRunner(dir), {
+      headSha: c.f2 ?? '',
+      baseBranch: 'main',
+      isBaseBranchBuild: false,
+    })
+    expect(res).toMatchObject({ status: 'ok', mergeBaseSha: c.m2 })
+    expect(await git(dir, 'rev-parse', '--is-shallow-repository')).toBe('false')
+  })
+
+  it('leaves a default-branch build in a full clone alone', async () => {
+    const dir = await fullClone('main')
+    const res = await collectAncestry(gitRunner(dir), {
+      headSha: c.m4 ?? '',
+      baseBranch: 'main',
+      isBaseBranchBuild: true,
+    })
+    expect(res).toEqual({ status: 'ok', mergeBaseSha: c.m4, ancestorShas: [c.m3, c.m2, c.m1] })
+    expect(await git(dir, 'rev-parse', '--is-shallow-repository')).toBe('false')
+  })
+})
 
 describe('collectAncestry', () => {
   it('finds the fork point from a depth-1 PR checkout that lacks the base branch', async () => {

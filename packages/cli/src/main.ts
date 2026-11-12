@@ -2,9 +2,9 @@
 import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
-import { ApiError } from './api.ts'
+import { debugOn, reportError, UsageError } from './errors.ts'
 import { uploadSite } from './site.ts'
-import { upload, UsageError } from './upload.ts'
+import { upload } from './upload.ts'
 
 // If whoever reads our output goes away (e.g. `circi upload … | head -1`), keep uploading
 // quietly instead of dying halfway with EPIPE.
@@ -18,6 +18,7 @@ const program = new Command()
   .name('circi')
   .description('Upload screenshots from CI to a CirCI server')
   .version(pkg.version)
+  .option('--debug', 'print the stack trace of an unexpected error (or set DEBUG=1)')
   .showHelpAfterError()
 
 program
@@ -50,7 +51,14 @@ Environment:
                  override what is detected from the CI environment
   CIRCI_AUTHOR   who made the change (same as --author)
 
-Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
+Exit codes:
+  0  uploaded; with --wait also: the build passed (or the git host's check is the gate)
+  1  with --wait: visual changes need review and this job is the gate; approve them in
+     the dashboard, then re-run the job
+  2  an error: bad flags or setup, the server couldn't be reached, the build failed to
+     process, or --wait timed out (--timeout)
+
+Failed API calls are retried with backoff. Pass --debug (or set DEBUG=1) for stack traces.`,
   )
   .action(
     async (
@@ -151,11 +159,7 @@ program
   })
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-  if (err instanceof UsageError || err instanceof ApiError) {
-    console.error(`error: ${err.message}`)
-  } else {
-    console.error(err)
-  }
+  console.error(reportError(err, debugOn(process.argv, process.env)))
   process.exitCode = 2
 })
 

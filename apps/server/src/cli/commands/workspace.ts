@@ -3,6 +3,7 @@ import { listWorkspaces } from '@circi/db/queries'
 import type { Command } from 'commander'
 
 import { printJson, withRuntime } from '#cli/lib/output.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 
 /** `circi admin workspace create|list` */
 export function addWorkspaceCommands(admin: Command): void {
@@ -54,7 +55,7 @@ export function addMemberCommands(admin: Command): void {
     .action((opts: { org: string; email: string; role: string }) =>
       withRuntime(async (rt) => {
         if (opts.role !== 'owner' && opts.role !== 'admin' && opts.role !== 'member') {
-          throw new Error(`--role must be owner, admin or member (got "${opts.role}")`)
+          throw new UsageError(`--role must be owner, admin or member (got "${opts.role}")`)
         }
         await addMember(rt.auth, rt.db.db, {
           workspaceSlug: opts.org,

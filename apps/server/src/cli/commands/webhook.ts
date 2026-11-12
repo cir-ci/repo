@@ -5,6 +5,7 @@ import type { Command } from 'commander'
 
 import { printJson, withRuntime } from '#cli/lib/output.ts'
 import { projectOf } from '#cli/lib/project.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 
 /** `circi admin webhook add|list|remove` */
 export function addWebhookCommands(admin: Command): void {
@@ -23,15 +24,15 @@ export function addWebhookCommands(admin: Command): void {
         const problem = webhookUrlProblem(opts.url, {
           allowPrivate: rt.config.webhookAllowPrivate,
         })
-        if (problem) throw new Error(`--url: ${problem}`)
+        if (problem) throw new UsageError(`--url: ${problem}`)
         const url = new URL(opts.url)
         const events = opts.events
           .split(',')
           .map((e) => e.trim())
           .filter(Boolean)
-        if (events.length === 0) throw new Error('--events: choose at least one event')
+        if (events.length === 0) throw new UsageError('--events: choose at least one event')
         const unknown = events.filter((e) => !isWebhookEvent(e))
-        if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
+        if (unknown.length > 0) throw new UsageError(`Unknown event(s): ${unknown.join(', ')}`)
         const project = await projectOf(rt, opts.org, opts.project)
         const created = await addWebhook(rt.db.db, {
           projectId: project.id,

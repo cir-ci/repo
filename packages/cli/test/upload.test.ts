@@ -109,6 +109,70 @@ describe('upload', () => {
     expect(fake.to('/v1/builds')).toHaveLength(0)
   })
 
+  it('checks the shard flags before reading the folder or calling the server', async () => {
+    // The folder doesn't exist: reading it first would say so instead of naming the shard flag.
+    await expect(run({ dir: join(cwd, 'nowhere'), shard: { index: 0, total: 0 } })).rejects.toThrow(
+      /--shard must look like 1\/4/,
+    )
+    expect(fake.requests).toHaveLength(0)
+    await expect(
+      run({
+        dir: join(cwd, 'nowhere'),
+        shard: { index: 0, total: 2 },
+        env: { ...env, CIRCI_PARALLEL_NONCE: undefined },
+      }),
+    ).rejects.toThrow(/CIRCI_PARALLEL_NONCE/)
+    expect(fake.requests).toHaveLength(0)
+  })
+
+  it('names a folder that does not exist', async () => {
+    await expect(run({ dir: join(cwd, 'screenshotz') })).rejects.toThrow(
+      /No such directory: .*screenshotz/,
+    )
+  })
+
+  it('says how many screenshots it found and how many it sent', async () => {
+    await run()
+    const out = lines.join('\n')
+    expect(out).toContain(`Found 2 screenshots in ${dir}`)
+    expect(out).toContain('2 screenshots: 1 uploaded, 1 already on the server')
+  })
+
+  it('retries the calls that are safe to repeat, and the first answer is used', async () => {
+    await run(
+      { retryDelayMs: 1 },
+      {
+        failFirst: [
+          { match: 'GET /v1/project', status: 502, times: 2 },
+          { match: 'POST /v1/builds/b1/finalize', status: 500, times: 1 },
+        ],
+      },
+    )
+    expect(fake.to('/v1/project')).toHaveLength(3)
+    expect(fake.to('/v1/builds/b1/finalize')).toHaveLength(2)
+    // A plain build is created once: resending it could leave an orphan build.
+    expect(
+      fake.to('/v1/builds').filter((r) => r.method === 'POST' && r.path === '/v1/builds'),
+    ).toHaveLength(1)
+  })
+
+  it("doesn't resend the creation of a plain build after a server error", async () => {
+    await expect(
+      run(
+        { retryDelayMs: 1 },
+        { failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }] },
+      ),
+    ).rejects.toThrow(/injected 500/)
+  })
+
+  it('resends the creation of a parallel build, which joins the same build', async () => {
+    await run(
+      { retryDelayMs: 1, shard: { index: 0, total: 2 } },
+      { failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }] },
+    )
+    expect(fake.to('/v1/builds').filter((r) => r.path === '/v1/builds')).toHaveLength(2)
+  })
+
   it('needs a nonce to tell shards apart', async () => {
     await expect(
       run({ shard: { index: 0, total: 2 }, env: { ...env, CIRCI_PARALLEL_NONCE: undefined } }),
@@ -150,6 +214,41 @@ describe('upload', () => {
         { outcomes: ['fail'], gate: 'status' },
       )
       expect(result.exitCode).toBe(0)
+    })
+
+    it('exits 2 for a build the server could not process, with its reason and no review advice', async () => {
+      const result = await run(
+        { wait: true, gate: 'exit-code' },
+        {
+          buildStatus: 'error',
+          errorMessage: 'The diff worker ran out of memory',
+          outcomes: ['fail'],
+        },
+      )
+      expect(result.exitCode).toBe(2)
+      const out = lines.join('\n')
+      expect(out).toContain('error: Build #7 failed to process: The diff worker ran out of memory')
+      expect(out).toContain('Details: ')
+      expect(out).not.toContain('Review the changes')
+      expect(out).not.toContain('re-run this job')
+    })
+
+    it('says so when the server gives no reason for a failed build', async () => {
+      await run({ wait: true }, { buildStatus: 'error', outcomes: ['fail'] })
+      expect(lines.join('\n')).toContain('failed to process: the server gave no reason')
+    })
+
+    it('keeps the polling through a server that answers 502 for a while', async () => {
+      const result = await run(
+        { wait: true, retryDelayMs: 1 },
+        {
+          outcomes: ['pending', 'pass'],
+          // More failures than one call retries: the wait itself has to carry on.
+          failFirst: [{ match: 'GET /v1/builds/b1/status', status: 502, times: 6 }],
+        },
+      )
+      expect(result.exitCode).toBe(0)
+      expect(lines.join('\n')).toContain('still waiting')
     })
 
     it('exits 2 when the result never arrives in time', async () => {

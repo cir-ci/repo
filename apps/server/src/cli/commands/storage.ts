@@ -5,6 +5,7 @@ import type { Command } from 'commander'
 import { mb } from '#cli/lib/format.ts'
 import { printJson, withRuntime } from '#cli/lib/output.ts'
 import { storageTarget, type StorageTargetOptions } from '#cli/lib/storage-target.ts'
+import { UsageError } from '#cli/lib/usage.ts'
 
 /** `circi admin storage usage|migrate|gc` */
 export function addStorageCommands(admin: Command): void {
@@ -41,7 +42,7 @@ export function addStorageCommands(admin: Command): void {
     .action((opts: StorageTargetOptions) =>
       withRuntime(async (rt) => {
         const target = storageTarget(opts)
-        if (!target) throw new Error('Use --to fs --path <dir>, or --to s3 --bucket <name>')
+        if (!target) throw new UsageError('Use --to fs --path <dir>, or --to s3 --bucket <name>')
         await target.healthCheck()
         const result = await migrateStorage(rt.db.db, {
           from: rt.storage,
@@ -74,7 +75,8 @@ export function addStorageCommands(admin: Command): void {
       withRuntime(async (rt) => {
         const grace =
           opts.graceHours === undefined ? rt.config.gcGraceHours : Number(opts.graceHours)
-        if (!Number.isFinite(grace) || grace < 0) throw new Error('--grace-hours must be 0 or more')
+        if (!Number.isFinite(grace) || grace < 0)
+          throw new UsageError('--grace-hours must be 0 or more')
         if (opts.dryRun) {
           const preview = await previewRetention(rt.db.db, { graceMs: grace * 3600_000 })
           const { count, bytes, sampleKeys } = preview.wouldDelete
