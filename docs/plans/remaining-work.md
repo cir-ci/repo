@@ -98,7 +98,9 @@ left is listed below by kind.
   `failed` with "Couldn't read this image: <reason>", and the rest of the build stays reviewable.
   The build page lists it first in a "Couldn't read" group with a danger state in the viewer (no
   approve or reject; Approve all skips it and says so), counts show "N couldn't be read", and the
-  build can't pass while one exists: the check fails, `--wait` names each file and exits 2.
+  build can't pass while one exists in a project that blocks merges (the check fails, `--wait`
+  names each file and exits 2); otherwise the check is neutral and `--wait` passes with a warning,
+  like a build that failed to process.
 - GitHub: `installation` events now flag the connection "needs attention" (deleted, suspend) or
   clear it (created, unsuspend), and a closed or merged `pull_request` closes the open review
   requests on its builds (as dismissed). `push` stays unhandled on purpose: builds learn their

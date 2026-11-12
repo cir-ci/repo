@@ -145,13 +145,14 @@ export function checkReport(
 
   const counts = describeCounts(build.counts)
   if (build.counts.failed > 0) {
-    // An input problem no review settles: the check fails until the build is uploaded again with
-    // valid PNGs, whatever was approved (the same rule as `buildOutcome`).
+    // An input problem no review settles: until the build is uploaded again with valid PNGs the
+    // check fails a project that blocks merges, and is neutral otherwise, whatever was approved
+    // (the same rule as `buildOutcome` and a build that failed to process).
     const n = build.counts.failed
     return {
       ...base,
       status: 'completed',
-      conclusion: 'failure',
+      conclusion: options.blockMergeOnChanges ? 'failure' : 'neutral',
       title: `${plural(n, 'screenshot')} couldn't be read`,
       summary: `${counts}. Upload the build again with valid PNGs. The other screenshots can still be reviewed.\n\n${link}`,
     }

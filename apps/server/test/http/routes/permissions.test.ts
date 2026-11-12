@@ -82,6 +82,7 @@ const ADMIN_ONLY = new Set([
   `POST ${PROJECT}/webhooks`,
   `DELETE ${PROJECT}/webhooks/:id`,
   `POST ${PROJECT}/webhooks/:id/test`,
+  `POST ${PROJECT}/webhooks/:id/secret`,
   `POST ${PROJECT}/rules`,
   `PUT ${PROJECT}/rules/order`,
   `PUT ${PROJECT}/rules/:id`,

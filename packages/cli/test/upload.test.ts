@@ -233,7 +233,7 @@ describe('upload', () => {
       expect(out).not.toContain('re-run this job')
     })
 
-    it("exits 2 and names each screenshot that couldn't be read, with the reason", async () => {
+    it("exits 2 and names each screenshot that couldn't be read, with the reason, when the project blocks merges", async () => {
       const unreadable = [
         { name: 'home', reason: "Couldn't read this image: not a PNG (it's a JPEG file)" },
         { name: 'about', reason: "Couldn't read this image: the file is corrupt or truncated" },
@@ -250,6 +250,13 @@ describe('upload', () => {
         expect(out).toContain('Upload the build again with valid PNGs')
         expect(out).not.toContain('Review the changes')
       }
+    })
+
+    it("still names them but passes (exit 0) when the project doesn't block merges", async () => {
+      const unreadable = [{ name: 'home', reason: "Couldn't read this image: the file is empty" }]
+      const result = await run({ wait: true }, { outcomes: ['pass'], unreadable })
+      expect(result.exitCode).toBe(0)
+      expect(lines.join('\n')).toContain("error: home: Couldn't read this image: the file is empty")
     })
 
     it('says so when the server gives no reason for a failed build', async () => {

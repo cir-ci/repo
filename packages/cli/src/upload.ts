@@ -205,11 +205,12 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
   )
   if (status.outcome.warning) log(`warning: ${status.outcome.warning}`)
   if (c.failed > 0) {
-    // An input problem, not a visual change: no review settles it, and both gates fail, so the
-    // job ends with an error (2) rather than the "needs review" exit (1).
+    // An input problem, not a visual change: no review settles it. It follows the project's
+    // blocking setting like a build that failed to process: when the outcome fails the job ends
+    // with an error (2) rather than the "needs review" exit (1); otherwise it passes, warned.
     for (const shot of status.unreadable ?? []) log(`error: ${shot.name}: ${shot.reason}`)
     log(`Upload the build again with valid PNGs: ${status.build.url}`)
-    result.exitCode = 2
+    if (status.outcome.state === 'fail') result.exitCode = 2
     return result
   }
   if (status.outcome.state === 'fail') {

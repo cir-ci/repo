@@ -109,7 +109,7 @@ describe('checkReport', () => {
     expect(checkReport(failed, { blockMergeOnChanges: false }).conclusion).toBe('neutral')
   })
 
-  it("holds the check while a screenshot couldn't be read, even when the rest is approved", () => {
+  it("holds the check while a screenshot couldn't be read, even when the rest is approved, as the project's blocking setting says", () => {
     const unreadable = build({
       reviewStatus: 'approved',
       counts: { added: 0, removed: 0, changed: 2, failed: 1, total: 4 },
@@ -123,7 +123,8 @@ describe('checkReport', () => {
     })
     expect(blocked.summary).toContain("2 changed · 1 couldn't be read")
     expect(blocked.summary).toContain('Upload the build again')
-    expect(checkReport(unreadable, { blockMergeOnChanges: false }).conclusion).toBe('failure')
+    // Not blocking: neutral, like a build that failed to process.
+    expect(checkReport(unreadable, { blockMergeOnChanges: false }).conclusion).toBe('neutral')
   })
 })
 

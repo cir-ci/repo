@@ -66,14 +66,29 @@ describe('flaky-only changes', () => {
 
 describe('buildOutcome with unreadable screenshots', () => {
   it.each([
-    ['approved, blocking', { reviewStatus: 'approved' }, true],
-    ['approved, not blocking', { reviewStatus: 'approved' }, false],
-    ['pending, not blocking', {}, false],
-  ] as const)('never passes: %s', (_label, over, blockMergeOnChanges) => {
+    ['approved', { reviewStatus: 'approved' }],
+    ['pending', {}],
+  ] as const)('fails a project that blocks merges, even %s', (_label, over) => {
     expect(
-      buildOutcome({ ...done, ...flags, ...over, blockMergeOnChanges, unreadable: 2 }),
+      buildOutcome({ ...done, ...flags, ...over, blockMergeOnChanges: true, unreadable: 2 }),
     ).toEqual({ state: 'fail', summary: "2 screenshots couldn't be read" })
   })
+
+  it.each([
+    ['approved', { reviewStatus: 'approved' }],
+    ['pending', {}],
+  ] as const)(
+    "passes with a warning in a project that doesn't block merges (%s), like a failed build",
+    (_label, over) => {
+      expect(
+        buildOutcome({ ...done, ...flags, ...over, blockMergeOnChanges: false, unreadable: 2 }),
+      ).toEqual({
+        state: 'pass',
+        summary: "2 screenshots couldn't be read",
+        warning: "2 screenshots couldn't be read; merges aren't blocked for this project",
+      })
+    },
+  )
 
   it('names one screenshot in the singular', () => {
     expect(

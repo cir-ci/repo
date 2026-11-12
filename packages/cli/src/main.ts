@@ -56,8 +56,8 @@ Exit codes:
   1  with --wait: visual changes need review and this job is the gate; approve them in
      the dashboard, then re-run the job
   2  an error: bad flags or setup, the server couldn't be reached, the build failed to
-     process, a screenshot couldn't be read (--wait names the file and why; upload again
-     with a valid PNG), or --wait timed out (--timeout)
+     process or a screenshot couldn't be read (--wait names the file and why; upload again
+     with a valid PNG) in a project that blocks merges, or --wait timed out (--timeout)
 
 Failed API calls are retried with backoff. Pass --debug (or set DEBUG=1) for stack traces.`,
   )

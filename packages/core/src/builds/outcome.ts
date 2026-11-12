@@ -27,16 +27,20 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
       return { state: 'fail', summary: `Unknown build status "${b.status}"` }
   }
 
-  // A screenshot the server couldn't read is an input problem no review can settle: the build
-  // can't pass until it is uploaded again with a valid PNG, whatever was approved and whether or
-  // not the project blocks merges on visual changes (like a rejection, it is not a matter of
-  // taste: the screenshot was never compared).
+  // A screenshot the server couldn't read is an input problem no review can settle: whatever was
+  // approved, it holds the build like a build that failed to process does, so it follows the
+  // project's blocking setting: it fails a project that blocks merges, and passes with a warning
+  // otherwise.
   const unreadable = b.unreadable ?? 0
   if (unreadable > 0) {
-    return {
-      state: 'fail',
-      summary: `${unreadable} ${unreadable === 1 ? 'screenshot' : 'screenshots'} couldn't be read`,
-    }
+    const summary = `${unreadable} ${unreadable === 1 ? 'screenshot' : 'screenshots'} couldn't be read`
+    return b.blockMergeOnChanges
+      ? { state: 'fail', summary }
+      : {
+          state: 'pass',
+          summary,
+          warning: `${summary}; merges aren't blocked for this project`,
+        }
   }
   if (b.reviewStatus === 'rejected') return { state: 'fail', summary: 'Changes rejected' }
   if (b.conclusion === 'no_changes') {
