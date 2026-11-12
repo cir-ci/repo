@@ -122,7 +122,7 @@ export namespace Build {
     /** The member the build's author is matched to; null when the author is only a git login. */
     authorUserId: string | null
     /** The people notified about the build: its author and whoever was asked to review. */
-    watchers: { id: string; name: string }[]
+    watchers: { id: string; name: string; image: string | null }[]
     /** The pull request the build is for; `repo` (`owner/name`) when a repository is connected. */
     pullRequest: { number: number; repo: string | null } | null
   }

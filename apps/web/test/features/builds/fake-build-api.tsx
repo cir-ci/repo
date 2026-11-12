@@ -1,4 +1,4 @@
-import type { Activity, Build, Comment, Flaky, IgnoreRegion, Issue } from '@circi/api'
+import type { Activity, Build, Comment, Flaky, IgnoreRegion, Issue, Snapshot } from '@circi/api'
 import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
@@ -120,6 +120,8 @@ export interface FakeApi {
   comments: Comment.Item[]
   /** `GET …/activity`. */
   activity: Activity.Event[]
+  /** `GET …/snapshots/:name/history`: the screenshot through recent builds of main (any name). */
+  history: Snapshot.HistoryEntry[]
   /** `GET …/issues`: the issues filed from this build and the trackers its project has. */
   issues: Issue.List
   /** The bodies of the comment POSTs, in order. */
@@ -180,9 +182,13 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     regionPatches: [],
     regionError: null,
     regionDelayMs: 0,
+    history: [],
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
+      if (/^\/api\/projects\/acme\/web-app\/snapshots\/.+\/history$/.test(url.pathname)) {
+        return json({ defaultBranch: 'main', default: api.history, branch: null })
+      }
       if (url.pathname === '/api/projects/acme/web-app/builds/7/review' && method === 'POST') {
         if (api.reviewError) return json({ error: api.reviewError }, 500)
         const body = typeof init?.body === 'string' ? init.body : ''
@@ -340,8 +346,17 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
 }
 
 /** Renders the real build page at its route, with the theme, announcer, query client and router. */
+/**
+ * The build page at `url`, in a column as tall as the window, as the app's panel holds it: the
+ * viewer's row takes the height left, whatever the sidebar's content.
+ */
 export async function renderBuild(url = '/acme/web-app/builds/7') {
-  const { router } = await renderPage(<BuildPage />, {
+  const ui = (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <BuildPage />
+    </div>
+  )
+  const { router } = await renderPage(ui, {
     route: '$workspace/$project/builds/$number',
     url,
     announcer: true,

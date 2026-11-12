@@ -13,6 +13,7 @@ import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { LinkedIssues } from './LinkedIssues.tsx'
 import { openReviewerPeople, reviewTargetStatus } from './review-model.ts'
+import { ScreenshotHistory } from './ScreenshotHistory.tsx'
 import { commentCount } from './timeline.ts'
 
 import styles from './Discussion.module.css'
@@ -94,9 +95,10 @@ export namespace ReviewSidebar {
 }
 
 /**
- * What the page doesn't already show about the build (the header has its state, target, branch
- * and Request review; the strip under it the PR, commit, baseline and upload time): who reviews
- * and watches it, its linked issues and the decisions so far.
+ * What is too much for the page's header and the strip under it (they show the state, target,
+ * reviewers, watchers, branch, PR, commit, baseline and upload time): the screenshot on screen
+ * through recent builds of the default branch, the build's linked issues, and the decisions so
+ * far, the build's and each screenshot's. A phone, with no header chips, lists those facts too.
  */
 function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
   const { build, baseline, reviews } = data
@@ -115,43 +117,49 @@ function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
   )
   return (
     <>
-      <dl className={styles.facts}>
-        {phone ? (
-          // A phone's header has no status chips: the state and the target are here instead.
-          <>
-            <Text as="dt" variant="small" tone="secondary">
-              Status
-            </Text>
-            <dd className={styles.fact}>
-              <BuildStateLabel build={build} hasBaseline={baseline !== null} />
-            </dd>
-            <Text as="dt" variant="small" tone="secondary">
-              Review target
-            </Text>
-            <Text as="dd" tone={target?.overdue ? 'failed' : 'primary'}>
-              {target
-                ? target.long
-                : data.reviewTarget.hours === null
-                  ? 'None'
-                  : `${data.reviewTarget.hours}h`}
-            </Text>
-          </>
-        ) : null}
-        <Text as="dt" variant="small" tone="secondary">
-          Reviewers
-        </Text>
-        <Text as="dd">
-          {reviewers.length > 0 ? reviewers.map((p) => p.name).join(', ') : 'None'}
-        </Text>
-        <Text as="dt" variant="small" tone="secondary">
-          Watchers
-        </Text>
-        <Text as="dd" title={data.watchers.map((w) => w.name).join(', ')}>
-          {data.watchers.length > 0
-            ? `${data.watchers.length}${watching ? " · you're watching" : ''}`
-            : 'Nobody'}
-        </Text>
-      </dl>
+      {phone ? (
+        // A phone's header has no status chips: what they say is here instead.
+        <dl className={styles.facts}>
+          <Text as="dt" variant="small" tone="secondary">
+            Status
+          </Text>
+          <dd className={styles.fact}>
+            <BuildStateLabel build={build} hasBaseline={baseline !== null} />
+          </dd>
+          <Text as="dt" variant="small" tone="secondary">
+            Review target
+          </Text>
+          <Text as="dd" tone={target?.overdue ? 'failed' : 'primary'}>
+            {target
+              ? target.long
+              : data.reviewTarget.hours === null
+                ? 'None'
+                : `${data.reviewTarget.hours}h`}
+          </Text>
+          <Text as="dt" variant="small" tone="secondary">
+            Reviewers
+          </Text>
+          <Text as="dd">
+            {reviewers.length > 0 ? reviewers.map((p) => p.name).join(', ') : 'None'}
+          </Text>
+          <Text as="dt" variant="small" tone="secondary">
+            Watchers
+          </Text>
+          <Text as="dd" title={data.watchers.map((w) => w.name).join(', ')}>
+            {data.watchers.length > 0
+              ? `${data.watchers.length}${watching ? " · you're watching" : ''}`
+              : 'Nobody'}
+          </Text>
+        </dl>
+      ) : null}
+      {snapshotName ? (
+        <ScreenshotHistory
+          workspace={data.project.workspaceSlug}
+          project={data.project.slug}
+          name={snapshotName}
+          defaultBranch={data.project.defaultBranch}
+        />
+      ) : null}
       <LinkedIssues issues={data.issues} />
       <div>
         <Text variant="micro" tone="tertiary">

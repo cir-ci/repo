@@ -14,7 +14,7 @@ let capture: ReturnType<typeof stubPointerCapture>
 beforeEach(async () => {
   // Short enough that the zoomed screenshot overflows the viewer both ways; wide enough (1100px
   // and up) for the viewer to sit beside the list and the sidebar, the window's height its own.
-  await page.viewport(1200, 560)
+  await page.viewport(1200, 480)
   capture = stubPointerCapture()
 })
 afterEach(() => capture.mockRestore())

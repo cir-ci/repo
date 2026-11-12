@@ -70,7 +70,7 @@ describe('the build page under 1100px, in the app frame', () => {
         url: '/acme/web-app/builds/7',
         announcer: true,
         validateSearch: validateBuildSearch,
-        viewport: [1000, 700],
+        viewport: [1000, 500],
       },
     )
     const discussion = page.getByRole('complementary', { name: 'Build discussion' })

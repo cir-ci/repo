@@ -75,6 +75,7 @@ import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
 import { ReviewTarget } from './ReviewTarget.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
 import { commentCount, threadCounts } from './timeline.ts'
+import { Watchers } from './Watchers.tsx'
 
 import page from './BuildPage.module.css'
 import styles from './BuildReview.module.css'
@@ -396,6 +397,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 project={project.slug}
                 number={build.number}
               />
+              <Watchers watchers={data.watchers} />
             </>
           )
         }

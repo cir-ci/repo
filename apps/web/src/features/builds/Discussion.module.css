@@ -234,3 +234,28 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* "Unchanged in the last 20 builds": the history's empty line, with its glyph. */
+.historyEmpty {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 0;
+}
+
+/* A build in the history: plain text that underlines on hover, never the browser's visited purple. */
+.historyLink {
+  color: var(--circi-text-primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.historyLink:focus-visible {
+  border-radius: var(--circi-radius-inline);
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}

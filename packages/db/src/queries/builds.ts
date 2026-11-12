@@ -271,7 +271,7 @@ export namespace getBuildDetail {
     /** The member the build's author is matched to; null when the author is only a git login. */
     authorUserId: string | null
     /** The people who get notified about the build: its author and whoever was asked to review. */
-    watchers: { id: string; name: string }[]
+    watchers: { id: string; name: string; image: string | null }[]
     /** The pull request the build is for; `repo` is the connected repository, when there is one. */
     pullRequest: { number: number; repo: string | null } | null
   }
@@ -346,6 +346,7 @@ export async function getBuildDetail(
     .select({
       id: user.id,
       name: user.name,
+      image: user.image,
       dueAt: reviewRequests.dueAt,
       snoozedUntil: reviewRequests.snoozedUntil,
       snoozeKind: reviewRequests.snoozeKind,
@@ -359,14 +360,15 @@ export async function getBuildDetail(
   const author = build.authorUserId
     ? (
         await db
-          .select({ id: user.id, name: user.name })
+          .select({ id: user.id, name: user.name, image: user.image })
           .from(user)
           .where(eq(user.id, build.authorUserId))
       )[0]
     : undefined
-  const watchers = new Map<string, string>()
-  if (author) watchers.set(author.id, author.name)
-  for (const r of asked) watchers.set(r.id, r.name)
+  const watchers = new Map<string, { id: string; name: string; image: string | null }>()
+  for (const p of [...(author ? [author] : []), ...asked]) {
+    watchers.set(p.id, { id: p.id, name: p.name, image: p.image })
+  }
   const link = build.prNumber ? await getProjectLink(db, projectId, gitKinds) : undefined
 
   return {
@@ -375,7 +377,7 @@ export async function getBuildDetail(
       dueAt: dues.length > 0 ? new Date(Math.min(...dues.map((d) => d.getTime()))) : null,
     },
     authorUserId: author?.id ?? null,
-    watchers: [...watchers].map(([id, name]) => ({ id, name })),
+    watchers: [...watchers.values()],
     pullRequest: build.prNumber ? { number: build.prNumber, repo: link?.repoRef ?? null } : null,
     build: {
       id: build.id,

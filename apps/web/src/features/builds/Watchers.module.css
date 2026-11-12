@@ -1,0 +1,29 @@
+/* An eye and the count, in the secondary tone like "Requested from …" beside it. */
+.root {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  border-radius: var(--circi-radius-inline);
+  color: var(--circi-text-secondary);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+/* The tooltip's list: each watcher's picture beside their name. */
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}

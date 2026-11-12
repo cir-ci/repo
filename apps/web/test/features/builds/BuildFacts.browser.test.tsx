@@ -54,17 +54,31 @@ describe('the build header', () => {
   })
 })
 
+/** One build in a screenshot's history on main. */
+const entry = (number: number, status: 'changed' | 'unchanged', approver?: string) => ({
+  build: {
+    number,
+    branch: 'main',
+    status: 'complete' as const,
+    reviewStatus: 'approved' as const,
+    createdAt: new Date().toISOString(),
+  },
+  status,
+  approvedBy: approver ? { id: 'u9', name: approver } : null,
+  image: null,
+})
+
 describe('the Details tab', () => {
-  it("lists only what the page doesn't already show: reviewers and watchers, not the state, target, PR, branch, commit, baseline or upload", async () => {
+  it('shows nothing the header and the strip show: no state, target, reviewers, watchers, PR, branch, commit, baseline or upload', async () => {
     const api = fakeBuildApi(
       detail(
         {},
         {
           reviewTarget: { hours: 24, dueAt: inHours(22) },
           watchers: [
-            { id: 'u1', name: 'Ada Lovelace' },
-            { id: 'u2', name: 'Grace Hopper' },
-            { id: 'u3', name: 'Alan Turing' },
+            { id: 'u1', name: 'Ada Lovelace', image: null },
+            { id: 'u2', name: 'Grace Hopper', image: null },
+            { id: 'u3', name: 'Alan Turing', image: null },
           ],
           pullRequest: { number: 412, repo: 'acme/web-app' },
         },
@@ -79,29 +93,54 @@ describe('the Details tab', () => {
       },
     ]
     await renderBuild()
-    const dl = facts()
-    await expect.element(dl.getByText('Grace Hopper', { exact: true })).toBeVisible()
-    await expect.element(dl.getByText("3 · you're watching")).toBeVisible()
-    // The header and the strip under it show these already.
+    await expect.element(facts().getByText('Decisions')).toBeVisible()
     for (const label of [
       'Status',
       'Review target',
+      'Reviewers',
+      'Watchers',
       'Pull request',
       'Branch',
       'Commit',
       'Compared with',
       'Uploaded',
     ]) {
-      expect(dl.getByText(label, { exact: true }).elements()).toHaveLength(0)
+      expect(facts().getByText(label, { exact: true }).elements()).toHaveLength(0)
     }
     expect(page.getByRole('button', { name: 'Request a review' }).elements()).toHaveLength(0)
+    // The watchers are in the header instead: the count, that you're one of them, and on hover
+    // each of them with their picture.
+    const watchers = page.getByLabelText('3 watching, you included')
+    await expect.element(watchers).toBeVisible()
+    await watchers.hover()
+    const tip = page.getByRole('tooltip')
+    await expect.element(tip.getByText('Grace Hopper')).toBeVisible()
+    const people = [...tip.element().querySelectorAll('li')]
+    expect(people.map((li) => li.textContent)).toEqual([
+      'Ada Lovelace',
+      'Grace Hopper',
+      'Alan Turing',
+    ])
+    // A picture beside each name (here the generated one: nobody has uploaded theirs).
+    for (const li of people) expect(li.querySelector('[data-avatar], img')).not.toBeNull()
   })
 
-  it('leaves out "you\'re watching" for someone who isn\'t notified', async () => {
-    fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper' }], pullRequest: null }))
+  it('leaves out "you\'re watching" in the header for someone who isn\'t notified', async () => {
+    fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }))
     await renderBuild()
-    await expect.element(facts().getByText('1', { exact: true })).toBeVisible()
+    await expect.element(page.getByLabelText('1 watching')).toBeVisible()
     expect(page.getByText("you're watching").elements()).toHaveLength(0)
+  })
+
+  it("lists the screenshot's changes on main, newest first, each linking to its build", async () => {
+    const api = fakeBuildApi(detail())
+    api.history = [entry(6, 'changed', 'Maya Levi'), entry(5, 'unchanged'), entry(3, 'changed')]
+    await renderBuild()
+    const history = facts()
+    await expect.element(history.getByText(/approved by Maya Levi/)).toBeVisible()
+    const links = history.getByRole('link', { name: /^Build #/ }).elements()
+    expect(links.map((a) => a.textContent)).toEqual(['Build #6', 'Build #3'])
+    expect(links[0]?.getAttribute('href')).toMatch(/builds\/6\?shot=/)
   })
 
   it('titles the decisions list "By screenshot"', async () => {
