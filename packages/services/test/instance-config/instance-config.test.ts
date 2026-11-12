@@ -1,6 +1,8 @@
 import { INSTANCE_LIMIT_DEFAULTS } from '@circi/core'
 import { getInstanceDefaultRetentionDays, getSetting } from '@circi/db/queries'
-import { createTestDb } from '@circi/db/testing'
+import * as schema from '@circi/db/schema'
+import { createTestDb, seedAccount, seedUser } from '@circi/db/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -22,6 +24,7 @@ afterAll(async () => {
 })
 beforeEach(async () => {
   await t.db.execute("delete from instance_settings where key like 'instance.%'")
+  await t.db.execute(`delete from "user" where role = 'admin'`)
 })
 
 const baseEnv = (over: Partial<InstanceConfig.Env> = {}): InstanceConfig.Env => ({
@@ -359,5 +362,180 @@ describe('default retention for new projects', () => {
     expect(await getInstanceDefaultRetentionDays(t.db, 30)).toBe(30)
     await store().setLimits({ defaultProjectRetentionDays: 90 })
     expect(await getInstanceDefaultRetentionDays(t.db, 30)).toBe(90)
+  })
+})
+
+const SMTP_FIELDS = {
+  host: 'smtp.acme.io',
+  port: 587,
+  secure: false,
+  user: 'mailer',
+  from: 'ci@acme.io',
+}
+
+describe('saving groups at the same time', () => {
+  it('does not let one save revert another', async () => {
+    // Each store is a replica that read the settings before the others' saves.
+    const stores = [store(), store(), store(), store()]
+    await Promise.all([
+      stores[0]?.saveSlack({ clientId: 'slack-id', clientSecret: 'slack-secret' }),
+      stores[1]?.saveSmtp({ ...SMTP_FIELDS, password: 'smtp-password' }),
+      stores[2]?.setLimits({ gcGraceHours: 99 }),
+      stores[3]?.saveSso({
+        id: 'google',
+        clientId: 'g',
+        clientSecret: 'gs',
+        trustedForEmail: true,
+      }),
+    ])
+    const after = await store().get()
+    expect(after.slack?.clientSecret).toBe('slack-secret')
+    expect(after.smtp?.auth?.password).toBe('smtp-password')
+    expect(after.limits.gcGraceHours).toBe(99)
+    expect(after.sso.map((p) => p.id)).toEqual(['google'])
+  })
+
+  it('writes only the group that changed', async () => {
+    const s = store()
+    await s.saveSlack({ clientId: 'slack-id', clientSecret: 'slack-secret' })
+    const before = await getSetting(t.db, 'instance.slack')
+    await t.db
+      .update(schema.instanceSettings)
+      .set({ value: before ?? '' })
+      .where(eq(schema.instanceSettings.key, 'instance.slack'))
+    await s.setLimits({ gcGraceHours: 5 })
+    expect(await getSetting(t.db, 'instance.slack')).toBe(before)
+  })
+})
+
+const rotated = () =>
+  createInstanceConfig({ db: t.db, authSecret: 'rotated-secret', env: baseEnv() })
+
+async function saveAll() {
+  const s = store()
+  await s.saveSmtp({ ...SMTP_FIELDS, password: 'smtp-password' })
+  await s.saveSlack({ clientId: 'slack-id', clientSecret: 'slack-secret' })
+  await s.saveSso({ id: 'google', clientId: 'g', clientSecret: 'gs', trustedForEmail: true })
+  await s.saveSso({ id: 'github', clientId: 'h', clientSecret: 'hs', trustedForEmail: true })
+}
+
+async function admin(input: { password?: boolean; provider?: string }) {
+  const u = await seedUser(t.db)
+  await t.db.update(schema.user).set({ role: 'admin' }).where(eq(schema.user.id, u.id))
+  if (input.password) {
+    await seedAccount(t.db, { userId: u.id, accountId: u.id, providerId: 'credential' })
+    await t.db
+      .update(schema.account)
+      .set({ password: 'hash' })
+      .where(eq(schema.account.userId, u.id))
+  }
+  if (input.provider) {
+    await seedAccount(t.db, { userId: u.id, accountId: u.id, providerId: input.provider })
+  }
+  return u
+}
+
+describe('a secret that can no longer be opened', () => {
+  it('is described as saved but unreadable, and not used', async () => {
+    await saveAll()
+    const other = rotated()
+    const described = await other.describe()
+    const notice = "Saved, but can't be read with the current secret: replace it"
+    expect(described.smtp).toMatchObject({ host: 'smtp.acme.io', unreadable: notice })
+    expect(described.slack).toMatchObject({ clientId: 'slack-id', unreadable: notice })
+    expect(described.sso.map((p) => [p.id, p.unreadable])).toEqual([
+      ['google', notice],
+      ['github', notice],
+    ])
+    const effective = await other.get()
+    expect(effective.smtp).toBeUndefined()
+    expect(effective.slack).toBeUndefined()
+    expect(effective.sso).toEqual([])
+  })
+
+  it('is left alone by a save of any other group', async () => {
+    await saveAll()
+    const keys = ['instance.smtp', 'instance.slack', 'instance.sso']
+    const before = await Promise.all(keys.map((k) => getSetting(t.db, k)))
+    const other = rotated()
+    await other.setLimits({ gcGraceHours: 7 })
+    await other.setWorkspaceCreation('anyone')
+    await other.setSignIn({ email: false })
+    expect(await Promise.all(keys.map((k) => getSetting(t.db, k)))).toEqual(before)
+    // And the original secret still opens all of it.
+    const original = await store().get()
+    expect(original.smtp?.auth?.password).toBe('smtp-password')
+    expect(original.slack?.clientSecret).toBe('slack-secret')
+    expect(original.sso.map((p) => p.clientSecret)).toEqual(['gs', 'hs'])
+  })
+
+  it("keeps another provider's sealed secret as it was when one provider is replaced", async () => {
+    await saveAll()
+    const other = rotated()
+    await other.saveSso({
+      id: 'google',
+      clientId: 'g2',
+      clientSecret: 'new',
+      trustedForEmail: true,
+    })
+    const described = await other.describe()
+    expect(described.sso.find((p) => p.id === 'google')?.unreadable).toBeNull()
+    expect(described.sso.find((p) => p.id === 'github')?.unreadable).not.toBeNull()
+    // The original secret still opens github's, untouched.
+    expect((await store().get()).sso.find((p) => p.id === 'github')?.clientSecret).toBe('hs')
+  })
+
+  it('asks for the password again instead of saving mail without it', async () => {
+    await saveAll()
+    const other = rotated()
+    await expect(other.saveSmtp({ ...SMTP_FIELDS, host: 'smtp2.acme.io' })).rejects.toThrow(
+      'Enter the password',
+    )
+    await other.saveSmtp({ ...SMTP_FIELDS, host: 'smtp2.acme.io', password: 'fresh' })
+    expect((await other.get()).smtp?.auth?.password).toBe('fresh')
+    expect((await other.describe()).smtp.unreadable).toBeNull()
+    await expect(rotated().saveSlack({ clientId: 'slack-id' })).rejects.toThrow(
+      'Enter the client secret',
+    )
+  })
+})
+
+describe('the sign-in lockout counts admins who can sign in', () => {
+  it("refuses to turn off password sign-in when no admin has an account on what's left", async () => {
+    const s = store()
+    await admin({ password: true })
+    await s.saveSso({ id: 'google', clientId: 'a', clientSecret: 'b', trustedForEmail: true })
+    // A provider is configured, so the methods count, but no admin is linked to it.
+    await expect(s.setSignIn({ password: false })).rejects.toThrow(
+      'No instance admin could sign in',
+    )
+    expect((await s.get()).signIn.password).toBe(true)
+  })
+
+  it('allows it once an admin is linked to an enabled provider', async () => {
+    const s = store()
+    await admin({ password: true })
+    await admin({ provider: 'google' })
+    await s.saveSso({ id: 'google', clientId: 'a', clientSecret: 'b', trustedForEmail: true })
+    await expect(s.setSignIn({ password: false })).resolves.toBeDefined()
+    // Removing that provider would leave nobody.
+    await expect(s.removeSso('google')).rejects.toThrow('Nobody could sign in')
+  })
+
+  it('refuses to remove the provider the only admin is linked to', async () => {
+    const s = store()
+    await admin({ provider: 'github' })
+    await s.saveSso({ id: 'github', clientId: 'a', clientSecret: 'b', trustedForEmail: true })
+    await s.saveSso({ id: 'google', clientId: 'a', clientSecret: 'b', trustedForEmail: true })
+    await s.setSignIn({ password: false })
+    await expect(s.removeSso('github')).rejects.toThrow('No instance admin could sign in')
+    await expect(s.removeSso('google')).resolves.toBeDefined()
+  })
+
+  it('counts email codes as a way in for every admin', async () => {
+    const s = store()
+    await admin({ password: true })
+    await s.saveSmtp({ ...SMTP_FIELDS, user: '' })
+    await expect(s.setSignIn({ password: false })).resolves.toBeDefined()
   })
 })

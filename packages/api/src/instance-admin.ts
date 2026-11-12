@@ -98,6 +98,7 @@ export namespace InstanceAdmin {
     /** The operator vouches that the provider only reports addresses its users own. */
     trustedForEmail: boolean
     secretSaved: boolean
+    unreadable?: string | null
     /** `env`: defined by `AUTH_<PROVIDER>_*` variables, read-only here. */
     source: 'env' | 'stored'
     env: string | null
@@ -134,6 +135,8 @@ export namespace InstanceAdmin {
       from: string
       /** A password is saved (never the password itself). */
       passwordSaved: boolean
+      /** Set when the saved password can't be read with the current instance secret. */
+      unreadable?: string | null
     }
     /** The Slack app that installs into workspaces. */
     slack: {
@@ -141,6 +144,7 @@ export namespace InstanceAdmin {
       env: string | null
       clientId: string
       secretSaved: boolean
+      unreadable?: string | null
     }
     /** Providers from the environment (read-only) and the ones added here. */
     sso: SsoProvider[]

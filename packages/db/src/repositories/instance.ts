@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 import {
   FIRST_RUN_SETUP_KEY,
@@ -31,6 +31,15 @@ export async function setSettingIfAbsent(
     .onConflictDoNothing()
     .returning({ key: instanceSettings.key })
   return rows.length > 0
+}
+
+/**
+ * Takes the lock every change of the instance settings holds until its transaction ends, so two
+ * saves (of the same or different groups) run one after the other and each reads what the last
+ * wrote. The rows may not exist yet, so a row lock can't do it: this is an advisory lock.
+ */
+export async function lockInstanceSettings(tx: Database): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('instance_settings'))`)
 }
 
 export async function deleteSetting(db: Database, key: string): Promise<void> {

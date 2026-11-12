@@ -325,6 +325,7 @@ describe('Slack app', () => {
       env: null,
       clientId: 'slack-client',
       secretSaved: true,
+      unreadable: null,
     })
     expect((await store.get()).slack).toMatchObject({ clientId: 'slack-client' })
     expect(
@@ -406,6 +407,7 @@ describe('single sign-on providers', () => {
         trustedForEmail: false,
         secretSaved: true,
         source: 'stored',
+        unreadable: null,
         env: null,
       },
     ])

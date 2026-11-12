@@ -7,15 +7,18 @@ import {
   limitProblem,
   type SignInMethodKind,
   signInLockout,
+  someAdminCanSignIn,
   smtpProblems,
   ValidationError,
   type WorkspaceCreation,
   workingSignInMethods,
 } from '@circi/core'
 import type { Database } from '@circi/db'
+import { listInstanceAdminSignIns } from '@circi/db/queries'
+import { lockInstanceSettings } from '@circi/db/repositories'
 
 import { availability, emptyStored, type InstanceConfig, resolve, ssoEnvName } from './model.ts'
-import { readStored, writeStored } from './store.ts'
+import { type Group, readStored, writeGroup } from './store.ts'
 
 /** How long a replica trusts what it last read before it reads the settings again. */
 export const INSTANCE_CONFIG_TTL_MS = 30_000
@@ -74,6 +77,14 @@ const PROVIDER_NAMES: Record<InstanceConfig.Sso['id'], string> = {
   oidc: 'Single sign-on',
 }
 
+const ADMIN_LOCKOUT =
+  "No instance admin could sign in with these settings: none has a password, or an account linked to a provider that stays on, and email codes aren't available. Keep a method that an admin can use."
+
+const withProviders = (e: InstanceConfig.Effective) => ({
+  ...availability(e),
+  providerIds: e.sso.map((p) => p.id),
+})
+
 function lockedError(key: InstanceLockKey): ConflictError {
   return new ConflictError(`Set by ${INSTANCE_ENV[key]} in the environment: change it there.`)
 }
@@ -129,28 +140,46 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
 
   const isLocked = (key: InstanceLockKey) => env.locked.includes(key)
 
-  /** The one write path: change what is stored, check, save, and read again. */
+  /**
+   * The one write path: in one transaction, take the lock every change holds, read what is saved,
+   * change one group, check, and write that group only (another group is never rewritten, so
+   * concurrent saves of different groups can't revert each other, and a group whose secret can't
+   * be opened is left as it is). Then this replica reads again.
+   */
   async function change(
+    group: Group,
     update: (stored: InstanceConfig.Stored) => void,
     check?: { actor?: InstanceConfigActor },
   ): Promise<InstanceConfig.Described> {
-    const stored = await readStored(db, authSecret)
-    const before = resolve(env, stored).effective
-    update(stored)
-    const after = resolve(env, stored).effective
-    if (check) {
-      const using = check.actor?.using
-      const was = workingSignInMethods(availability(before))
-      const working = workingSignInMethods(availability(after))
-      const refusal = signInLockout(
-        availability(after),
-        using !== undefined && was.includes(using) ? using : undefined,
-      )
-      if (refusal && (working.length === 0 || was.length > 0)) {
-        throw new ConflictError(refusal)
+    const stored = await db.transaction(async (tx) => {
+      await lockInstanceSettings(tx)
+      const saved = await readStored(tx, authSecret)
+      const before = resolve(env, saved).effective
+      update(saved)
+      const after = resolve(env, saved).effective
+      if (check) {
+        const using = check.actor?.using
+        const was = workingSignInMethods(availability(before))
+        const working = workingSignInMethods(availability(after))
+        const refusal = signInLockout(
+          availability(after),
+          using !== undefined && was.includes(using) ? using : undefined,
+        )
+        if (refusal && (working.length === 0 || was.length > 0)) {
+          throw new ConflictError(refusal)
+        }
+        // Methods that work in general are not enough: some instance admin has to be able to use one.
+        const admins = await listInstanceAdminSignIns(tx)
+        if (
+          someAdminCanSignIn(withProviders(before), admins) &&
+          !someAdminCanSignIn(withProviders(after), admins)
+        ) {
+          throw new ConflictError(ADMIN_LOCKOUT)
+        }
       }
-    }
-    await writeStored(db, authSecret, stored)
+      await writeGroup(tx, authSecret, saved, group)
+      return saved
+    })
     apply(stored)
     return current.described
   }
@@ -181,7 +210,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         fail({ workspaceCreation: 'Choose instance admins or anyone' })
       }
       if (isLocked('workspaceCreation')) throw lockedError('workspaceCreation')
-      return change((stored) => {
+      return change('general', (stored) => {
         stored.workspaceCreation = value
       })
     },
@@ -192,6 +221,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         if (input[key] !== undefined && isLocked(keys[key])) throw lockedError(keys[key])
       }
       return change(
+        'general',
         (stored) => {
           Object.assign(stored.signIn, input)
         },
@@ -211,7 +241,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         }
       }
       if (Object.keys(problems).length > 0) fail(problems)
-      return change((stored) => {
+      return change('general', (stored) => {
         Object.assign(stored.limits, input)
       })
     },
@@ -219,8 +249,9 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
     async saveSmtp(input: createInstanceConfig.SmtpInput, actor?: InstanceConfigActor) {
       if (isLocked('smtp')) throw lockedError('smtp')
       return change(
+        'smtp',
         (stored) => {
-          const saved = stored.smtp?.auth?.password
+          const saved = stored.unreadable.smtp ? undefined : stored.smtp?.auth?.password
           const password = input.password === undefined ? saved : (input.password ?? undefined)
           const fields = { ...input, host: input.host.trim(), from: input.from.trim() }
           const problems: Record<string, string> = smtpProblems(fields, password !== undefined)
@@ -229,6 +260,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
           }
           if (Object.keys(problems).length > 0) fail(problems)
           const user = fields.user.trim()
+          stored.unreadable.smtp = false
           stored.smtp = {
             host: fields.host,
             port: fields.port,
@@ -244,8 +276,10 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
     async removeSmtp(actor?: InstanceConfigActor) {
       if (isLocked('smtp')) throw lockedError('smtp')
       return change(
+        'smtp',
         (stored) => {
           delete stored.smtp
+          stored.unreadable.smtp = false
         },
         actor ? { actor } : {},
       )
@@ -253,7 +287,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
 
     async saveSlack(input: createInstanceConfig.SlackInput) {
       if (isLocked('slack')) throw lockedError('slack')
-      return change((stored) => {
+      return change('slack', (stored) => {
         const clientId = input.clientId.trim()
         const clientSecret = input.clientSecret?.trim() || stored.slack?.clientSecret
         const problems: Record<string, string> = {}
@@ -261,13 +295,15 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         if (!clientSecret) problems.clientSecret = 'Enter the client secret'
         if (Object.keys(problems).length > 0 || !clientSecret) fail(problems)
         stored.slack = { clientId, clientSecret }
+        stored.unreadable.slack = false
       })
     },
 
     async removeSlack() {
       if (isLocked('slack')) throw lockedError('slack')
-      return change((stored) => {
+      return change('slack', (stored) => {
         delete stored.slack
+        stored.unreadable.slack = false
       })
     },
 
@@ -278,6 +314,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         )
       }
       return change(
+        'sso',
         (stored) => {
           const existing = stored.sso.find((p) => p.id === input.id)
           const clientId = input.clientId.trim()
@@ -307,6 +344,7 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
             trustedForEmail: input.id === 'oidc' ? input.trustedForEmail : input.id !== 'gitlab',
           }
           stored.sso = [...stored.sso.filter((p) => p.id !== input.id), next]
+          delete stored.unreadable.sso[input.id]
         },
         actor ? { actor } : {},
       )
@@ -317,8 +355,10 @@ export function createInstanceConfig(options: createInstanceConfig.Options) {
         throw new ConflictError(`Set by ${ssoEnvName(id)} in the environment: change it there.`)
       }
       return change(
+        'sso',
         (stored) => {
           stored.sso = stored.sso.filter((p) => p.id !== id)
+          delete stored.unreadable.sso[id]
         },
         actor ? { actor } : {},
       )

@@ -147,6 +147,32 @@ export function signInLockout(
   return null
 }
 
+/** How one instance admin could sign in: the account they have. */
+export interface AdminSignIn {
+  hasPassword: boolean
+  /** The single sign-on providers their account is linked to. */
+  providers: readonly string[]
+}
+
+/**
+ * Whether at least one instance admin could still sign in: by password (they have one), by an
+ * email code (switched on, mail configured: any admin has an address), or by a linked account on
+ * a provider that is configured and switched on. With no admin at all (a fresh instance) there is
+ * nobody to lock out, so it is true.
+ */
+export function someAdminCanSignIn(
+  a: SignInAvailability & { providerIds: readonly string[] },
+  admins: readonly AdminSignIn[],
+): boolean {
+  if (admins.length === 0) return true
+  if (a.email && a.mailConfigured) return true
+  return admins.some(
+    (admin) =>
+      (a.password && admin.hasPassword) ||
+      (a.sso && admin.providers.some((p) => a.providerIds.includes(p))),
+  )
+}
+
 /** A mail server's fields, as the admin enters them. */
 export interface SmtpFields {
   host: string

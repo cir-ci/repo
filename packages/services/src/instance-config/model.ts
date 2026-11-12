@@ -69,6 +69,13 @@ export namespace InstanceConfig {
     smtp?: Smtp
     slack?: Slack
     sso: Sso[]
+    /**
+     * Saved secrets that couldn't be opened with the current instance secret (it was rotated). The
+     * group's other fields are still shown, with an empty secret, but it is never used, and a save
+     * of another group never touches it. `sso` maps a provider to its sealed secret as saved, so
+     * saving another provider writes it back as it was.
+     */
+    unreadable: { smtp: boolean; slack: boolean; sso: Record<string, string> }
   }
 
   /** What the rest of the program uses, per request or per job. */
@@ -105,12 +112,15 @@ export namespace InstanceConfig {
       user: string
       from: string
       passwordSaved: boolean
+      /** Set when the saved password can't be read with the current secret. */
+      unreadable: string | null
     }
     slack: {
       source: 'env' | 'stored' | 'none'
       env: string | null
       clientId: string
       secretSaved: boolean
+      unreadable: string | null
     }
     sso: {
       id: Sso['id']
@@ -119,6 +129,7 @@ export namespace InstanceConfig {
       issuer: string | null
       trustedForEmail: boolean
       secretSaved: boolean
+      unreadable: string | null
       source: 'env' | 'stored'
       /** `AUTH_<PROVIDER>_*` for an environment provider. */
       env: string | null
@@ -126,7 +137,15 @@ export namespace InstanceConfig {
   }
 }
 
-export const emptyStored = (): InstanceConfig.Stored => ({ signIn: {}, limits: {}, sso: [] })
+export const emptyStored = (): InstanceConfig.Stored => ({
+  signIn: {},
+  limits: {},
+  sso: [],
+  unreadable: { smtp: false, slack: false, sso: {} },
+})
+
+/** What the admin page says about a saved secret that can't be opened. */
+export const UNREADABLE_NOTICE = "Saved, but can't be read with the current secret: replace it"
 
 export const ssoEnvName = (id: InstanceConfig.Sso['id']) => `AUTH_${id.toUpperCase()}_*`
 
@@ -180,10 +199,17 @@ export function resolve(
 
   const smtpFromEnv = locked('smtp') && env.smtp !== undefined
   const smtp = smtpFromEnv ? env.smtp : stored.smtp
+  const smtpUnreadable = !smtpFromEnv && stored.smtp !== undefined && stored.unreadable.smtp
   const slackFromEnv = locked('slack') && env.slack !== undefined
   const slack = slackFromEnv ? env.slack : stored.slack
+  const slackUnreadable = !slackFromEnv && stored.slack !== undefined && stored.unreadable.slack
   const envIds = new Set(env.sso.map((p) => p.id))
   const ssoAll = [...env.sso, ...stored.sso.filter((p) => !envIds.has(p.id))]
+  const ssoUnreadable = (p: InstanceConfig.Sso) =>
+    !envIds.has(p.id) && stored.unreadable.sso[p.id] !== undefined
+  // A group whose secret can't be opened is shown but never used.
+  const smtpUsable = smtpUnreadable ? undefined : smtp
+  const slackUsable = slackUnreadable ? undefined : slack
 
   const effective: InstanceConfig.Effective = {
     workspaceCreation: workspaceCreation.value,
@@ -196,9 +222,9 @@ export function resolve(
       staticSitesMaxMb: limits.staticSitesMaxMb.value,
       webhookTimeoutSeconds: limits.webhookTimeoutSeconds.value,
     },
-    ...(smtp ? { smtp } : {}),
-    ...(slack ? { slack } : {}),
-    sso: ssoAll,
+    ...(smtpUsable ? { smtp: smtpUsable } : {}),
+    ...(slackUsable ? { slack: slackUsable } : {}),
+    sso: ssoAll.filter((p) => !ssoUnreadable(p)),
   }
   const described: InstanceConfig.Described = {
     workspaceCreation,
@@ -213,12 +239,14 @@ export function resolve(
       user: smtp?.auth?.user ?? '',
       from: smtp?.from ?? '',
       passwordSaved: smtp?.auth?.password !== undefined,
+      unreadable: smtpUnreadable ? UNREADABLE_NOTICE : null,
     },
     slack: {
       source: slack ? (slackFromEnv ? 'env' : 'stored') : 'none',
       env: slackFromEnv ? INSTANCE_ENV.slack : null,
       clientId: slack?.clientId ?? '',
       secretSaved: slack !== undefined,
+      unreadable: slackUnreadable ? UNREADABLE_NOTICE : null,
     },
     sso: ssoAll.map((p) => {
       const fromEnv = envIds.has(p.id)
@@ -228,7 +256,8 @@ export function resolve(
         clientId: p.clientId,
         issuer: p.issuer ?? null,
         trustedForEmail: p.trustedForEmail,
-        secretSaved: p.clientSecret !== '',
+        secretSaved: p.clientSecret !== '' || ssoUnreadable(p),
+        unreadable: ssoUnreadable(p) ? UNREADABLE_NOTICE : null,
         source: fromEnv ? ('env' as const) : ('stored' as const),
         env: fromEnv ? ssoEnvName(p.id) : null,
       }
