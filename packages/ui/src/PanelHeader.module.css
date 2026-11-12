@@ -22,6 +22,21 @@
   flex: 1;
 }
 
+/*
+ * The page's actions are one group: beside the crumbs it sits at the right (the spacer pushes it
+ * there); when it doesn't fit, the whole group moves to the next line and starts at the left,
+ * instead of the buttons dropping there one by one. Only a group wider than a line of its own (a
+ * phone) wraps inside itself.
+ */
+.actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: inherit;
+  max-width: 100%;
+}
+
 /* A phone: one compact row (the menu and search buttons live in it). Its controls are 36px with a
    tap area that reaches past the visible box; the 44px rule is for the bottom bar and the rows'
    own actions. The controls' own phone rules (Button, IconButton, TextField) key off
