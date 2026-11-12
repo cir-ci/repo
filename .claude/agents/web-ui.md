@@ -20,7 +20,7 @@ UI rules on top of CLAUDE.md:
   - no `await` inside loops;
   - `expect` must sit inside the test itself, not only in a helper (`expect-expect`);
   - no unsafe type assertions or unused imports.
-- Commit on your branch only once the checks pass. End the message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. There is no remote: never push.
+- Commit on your branch only once the checks pass. End the message with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. There is no remote: never push.
 - Breaking changes are fine (nothing is hosted). The database has a single initial migration you may regenerate; say so in your report when you do.
 - Report back:
   - the commit hash;
