@@ -128,6 +128,12 @@ export default defineConfig({
                 return file !== undefined && staticIcons.has(file)
               },
             },
+            // The small design-system parts the shell and nearly every page draw: each would be
+            // its own script and stylesheet pair, shared between the shell and the pages.
+            {
+              name: 'ui-common',
+              test: /packages[\\/]ui[\\/]src[\\/](Badge|Banner|ConfirmDialog|Dialog|Kbd|Link|Menu|SegmentedControl|StatusIcon|TabList|Text|TextField|Toast)\.(tsx|module\.css)$/,
+            },
             {
               name: 'base-ui',
               test: /node_modules[\\/]@base-ui[\\/]/,

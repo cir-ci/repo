@@ -2,12 +2,22 @@ import { useQuery } from '@tanstack/react-query'
 
 import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { onDemand } from '#lib/on-demand.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
-import { NewWorkspaceDialog } from './CreateDialogs.tsx'
-import { GithubImportDialog } from './GithubImportDialog.tsx'
-import { NewProjectDialog } from './NewProjectDialog.tsx'
+const NewWorkspaceDialog = onDemand(
+  () => import('./CreateDialogs.tsx'),
+  (m) => m.NewWorkspaceDialog,
+)
+const GithubImportDialog = onDemand(
+  () => import('./GithubImportDialog.tsx'),
+  (m) => m.GithubImportDialog,
+)
+const NewProjectDialog = onDemand(
+  () => import('./NewProjectDialog.tsx'),
+  (m) => m.NewProjectDialog,
+)
 
 /**
  * The New project, Import from GitHub and New workspace dialogs, mounted once for the signed-in app. Their open state is

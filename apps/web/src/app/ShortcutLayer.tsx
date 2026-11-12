@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type ReactNode, useEffect } from 'react'
 
-import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { classifyVisit } from '#features/command/recent.ts'
 import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useRememberOpenedWorkspace, useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { onDemand } from '#lib/on-demand.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentStore } from '#lib/stores/recent-store.ts'
@@ -17,8 +17,16 @@ import { useCopy } from '#lib/use-copy.ts'
 import { useNavPane } from './NavToggle.tsx'
 import { isAppPage } from './settings-return.ts'
 import { goPath } from './shell-model.ts'
-import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 import { useTabShortcuts } from './use-tab-shortcuts.ts'
+
+const CommandMenu = onDemand(
+  () => import('#features/command/CommandMenu.tsx'),
+  (m) => m.CommandMenu,
+)
+const ShortcutsDialog = onDemand(
+  () => import('./ShortcutsDialog.tsx'),
+  (m) => m.ShortcutsDialog,
+)
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
