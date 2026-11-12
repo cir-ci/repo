@@ -40,7 +40,9 @@ export interface Stack {
   url: string
   /** Compose project name: `docker compose -p <project> ...` works while the stack is up. */
   composeProject: string
-  ports: { http: number; mail: number; s3: number | undefined }
+  ports: { http: number; mail: number; s3: number | undefined; db: number }
+  /** The stack's Postgres as the host reaches it (the `circi` database; superuser `circi`). */
+  databaseUrl: string
   storage: 'fs' | 's3'
   sitesHost: string | undefined
   mail: Mailbox
@@ -138,6 +140,7 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   let http = 0
   let mail = 0
   let s3Port: number | undefined
+  let dbPort = 0
   let url = 'http://localhost'
 
   const environment: Record<string, string> = { ...options.env }
@@ -215,10 +218,11 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
         timeoutMs: 300_000,
       },
     )
-    ;[http, mail, s3Port] = await Promise.all([
+    ;[http, mail, s3Port, dbPort] = await Promise.all([
       publishedPort('edge', 3000),
       publishedPort('mailpit', 8025),
       withS3 ? publishedPort('edge-s3', 4566) : Promise.resolve(undefined),
+      publishedPort('postgres', 5432),
     ])
     // Sites need a dashboard host unrelated to the sites domain (`localhost` is a parent of
     // `*.localhost`), so then the dashboard is addressed by IP.
@@ -270,7 +274,8 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   return {
     url,
     composeProject: project,
-    ports: { http, mail, s3: s3Port },
+    ports: { http, mail, s3: s3Port, db: dbPort },
+    databaseUrl: `postgres://circi:e2e@127.0.0.1:${dbPort}/circi`,
     storage,
     sitesHost: options.sitesHost,
     mail: mailbox,

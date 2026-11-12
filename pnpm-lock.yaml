@@ -572,9 +572,30 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 'catalog:'
         version: 3.1161.0
+      '@circi/auth':
+        specifier: workspace:*
+        version: link:../packages/auth
       '@circi/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@circi/db':
+        specifier: workspace:*
+        version: link:../packages/db
+      '@circi/services':
+        specifier: workspace:*
+        version: link:../packages/services
+      '@circi/storage':
+        specifier: workspace:*
+        version: link:../packages/storage
+      '@circi/worker':
+        specifier: workspace:*
+        version: link:../apps/worker
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.1
       playwright:
         specifier: 'catalog:'
         version: 1.64.1
@@ -594,6 +615,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.23.1
       vitest:
         specifier: 'catalog:'
         version: 5.1.0(@types/node@26.6.6)(@vitest/browser-playwright@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(happy-dom@21.0.4)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))

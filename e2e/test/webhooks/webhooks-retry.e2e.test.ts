@@ -75,6 +75,10 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
     expect(g1).toBeGreaterThanOrEqual(BASE_MS * 0.8)
     expect(g2).toBeGreaterThanOrEqual(BASE_MS * 2 * 0.8)
     expect(g2).toBeGreaterThan(g1)
+    // And not much later: the worker that failed the delivery wakes for it when the backoff is
+    // over. Waiting for the 5 s poll instead would put both gaps past 4 s.
+    expect(g1).toBeLessThan(3_000)
+    expect(g2).toBeLessThan(4_000)
     await expect
       .poll(async () => (await hookJobs(stack, created.webhook.id))[0])
       .toMatchObject({ status: 'done', attempts: 3, error: '' })

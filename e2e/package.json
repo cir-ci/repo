@@ -14,7 +14,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
+    "@circi/auth": "workspace:*",
     "@circi/core": "workspace:*",
+    "@circi/db": "workspace:*",
+    "@circi/services": "workspace:*",
+    "@circi/storage": "workspace:*",
+    "@circi/worker": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:",
     "playwright": "catalog:",
     "sharp": "catalog:"
   },
@@ -23,6 +30,7 @@
     "@circi/integrations": "workspace:*",
     "@circi/testing": "workspace:*",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "vitest": "catalog:"
   }
 }

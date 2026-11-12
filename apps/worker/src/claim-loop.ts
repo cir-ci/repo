@@ -1,15 +1,24 @@
-import { claimNextJob } from '@circi/services'
+import { claimNextJob, nextJobDueInMs } from '@circi/services'
 
 import { interruptibleSleep } from './lib/concurrency.ts'
 import { startListening } from './listen.ts'
 import { runJob } from './run-job.ts'
 import type { startWorker } from './runner.ts'
 
+/** The poll, or less when a pending job falls due sooner (a little past it: the database's clock decides). */
+async function idleWaitMs(deps: startWorker.Deps, light: boolean, pollMs: number): Promise<number> {
+  const due = await nextJobDueInMs(deps.db, { light }).catch(() => undefined)
+  return due === undefined ? pollMs : Math.min(pollMs, Math.max(50, due + 25))
+}
+
 /**
  * The poll lanes (`concurrency` that take builds first, plus `lightLanes` that never take one): each claims one job at a time (`FOR UPDATE SKIP LOCKED`, so several worker
  * processes can share a database), runs it, and sleeps when the queue is empty. A NOTIFY wakes all
- * lanes at once; the poll interval is the fallback for missed notifications. A job this worker
- * fails and will retry wakes the lanes again when its backoff is over (other workers' retries wait for their poll).
+ * lanes at once; the poll interval is the fallback for missed notifications. An idle lane sleeps
+ * until the earliest pending `run_at` it can see when that is sooner than the poll, so a retry or a
+ * delayed job runs at its time. Enqueueing a delayed job and retrying a failed one send a NOTIFY,
+ * so an idle worker process learns of it at once and sets that sleep; the one limit left is a
+ * worker with no listener connection (it sees such a job at its next poll).
  */
 export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
   // NOTIFY wakes the lanes at once, so with a listener the poll is only the fallback (missed
@@ -59,7 +68,9 @@ export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
       })
       if (!job) {
         // oxlint-disable-next-line no-await-in-loop -- idle wait between polls
-        if (!woken[lane]) await sleeper.sleep(pollMs)
+        const wait = await idleWaitMs(deps, light, pollMs)
+        // oxlint-disable-next-line no-await-in-loop -- idle wait between polls
+        if (!woken[lane]) await sleeper.sleep(wait)
         continue
       }
       // oxlint-disable-next-line no-await-in-loop -- jobs in one lane run sequentially

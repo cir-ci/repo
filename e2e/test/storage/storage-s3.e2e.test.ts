@@ -60,7 +60,7 @@ describe('S3 storage', () => {
     const res = await fetch(url, { headers })
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/png')
-    expect(res.headers.get('cache-control')).toBe('private, max-age=31536000, immutable')
+    expect(res.headers.get('cache-control')).toBe('private, max-age=3600')
     expect(res.headers.get('etag')).toBe(`"${hash}"`)
     expect(Buffer.from(await res.arrayBuffer()).equals(home)).toBe(true)
     const cached = await fetch(url, { headers: { ...headers, 'if-none-match': `"${hash}"` } })

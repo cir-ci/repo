@@ -1,15 +1,24 @@
-import { storageUsage } from '@circi/db/queries'
+import { countOpenTriage, listTriage, storageUsage } from '@circi/db/queries'
 import {
   createBuild,
   ensureAssetFiles,
   markFileVerified,
   planUploads,
   publishSiteVersion,
+  refreshTriageProblems,
+  updateProjectSettings,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedProject, seedUploadClaim } from '@circi/db/testing'
+import {
+  createTestDb,
+  imageSha,
+  seedBuild,
+  seedDiff,
+  seedProject,
+  seedUploadClaim,
+} from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { completeBuild, finalizeBuild, runRetention } from '#src/index.ts'
@@ -319,5 +328,122 @@ describe('storage usage', () => {
     expect(usage.files.find((f) => f.kind === 'screenshot')?.count).toBeGreaterThanOrEqual(1)
     expect(usage.totalBytes).toBeGreaterThan(0)
     expect(usage.markedForDeletion.count).toBeGreaterThanOrEqual(0)
+  })
+})
+
+const storedKeys = async (projectId: string) =>
+  (
+    await t.db
+      .select()
+      .from(schema.triageProblems)
+      .where(eq(schema.triageProblems.projectId, projectId))
+  )
+    .map((r) => `${r.kind}:${r.key}`)
+    .toSorted()
+const queueKeys = async (projectId: string) =>
+  (await listTriage(t.db, { projectId, now: new Date() })).items
+    .map((i) => `${i.kind}:${i.key}`)
+    .toSorted()
+const backdate = (buildIds: string[], days: number) =>
+  t.db
+    .update(schema.builds)
+    .set({ createdAt: ago(days) })
+    .where(inArray(schema.builds.id, buildIds))
+
+/** A project whose `home` flips A, B, A, B on the default branch: a flaky item once refreshed. */
+async function flakyProject() {
+  const seeded = await seedProject(t.db)
+  await updateProjectSettings(t.db, seeded.project.id, { flakyAfterChanges: 2 })
+  const builds = []
+  for (const [i, image] of ['A', 'B', 'A', 'B'].entries()) {
+    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+    const b = await seedBuild(t.db, seeded.project.id, { branch: 'main', status: 'complete' })
+    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+    await t.db
+      .update(schema.builds)
+      .set({ baselineSource: 'cli' })
+      .where(eq(schema.builds.id, b.id))
+    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+    await seedDiff(t.db, {
+      buildId: b.id,
+      name: 'home',
+      status: i === 2 ? 'unchanged' : 'changed',
+      headSha256: imageSha(image),
+    })
+    builds.push(b)
+  }
+  return { ...seeded, builds }
+}
+
+/** A project whose only default-branch build had no baseline: one `no_baseline` item. */
+async function orphanProject() {
+  const seeded = await seedProject(t.db)
+  const b = await seedBuild(t.db, seeded.project.id, { branch: 'main', status: 'complete' })
+  await t.db.update(schema.builds).set({ baselineSource: 'none' }).where(eq(schema.builds.id, b.id))
+  await seedDiff(t.db, { buildId: b.id, name: 'pricing', status: 'added' })
+  return { ...seeded, build: b }
+}
+
+describe('retention and the triage queue', () => {
+  it('refreshes the stored triage rows of a project whose flaky or orphan builds expire, so the counts follow', async () => {
+    const flaky = await flakyProject()
+    const orphan = await orphanProject()
+    for (const { project } of [flaky, orphan]) {
+      // oxlint-disable-next-line no-await-in-loop -- two projects
+      await updateProjectSettings(t.db, project.id, { retentionDays: 7 })
+      // oxlint-disable-next-line no-await-in-loop -- two projects
+      await refreshTriageProblems(t.db, project.id)
+    }
+    expect(await storedKeys(flaky.project.id)).toEqual(['flaky:home'])
+    expect(await storedKeys(orphan.project.id)).toEqual(['no_baseline:pricing'])
+    const open = async () =>
+      new Map([
+        ...(await countOpenTriage(t.db, { workspaceId: flaky.workspace.id, now: new Date() })),
+        ...(await countOpenTriage(t.db, { workspaceId: orphan.workspace.id, now: new Date() })),
+      ])
+    expect(await open()).toEqual(
+      new Map([
+        [flaky.project.id, 1],
+        [orphan.project.id, 1],
+      ]),
+    )
+
+    // Nothing is old enough yet: a pass leaves the rows as they are.
+    await retention()
+    expect(await storedKeys(flaky.project.id)).toEqual(['flaky:home'])
+
+    // The history ages out: every build of both projects is past its 7 days.
+    await backdate([...flaky.builds.map((b) => b.id), orphan.build.id], 30)
+    const result = await retention()
+    expect(result.expiredBuilds).toBe(5)
+
+    // The rows follow the queue the builds now make (none), and the sidebar's counts with them.
+    for (const { project } of [flaky, orphan]) {
+      // oxlint-disable-next-line no-await-in-loop -- two projects
+      expect(await queueKeys(project.id)).toEqual([])
+      // oxlint-disable-next-line no-await-in-loop -- two projects
+      expect(await storedKeys(project.id)).toEqual([])
+    }
+    expect([...(await open()).values()].every((n) => n === 0)).toBe(true)
+  })
+
+  it('leaves the stored rows equal to the queue when only part of a flaky history expires', async () => {
+    const flaky = await flakyProject()
+    await updateProjectSettings(t.db, flaky.project.id, { retentionDays: 7 })
+    await refreshTriageProblems(t.db, flaky.project.id)
+    expect(await storedKeys(flaky.project.id)).toEqual(['flaky:home'])
+    // The two oldest builds expire; the two newest stay.
+    await backdate(
+      flaky.builds.slice(0, 2).map((b) => b.id),
+      30,
+    )
+    const result = await retention()
+    expect(result.expiredBuilds).toBe(2)
+    // Whatever the shorter history says, the stored rows say the same.
+    expect(await storedKeys(flaky.project.id)).toEqual(await queueKeys(flaky.project.id))
+    const counted = (
+      await countOpenTriage(t.db, { workspaceId: flaky.workspace.id, now: new Date() })
+    ).get(flaky.project.id)
+    expect(counted ?? 0).toBe((await queueKeys(flaky.project.id)).length)
   })
 })

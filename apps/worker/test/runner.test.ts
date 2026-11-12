@@ -146,6 +146,26 @@ describe('worker wake-up by NOTIFY', () => {
     }
   })
 
+  it('runs a job enqueued with a future run time at that time, not at the next poll', async () => {
+    const worker = await startWorker({
+      db: t.db,
+      storage,
+      logger: silent,
+      pollIntervalMs: 10_000,
+      listen: t.listen,
+    })
+    try {
+      // The notification the enqueue sends wakes the idle lanes; they find nothing due, ask when
+      // the earliest job is, and sleep until then.
+      const id = await enqueueProbe('process-build', new Date(Date.now() + 400))
+      const ms = await untilClaimed(id, 3_000)
+      expect(ms).toBeGreaterThanOrEqual(300)
+      expect(ms).toBeLessThan(2_500)
+    } finally {
+      await worker.stop()
+    }
+  })
+
   it('wakes for a retry when its backoff is over, not at the next poll', async () => {
     const worker = await startWorker({
       db: t.db,

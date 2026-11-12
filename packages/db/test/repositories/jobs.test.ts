@@ -10,6 +10,7 @@ import {
   extendLease,
   failExpiredJobs,
   failJob,
+  msUntilNextJob,
 } from '#src/queue/index.ts'
 import * as schema from '#src/schema/index.ts'
 
@@ -234,15 +235,50 @@ describe('job notifications', () => {
     }
   })
 
-  it('does not notify for a job that is not due yet', async () => {
+  it('notifies for a job that is not due yet too, so idle workers can sleep until it is', async () => {
     const received: string[] = []
     const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
     try {
       await enqueueJob(t.db, { queue: 'qn2', payload: {}, runAt: new Date(Date.now() + 60_000) })
       await enqueueJob(t.db, { queue: 'qn3', payload: {} })
-      await expect.poll(() => received).toEqual(['qn3'])
+      await expect.poll(() => received).toEqual(['qn2', 'qn3'])
     } finally {
       await unsub()
     }
+  })
+
+  it('notifies when a failed job is set to retry, and not when it fails for good', async () => {
+    const received: string[] = []
+    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    try {
+      await enqueueJob(t.db, { queue: 'qn4', payload: {}, maxAttempts: 2 })
+      const first = await claimJob(t.db, 'qn4', 60)
+      await failJob(t.db, first!, 'boom', { baseMs: 60_000, maxMs: 60_000 })
+      await expect.poll(() => received).toEqual(['qn4', 'qn4'])
+      await t.db.update(schema.jobs).set({ runAt: new Date() }).where(eq(schema.jobs.queue, 'qn4'))
+      const second = await claimJob(t.db, 'qn4', 60)
+      expect(await failJob(t.db, second!, 'boom again')).toBe('failed')
+      await enqueueJob(t.db, { queue: 'qn5', payload: {} })
+      await expect.poll(() => received).toEqual(['qn4', 'qn4', 'qn5'])
+    } finally {
+      await unsub()
+    }
+  })
+})
+
+describe('msUntilNextJob', () => {
+  it('is undefined with nothing pending, 0 for a due job, and the wait for a later one', async () => {
+    expect(await msUntilNextJob(t.db, 'qm')).toBeUndefined()
+    await enqueueJob(t.db, { queue: 'qm', payload: {}, runAt: new Date(Date.now() + 30_000) })
+    const ms = await msUntilNextJob(t.db, 'qm')
+    expect(ms).toBeGreaterThan(25_000)
+    expect(ms).toBeLessThanOrEqual(30_000)
+    await enqueueJob(t.db, { queue: 'qm', payload: {}, runAt: new Date(Date.now() - 1000) })
+    expect(await msUntilNextJob(t.db, ['qm'])).toBe(0)
+    // Only the listed queues, and only pending jobs.
+    expect(await msUntilNextJob(t.db, 'other-queue')).toBeUndefined()
+    expect(await msUntilNextJob(t.db, [])).toBeUndefined()
+    await claimJob(t.db, 'qm', 60)
+    expect(await msUntilNextJob(t.db, 'qm')).toBeGreaterThan(25_000)
   })
 })

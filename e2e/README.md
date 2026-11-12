@@ -57,6 +57,15 @@ is built once in `global-setup.ts` before any worker starts. The run always remo
 (`docker compose down -v`), also on failure and Ctrl-C (`global-setup.ts`, which finds them by
 compose project-name prefix). Do not use ports 3000 or 5432 for anything here: they are the dev stack's.
 
+### Real Postgres from the test process
+
+Every stack publishes its Postgres on a host port (`stack.databaseUrl`, user `circi`). Tests that need what PGlite's single
+in-process connection can't show (several connections or "processes", advisory locks, `FOR UPDATE SKIP LOCKED`, `pg_stat_activity`)
+call `freshDatabase(stack)` (`src/clients/database.ts`): a migrated database of its own next to the stack's `circi`, with
+`open({ poolMax })` for each pool that stands in for another process, and `query()` on a connection of its own. They run the
+real packages (`@circi/db`, `@circi/services`, `@circi/worker`) in the test process, so this is real Postgres but not the built
+image; what needs the image (the HTTP server, the CLI, the container's worker) uses the stack's URL as usual.
+
 ### Shared stacks
 
 Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files share one:
@@ -101,6 +110,11 @@ Which file uses what (this list is the decision record; keep it current):
 | sites-security | dedicated | `STATIC_SITES_MAX_MB=1`, probes the container's file system |
 | webhooks-retry | dedicated | `JOB_RETRY_BASE_SECONDS=0.5`, `WEBHOOK_TIMEOUT_SECONDS=2`: the retry schedule runs on a scaled clock, which would break the shared stack's other webhook tests |
 | webhooks-ssrf | dedicated | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false` |
+| postgres/advisory-lock, postgres/instance-config, postgres/job-queue | `default`, shared | each makes a database of its own on the stack's Postgres (`freshDatabase`), so the stack's server and worker never see it |
+| postgres/instance-config-pickup | dedicated | changes instance-wide settings and waits out the server's real 30 s cache |
+| triage-backfill | dedicated | restarts the app container, clears the instance-wide backfill marker |
+| cli-retry, session-cache | `default`, shared | own tenant; cli-retry puts a fault-injecting proxy (`fakes/fault-proxy.ts`) in front of the server |
+| signed-file-links | `s3`, shared | own tenant; screenshots and a site asset in LocalStack |
 
 
 ## Layout

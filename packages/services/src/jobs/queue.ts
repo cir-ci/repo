@@ -31,6 +31,14 @@ export async function claimNextJob(
   return queue.claimJob(db, options.light ? LIGHT_QUEUES : ALL_QUEUES, lockSeconds)
 }
 
+/** How long until the next pending job a lane of this kind could claim is due (see `msUntilNextJob`). */
+export async function nextJobDueInMs(
+  db: Database,
+  options: { light?: boolean } = {},
+): Promise<number | undefined> {
+  return queue.msUntilNextJob(db, options.light ? LIGHT_QUEUES : ALL_QUEUES)
+}
+
 /**
  * Fails the running jobs whose lease expired with no attempts left (their worker keeps dying), in
  * every queue the worker serves, and returns them so the worker can run each one's give-up.

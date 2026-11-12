@@ -378,6 +378,19 @@ describe('merge gate (against a fake GitHub)', () => {
     expect(checkFor(soft.sha)).toMatchObject({ conclusion: 'neutral' })
     expect(hard.run.exitCode).toBe(2)
     expect(soft.run.exitCode).toBe(0)
+    // What the CLI says: the file is named either way, and the project that doesn't block merges
+    // is told so in a warning, not an error that fails the job.
+    expect(hard.run.stderr).toMatch(/error: login/)
+    expect(soft.run.stderr).toMatch(/error: login/)
+    expect(soft.run.stderr).toContain(
+      "warning: 1 screenshot couldn't be read; merges aren't blocked for this project",
+    )
+    expect(hard.run.stderr).not.toContain('merges aren')
+    expect(soft.run.result?.status?.outcome).toMatchObject({
+      state: 'pass',
+      summary: "1 screenshot couldn't be read",
+    })
+    expect(checkFor(soft.sha)?.actions).toEqual([])
   })
 
   it('a build that errors as a whole: failure when blocking, neutral when not', async () => {

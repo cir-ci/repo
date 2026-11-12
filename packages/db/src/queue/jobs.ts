@@ -51,8 +51,29 @@ export async function enqueueJob(
       ...(input.maxAttempts ? { maxAttempts: input.maxAttempts } : {}),
     })
     .onConflictDoNothing()
-  // A job that is not due yet (retry backoff, a delayed run) is found by the worker's poll.
-  if (!input.runAt || input.runAt.getTime() <= Date.now()) await notifyJobs(db, input.queue)
+  // A job that is not due yet (a delayed run) wakes the workers too: each looks for work, finds
+  // none due, and sleeps until the earliest pending `run_at` (`msUntilNextJob`), not a whole poll.
+  await notifyJobs(db, input.queue)
+}
+
+/**
+ * Milliseconds, by the database's clock, until the earliest pending job of `queues` is due: 0 when
+ * one is due already, undefined when none is pending. An idle worker sleeps until then instead of
+ * for a whole poll interval, so a retry or a delayed job queued by another process starts at its
+ * time, not at the next poll.
+ */
+export async function msUntilNextJob(
+  db: Database,
+  queues: string | readonly string[],
+): Promise<number | undefined> {
+  const list = typeof queues === 'string' ? [queues] : [...queues]
+  if (list.length === 0) return undefined
+  const [row] = await db
+    .select({ ms: sql<string | null>`extract(epoch from (min(${jobs.runAt}) - now())) * 1000` })
+    .from(jobs)
+    .where(and(inArray(jobs.queue, list), eq(jobs.status, 'pending')))
+  if (row?.ms === null || row?.ms === undefined) return undefined
+  return Math.max(0, Math.ceil(Number(row.ms)))
 }
 
 /**
@@ -196,6 +217,8 @@ export async function failJob(
     .where(holds(job))
     .returning({ id: jobs.id })
   if (rows.length === 0) return 'lost'
+  // Wake the other workers: one that is idle then sleeps until this retry is due (`msUntilNextJob`).
+  if (retry) await notifyJobs(db, job.queue).catch(() => {})
   return retry ? 'retried' : 'failed'
 }
 

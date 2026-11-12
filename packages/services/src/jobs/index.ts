@@ -15,4 +15,5 @@ export {
   failExpiredJobs,
   failJob,
   isJobForDeletedWorkspace,
+  nextJobDueInMs,
 } from './queue.ts'
