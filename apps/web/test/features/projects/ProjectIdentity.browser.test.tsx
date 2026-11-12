@@ -28,15 +28,15 @@ describe('ProjectIdentity', () => {
     await show(false)
     await expect.element(field('Display name')).toBeDisabled()
     await expect.element(field('URL slug')).toBeDisabled()
-    await expect.element(field('Default Branch')).toBeDisabled()
+    await expect.element(field('Default branch')).toBeDisabled()
     expect(page.getByRole('button', { name: /^Save / }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Change icon and colour' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Change icon and color' }).elements()).toHaveLength(0)
   })
 
   it('enables them for someone who can', async () => {
     await show(true)
     await expect.element(field('Display name')).toBeEnabled()
     await expect.element(field('URL slug')).toBeEnabled()
-    await expect.element(field('Default Branch')).toBeEnabled()
+    await expect.element(field('Default branch')).toBeEnabled()
   })
 })

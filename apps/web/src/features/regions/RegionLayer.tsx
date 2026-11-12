@@ -467,7 +467,7 @@ function RegionTool({ onConfirm, onCancel }: RegionTool.Props) {
     if (e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
-      announce('Region cancelled')
+      announce('Region canceled')
       onCancel()
       if (before.current instanceof HTMLElement && before.current.isConnected) {
         before.current.focus()

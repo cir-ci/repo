@@ -399,7 +399,7 @@ describe('region comments are always on', () => {
       .element(page.getByRole('group', { name: 'Region to mark' }))
       .not.toBeInTheDocument()
     await expect.element(toggle).toHaveFocus()
-    await expect.element(page.getByText('Region cancelled')).toBeInTheDocument()
+    await expect.element(page.getByText('Region canceled')).toBeInTheDocument()
   })
 })
 

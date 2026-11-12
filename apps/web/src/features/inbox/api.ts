@@ -111,7 +111,7 @@ export function notificationText(item: NotificationWords): { title: string; deta
       title: `${item.project?.name ?? 'A project'}'s git connection needs attention`,
     },
     flaky_detected: {
-      title: `Flaky screenshots found${item.project ? ` in ${item.project.name}` : ''}`,
+      title: `Flaky screenshot found${item.project ? ` in ${item.project.name}` : ''}`,
     },
     triage_assigned: {
       title: 'Assigned to you as the person on triage',

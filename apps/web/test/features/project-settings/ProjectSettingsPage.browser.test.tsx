@@ -67,7 +67,7 @@ const show = () =>
       '/workspaces/$workspace/settings/projects',
     ],
   })
-const openPicker = () => page.getByRole('button', { name: 'Change icon and colour' }).click()
+const openPicker = () => page.getByRole('button', { name: 'Change icon and color' }).click()
 const field = (name: string) => page.getByRole('textbox', { name })
 const heading = (name: string) => page.getByRole('heading', { name })
 
@@ -112,7 +112,7 @@ describe('ProjectSettingsPage', () => {
     api()
     await show()
     await expect.element(page.getByRole('textbox', { name: 'Display name' })).toHaveValue('Web App')
-    await expect.element(page.getByRole('textbox', { name: 'Default Branch' })).toHaveValue('main')
+    await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
     await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
@@ -267,11 +267,11 @@ describe('ProjectSettingsPage', () => {
       await expect.element(heading('Details')).toBeVisible()
       expect(page.getByText('Name and picture').elements()).toHaveLength(0)
       expect(heading('Address and branch').elements()).toHaveLength(0)
-      const avatar = page.getByRole('button', { name: 'Change icon and colour' }).element()
+      const avatar = page.getByRole('button', { name: 'Change icon and color' }).element()
       const top = (name: string) => field(name).element().getBoundingClientRect().top
       await page.viewport(1200, 800)
       await expect.element(field('Display name')).toBeVisible()
-      for (const name of ['Display name', 'URL slug', 'Default Branch']) {
+      for (const name of ['Display name', 'URL slug', 'Default branch']) {
         expect(Math.abs(top(name) - top('Display name'))).toBeLessThan(8)
         expect(field(name).element().getBoundingClientRect().left).toBeGreaterThan(
           avatar.getBoundingClientRect().right - 1,
@@ -346,9 +346,9 @@ describe('ProjectSettingsPage', () => {
       })
       await show()
       await field('Keep builds for (days)').fill('90')
-      await field('Default Branch').fill('develop')
+      await field('Default branch').fill('develop')
       await userEvent.keyboard('{Enter}')
-      await expect.element(field('Default Branch')).toHaveValue('develop')
+      await expect.element(field('Default branch')).toHaveValue('develop')
       await expect.element(toastNamed('Default branch saved')).toBeInTheDocument()
       await expect.element(field('Keep builds for (days)')).toHaveValue('90')
     })
@@ -357,8 +357,8 @@ describe('ProjectSettingsPage', () => {
       const fake = api()
       await show()
       await expect.element(page.getByText('Its approved builds are the baselines.')).toBeVisible()
-      await field('Default Branch').fill('develop')
-      await page.getByRole('button', { name: 'Save Default Branch' }).click()
+      await field('Default branch').fill('develop')
+      await page.getByRole('button', { name: 'Save Default branch' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toEqual({ defaultBranch: 'develop' })
       // The big form is still clean.
@@ -368,7 +368,7 @@ describe('ProjectSettingsPage', () => {
     it('refuses an empty branch on the field, and sends nothing', async () => {
       const fake = api()
       await show()
-      await field('Default Branch').fill('  ')
+      await field('Default branch').fill('  ')
       await userEvent.keyboard('{Enter}')
       await expect.element(page.getByText('Enter a branch name')).toBeVisible()
       expect(fake.of('PATCH')).toHaveLength(0)
@@ -622,7 +622,7 @@ describe('ProjectSettingsPage', () => {
     })
   })
 
-  describe('icon and colour', () => {
+  describe('icon and color', () => {
     const ARIA = { color: 'slate', icon: null as string | null }
 
     it('saves a picked colour at once, from the popover on the avatar', async () => {
@@ -647,7 +647,7 @@ describe('ProjectSettingsPage', () => {
       )
       await show()
       await openPicker()
-      const group = page.getByRole('radiogroup', { name: 'Colour' })
+      const group = page.getByRole('radiogroup', { name: 'Color' })
       await expect.element(group).toBeVisible()
       const slate = group.getByRole('radio', { name: 'Slate' })
       await expect.element(slate).toBeChecked()
@@ -661,9 +661,9 @@ describe('ProjectSettingsPage', () => {
       api({ appearance: ARIA })
       await show()
       expect(page.getByRole('radio', { name: 'Plum' }).elements()).toHaveLength(0)
-      const button = page.getByRole('button', { name: 'Change icon and colour' })
+      const button = page.getByRole('button', { name: 'Change icon and color' })
       await button.click()
-      await expect.element(page.getByRole('dialog', { name: 'Icon and colour' })).toBeVisible()
+      await expect.element(page.getByRole('dialog', { name: 'Icon and color' })).toBeVisible()
       await userEvent.keyboard('{Escape}')
       await expect.poll(() => page.getByRole('dialog').elements()).toHaveLength(0)
       await expect.element(button).toHaveFocus()
@@ -795,7 +795,7 @@ describe('ProjectSettingsPage opened at a setting', () => {
   it.each([
     ['merge-gate', /^Flaky-only changes block merging/, 'combobox'],
     ['retention', 'Keep builds for (days)', 'textbox'],
-    ['default-branch', 'Default Branch', 'textbox'],
+    ['default-branch', 'Default branch', 'textbox'],
   ] as const)('#%s scrolls to its setting and focuses it', async (hash, name, role) => {
     api()
     await page.viewport(1000, 500)

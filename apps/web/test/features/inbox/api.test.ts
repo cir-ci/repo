@@ -54,7 +54,7 @@ describe('notificationText', () => {
       "Web's git connection needs attention",
     )
     expect(title('flaky_detected', { build: null, actor: null })).toBe(
-      'Flaky screenshots found in Web',
+      'Flaky screenshot found in Web',
     )
   })
 

@@ -44,7 +44,7 @@ describe('connectNote', () => {
       tone: 'success',
       text: 'Slack is connected. Choose what each project uses.',
     })
-    expect(connectNote('denied', 'Slack')?.text).toContain('cancelled')
+    expect(connectNote('denied', 'Slack')?.text).toContain('canceled')
     expect(connectNote('failed', 'Slack')?.tone).toBe('danger')
     expect(connectNote(undefined, 'Slack')).toBeNull()
     expect(connectNote('other', 'Slack')).toBeNull()

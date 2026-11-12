@@ -18,7 +18,7 @@ import styles from '#features/workspace-settings/Settings.module.css'
 
 const CHOICES = [
   { mode: 'system', label: 'System', help: 'Follows your computer' },
-  { mode: 'light', label: 'Light', help: 'Near-white panel on warm grey' },
+  { mode: 'light', label: 'Light', help: 'Near-white panel on warm gray' },
   { mode: 'dark', label: 'Dark', help: 'Dark panels on a near-black background' },
 ] as const satisfies readonly { mode: ColorMode; label: string; help: string }[]
 

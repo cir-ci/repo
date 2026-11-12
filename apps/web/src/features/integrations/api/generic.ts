@@ -25,7 +25,7 @@ export function connectNote(
     case 'connected':
       return { tone: 'success', text: `${name} is connected. Choose what each project uses.` }
     case 'denied':
-      return { tone: 'danger', text: `${name} wasn't connected: the install was cancelled.` }
+      return { tone: 'danger', text: `${name} wasn't connected: the install was canceled.` }
     case 'failed':
       return {
         tone: 'danger',

@@ -61,8 +61,8 @@ export function ProjectIdentity({
               aria-hidden
             />
           }
-          buttonLabel="Change icon and colour"
-          panelLabel="Icon and colour"
+          buttonLabel="Change icon and color"
+          panelLabel="Icon and color"
           wide
           canEdit={canManage}
           panel={
@@ -131,7 +131,7 @@ export function ProjectIdentity({
           />
           <div id="default-branch" className={styles.anchor}>
             <CheckedTextField
-              label="Default Branch"
+              label="Default branch"
               name="defaultBranch"
               saved={defaultBranch}
               disabled={!canManage}
@@ -180,17 +180,17 @@ function AppearancePanel({
   function pick(next: { color: ProjectColor; icon: string | null }) {
     const patch = appearancePatch(appearance, next)
     if (Object.keys(patch).length === 0) return
-    save.mutate(patch, { onSuccess: () => toast('Icon and colour saved') })
+    save.mutate(patch, { onSuccess: () => toast('Icon and color saved') })
   }
 
   return (
     <div className={styles.panel}>
       <div className={styles.swatchGroup}>
         <span aria-hidden="true" className={styles.legend}>
-          Colour
+          Color
         </span>
         <RadioGroup
-          label="Colour"
+          label="Color"
           value={color}
           className={styles.swatches}
           onValueChange={(next) => {

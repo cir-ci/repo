@@ -36,7 +36,7 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
     help: 'An integration stopped working, for example because the GitHub App was uninstalled. Owners and admins only.',
   },
   {
-    title: 'Flaky screenshot detected',
+    title: 'Flaky screenshot found',
     help: "A screenshot changed in 3 of the last 10 commits on the default branch. Goes to this week's triage owner.",
   },
 ]
