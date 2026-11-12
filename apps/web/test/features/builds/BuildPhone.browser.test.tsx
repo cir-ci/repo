@@ -46,6 +46,17 @@ async function ready() {
   return api
 }
 
+/** Picks a view and measures its one image's figure against the row it sits in. */
+async function widths(view: string, name: RegExp) {
+  await page.getByRole('group', { name: 'View' }).getByRole('button', { name: view }).click()
+  await expect.element(page.getByRole('img', { name })).toBeVisible()
+  const figure = page.getByRole('img', { name }).element().closest('figure')!
+  return {
+    figure: figure.getBoundingClientRect().width,
+    row: figure.parentElement!.getBoundingClientRect().width,
+  }
+}
+
 describe('the build page on a phone', () => {
   it('has a bottom review bar: list, comments, Reject and Approve as the one primary', async () => {
     await ready()
@@ -154,6 +165,13 @@ describe('the build page on a phone', () => {
     await page.getByRole('button', { name: 'View options' }).click()
     await expect.element(page.getByRole('menuitem', { name: 'Overlay' })).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'Side by side' })).toBeVisible()
+  })
+
+  it('gives New and Baseline the whole width on a wide phone, not half of it', async () => {
+    await page.viewport(700, 900)
+    await ready()
+    const shown = [await widths('New', /^This build/), await widths('Baseline', /^Baseline/)]
+    for (const { figure, row } of shown) expect(figure).toBeGreaterThan(row - 2)
   })
 
   it('draws a comment region only in draw mode', async () => {

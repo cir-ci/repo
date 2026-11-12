@@ -123,6 +123,11 @@
   }
 }
 
+/* A phone's New or Baseline shows one image: it takes the whole width, however wide the phone. */
+.side[data-single]:not([data-zoomed]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Zoomed images are wider than the column: side by side in a row that scrolls. */
 .side[data-zoomed] {
   display: flex;

@@ -416,7 +416,11 @@ export function Viewer({
         ) : null}
 
         {mode === 'side' ? (
-          <div className={styles.side} data-zoomed={zoomed ? '' : undefined}>
+          <div
+            className={styles.side}
+            data-zoomed={zoomed ? '' : undefined}
+            data-single={phoneSingle ? '' : undefined}
+          >
             {diff.base && phoneSingle !== 'new' ? (
               <Figure
                 label={baselineLabel}
