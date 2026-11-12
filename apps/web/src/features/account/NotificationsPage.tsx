@@ -28,7 +28,7 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
     help: "A build you pushed was reviewed. Rejections include the reviewer's reason.",
   },
   {
-    title: 'Overdue review',
+    title: 'Review overdue',
     help: "A review request to you has waited longer than the project's review target. Sent once.",
   },
   {

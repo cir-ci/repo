@@ -46,7 +46,7 @@ export function composePushMessage(n: PushSubject): PushMessage {
       case 'review_re_requested':
         return { title: 'Review requested again', body: `${who} asked you to review ${what} again` }
       case 'review_overdue':
-        return { title: 'Overdue review', body: `Your review of ${what} is waiting` }
+        return { title: 'Review overdue', body: `Your review of ${what} is waiting` }
       case 'mentioned':
         return { title: 'Mentioned you', body: `${who} mentioned you on ${what}` }
       case 'build_approved':
