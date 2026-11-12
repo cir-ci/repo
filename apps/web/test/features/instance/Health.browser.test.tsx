@@ -130,7 +130,7 @@ describe('the health page', () => {
     // A row is a label, a detail, a mono value and a badge.
     await expect.element(services.getByText('Storage', { exact: true })).toBeVisible()
     await expect.element(services.getByText('Local disk, writable.')).toBeVisible()
-    await expect.element(services.getByText('/var/lib/circi/files')).toBeVisible()
+    await expect.element(services.getByText('…/files')).toBeVisible()
     // A passing row has no badge.
     expect(services.getByText('Passing').elements()).toHaveLength(0)
     const domains = page.getByRole('region', { name: 'Domains and cookies' })
@@ -149,13 +149,14 @@ describe('the health page', () => {
     await show()
     const summary = page.getByRole('region', { name: 'Summary' })
     await expect.element(summary.getByText('Need a look')).toBeVisible()
-    await expect.element(summary.getByText('Failing', { exact: true }).first()).toBeVisible()
     const counts = summary
       .getByRole('definition')
       .elements()
       .map((d) => d.textContent)
-    // Two checks pass, one needs a look, none fail, and the reminder note is not counted.
-    expect(counts).toEqual(['2', '1', 'Check', '0', 'Failing'])
+    // Two checks pass, one needs a look (badged), none fail (no badge on a zero), and the
+    // reminder note is not counted; the one failed job is, with its badge.
+    expect(counts).toEqual(['2', '1', 'Check', '0', '1', 'Failing'])
+    await expect.element(summary.getByText('Failed jobs')).toBeVisible()
   })
 
   it('turns the move into numbered steps, Done where the configuration shows it', async () => {
@@ -297,7 +298,7 @@ describe('the health page', () => {
     expect(text.indexOf('Not usable')).toBeLessThan(text.indexOf('running low'))
     expect(text.indexOf('running low')).toBeLessThan(text.indexOf('Migrations are current'))
     // The disk value: its path on top, the free space on the line under it.
-    const path = services.getByText('/data', { exact: true }).element().getBoundingClientRect()
+    const path = services.getByText('…/data', { exact: true }).element().getBoundingClientRect()
     const free = services.getByText('1.0 GB free of 8.0 GB (13%)').element().getBoundingClientRect()
     expect(free.top).toBeGreaterThanOrEqual(path.bottom - 1)
   })
@@ -344,12 +345,15 @@ describe('the Health header', () => {
       const b = button.element().getBoundingClientRect()
       expect(b.top).toBeLessThan(h1.bottom)
       expect(b.bottom).toBeGreaterThan(h1.top)
-      // The summary's three counts sit side by side.
+      // The summary's counts (the failed jobs too) sit side by side.
       const items = [
         ...page.getByRole('region', { name: 'Summary' }).element().querySelectorAll('dl > div'),
       ]
-      expect(items).toHaveLength(3)
-      expect(new Set(items.map((el) => Math.round(el.getBoundingClientRect().top))).size).toBe(1)
+      expect(items).toHaveLength(4)
+      // (Four counts wrap to two lines on a phone.)
+      expect(new Set(items.map((el) => Math.round(el.getBoundingClientRect().top))).size).toBe(
+        width > 600 ? 1 : 2,
+      )
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
     },
   )

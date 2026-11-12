@@ -77,7 +77,11 @@ export function HealthPage() {
       error={forbidden ?? null}
       onRetry={refresh}
     >
-      <SummarySection checks={checks.data} loading={checks.isFetching} />
+      <SummarySection
+        checks={checks.data}
+        loading={checks.isFetching}
+        failedJobs={queues.data ? queueTotals(queues.data.queues).failed : 0}
+      />
       {checks.error && !checks.data ? (
         <SettingsSection title="Checks" bare>
           <ErrorState error={checks.error} onRetry={refresh} />
@@ -121,7 +125,11 @@ export function HealthPage() {
   )
 }
 
-function SummarySection(props: { checks: InstanceAdmin.Checks | undefined; loading: boolean }) {
+function SummarySection(props: {
+  checks: InstanceAdmin.Checks | undefined
+  loading: boolean
+  failedJobs: number
+}) {
   const { checks } = props
   return (
     <SettingsSection
@@ -134,7 +142,7 @@ function SummarySection(props: { checks: InstanceAdmin.Checks | undefined; loadi
       bare
     >
       {checks ? (
-        <SummaryCounts findings={checks.findings} />
+        <SummaryCounts findings={checks.findings} failedJobs={props.failedJobs} />
       ) : (
         <Text tone="secondary">Running…</Text>
       )}
@@ -142,7 +150,7 @@ function SummarySection(props: { checks: InstanceAdmin.Checks | undefined; loadi
   )
 }
 
-function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
+function SummaryCounts(props: { findings: InstanceAdmin.Finding[]; failedJobs: number }) {
   const counts = findingCounts(props.findings)
   return (
     <SettingsSummary
@@ -155,21 +163,38 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
         {
           label: 'Need a look',
           value: counts.warned,
-          extra: (
-            <Badge shape="tag" tone="state" state="review">
-              Check
-            </Badge>
-          ),
+          // A badge only for what needs attention: none beside a zero.
+          extra:
+            counts.warned > 0 ? (
+              <Badge shape="tag" tone="state" state="review">
+                Check
+              </Badge>
+            ) : undefined,
         },
         {
           label: 'Failing',
           value: counts.failing,
-          extra: (
-            <Badge shape="tag" tone="state" state="failed">
-              Failing
-            </Badge>
-          ),
+          extra:
+            counts.failing > 0 ? (
+              <Badge shape="tag" tone="state" state="failed">
+                Failing
+              </Badge>
+            ) : undefined,
         },
+        // Jobs that gave up are failures too, even though no check reports them.
+        ...(props.failedJobs > 0
+          ? [
+              {
+                label: 'Failed jobs',
+                value: props.failedJobs,
+                extra: (
+                  <Badge shape="tag" tone="state" state="failed">
+                    Failing
+                  </Badge>
+                ),
+              },
+            ]
+          : []),
       ]}
     />
   )
@@ -181,7 +206,13 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
  * never wraps (an ellipsis and a tooltip if it's ever too long).
  */
 function valueParts(value: string | null | undefined): string[] {
-  return value ? value.split(' · ') : []
+  return value ? value.split(' · ').map(withoutServerPath) : []
+}
+
+/** The server's absolute file path says more about its disk than a dashboard needs: "…/files". */
+function withoutServerPath(part: string): string {
+  if (!/^\/[^\s/]+(\/[^\s/]+)*$/.test(part)) return part
+  return `…/${part.slice(part.lastIndexOf('/') + 1)}`
 }
 
 function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
