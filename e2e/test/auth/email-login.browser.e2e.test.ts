@@ -344,7 +344,11 @@ describe('workspace email domains', () => {
     await page.getByText(`_circi-verify.${domain} TXT circi-verify=`, { exact: false }).waitFor()
     await field.fill(domain)
     await page.getByRole('button', { name: 'Add domain' }).click()
-    await page.getByText(/already on this list/).waitFor()
+    // The inline error and the toast both say it.
+    await page
+      .getByText(/already on this list/)
+      .first()
+      .waitFor()
 
     // The real DNS lookup finds nothing for a .test name: "not yet".
     await page.getByRole('button', { name: 'Check now' }).click()

@@ -74,7 +74,7 @@ describe('upload, diff and review (local-disk storage)', () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${setup.workspace.slug}/${project.slug}/builds/${buildNumber}`)
-    await page.getByRole('button', { name: 'Reject', exact: true }).click()
+    await page.getByRole('button', { name: 'Reject this screenshot' }).click()
 
     const dialog = page
       .locator('[role=dialog], [role=alertdialog]')
@@ -91,7 +91,7 @@ describe('upload, diff and review (local-disk storage)', () => {
       requireRejectReason: true,
     })
     await page.reload()
-    await page.getByRole('button', { name: 'Reject', exact: true }).click()
+    await page.getByRole('button', { name: 'Reject this screenshot' }).click()
     await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
     await dialog.getByRole('alert').waitFor()
     expect((await detail()).build.reviewStatus).toBe('pending')
@@ -109,16 +109,16 @@ describe('upload, diff and review (local-disk storage)', () => {
     // Only the opposite decision is offered now.
     // (polled: the dialog's own Reject button is still fading out when the banner appears)
     await expect
-      .poll(() => page.getByRole('button', { name: 'Reject', exact: true }).count())
+      .poll(() => page.getByRole('button', { name: 'Reject this screenshot' }).count())
       .toBe(0)
-    await page.getByRole('button', { name: 'Approve', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).waitFor()
   })
 
   it('approving through the UI changes the decision, and a re-run of the commit is approved at once', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${setup.workspace.slug}/${project.slug}/builds/${buildNumber}`)
-    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await page.getByRole('button', { name: 'Approve this screenshot' }).click()
 
     await expect.poll(async () => (await detail()).build.reviewStatus).toBe('approved')
     expect((await detail()).reviews.map((r) => r.state)).toEqual(['approved', 'rejected'])

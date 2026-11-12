@@ -576,7 +576,7 @@ describe('static sites (local-disk storage)', () => {
     expect(fakeLabel.status).toBe(302)
   })
 
-  it('stops serving an expired site, and the Sites page no longer lists it', async () => {
+  it('answers 410 for an expired site, and the Sites page no longer lists it', async () => {
     const { stack, setup } = ctx
     const before = await sitesList()
     const target = before.sites.find((s) => s.name === 'plain')
@@ -608,13 +608,16 @@ describe('static sites (local-disk storage)', () => {
     // The expired upload is gone from the listing; the others are untouched.
     expect(after.sites.find((s) => s.name === 'oldie')?.versions ?? []).toEqual([])
     expect(after.sites.find((s) => s.name === 'storybook')?.versions.length).toBeGreaterThan(0)
-    // Its address now answers like one that never existed: sign-in, then "not found".
+    // Its address answers "Site expired" (410) to someone who may open the site, and like an
+    // unknown address (sign-in) to a stranger.
     const res = await siteRequest(stack, feature.commitAddress ?? '', '/', { cookie })
-    expect(res.status).toBe(302)
+    expect(res.status).toBe(410)
     expect(res.text).not.toContain('old feature')
+    const stranger = await siteRequest(stack, feature.commitAddress ?? '', '/')
+    expect(stranger.status).toBe(302)
     const page = await browser.as(setup.session)
     await page.goto(feature.commitAddress ?? '')
-    await page.getByRole('heading', { name: 'Not found' }).waitFor()
+    await page.getByRole('heading', { name: 'Site expired' }).waitFor()
     await repo.git('checkout', '-q', 'main')
   })
 })

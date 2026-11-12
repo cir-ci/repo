@@ -71,17 +71,14 @@ describe('flaky screenshots', () => {
     expect(await report()).toEqual({ builds: 5, flaky: [flakyWobble(4)] })
   })
 
-  it('the project page warns, naming the screenshot and the count but not the steady one', async () => {
+  it('the project page warns with the count and a way to Triage, counting only the wobbling one', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${workspace()}/${project.slug}`)
-    const banner = page.getByText('These screenshots are flaky on main:').locator('..')
-    await banner.waitFor()
-    const text = (await banner.innerText()).replace(/\s+/g, ' ')
-    expect(text).toContain('wobble (came back to an earlier image 3 times)')
-    expect(text).not.toContain('circi admin ignore add')
-    await page.getByRole('link', { name: 'wobble' }).waitFor()
-    expect(text).not.toContain('steady')
+    // One line: "1 flaky screenshot" (not the steady one) and "Open Triage"; the names are in Triage.
+    await page.getByText('1 flaky screenshot', { exact: true }).waitFor()
+    await page.getByRole('link', { name: 'Open Triage' }).waitFor()
+    expect(await page.getByText('2 flaky screenshots').count()).toBe(0)
   })
 
   it('a pull request build lists it in the Flaky group, apart from the real change, and the viewer renders it', async () => {
@@ -167,14 +164,15 @@ describe('flaky screenshots', () => {
     expect(up.exitCode).toBe(1)
   })
 
-  it('stays flagged through stable builds, and clears only when the returns leave the 10-commit window', async () => {
-    for (let n = 6; n <= 12; n++) {
+  it('stays flagged through stable builds, and clears once the first returns leave the 10-commit window', async () => {
+    for (let n = 6; n <= 10; n++) {
       // oxlint-disable-next-line no-await-in-loop -- builds are sequential
       await mainBuild({ still: true }) // stable: the image is A every time
     }
-    // Builds 3 to 12: the returns at builds 3, 4 and 5 are all still inside.
-    expect(await report()).toEqual({ builds: 10, flaky: [flakyWobble(3)] })
-    await mainBuild({ still: true }) // build 3 leaves the window: two returns left
+    // Builds 1 to 10: the returns at builds 3, 4 and 5 are all inside, and so are the images they
+    // went back to (a return only counts when the earlier image is in the window too).
+    expect(await report()).toEqual({ builds: 10, flaky: [flakyWobble(4)] })
+    await mainBuild({ still: true }) // build 1 leaves the window: the return at 3 has nothing to go back to
     expect((await report()).flaky).toEqual([])
   })
 

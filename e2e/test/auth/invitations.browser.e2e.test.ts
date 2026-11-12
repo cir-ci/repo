@@ -29,29 +29,36 @@ describe('invitations and members', () => {
   const workspace = () => ctx.setup.workspace.slug
   const membersUrl = () => `${ctx.stack.url}/workspaces/${workspace()}/members`
 
-  /** Sends an invitation through the form on the Members page. */
+  /** Opens the invite dialog from the Members page's header button. */
+  async function openInvite(page: Awaited<ReturnType<typeof browser.as>>) {
+    await page.getByRole('button', { name: 'Invite', exact: true }).click()
+    await page.getByRole('heading', { name: 'Invite someone' }).waitFor()
+  }
+
+  /** Sends an invitation through the dialog on the Members page. */
   async function inviteInBrowser(
     page: Awaited<ReturnType<typeof browser.as>>,
     email: string,
     role?: 'Admin',
   ) {
     await page.goto(membersUrl())
-    await page.getByRole('heading', { name: 'Invite someone' }).waitFor()
+    await openInvite(page)
     await page.getByLabel('Email', { exact: true }).fill(email)
     if (role) {
       await page.getByRole('combobox', { name: 'Role', exact: true }).click()
       await page.getByRole('option', { name: role }).click()
     }
     await page.getByRole('button', { name: 'Send invite' }).click()
-    // The visible message (the announcement for screen readers carries the same text).
-    await page.getByText(`Invitation sent to ${email}.`).first().waitFor()
+    // The dialog closes and the toast says it went.
+    await page.getByText(`Invitation sent to ${email}`).first().waitFor()
+    await page.getByRole('heading', { name: 'Invite someone' }).waitFor({ state: 'hidden' })
   }
 
   it("shows the form validation messages and the server's refusals", async () => {
     const { setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(membersUrl())
-    await page.getByRole('heading', { name: 'Invite someone' }).waitFor()
+    await openInvite(page)
     await page.getByRole('button', { name: 'Send invite' }).click()
     await page.getByText('Enter an email address').waitFor()
     await page.getByLabel('Email', { exact: true }).fill('not-an-address')
@@ -62,6 +69,7 @@ describe('invitations and members', () => {
     // Inviting the same address twice, and inviting someone who is already a member.
     const twice = newAccount('twice')
     await inviteInBrowser(page, twice.email)
+    await openInvite(page)
     await page.getByLabel('Email', { exact: true }).fill(twice.email)
     await page.getByRole('button', { name: 'Send invite' }).click()
     // better-auth cancels the earlier invitation when the same address is invited again.
@@ -71,11 +79,15 @@ describe('invitations and members', () => {
         return invitations.filter((i) => i.email === twice.email && i.status === 'pending').length
       })
       .toBe(1)
-    // Wait for the form to reset after that send, or it would clear what is typed next.
-    await expect.poll(() => page.getByLabel('Email', { exact: true }).inputValue()).toBe('')
+    // Sending closes the dialog; open it again for the next address.
+    await page.getByRole('heading', { name: 'Invite someone' }).waitFor({ state: 'hidden' })
+    await openInvite(page)
     await page.getByLabel('Email', { exact: true }).fill(setup.account.email)
     await page.getByRole('button', { name: 'Send invite' }).click()
-    await page.getByText(/already a member/i).waitFor()
+    await page
+      .getByRole('dialog', { name: 'Invite someone' })
+      .getByText(/already a member/i)
+      .waitFor()
   })
 
   it('invites from the Members page: the mail has the link and leaks nothing', async () => {

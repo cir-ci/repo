@@ -1,3 +1,4 @@
+import { retryDelayMs } from '@circi/core'
 import type { Job } from '@circi/db'
 import {
   completeJob,
@@ -41,7 +42,12 @@ function heartbeat(deps: startWorker.Deps, job: Job): { stop(): void } {
  * while this claim still holds the job: when the lease was lost (the handler outlived its lock and
  * the job was claimed again) the result is dropped and the newer claim decides.
  */
-export async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
+export async function runJob(
+  deps: startWorker.Deps,
+  job: Job,
+  /** Called with the backoff of a job just set to retry, so the caller can wake up when it is due. */
+  onRetry?: (delayMs: number) => void,
+): Promise<void> {
   // Nothing is sent for a deleted workspace: webhooks, git checks, Slack, email. (Builds still
   // being processed finish: that is internal, and a restore finds them complete.)
   if (
@@ -75,6 +81,7 @@ export async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
       return
     }
     const willRetry = outcome === 'retried'
+    if (willRetry) onRetry?.(retryDelayMs(job.attempts, deps.retryBackoff))
     deps.logger[willRetry ? 'warn' : 'error'](
       { ...fields, attempt: job.attempts, err: message },
       willRetry ? handler.retry : handler.failed,

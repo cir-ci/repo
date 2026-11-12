@@ -146,6 +146,27 @@ describe('worker wake-up by NOTIFY', () => {
     }
   })
 
+  it('wakes for a retry when its backoff is over, not at the next poll', async () => {
+    const worker = await startWorker({
+      db: t.db,
+      storage,
+      logger: silent,
+      pollIntervalMs: 10_000,
+      listen: t.listen,
+      retryBackoff: { baseMs: 150, maxMs: 150 },
+    })
+    try {
+      // No buildId, so every attempt fails; the first leaves the job pending 150 ms ahead.
+      await enqueueJob(t.db, { queue: 'process-build', payload: {}, maxAttempts: 2 })
+      const id = (
+        await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'process-build'))
+      ).at(-1)!.id
+      await expect.poll(() => attemptsOf(id), { timeout: 3_000, interval: 5 }).toBe(2)
+    } finally {
+      await worker.stop()
+    }
+  })
+
   it('reconnects the listener after it is lost, then wakes on the next notification', async () => {
     let lose: ((err: Error) => void) | undefined
     let notify: ((p: string) => void) | undefined

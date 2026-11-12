@@ -95,7 +95,7 @@ describe('webhook address guard (private addresses refused)', () => {
     const dialog = page.getByRole('dialog', { name: 'Add webhook' })
     await dialog.getByRole('textbox', { name: 'Address' }).fill('http://169.254.169.254/latest/')
     await dialog.getByRole('button', { name: 'Add webhook' }).click()
-    await page.getByText('That address is on a private network').waitFor()
+    await dialog.getByText('That address is on a private network').waitFor()
     expect(await page.getByText(/whsec_/).count()).toBe(0)
     expect(await count()).toBe(1)
   })

@@ -8,11 +8,12 @@ import type { startWorker } from './runner.ts'
 /**
  * The poll lanes (`concurrency` that take builds first, plus `lightLanes` that never take one): each claims one job at a time (`FOR UPDATE SKIP LOCKED`, so several worker
  * processes can share a database), runs it, and sleeps when the queue is empty. A NOTIFY wakes all
- * lanes at once; the poll interval is the fallback for missed notifications.
+ * lanes at once; the poll interval is the fallback for missed notifications. A job this worker
+ * fails and will retry wakes the lanes again when its backoff is over (other workers' retries wait for their poll).
  */
 export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
   // NOTIFY wakes the lanes at once, so with a listener the poll is only the fallback (missed
-  // notifications, retries that fall due): a longer wait keeps an idle worker nearly silent.
+  // notifications, another worker's retries that fall due): a longer wait keeps an idle worker nearly silent.
   const pollMs = deps.pollIntervalMs ?? (deps.listen ? 5_000 : 1_000)
   const lockSeconds = deps.lockSeconds ?? 600
   const buildLanes = deps.concurrency ?? 2
@@ -32,6 +33,18 @@ export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
       s.wake()
     })
   }
+  // A retried job comes due after its backoff, and nothing notifies at that moment: this worker
+  // sets a timer for it, so the retry waits its backoff and not up to a whole poll interval.
+  const wakeTimers = new Set<NodeJS.Timeout>()
+  const wakeAfter = (ms: number) => {
+    // A little past the due time: the database's clock decides whether the job is due.
+    const timer = setTimeout(() => {
+      wakeTimers.delete(timer)
+      if (state.running) wakeAll()
+    }, ms + 25)
+    timer.unref()
+    wakeTimers.add(timer)
+  }
   const listener = deps.listen
     ? startListening(deps.listen, wakeAll, deps.logger, () => state.running)
     : undefined
@@ -50,13 +63,15 @@ export function startLanes(deps: startWorker.Deps): { stop(): Promise<void> } {
         continue
       }
       // oxlint-disable-next-line no-await-in-loop -- jobs in one lane run sequentially
-      await runJob(deps, job)
+      await runJob(deps, job, wakeAfter)
     }
   })
 
   return {
     async stop() {
       state.running = false
+      for (const timer of wakeTimers) clearTimeout(timer)
+      wakeTimers.clear()
       wakeAll()
       await listener?.stop()
       await Promise.all(loops)

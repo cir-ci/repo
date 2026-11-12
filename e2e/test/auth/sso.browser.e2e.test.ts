@@ -30,7 +30,7 @@ async function fillProvider(page: Page, issuer: string, clientId: string, secret
 /** Single sign-on is a row on the sign-in settings page; Configure opens its dialog. */
 async function configure(page: Page) {
   await page.getByRole('button', { name: 'Configure' }).click()
-  await page.getByRole('dialog', { name: 'Single sign-on' }).waitFor()
+  await page.getByRole('dialog', { name: 'Single sign-on', exact: true }).waitFor()
 }
 
 async function disconnect(page: Page, issuer: string) {
@@ -142,7 +142,7 @@ describe("a workspace's own single sign-on", () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click()
     expect(await providers(workspace)).toBe('1')
     await page
-      .getByRole('dialog', { name: 'Single sign-on' })
+      .getByRole('dialog', { name: 'Single sign-on', exact: true })
       .getByRole('button', { name: 'Done' })
       .click()
     await disconnect(page, idp.issuer)

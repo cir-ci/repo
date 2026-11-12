@@ -280,7 +280,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.goto(projectUrl)
     await page.getByText(/can.t reach GitHub for this project/).waitFor()
     await page.getByText(/GitHub App was removed or suspended/).waitFor()
-    await page.goto(`${projectUrl}/settings`)
+    await page.goto(`${projectUrl}/settings/general`)
     await page.getByText(/can.t reach GitHub for this project/).waitFor()
 
     // Reinstalled: saving the repository again on the GitHub integration's page clears the banner.
@@ -294,7 +294,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     )
     await linkByName(page, 'acme/revoked', 'Revoked')
     await expect.poll(attention).toBeNull()
-    await page.goto(`${projectUrl}/settings`)
+    await page.goto(`${projectUrl}/settings/general`)
     await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
     expect(await attention()).toBeNull()
     await page.goto(projectUrl)
