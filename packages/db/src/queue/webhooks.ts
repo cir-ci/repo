@@ -27,12 +27,31 @@ export async function createWebhook(
     .values({
       projectId: input.projectId,
       url: input.url,
-      secret: `whsec_${randomBytes(24).toString('base64url')}`,
+      secret: newWebhookSecret(),
       events: [...new Set(input.events)],
     })
     .returning()
   if (!row) throw new Error('insert returned no row')
   return row
+}
+
+/** A fresh signing secret for one of the project's webhooks; "not found" for any other. */
+export async function rotateWebhookSecret(
+  db: Database,
+  projectId: string,
+  id: string,
+): Promise<Webhook> {
+  const [row] = await db
+    .update(webhooks)
+    .set({ secret: newWebhookSecret() })
+    .where(and(eq(webhooks.id, id), eq(webhooks.projectId, projectId)))
+    .returning()
+  assertFound(row, 'Webhook not found')
+  return row
+}
+
+function newWebhookSecret() {
+  return `whsec_${randomBytes(24).toString('base64url')}`
 }
 
 export async function getWebhook(db: Database, id: string): Promise<Webhook | undefined> {

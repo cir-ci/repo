@@ -345,6 +345,26 @@ describe('project webhooks', () => {
     expect(await listWebhooks(t.db, acme.project.id)).toHaveLength(1)
   })
 
+  it('regenerates a webhook secret: new, shown once, for managers of that project only', async () => {
+    const created = (
+      await call('POST', `${base()}/webhooks`, ownerCookie, {
+        url: 'https://hooks.acme.io/circi',
+        events: ['build.reviewed'],
+      })
+    ).json()
+    const url = `${base()}/webhooks/${created.webhook.id}/secret`
+    expect((await call('POST', url, memberCookie)).statusCode).toBe(403)
+    expect((await call('POST', url, rivalCookie)).statusCode).toBe(404)
+    const res = await call('POST', url, ownerCookie)
+    expect(res.statusCode).toBe(200)
+    const { webhook, secret } = res.json()
+    expect(secret).toMatch(/^whsec_/)
+    expect(secret).not.toBe(created.secret)
+    expect(webhook).toMatchObject({ id: created.webhook.id, url: 'https://hooks.acme.io/circi' })
+    expect(JSON.stringify(webhook)).not.toContain('whsec_')
+    expect((await call('POST', `${base()}/webhooks/nope/secret`, ownerCookie)).statusCode).toBe(404)
+  })
+
   it('keeps plain members and outsiders from adding or removing webhooks', async () => {
     const hook = await addHook()
     const body = { url: 'https://hooks.acme.io/other' }

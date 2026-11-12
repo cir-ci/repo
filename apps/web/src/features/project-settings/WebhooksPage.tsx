@@ -20,7 +20,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useEffect, useState } from 'react'
 
-import { settingsQuery, useAddWebhook, useDeleteWebhook } from '#features/projects/api/index.ts'
+import {
+  settingsQuery,
+  useAddWebhook,
+  useDeleteWebhook,
+  useRegenerateWebhookSecret,
+} from '#features/projects/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
 
@@ -73,6 +78,7 @@ export function WebhooksPage() {
 function Webhooks(props: Webhooks.Props) {
   const add = useAddWebhook(props.workspace, props.project)
   const remove = useDeleteWebhook(props.workspace, props.project)
+  const regenerate = useRegenerateWebhookSecret(props.workspace, props.project)
   const test = useWebhookTest(props.workspace, props.project, props.hooks, {
     queued: () => toast('Test event queued'),
     delivered: (d) => toast(`Webhook test delivered: ${deliveryAnswer(d).text}`),
@@ -83,6 +89,8 @@ function Webhooks(props: Webhooks.Props) {
   const [urlError, setUrlError] = useState<string | null>(null)
   const [eventsError, setEventsError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<Webhooks.Hook | null>(null)
+  const [regenerating, setRegenerating] = useState<Webhooks.Hook | null>(null)
+  const [fresh, setFresh] = useState<{ url: string; value: string } | null>(null)
 
   // Each time the dialog opens it starts empty.
   useEffect(() => {
@@ -145,6 +153,13 @@ function Webhooks(props: Webhooks.Props) {
                             onClick={() => test.send(h.id)}
                           >
                             Send test
+                          </Button>
+                          <Button
+                            size="sm"
+                            aria-label={`Regenerate secret for ${h.url}`}
+                            onClick={() => setRegenerating(h)}
+                          >
+                            Regenerate secret
                           </Button>
                           <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
                             Remove
@@ -292,6 +307,63 @@ function Webhooks(props: Webhooks.Props) {
             {add.error ? <Banner tone="danger">{add.error.message}</Banner> : null}
           </form>
         )}
+      </Dialog>
+
+      <ConfirmDialog
+        open={regenerating !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setRegenerating(null)
+        }}
+        title="Regenerate secret?"
+        description={
+          regenerating ? (
+            <>
+              The old secret for{' '}
+              <Text as="code" variant="mono" className={styles.wrap}>
+                {regenerating.url}
+              </Text>{' '}
+              stops signing right away, so its receiver rejects deliveries until you give it the new
+              one.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Regenerate"
+        loading={regenerate.isPending}
+        onConfirm={() => {
+          if (!regenerating) return
+          const hook = regenerating
+          regenerate.mutate(hook.id, {
+            onSuccess: (rotated) => {
+              setFresh({ url: hook.url, value: rotated.secret })
+              toast('Secret regenerated')
+            },
+            onSettled: () => setRegenerating(null),
+          })
+        }}
+      />
+
+      <Dialog
+        open={fresh !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setFresh(null)
+        }}
+        title="New signing secret"
+        size="wide"
+        actions={
+          <Button variant="primary" onClick={() => setFresh(null)}>
+            Done
+          </Button>
+        }
+      >
+        {fresh ? (
+          <div className={styles.dialogForm}>
+            <Text>Give this secret to the receiver of {fresh.url}.</Text>
+            <SecretBox label={`Signing secret for ${fresh.url}`} value={fresh.value} />
+            <Text variant="small" tone="tertiary">
+              Copy it now: it isn't shown again.
+            </Text>
+          </div>
+        ) : null}
       </Dialog>
 
       <ConfirmDialog

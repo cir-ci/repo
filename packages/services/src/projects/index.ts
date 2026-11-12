@@ -3,7 +3,7 @@
 // repository call. Removing them would need an exception to a layer rule.
 export { updateProjectAppearance } from './appearance.ts'
 export { changeProjectSettings } from './settings.ts'
-export { addWebhook, removeWebhook, sendTestWebhook } from './webhooks.ts'
+export { addWebhook, regenerateWebhookSecret, removeWebhook, sendTestWebhook } from './webhooks.ts'
 export {
   addMembersToProject,
   removeMemberFromProject,

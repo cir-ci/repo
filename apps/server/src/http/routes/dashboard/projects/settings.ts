@@ -7,6 +7,7 @@ import {
   addWebhook,
   changeProjectSettings,
   linkProjectToGithub,
+  regenerateWebhookSecret,
   removeWebhook,
   sendTestWebhook,
   unlinkProjectFromGit,
@@ -161,6 +162,15 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
     const deliveryId = await sendTestWebhook(deps.db, project.id, id)
     return reply.code(202).send({ deliveryId })
+  })
+
+  /** A new signing secret (owners and admins); the old one stops working, the new one is shown only here. */
+  app.post('/projects/:workspace/:project/webhooks/:id/secret', async (req) => {
+    const project = await loadForManager(req)
+    const { id } = parse(hookParams, req.params)
+    if (!z.uuid().safeParse(id).success) throw new NotFoundError('Webhook not found')
+    const rotated = await regenerateWebhookSecret(deps.db, project.id, id)
+    return { webhook: present(rotated), secret: rotated.secret }
   })
 
   app.delete('/projects/:workspace/:project/webhooks/:id', async (req, reply) => {

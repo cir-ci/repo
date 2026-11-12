@@ -360,6 +360,29 @@ describe('WebhooksPage', () => {
     await expect.element(toastNamed('Webhook removed')).toBeVisible()
   })
 
+  it('regenerates a secret only after confirming, then shows the new one once', async () => {
+    const fake = api(
+      { webhooks: [hook('h1', 'https://a.test/hook')] },
+      {
+        [`POST ${API}/webhooks/h1/secret`]: {
+          body: { webhook: hook('h1', 'https://a.test/hook'), secret: 'whsec_fresh' },
+        },
+      },
+    )
+    await show()
+    await page.getByRole('button', { name: 'Regenerate secret for https://a.test/hook' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Regenerate secret?' })
+    await expect.element(dialog).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    expect(fake.of('POST')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Regenerate secret for https://a.test/hook' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Regenerate' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    await expect.element(toastNamed('Secret regenerated')).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'New signing secret' })).toBeVisible()
+    await expect.element(page.getByText('whsec_fresh')).toBeVisible()
+  })
+
   it("sends members to the project's settings hub instead of showing the webhooks", async () => {
     api({ canManage: false, webhooks: [hook('h1', 'https://a.test/hook')] })
     const { router } = await show()

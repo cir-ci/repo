@@ -215,6 +215,7 @@ POST /api/projects/:workspace/:project/triage/rerun
 POST /api/projects/:workspace/:project/triage/snooze
 POST /api/projects/:workspace/:project/undo/:id
 POST /api/projects/:workspace/:project/webhooks
+POST /api/projects/:workspace/:project/webhooks/:id/secret
 POST /api/projects/:workspace/:project/webhooks/:id/test
 POST /api/push/subscribe
 POST /api/push/unsubscribe

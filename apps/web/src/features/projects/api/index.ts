@@ -139,6 +139,18 @@ export function useTestWebhook(workspace: string, project: string) {
   })
 }
 
+/** A new signing secret for one webhook; the response carries it, once. */
+export function useRegenerateWebhookSecret(workspace: string, project: string) {
+  return useMutation({
+    meta: { what: 'regenerate the secret' },
+    mutationFn: (id: string) =>
+      post<{ webhook: Project.Webhook; secret: string }>(
+        projectPath(workspace, project, 'webhooks', id, 'secret'),
+        {},
+      ),
+  })
+}
+
 export function useDeleteWebhook(workspace: string, project: string) {
   const queryClient = useQueryClient()
   return useMutation({
