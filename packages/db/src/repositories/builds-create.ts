@@ -32,6 +32,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     ancestryStatus: input.ancestryStatus ?? (ancestorShas.length > 0 ? 'ok' : 'missing'),
     historySource: input.historySource ?? 'cli',
     status: 'uploading' as const,
+    idempotencyKey: input.idempotencyKey ?? null,
     parallelNonce: input.parallel?.nonce ?? null,
     parallelTotal: input.parallel?.total ?? null,
     authorLogin: input.author?.login ?? null,
@@ -40,6 +41,11 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
   }
 
   return db.transaction(async (tx) => {
+    if (input.idempotencyKey) {
+      // The same request sent again (its answer was lost): the build it made is the answer.
+      const earlier = await findByIdempotencyKey(tx, input.projectId, input.idempotencyKey)
+      if (earlier) return earlier
+    }
     if (input.parallel) {
       const existing = await findParallelBuild(
         tx,
@@ -60,17 +66,19 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     const [created] = await tx
       .insert(builds)
       .values({ ...values, number: counter.number })
-      .onConflictDoNothing({
-        target: [builds.projectId, builds.name, builds.commitSha, builds.parallelNonce],
-        where: sql`${builds.parallelNonce} is not null`,
-      })
+      .onConflictDoNothing()
       .returning()
     if (created) return created
+    // Lost the race to the same request sent twice at once.
+    if (input.idempotencyKey) {
+      const twin = await findByIdempotencyKey(tx, input.projectId, input.idempotencyKey)
+      if (twin) return twin
+    }
     // Lost the race to a concurrent shard: join its build. (The bumped number stays unused.)
     const joined =
       input.parallel &&
       (await findParallelBuild(tx, input.projectId, name, commitSha, input.parallel.nonce))
-    if (!joined) throw new Error('parallel build vanished after conflict')
+    if (!joined) throw new Error('build vanished after conflict')
     return joined
   })
 }
@@ -88,6 +96,8 @@ export namespace createBuild {
     ancestryStatus?: 'ok' | 'missing' | 'truncated'
     /** Who sent `ancestorShas`; `sdk` for an Argos SDK. Default `cli`. */
     historySource?: 'cli' | 'sdk'
+    /** A client-chosen key: sending the same one again returns the build it first created. */
+    idempotencyKey?: string
     parallel?: { nonce: string; total: number }
     /** Who made the change; `userId` is the member it was matched to (see `startBuild`). */
     author?: { login?: string | null; email?: string | null; userId?: string | null }
@@ -112,5 +122,17 @@ async function findParallelBuild(
         eq(builds.parallelNonce, nonce),
       ),
     )
+  return row
+}
+
+async function findByIdempotencyKey(
+  db: Database,
+  projectId: string,
+  key: string,
+): Promise<Build | undefined> {
+  const [row] = await db
+    .select()
+    .from(builds)
+    .where(and(eq(builds.projectId, projectId), eq(builds.idempotencyKey, key)))
   return row
 }

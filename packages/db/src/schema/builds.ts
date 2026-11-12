@@ -58,6 +58,11 @@ export const builds = pgTable(
       onDelete: 'set null',
     }),
     status: text('status').$type<BuildStatus>().notNull().default('pending'),
+    /**
+     * The key a client sent with the request that created this build, so a resend of it (after a
+     * lost answer) finds the build instead of creating another. Null for a build made without one.
+     */
+    idempotencyKey: text('idempotency_key'),
     parallelNonce: text('parallel_nonce'),
     parallelTotal: integer('parallel_total'),
     conclusion: text('conclusion').$type<BuildConclusion>(),
@@ -86,6 +91,9 @@ export const builds = pgTable(
     uniqueIndex('builds_parallel_key')
       .on(t.projectId, t.name, t.commitSha, t.parallelNonce)
       .where(sql`${t.parallelNonce} is not null`),
+    uniqueIndex('builds_idempotency_key')
+      .on(t.projectId, t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
     index('builds_project_branch_idx').on(t.projectId, t.branch, t.createdAt),
     index('builds_project_name_commit_idx').on(t.projectId, t.name, t.commitSha),
     index('builds_base_build_idx').on(t.baseBuildId),

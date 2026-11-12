@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 /** Thin client for the CirCI `/v1` API, using the built-in fetch. */
 
 export namespace ApiClient {
@@ -196,9 +198,12 @@ export class ApiClient {
   createBuild(
     body: Record<string, unknown>,
   ): Promise<{ build: ApiClient.Build; uploads: ApiClient.UploadInstruction[] }> {
-    // A plain build is new on every call, so a resend after a lost answer would leave an orphan
-    // build behind; a parallel one joins the build of its nonce, so a resend is harmless.
-    return this.json('POST', '/v1/builds', body, { safe: body.parallel !== undefined })
+    // One key per call, the same on every resend: when an answer is lost (a gateway timing out
+    // after the server committed) the resend gets the build the first request made, not another.
+    return this.json('POST', '/v1/builds', body, {
+      safe: true,
+      headers: { 'idempotency-key': randomUUID() },
+    })
   }
 
   finalize(
@@ -210,7 +215,8 @@ export class ApiClient {
     shardsReceived: number
     shardsTotal: number
   }> {
-    // Replaces the shard's screenshots in one transaction: a resend lands on the same state.
+    // Replaces the shard's screenshots in one transaction, and the server answers a repeat of one
+    // it already finalized the same way: a resend lands on the same state.
     return this.json('POST', `/v1/builds/${buildId}/finalize`, body, { safe: true })
   }
 
@@ -321,7 +327,7 @@ export class ApiClient {
     method: string,
     path: string,
     body?: unknown,
-    options: { safe?: boolean } = {},
+    options: { safe?: boolean; headers?: Record<string, string> } = {},
   ): Promise<T> {
     // Reads are always safe to resend.
     const safe = options.safe ?? method === 'GET'
@@ -333,6 +339,7 @@ export class ApiClient {
             method,
             headers: {
               authorization: `Bearer ${this.token}`,
+              ...options.headers,
               ...(body === undefined ? {} : { 'content-type': 'application/json' }),
             },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),

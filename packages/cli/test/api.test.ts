@@ -127,29 +127,41 @@ describe('ApiClient', () => {
       }
     })
 
-    it('never resends a plain build creation after an answer that may have been processed', async () => {
+    it('resends a build creation with the same idempotency key, so a lost answer leaves no stray build', async () => {
       const flaky = await new FakeCirci({
-        failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }],
-      }).start()
-      try {
-        await expect(quick({}, flaky.url).createBuild({ files: [] })).rejects.toMatchObject({
-          status: 500,
-        })
-        expect(flaky.to('/v1/builds')).toHaveLength(1)
-      } finally {
-        await flaky.stop()
-      }
-    })
-
-    it('resends a plain build creation after a gateway error, which the app never saw', async () => {
-      const flaky = await new FakeCirci({
-        failFirst: [{ match: 'POST /v1/builds', status: 503, times: 1 }],
+        failFirst: [{ match: 'POST /v1/builds', status: 504, times: 2 }],
       }).start()
       try {
         await expect(quick({}, flaky.url).createBuild({ files: [] })).resolves.toMatchObject({
           build: { number: 7 },
         })
-        expect(flaky.to('/v1/builds')).toHaveLength(2)
+        const sent = flaky.to('/v1/builds')
+        expect(sent).toHaveLength(3)
+        const keys = new Set(sent.map((r) => r.headers['idempotency-key']))
+        expect(keys.size).toBe(1)
+        expect([...keys][0]).toMatch(/^[0-9a-f-]{36}$/)
+      } finally {
+        await flaky.stop()
+      }
+    })
+
+    it('uses a new idempotency key for each build it creates', async () => {
+      const api = quick({}, fake.url)
+      await api.createBuild({ files: [] })
+      await api.createBuild({ files: [] })
+      const keys = fake.to('/v1/builds').map((r) => r.headers['idempotency-key'])
+      expect(new Set(keys).size).toBe(2)
+    })
+
+    it('resends a finalize whose answer was lost', async () => {
+      const flaky = await new FakeCirci({
+        failFirst: [{ match: 'POST /v1/builds/b1/finalize', status: 502, times: 1 }],
+      }).start()
+      try {
+        await expect(
+          quick({}, flaky.url).finalize('b1', { screenshots: [] }),
+        ).resolves.toMatchObject({ complete: true })
+        expect(flaky.to('/v1/builds/b1/finalize')).toHaveLength(2)
       } finally {
         await flaky.stop()
       }

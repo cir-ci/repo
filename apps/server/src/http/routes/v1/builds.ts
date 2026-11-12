@@ -10,6 +10,9 @@ import { parse } from '#http/lib/validation.ts'
 
 import { buildIdParams, createBuildBody, finalizeBody, JSON_BODY_LIMIT } from './schemas.ts'
 
+/** `Idempotency-Key`: sent again with the same value, a create returns the build the first made. */
+const idempotencyKeyHeader = z.string().min(1).max(128).optional()
+
 const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() })
 
 /**
@@ -20,6 +23,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
     const ctx = currentProject(req)
     const body = parse(createBuildBody, req.body)
+    const idempotencyKey = parse(idempotencyKeyHeader, req.headers['idempotency-key'])
     const { build, planned } = await startBuildUpload(deps.db, {
       build: {
         projectId: ctx.project.id,
@@ -33,6 +37,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         ...(body.ancestryStatus ? { ancestryStatus: body.ancestryStatus } : {}),
         ...(body.parallel ? { parallel: body.parallel } : {}),
         ...(body.author ? { author: body.author } : {}),
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
       files: body.files,
       storageKeyFor: (s) => contentKey(s),

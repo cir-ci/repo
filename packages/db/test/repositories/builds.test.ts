@@ -125,6 +125,39 @@ describe('finalizeShard', () => {
     )
   })
 
+  it('answers a repeat of a finalized shard like the first, per shard, and refuses a different set', async () => {
+    const { build } = await newBuild({ parallel: { nonce: 'n-repeat', total: 2 } })
+    await uploaded(build.id, [fakeSha('b'), fakeSha('c'), fakeSha('d')])
+    const shard0 = [{ name: 'a', sha256: fakeSha('b') }]
+    const shard1 = [
+      { name: 'b', sha256: fakeSha('c') },
+      { name: 'c', sha256: fakeSha('d') },
+    ]
+    await finalizeShard(t.db, { buildId: build.id, shardIndex: '0', screenshots: shard0 })
+    await finalizeShard(t.db, { buildId: build.id, shardIndex: '1', screenshots: shard1 })
+    // The build is processing now; each shard's own repeat is the same success.
+    expect(
+      await finalizeShard(t.db, { buildId: build.id, shardIndex: '0', screenshots: shard0 }),
+    ).toEqual({ status: 'ok', complete: true, shardsReceived: 2, shardsTotal: 2 })
+    expect(
+      await finalizeShard(t.db, { buildId: build.id, shardIndex: '1', screenshots: shard1 }),
+    ).toMatchObject({ status: 'ok', complete: true })
+    // A repeat that adds a screenshot, changes a file, drops one, or names a shard that never
+    // reported is a different call.
+    const refusals = [
+      { shardIndex: '0', screenshots: [...shard0, { name: 'z', sha256: fakeSha('b') }] },
+      { shardIndex: '0', screenshots: [{ name: 'a', sha256: fakeSha('c') }] },
+      { shardIndex: '1', screenshots: shard1.slice(0, 1) },
+      { shardIndex: '2', screenshots: shard0 },
+    ]
+    for (const input of refusals) {
+      // oxlint-disable-next-line no-await-in-loop -- each refusal is its own assertion
+      await expect(finalizeShard(t.db, { buildId: build.id, ...input })).rejects.toThrow(
+        /already processing/,
+      )
+    }
+  })
+
   it('waits for every shard, and a retried shard replaces its screenshots', async () => {
     const { build } = await newBuild({ parallel: { nonce: 'n1', total: 2 } })
     await uploaded(build.id, [fakeSha('8'), fakeSha('9'), fakeSha('a')])

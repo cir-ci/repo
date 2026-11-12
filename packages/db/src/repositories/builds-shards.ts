@@ -46,6 +46,10 @@ export async function finalizeShard(
     const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
     assertFound(build, 'build not found')
     if (build.status !== 'uploading' && build.status !== 'pending') {
+      // A resend of a finalize whose answer was lost (same shard, same screenshots) gets the same
+      // success as the first, and queues nothing again; a different set is a real conflict.
+      const repeat = input.hold ? undefined : await repeatedFinalize(tx, build, shardIndex, input)
+      if (repeat) return repeat
       throw new ConflictError(
         `Build #${build.number} is already ${build.status}; it can't take more screenshots`,
       )
@@ -140,6 +144,37 @@ export async function finalizeShard(
     }
     return { status: 'ok', complete, shardsReceived: count, shardsTotal: total }
   })
+}
+
+/**
+ * The answer for a finalize of a shard that was already finalized, when it carries the shard's
+ * screenshots again (every name and file of it is stored; and, unless it appends, nothing else is):
+ * a client whose answer was lost resends it. `undefined` for anything else.
+ */
+async function repeatedFinalize(
+  tx: Database,
+  build: Build,
+  shardIndex: string,
+  input: { screenshots: finalizeShard.Screenshot[]; append?: boolean },
+): Promise<finalizeShard.Result | undefined> {
+  const [shard] = await tx
+    .select({ shardIndex: buildShards.shardIndex })
+    .from(buildShards)
+    .where(and(eq(buildShards.buildId, build.id), eq(buildShards.shardIndex, shardIndex)))
+  if (!shard) return undefined
+  const stored = await tx
+    .select({ name: screenshots.name, sha256: screenshots.fileSha256 })
+    .from(screenshots)
+    .where(and(eq(screenshots.buildId, build.id), eq(screenshots.shardIndex, shardIndex)))
+  const have = new Map(stored.map((r) => [r.name, r.sha256]))
+  if (!input.screenshots.every((s) => have.get(s.name) === s.sha256)) return undefined
+  if (!input.append && have.size !== input.screenshots.length) return undefined
+  const [{ count } = { count: 0 }] = await tx
+    .select({ count: sql<number>`count(*)::int` })
+    .from(buildShards)
+    .where(eq(buildShards.buildId, build.id))
+  const total = build.parallelTotal ?? 1
+  return { status: 'ok', complete: count >= total, shardsReceived: count, shardsTotal: total }
 }
 
 export namespace finalizeShard {

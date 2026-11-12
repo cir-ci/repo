@@ -224,6 +224,64 @@ describe('upload flow (local-disk storage)', () => {
     expect(res.json().missing).toEqual([sha256(d)])
   })
 
+  it('answers a finalize sent again like the first, and still refuses a different set', async () => {
+    const { token } = await seedTenant(betterAuth, t.db)
+    const a = png('retry-a')
+    const b = png('retry-b')
+    const build = (await createBuild(token, [a, b])).json().build
+    await Promise.all([a, b].map((f) => upload(token, f)))
+    const finalize = (screenshots: { name: string; sha256: string }[]) =>
+      app.inject({
+        method: 'POST',
+        url: `/v1/builds/${build.id}/finalize`,
+        headers: auth(token),
+        payload: { screenshots },
+      })
+    const both = [
+      { name: 'home', sha256: sha256(a) },
+      { name: 'login', sha256: sha256(b) },
+    ]
+    const first = await finalize(both)
+    expect(first.statusCode).toBe(200)
+    // The answer was lost: the CLI sends it again, and the build is already processing.
+    const again = await finalize(both)
+    expect(again.statusCode).toBe(200)
+    expect(again.json()).toMatchObject({
+      complete: true,
+      shardsReceived: 1,
+      shardsTotal: 1,
+      build: { id: build.id, status: 'processing' },
+    })
+    // Genuinely different calls are still refused.
+    expect((await finalize([{ name: 'home', sha256: sha256(a) }])).statusCode).toBe(409)
+    expect((await finalize([])).statusCode).toBe(409)
+  })
+
+  it('returns the build a create already made when it is sent again with its idempotency key', async () => {
+    const { token } = await seedTenant(betterAuth, t.db)
+    const f = png('keyed')
+    const send = (key: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/v1/builds',
+        headers: { ...auth(token), 'idempotency-key': key },
+        payload: { commitSha: 'abcdef1', branch: 'main', files: [fileEntry(f)] },
+      })
+    const first = await send('key-1')
+    const again = await send('key-1')
+    expect(first.statusCode).toBe(201)
+    expect(again.statusCode).toBe(201)
+    expect(again.json().build.id).toBe(first.json().build.id)
+    expect(again.json().build.number).toBe(1)
+    // Another key, or none, is a new build.
+    const other = await send('key-2')
+    expect(other.json().build.number).toBe(2)
+    expect((await createBuild(token, [f])).json().build.number).toBe(3)
+    // And two at once make one.
+    const [x, y] = await Promise.all([send('key-3'), send('key-3')])
+    expect(x.json().build.id).toBe(y.json().build.id)
+  })
+
   it('validates input', async () => {
     const { token } = await seedTenant(betterAuth, t.db)
     const jpeg = await app.inject({

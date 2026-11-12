@@ -156,13 +156,14 @@ describe('upload', () => {
     ).toHaveLength(1)
   })
 
-  it("doesn't resend the creation of a plain build after a server error", async () => {
-    await expect(
-      run(
-        { retryDelayMs: 1 },
-        { failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }] },
-      ),
-    ).rejects.toThrow(/injected 500/)
+  it('resends the creation of a plain build after a server error, with the same idempotency key', async () => {
+    await run(
+      { retryDelayMs: 1 },
+      { failFirst: [{ match: 'POST /v1/builds', status: 500, times: 1 }] },
+    )
+    const creations = fake.to('/v1/builds').filter((r) => r.path === '/v1/builds')
+    expect(creations).toHaveLength(2)
+    expect(creations[0]?.headers['idempotency-key']).toBe(creations[1]?.headers['idempotency-key'])
   })
 
   it('resends the creation of a parallel build, which joins the same build', async () => {
