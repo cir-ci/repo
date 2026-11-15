@@ -476,6 +476,19 @@ describe('view modes', () => {
       .toBeVisible()
   })
 
+  it('puts the divider on the image: the handle is a slider with its range and a label', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?mode=slider')
+    const slider = page.getByRole('slider', { name: 'Slider position' })
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
+    await expect.element(slider).toHaveAttribute('min', '0')
+    await expect.element(slider).toHaveAttribute('max', '100')
+    // Not in the toolbar any more: it is inside the figure, over the images.
+    const figure = page.getByRole('figure').filter({ has: page.getByRole('slider') })
+    await expect.element(figure).toBeVisible()
+    expect(page.getByRole('slider', { name: 'Slider position' }).elements()).toHaveLength(1)
+  })
+
   it('moves the slider divider with the keyboard', async () => {
     fakeBuildApi(detail())
     await renderBuild('/acme/web-app/builds/7?mode=slider')
@@ -487,10 +500,49 @@ describe('view modes', () => {
     await userEvent.keyboard('{ArrowRight}{ArrowRight}')
     await expect.element(slider).toHaveAttribute('aria-valuenow', '52')
     await expect.element(head).toHaveStyle({ clipPath: 'inset(0px 0px 0px 52%)' })
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '51')
     await userEvent.keyboard('{Home}')
     await expect.element(slider).toHaveAttribute('aria-valuenow', '0')
     await userEvent.keyboard('{End}')
     await expect.element(slider).toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('moves the divider by dragging anywhere on the image', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?mode=slider')
+    const slider = page.getByRole('slider', { name: 'Slider position' })
+    const head = page.getByRole('img', { name: 'This build: checkout / payment' })
+    await expect.element(head).toBeVisible()
+    const box = head.element().getBoundingClientRect()
+    const y = box.top + box.height * 0.2
+    // Press well away from the handle (at 50%), at a quarter of the width, then drag to 80%. The
+    // topmost element there is the slider's control, not the image.
+    const press = { x: box.left + box.width * 0.25, y }
+    const target = document.elementFromPoint(press.x, press.y)
+    expect(target).not.toBeNull()
+    expect(target?.closest('[role="group"], [data-orientation]')).not.toBe(head.element())
+    const fire = (type: string, x: number) =>
+      (type === 'pointerdown' ? target : document)?.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: 1,
+          pointerType: 'mouse',
+          clientX: x,
+          clientY: y,
+        }),
+      )
+    fire('pointerdown', press.x)
+    fire('pointermove', box.left + box.width * 0.8)
+    fire('pointerup', box.left + box.width * 0.8)
+    await expect.poll(() => slider.element().getAttribute('aria-valuenow')).not.toBe('50')
+    const now = Number(slider.element().getAttribute('aria-valuenow'))
+    expect(now).toBeGreaterThan(70)
+    expect(now).toBeLessThanOrEqual(85)
+    expect(target).not.toBe(head.element())
+    await expect.element(head).toHaveStyle({ clipPath: `inset(0px 0px 0px ${now}%)` })
   })
 })
 

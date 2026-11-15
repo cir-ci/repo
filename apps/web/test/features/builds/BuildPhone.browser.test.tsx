@@ -218,6 +218,36 @@ describe('the build page on a phone', () => {
     }
   })
 
+  it('moves the slider divider by touch on the image', async () => {
+    await ready()
+    await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Slider' }).click()
+    const slider = page.getByRole('slider', { name: 'Slider position' })
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
+    const head = page.getByRole('img', { name: /^This build/ })
+    await expect.element(head).toBeVisible()
+    const box = head.element().getBoundingClientRect()
+    const y = box.top + box.height * 0.3
+    const target = document.elementFromPoint(box.left + box.width * 0.2, y)
+    const fire = (type: string, x: number) =>
+      (type === 'pointerdown' ? target : document)?.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: 1,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: x,
+          clientY: y,
+        }),
+      )
+    fire('pointerdown', box.left + box.width * 0.2)
+    fire('pointermove', box.left + box.width * 0.7)
+    fire('pointerup', box.left + box.width * 0.7)
+    await expect.poll(() => slider.element().getAttribute('aria-valuenow')).not.toBe('50')
+    expect(Number(slider.element().getAttribute('aria-valuenow'))).toBeGreaterThan(60)
+  })
+
   it('offers the four views, with Overlay and Side by side in the options menu', async () => {
     await ready()
     const views = page.getByRole('group', { name: 'View' })

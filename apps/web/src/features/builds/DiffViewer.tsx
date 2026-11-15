@@ -3,6 +3,7 @@ import {
   Banner,
   Button,
   Collapsible,
+  CompareHandle,
   EmptyState,
   EnlargeTrigger,
   ExpandLessIcon,
@@ -285,21 +286,6 @@ export function Viewer({
                 />
               </span>
             ) : null}
-            {comparable && mode === 'slider' ? (
-              <span className={styles.slider}>
-                <Text variant="small" tone="secondary">
-                  Slider
-                </Text>
-                <Slider
-                  label="Slider position"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={at}
-                  onValueChange={setAt}
-                />
-              </span>
-            ) : null}
             {annotatable ? (
               <KeyboardRegionToggle on={keyboardTool} onChange={setKeyboardTool} />
             ) : null}
@@ -466,8 +452,14 @@ export function Viewer({
                 className={styles.cover}
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
-              <span aria-hidden="true" className={styles.divider} style={{ left: `${at}%` }} />
-              {layer ? <RegionLayer annotations={layer} /> : null}
+              <CompareHandle label="Slider position" value={at} onValueChange={setAt} />
+              {/* A drag on the image moves the divider, so the layer draws only from the keyboard
+                  tool here; its markers stay clickable. */}
+              {layer ? (
+                <div className={styles.atop}>
+                  <RegionLayer annotations={{ ...layer, alwaysDraw: false }} />
+                </div>
+              ) : null}
             </div>
           </figure>
         ) : null}

@@ -1,0 +1,75 @@
+.root {
+  position: absolute;
+  inset: 0;
+}
+
+/* The whole image is the control: a press or drag anywhere moves the divider. A vertical swipe
+   still scrolls the page on a phone. */
+.control {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: ew-resize;
+}
+
+/* Base UI sets `position: relative` inline, so the track fills the control by its size. */
+.track {
+  width: 100%;
+  height: 100%;
+}
+
+/* The thumb is the divider: a column the grip's width (a comfortable hit area), the line down its
+   middle and the grip at the middle of the image. */
+.thumb {
+  box-sizing: border-box;
+  width: 28px;
+  height: 100%;
+  outline: none;
+  cursor: ew-resize;
+}
+
+.thumb::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-inline-start: -1px;
+  background: var(--circi-accent-main);
+}
+
+.thumb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  translate: 0 -50%;
+  border: 2px solid var(--circi-accent-main);
+  border-radius: 50%;
+  background: var(--circi-surface-raised);
+}
+
+.thumb[data-dragging]::after {
+  background: var(--circi-accent-main);
+}
+
+/* The focus ring: around the grip, and a wider line so the divider reads as focused. */
+.thumb:has(:focus-visible)::after {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.thumb:has(:focus-visible)::before {
+  width: 4px;
+  margin-inline-start: -2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.45;
+}

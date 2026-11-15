@@ -235,13 +235,10 @@
   pointer-events: none;
 }
 
-.divider {
+/* Over the compare handle: presses go to the divider; markers and boxes opt back in. */
+.atop {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-inline-start: -1px;
-  background: var(--circi-accent-main);
+  inset: 0;
   pointer-events: none;
 }
 
