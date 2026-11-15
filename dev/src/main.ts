@@ -18,6 +18,7 @@ import {
   STATE_DIR,
   URLS,
   WEB_DIR,
+  WEBHOOK_RECEIVER_MAIN,
   serverEnv,
 } from './config.ts'
 import { explainPortTaken, isPortTaken, log, run, start, waitForHttp } from './processes.ts'
@@ -25,10 +26,16 @@ import { ensureSeeded } from './seed.ts'
 
 const children: ChildProcess[] = []
 
-/** The two ports `pnpm dev` binds itself (Postgres and Mailpit's are Docker's, and say so on their own). */
+/** The ports `pnpm dev` binds itself (Postgres and Mailpit's are Docker's, and say so on their own). */
 const OWN_PORTS = [
   { name: 'server', what: 'the server', port: PORTS.server, envVar: 'CIRCI_DEV_PORT' },
   { name: 'web', what: 'the dashboard (Vite)', port: PORTS.web, envVar: 'CIRCI_DEV_WEB_PORT' },
+  {
+    name: 'hooks',
+    what: 'the webhook receiver',
+    port: PORTS.hooks,
+    envVar: 'CIRCI_DEV_HOOKS_PORT',
+  },
 ] as const
 
 async function reportPortTaken(entry: (typeof OWN_PORTS)[number]): Promise<boolean> {
@@ -116,6 +123,12 @@ async function up(): Promise<void> {
     ),
   )
 
+  // The seeded webhooks deliver here; it needs no database, so it starts with the rest.
+  supervise(
+    'hooks',
+    start('hooks', process.execPath, ['--conditions=@circi/source', WEBHOOK_RECEIVER_MAIN]),
+  )
+
   await waitForHttp(`${URLS.server}/readyz`, 120_000)
   const { token } = await ensureSeeded()
   await waitForHttp(URLS.web, 60_000)
@@ -127,6 +140,7 @@ async function up(): Promise<void> {
     `Sign in     ${owner.email} (owner, instance admin) or ${member.email} (member)`,
     `Password    ${password}`,
     `Mail        ${URLS.mail}  (sign-in codes, invitations)`,
+    `Webhooks    ${URLS.hooks}  (seeded webhooks deliver here; each delivery is logged as [hooks])`,
     `API         ${URLS.server}`,
     `Database    postgres://circi:circi@localhost:${PORTS.postgres}/circi`,
     '',

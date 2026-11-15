@@ -34,7 +34,7 @@ export function run(command: string, args: string[], options: run.Options = {}):
   })
 }
 
-const COLORS = { server: 36, web: 35, seed: 33, dev: 32 } as const
+const COLORS = { server: 36, web: 35, hooks: 34, seed: 33, dev: 32 } as const
 
 /** A `[name]` prefix, coloured when the terminal supports it. */
 export function tag(name: keyof typeof COLORS): string {

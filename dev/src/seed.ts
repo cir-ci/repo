@@ -13,6 +13,7 @@ import {
   SERVER_MAIN,
   STATE_DIR,
   URLS,
+  WEBHOOK_SECRETS_FILE,
   WORKSPACES,
   serverEnv,
   type PersonKey,
@@ -630,18 +631,26 @@ async function seedActivity(world: World): Promise<void> {
     }),
   ])
 
-  // Webhooks that point at nothing, added now so they don't fail for every build above; each gets
-  // a test event, so the delivery list shows failures.
-  await Promise.all(
+  // Webhooks at the dev receiver, added now so they don't deliver for every build above; each gets
+  // a test event, so the delivery list has one. The receiver checks signatures with the secrets
+  // saved here.
+  const made = await Promise.all(
     PROJECTS.flatMap((p) =>
       (p.webhooks ?? []).map(async (hook) => {
         const owner = workspaceOf(p.workspace).owner
-        const made = await call(owner, 'POST', `${projectPath(p)}/webhooks`, hook)
-        const id = stringIn(asRecord(asRecord(made).webhook), 'id')
-        await call(owner, 'POST', `${projectPath(p)}/webhooks/${id}/test`)
+        const created = await call(owner, 'POST', `${projectPath(p)}/webhooks`, hook)
+        const id = stringIn(asRecord(asRecord(created).webhook), 'id')
+        return {
+          owner,
+          path: `${projectPath(p)}/webhooks/${id}/test`,
+          secret: stringIn(created, 'secret'),
+        }
       }),
     ),
   )
+  // The secrets first, so the receiver can check the test events' signatures.
+  await writeFile(WEBHOOK_SECRETS_FILE, JSON.stringify(made.map((m) => m.secret)))
+  await Promise.all(made.map((m) => call(m.owner, 'POST', m.path)))
 
   // Invitations that stay pending (better-auth's own endpoint, which also sends the email).
   for (const w of WORKSPACES) {

@@ -152,6 +152,7 @@ pnpm build         # tsdown (ui, cli, vitest, server bundle) and Vite (web) → 
 # A local environment for QA (needs Docker): Postgres and Mailpit in containers, the server from
 # source (restarts on changes) and the dashboard in Vite (hot reload), seeded on first run with
 # accounts, a project and builds in every review state. It prints the address and sign-in details.
+# The seeded webhooks deliver to a local receiver on :4747 (CIRCI_DEV_HOOKS_PORT), which logs each delivery.
 pnpm dev           # Ctrl+C stops it and keeps the data
 pnpm dev:reset     # delete the dev database and files; the next pnpm dev seeds again
 

@@ -4,7 +4,10 @@ import { join } from 'node:path'
 export const REPO_ROOT = join(import.meta.dirname, '..', '..')
 export const COMPOSE_FILE = join(REPO_ROOT, 'dev', 'compose.yml')
 /** Files, seed state and the seed's git repository (gitignored). `pnpm dev:reset` deletes it. */
+export const WEBHOOK_RECEIVER_MAIN = join(REPO_ROOT, 'dev', 'src', 'webhook-receiver.ts')
 export const STATE_DIR = join(REPO_ROOT, '.dev')
+/** The signing secrets the seed got for its webhooks (the API shows each once); the receiver reads them. */
+export const WEBHOOK_SECRETS_FILE = join(STATE_DIR, 'webhook-secrets.json')
 export const SERVER_MAIN = join(REPO_ROOT, 'apps', 'server', 'src', 'main.ts')
 export const WEB_DIR = join(REPO_ROOT, 'apps', 'web')
 
@@ -23,6 +26,8 @@ export const PORTS = {
   postgres: port('CIRCI_DEV_POSTGRES_PORT', 54329),
   smtp: port('CIRCI_DEV_SMTP_PORT', 1025),
   mail: port('CIRCI_DEV_MAIL_PORT', 8025),
+  /** The local webhook receiver. 4747 is outside the other dev ports (3000, 5173, 54329, 1025, 8025) and the e2e stacks use Docker-assigned ports. */
+  hooks: port('CIRCI_DEV_HOOKS_PORT', 4747),
 }
 
 export const URLS = {
@@ -31,6 +36,7 @@ export const URLS = {
   /** The dashboard, served by Vite with hot reload: PUBLIC_URL, so sign-in cookies and links use it. */
   web: `http://localhost:${PORTS.web}`,
   mail: `http://localhost:${PORTS.mail}`,
+  hooks: `http://localhost:${PORTS.hooks}`,
 }
 
 /** A seeded account (every one signs in with `SEED.password`; it is for this local database only). */
@@ -152,13 +158,14 @@ export interface SeedProject {
    */
   settings?: Record<string, number | boolean | string | null>
   reviewOverdueNotify?: PersonKey
-  /** Webhooks that point at nothing, so their deliveries show as failures. */
+  /** Webhooks, all at the dev receiver, so every delivery succeeds. */
   webhooks?: readonly { url: string; events: readonly string[] }[]
   /** Rectangles (pixels) ignored when comparing the screenshots with this name. */
   ignore?: readonly { name: string; x: number; y: number; width: number; height: number }[]
 }
 
-const DEAD = 'http://localhost:9'
+/** The dev webhook receiver (webhook-receiver.ts). The dev server sets WEBHOOK_ALLOW_PRIVATE_ADDRESSES, so the address guard lets it through. */
+const HOOKS = URLS.hooks
 
 export const PROJECTS: readonly SeedProject[] = [
   {
@@ -187,8 +194,8 @@ export const PROJECTS: readonly SeedProject[] = [
     },
     reviewOverdueNotify: 'owner',
     webhooks: [
-      { url: `${DEAD}/hooks/circi`, events: ['build.completed', 'build.reviewed'] },
-      { url: `${DEAD}/hooks/audit`, events: ['build.completed'] },
+      { url: `${HOOKS}/hooks/circi`, events: ['build.completed', 'build.reviewed'] },
+      { url: `${HOOKS}/hooks/audit`, events: ['build.completed'] },
     ],
     ignore: [
       { name: 'home', x: 700, y: 10, width: 200, height: 36 },
@@ -218,7 +225,7 @@ export const PROJECTS: readonly SeedProject[] = [
       snoozeDefaultDays: 5,
     },
     reviewOverdueNotify: 'daniel',
-    webhooks: [{ url: `${DEAD}/hooks/chat-bridge`, events: ['build.reviewed'] }],
+    webhooks: [{ url: `${HOOKS}/hooks/chat-bridge`, events: ['build.reviewed'] }],
   },
   {
     workspace: 'acme',
@@ -280,7 +287,7 @@ export const PROJECTS: readonly SeedProject[] = [
       flakyAfterChanges: 3,
     },
     reviewOverdueNotify: 'hannah',
-    webhooks: [{ url: `${DEAD}/slack/marketing`, events: ['build.completed'] }],
+    webhooks: [{ url: `${HOOKS}/slack/marketing`, events: ['build.completed'] }],
   },
   {
     workspace: 'acme',
@@ -361,7 +368,7 @@ export const PROJECTS: readonly SeedProject[] = [
       blockMergeOnChanges: true,
       autoApproveNoChanges: true,
     },
-    webhooks: [{ url: `${DEAD}/orders/notify`, events: ['build.reviewed'] }],
+    webhooks: [{ url: `${HOOKS}/orders/notify`, events: ['build.reviewed'] }],
   },
   {
     workspace: 'pixel-studio',

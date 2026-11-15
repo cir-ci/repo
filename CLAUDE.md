@@ -30,7 +30,7 @@ What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm buil
 `pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from
 source under `node --watch`, Vite for the dashboard on :5173 (PUBLIC_URL; it proxies every server path to :3000), and a
 first-run seed (owner@example.com / member@example.com, password `circi-dev-password`, workspace `acme`, project `web-app`,
-four builds in different review states); `pnpm dev:reset` deletes its data.
+four builds in different review states); `pnpm dev:reset` deletes its data. A tiny webhook receiver (`dev/src/webhook-receiver.ts`, :4747, `CIRCI_DEV_HOOKS_PORT`) answers 204 to the seeded webhooks and logs each delivery as `[hooks]` with its event, delivery ID and signature check.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
 ## Layers

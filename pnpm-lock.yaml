@@ -559,6 +559,9 @@ importers:
       '@circi/cli':
         specifier: workspace:*
         version: link:../packages/cli
+      '@circi/core':
+        specifier: workspace:*
+        version: link:../packages/core
       sharp:
         specifier: 'catalog:'
         version: 0.35.5(@types/node@26.6.6)

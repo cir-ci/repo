@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@circi/cli": "workspace:*",
+    "@circi/core": "workspace:*",
     "sharp": "catalog:"
   },
   "devDependencies": {

@@ -119,6 +119,8 @@ export default defineConfig({
           include: [
             'apps/{server,worker,web}/test/**/*.test.ts',
             'packages/*/test/**/*.test.ts',
+            // The `pnpm dev` environment's pure logic.
+            'dev/test/**/*.test.ts',
             // The e2e harness's own fakes: plain Node tests, no Docker.
             'e2e/test/fakes/**/*.test.ts',
           ],

@@ -14,6 +14,7 @@
     "e2e/src/**/*.ts",
     "e2e/test/**/*.ts",
     "dev/src/**/*.ts",
+    "dev/test/**/*.ts",
     "perf/src/**/*.ts",
     "perf/bench/**/*.ts",
     "apps/server/tsdown.config.ts",
