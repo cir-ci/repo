@@ -153,6 +153,9 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
 
     await expect.element(page.getByText('circi_secret_token_value').first()).toBeVisible()
     await expect.element(page.getByRole('tab', { name: 'GitHub Actions' })).toBeVisible()
+    // The board shows the token, the one-time warning and the snippet, without the dialog's extra lines.
+    expect(page.getByText('Then, after your tests').elements()).toHaveLength(0)
+    expect(page.getByText('Save the token as a repository secret').elements()).toHaveLength(0)
     await vi.waitFor(() =>
       expect(calls.some((c) => c.path === '/api/instance/setup/finish')).toBe(true),
     )

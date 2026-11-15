@@ -101,7 +101,7 @@ export function SetupPage() {
   const followedSlug = slugify(workspace.name)
 
   return (
-    <AuthPage title="Set up CirCI" subtitle={<SetupProgress step={step} />}>
+    <AuthPage compact title="Set up CirCI" subtitle={<SetupProgress step={step} />}>
       {step === 1 ? (
         <form
           key="account"

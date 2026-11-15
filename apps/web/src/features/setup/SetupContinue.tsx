@@ -30,8 +30,15 @@ import styles from './Setup.module.css'
 export function SetupContinue() {
   useDocumentTitle('Set up')
   const [step, setStep] = useState<3 | 4>(3)
+  // Only the created project's token and snippet need the wide column, not the project form.
+  const created = useSetupStore((s) => s.project)
   return (
-    <AuthPage title="Set up CirCI" subtitle={<SetupProgress step={step} />} wide={step === 4}>
+    <AuthPage
+      compact
+      title="Set up CirCI"
+      subtitle={<SetupProgress step={step} />}
+      wide={step === 4 && created !== undefined}
+    >
       {step === 3 ? (
         <StorageStep onContinue={() => setStep(4)} />
       ) : (
@@ -135,7 +142,7 @@ function ProjectStep({ onBack }: { onBack: () => void }) {
   if (created) {
     return (
       <div className={authStyles.form}>
-        <CreatedStep created={created} />
+        <CreatedStep created={created} compact />
         <div className={styles.actions}>
           <Button variant="primary" size="lg" onClick={() => void done()}>
             Done

@@ -10,16 +10,18 @@ import styles from './AuthPage.module.css'
  * content. "Self-hosted CirCI" sits at the foot. The `main` carries `id="content"`, which the
  * shell's skip link points at.
  */
-export function AuthPage({ title, subtitle, wide, children }: AuthPage.Props) {
+export function AuthPage({ title, subtitle, wide, compact, children }: AuthPage.Props) {
   return (
     <div className={styles.page}>
       <main
         id="content"
         tabIndex={-1}
-        className={wide ? `${styles.column} ${styles.wide}` : styles.column}
+        className={[styles.column, wide && styles.wide, compact && styles.compact]
+          .filter(Boolean)
+          .join(' ')}
       >
         <header className={styles.head}>
-          <Logo size={56} className={styles.logo} />
+          <Logo size={compact ? 48 : 56} className={styles.logo} />
           <div>
             <h1 className={styles.title}>{title}</h1>
             {/* Text in a paragraph; anything else (the setup's progress bar) in a div, which a p can't hold. */}
@@ -44,6 +46,8 @@ export namespace AuthPage {
     subtitle?: ReactNode
     /** A wider column, for a page that shows code to copy. */
     wide?: boolean
+    /** The setup steps' tighter head (48px logo, progress 12px under the title) and 24px gaps, as on the setup board. */
+    compact?: boolean
     children: ReactNode
   }
 }

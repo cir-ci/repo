@@ -184,7 +184,14 @@ export function NewProjectDialog({
 }
 
 /** Step two: the token, once, and the CI examples with this project's details in them. */
-export function CreatedStep({ created }: { created: CreatedProject }) {
+export function CreatedStep({
+  created,
+  compact = false,
+}: {
+  created: CreatedProject
+  /** First-run setup's version: no lead line over the tabs and no notes under the snippet. */
+  compact?: boolean
+}) {
   const [ci, setCi] = useState<CiKey>('github')
   const { copy, state, reset } = useCopy()
   const context = {
@@ -211,9 +218,11 @@ export function CreatedStep({ created }: { created: CreatedProject }) {
         This is the only time the token is shown. If you lose it, rotate it in the project's CI
         token settings.
       </p>
-      <Text as="p" variant="small" tone="secondary">
-        Then, after your tests, upload the screenshots:
-      </Text>
+      {compact ? null : (
+        <Text as="p" variant="small" tone="secondary">
+          Then, after your tests, upload the screenshots:
+        </Text>
+      )}
       <TabList
         label="CI system"
         tabs={CI_EXAMPLES.map((e) => ({ value: e.key, label: e.label }))}
@@ -233,12 +242,16 @@ export function CreatedStep({ created }: { created: CreatedProject }) {
             {state === 'copied' ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <Text as="p" variant="small" tone="tertiary">
-          {example.note(context)}
-        </Text>
-        <Text as="p" variant="small" tone="tertiary">
-          {gateNote(created.linked)}
-        </Text>
+        {compact ? null : (
+          <>
+            <Text as="p" variant="small" tone="tertiary">
+              {example.note(context)}
+            </Text>
+            <Text as="p" variant="small" tone="tertiary">
+              {gateNote(created.linked)}
+            </Text>
+          </>
+        )}
       </TabList>
     </div>
   )

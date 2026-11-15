@@ -56,6 +56,29 @@
   line-height: 1.5;
 }
 
+.compact {
+  gap: 24px;
+}
+
+.compact.wide {
+  max-width: 576px;
+}
+
+.compact .head {
+  gap: 12px;
+}
+
+.compact .logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+}
+
+.compact .subtitle {
+  margin-top: 12px;
+}
+
 .foot {
   margin: 56px 0 0;
   color: var(--circi-text-tertiary);
