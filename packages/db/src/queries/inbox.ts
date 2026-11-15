@@ -1,5 +1,18 @@
 import { isAwaited, overdueBy } from '@circi/core'
-import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  ne,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm'
 
 import {
   builds,
@@ -131,8 +144,14 @@ export async function listInbox(
     })
     .from(notifications)
     .leftJoin(builds, eq(builds.id, notifications.buildId))
-    .leftJoin(projects, eq(projects.id, builds.projectId))
-    .leftJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .leftJoin(
+      projects,
+      eq(projects.id, sql`coalesce(${builds.projectId}, ${notifications.projectId})`),
+    )
+    .leftJoin(
+      workspace,
+      eq(workspace.id, sql`coalesce(${projects.workspaceId}, ${notifications.workspaceId})`),
+    )
     .leftJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .where(and(visibleWhere(input), scope))
     .orderBy(desc(notifications.createdAt), desc(notifications.id))
@@ -259,8 +278,8 @@ export async function listInbox(
               ),
             }
           : null,
-        project: r.n.buildId === null ? null : r.project,
-        workspace: r.n.buildId === null ? null : r.workspace,
+        project: r.project,
+        workspace: r.workspace,
         alsoInReviews: r.alsoInReviews,
       }
     }),
@@ -276,8 +295,14 @@ export async function countUnreadNotifications(
     .select({ count: sql<number>`count(*)::int` })
     .from(notifications)
     .leftJoin(builds, eq(builds.id, notifications.buildId))
-    .leftJoin(projects, eq(projects.id, builds.projectId))
-    .leftJoin(workspace, eq(workspace.id, projects.workspaceId))
+    .leftJoin(
+      projects,
+      eq(projects.id, sql`coalesce(${builds.projectId}, ${notifications.projectId})`),
+    )
+    .leftJoin(
+      workspace,
+      eq(workspace.id, sql`coalesce(${projects.workspaceId}, ${notifications.workspaceId})`),
+    )
     .leftJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .where(
       and(
@@ -295,16 +320,30 @@ function visibleWhere(input: { userId: string; method?: SessionMethod }): SQL {
       eq(notifications.userId, input.userId),
       isNull(notifications.deletedAt),
       or(
-        isNull(notifications.buildId),
+        // Notices about nothing in particular (the system's own) need no workspace.
+        and(
+          isNull(notifications.buildId),
+          isNull(notifications.projectId),
+          isNull(notifications.workspaceId),
+        ),
         and(
           isNotNull(member.userId),
           workspaceAccepts(workspace.id, input.method),
-          projectVisibleTo(input.userId, projects),
+          // A notice about a project is for those who can see the project.
+          or(isNull(projects.id), projectVisibleTo(input.userId, projects)),
+          // A connection's trouble is for those who manage the workspace, now, not when it was sent.
+          or(
+            ne(notifications.kind, 'connection_needs_attention'),
+            inArray(member.role, [...MANAGER_ROLES]),
+          ),
         ),
       ),
     ) ?? sql`false`
   )
 }
+
+/** The workspace roles that manage it (`canManage` in `@circi/core`, as a list for SQL). */
+const MANAGER_ROLES = ['owner', 'admin'] as const
 
 function not(condition: SQL | undefined): SQL {
   return sql`not coalesce(${condition}, false)`

@@ -476,7 +476,7 @@ function LimitRow({
         value={draft.limits[name]}
         min={bounds.min}
         max={bounds.max}
-        step={bounds.integer ? 1 : 0.5}
+        step={bounds.integer ? 1 : 0.1}
         disabled={disabled || locked}
         error={problems[`limits.${name}`]}
         description={text.note}

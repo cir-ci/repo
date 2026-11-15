@@ -8,9 +8,10 @@ import {
   findIntegrationByExternalId,
   isAccountClaimedElsewhere,
   replaceIntegrationCredentials,
-  setIntegrationAttention,
 } from '@circi/db/repositories'
 import { type IntegrationDefinition, IntegrationConflictError } from '@circi/integrations'
+
+import { flagIntegrationAttention } from '#src/notifications/system-notices.ts'
 
 /**
  * What a workspace's owners and admins do to its integrations: connect one, remove one, remove a
@@ -120,6 +121,6 @@ export async function flagFailedIntegration(
 ): Promise<string | undefined> {
   const reason = input.definition?.needsAttention(input.error)
   if (!reason) return undefined
-  await db.transaction((tx) => setIntegrationAttention(tx, input.integrationId, reason))
+  await db.transaction((tx) => flagIntegrationAttention(tx, input.integrationId, reason))
   return reason
 }

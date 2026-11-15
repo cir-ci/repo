@@ -22,6 +22,7 @@ import {
 import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
+import { notifyFlakyDetected } from '#src/notifications/system-notices.ts'
 import { notifyReviewRequested } from '#src/reviews/reviews.ts'
 import { autoAssignAfterBuild } from '#src/triage/auto-assign.ts'
 
@@ -159,7 +160,14 @@ export async function completeBuild(
   result: setBuildResult.Input,
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const done = await setBuildResult(tx, build, result)
+    // The result refreshes the project's stored flaky list, which reports what it gained.
+    const addedFlaky: string[] = []
+    const done = await setBuildResult(tx, build, result, addedFlaky)
+    await notifyFlakyDetected(tx, {
+      projectId: done.projectId,
+      buildId: done.id,
+      names: addedFlaky,
+    })
     // Nothing to review (no changes, or approved on its own): requests made at upload close. A
     // project that doesn't approve no-change builds on their own keeps those requests open.
     const project = await getProjectById(tx, done.projectId)
@@ -185,8 +193,14 @@ export namespace completeBuild {
 /** Marks a build as failed and tells the git host. */
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const failed = await setBuildError(tx, buildId, message)
+    const addedFlaky: string[] = []
+    const failed = await setBuildError(tx, buildId, message, addedFlaky)
     if (failed) {
+      await notifyFlakyDetected(tx, {
+        projectId: failed.projectId,
+        buildId: failed.id,
+        names: addedFlaky,
+      })
       await queueGitNotify(tx, failed, integrationRegistry.gitKinds())
       await autoAssignAfterBuild(tx, failed)
     }
@@ -196,7 +210,13 @@ export async function failBuild(db: Database, buildId: string, message: string):
 /** Diffs a finished build again from scratch (`/circi rerun`). */
 export async function requeueBuild(db: Database, buildId: string): Promise<void> {
   await db.transaction(async (tx) => {
-    const build = await resetBuild(tx, buildId)
+    const addedFlaky: string[] = []
+    const build = await resetBuild(tx, buildId, addedFlaky)
+    await notifyFlakyDetected(tx, {
+      projectId: build.projectId,
+      buildId: build.id,
+      names: addedFlaky,
+    })
     await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
     await queueGitNotify(tx, build, integrationRegistry.gitKinds())
   })

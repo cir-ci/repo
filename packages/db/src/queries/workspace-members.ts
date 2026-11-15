@@ -53,3 +53,14 @@ export async function listMemberSignIn(
     ),
   }))
 }
+
+/** Everyone in a workspace with their role (`owner`, `admin`, `member`). */
+export async function listWorkspaceMemberRoles(
+  db: Database,
+  workspaceId: string,
+): Promise<{ userId: string; role: string }[]> {
+  return db
+    .select({ userId: member.userId, role: member.role })
+    .from(member)
+    .where(eq(member.workspaceId, workspaceId))
+}

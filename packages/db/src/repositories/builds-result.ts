@@ -23,6 +23,7 @@ export async function setBuildResult(
   db: Database,
   build: Build,
   result: setBuildResult.Input,
+  addedFlaky?: string[],
 ): Promise<Build> {
   return db.transaction(async (tx) => {
     const approved = result.approval === 'default-branch' || result.approval === 'rerun'
@@ -61,7 +62,8 @@ export async function setBuildResult(
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
     assertFound(done, 'Build not found')
-    await refreshTriageProblems(tx, done.projectId, { branch: done.branch })
+    const added = await refreshTriageProblems(tx, done.projectId, { branch: done.branch })
+    addedFlaky?.push(...added)
     return done
   })
 }
@@ -138,13 +140,17 @@ export async function setBuildError(
   db: Database,
   buildId: string,
   message: string,
+  addedFlaky?: string[],
 ): Promise<Build | undefined> {
   const [failed] = await db
     .update(builds)
     .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
     .where(eq(builds.id, buildId))
     .returning()
-  if (failed) await refreshTriageProblems(db, failed.projectId, { branch: failed.branch })
+  if (failed) {
+    const added = await refreshTriageProblems(db, failed.projectId, { branch: failed.branch })
+    addedFlaky?.push(...added)
+  }
   return failed
 }
 
@@ -153,7 +159,11 @@ export async function setBuildError(
  * (e.g. after changing the diff threshold). Data only: queueing the job is `requeueBuild` in
  * `@circi/services`.
  */
-export async function resetBuild(db: Database, buildId: string): Promise<Build> {
+export async function resetBuild(
+  db: Database,
+  buildId: string,
+  addedFlaky?: string[],
+): Promise<Build> {
   const [updated] = await db
     .update(builds)
     .set({
@@ -168,6 +178,7 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
     .returning()
   assertFound(updated, 'Build not found, or still processing')
   await supersedeSnapshotReviews(db, buildId)
-  await refreshTriageProblems(db, updated.projectId, { branch: updated.branch })
+  const added = await refreshTriageProblems(db, updated.projectId, { branch: updated.branch })
+  addedFlaky?.push(...added)
   return updated
 }

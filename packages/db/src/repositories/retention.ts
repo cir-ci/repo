@@ -103,6 +103,8 @@ async function expireBuildBatch(db: Database, now: Date, limit: number): Promise
     if (ids.length === 0) return 0
     // Expired builds leave the history the queue is derived from.
     for (const projectId of new Set(column(expired, 'project_id'))) {
+      // Expiring builds only takes history away, so nothing can enter the flaky list here: the
+      // names it returns are not announced.
       // oxlint-disable-next-line no-await-in-loop -- one transaction, one connection
       await refreshTriageProblems(tx, projectId)
     }

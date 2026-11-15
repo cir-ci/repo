@@ -45,7 +45,7 @@ export const INSTANCE_LIMIT_BOUNDS: Record<
   uploadTimeoutMinutes: { min: 0, max: 10_080, integer: true, label: 'Upload timeout' },
   jobRetentionDays: { min: 0, max: 3650, integer: true, label: 'Job retention' },
   staticSitesMaxMb: { min: 1, max: 5000, integer: true, label: 'Largest hosted site' },
-  webhookTimeoutSeconds: { min: 1, max: 600, integer: false, label: 'Webhook timeout' },
+  webhookTimeoutSeconds: { min: 0.1, max: 600, integer: false, label: 'Webhook timeout' },
 }
 
 export const INSTANCE_LIMIT_DEFAULTS: InstanceLimits = {

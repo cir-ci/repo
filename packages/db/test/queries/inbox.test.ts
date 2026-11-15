@@ -1,3 +1,4 @@
+import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
@@ -7,6 +8,7 @@ import {
   seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { countUnreadNotifications, listInbox } from '#src/queries/index.ts'
@@ -138,5 +140,64 @@ describe('listInbox', () => {
     const seen = (await tab(outsider.id, 'everything')).items
     expect(seen.map((i) => i.kind)).toEqual(['flaky_detected'])
     expect(project.id).toBeDefined()
+  })
+})
+
+describe('workspace and project notices', () => {
+  it('shows a connection notice to those who manage the workspace now, by role, membership and sign-in method', async () => {
+    const { workspace, owner } = await setup()
+    const admin = await seedUser(t.db)
+    const demoted = await seedUser(t.db)
+    const removed = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: admin.id, role: 'admin' })
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: demoted.id, role: 'admin' })
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: removed.id, role: 'admin' })
+    for (const u of [owner, admin, demoted, removed]) {
+      // oxlint-disable-next-line no-await-in-loop -- four people
+      await seedNotification(t.db, {
+        userId: u.id,
+        kind: 'connection_needs_attention',
+        workspaceId: workspace.id,
+        payload: { name: 'Slack' },
+      })
+    }
+    const kinds = async (userId: string, method?: Parameters<typeof listInbox>[1]['method']) =>
+      (await listInbox(t.db, { userId, tab: 'everything', now, ...(method ? { method } : {}) }))
+        .items
+
+    expect(await kinds(admin.id)).toHaveLength(1)
+    expect((await kinds(admin.id))[0]).toMatchObject({ workspace: { slug: workspace.slug } })
+
+    // Demoted to a plain member, and removed from the workspace: the notice is gone for them.
+    await t.db
+      .update(schema.member)
+      .set({ role: 'member' })
+      .where(and(eq(schema.member.userId, demoted.id), eq(schema.member.workspaceId, workspace.id)))
+    await t.db
+      .delete(schema.member)
+      .where(and(eq(schema.member.userId, removed.id), eq(schema.member.workspaceId, workspace.id)))
+    expect(await kinds(demoted.id)).toEqual([])
+    expect(await kinds(removed.id)).toEqual([])
+    expect(await countUnreadNotifications(t.db, { userId: removed.id, now })).toBe(0)
+
+    // A session scoped to another workspace's sign-in can't see this workspace's notice.
+    expect(await kinds(owner.id, { scopedTo: 'another-workspace' })).toEqual([])
+    expect(await kinds(owner.id, { scopedTo: workspace.id })).toHaveLength(1)
+  })
+
+  it('shows a project notice without a build to those who can see the project', async () => {
+    const { project, workspace, owner } = await setup()
+    const outsider = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: outsider.id, projects: [] })
+    for (const u of [owner, outsider]) {
+      // oxlint-disable-next-line no-await-in-loop -- two people
+      await seedNotification(t.db, { userId: u.id, kind: 'flaky_detected', projectId: project.id })
+    }
+    expect((await tab(owner.id, 'everything')).items[0]).toMatchObject({
+      project: { slug: project.slug },
+      workspace: { slug: workspace.slug },
+      build: null,
+    })
+    expect((await tab(outsider.id, 'everything')).items).toEqual([])
   })
 })

@@ -120,7 +120,11 @@ describe('validation', () => {
     await expect(s.setLimits({ gcGraceHours: -1 })).rejects.toThrow('from 0 to')
     await expect(s.setLimits({ defaultProjectRetentionDays: 0 })).rejects.toThrow('from 1 to 3650')
     await expect(s.setLimits({ staticSitesMaxMb: 9000 })).rejects.toThrow('from 1 to 5000')
-    await expect(s.setLimits({ webhookTimeoutSeconds: 601 })).rejects.toThrow('from 1 to 600')
+    await expect(s.setLimits({ webhookTimeoutSeconds: 601 })).rejects.toThrow('from 0.1 to 600')
+    await expect(s.setLimits({ webhookTimeoutSeconds: 0.05 })).rejects.toThrow('from 0.1 to 600')
+    expect(
+      (await s.setLimits({ webhookTimeoutSeconds: 0.1 })).limits.webhookTimeoutSeconds.value,
+    ).toBe(0.1)
     await expect(s.setLimits({ uploadTimeoutMinutes: 1.5 })).rejects.toThrow('whole number')
     const saved = await s.setLimits({
       gcGraceHours: 0,

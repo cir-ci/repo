@@ -11,6 +11,8 @@ import {
 } from '@circi/db/repositories'
 import { integrationRegistry } from '@circi/integrations'
 
+import { notifyFlakyDetected } from '#src/notifications/system-notices.ts'
+
 /**
  * Taking back what a person did to a build's review (the Undo on the toast). Each function runs in
  * `undoAction`'s transaction and throws `ConflictError` when something newer changed the same thing
@@ -36,8 +38,14 @@ export interface BuildReviewUndo {
 const STALE = "Someone changed this review since, so it can't be undone"
 
 export async function undoBuildReview(tx: Database, data: BuildReviewUndo): Promise<void> {
-  const { stale, build, changed } = await restoreSnapshotReviews(tx, data)
+  const addedFlaky: string[] = []
+  const { stale, build, changed } = await restoreSnapshotReviews(tx, data, addedFlaky)
   if (stale) throw new ConflictError(STALE)
+  await notifyFlakyDetected(tx, {
+    projectId: build.projectId,
+    buildId: build.id,
+    names: addedFlaky,
+  })
   await reopenReviewRequests(tx, data.closedRequestIds)
   await deleteNotificationsById(tx, data.noticeIds)
   // The check run, and any webhook, follow the undo as they followed the decision.

@@ -11,6 +11,7 @@ import {
   projects,
   providerDeliveries,
 } from '#schema/index.ts'
+import { type FlaggedConnection, flaggedConnectionColumns } from '#shared/flagged-connection.ts'
 import { workspaceIsLive } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
@@ -50,8 +51,9 @@ export async function unlinkProject(
 
 /**
  * Records that the host no longer accepts this connection (a GitHub installation uninstalled or
- * suspended, a revoked token), on every workspace's connection of that `kind` to it. Keeps the
- * time of the first failure.
+ * suspended, a revoked token), on every workspace's connection of that `kind` to it. A connection
+ * already flagged keeps the time of its first failure and only takes the newer reason. Returns the connections that were working until now (the caller
+ * tells their workspaces once; one that was already flagged is not in the list).
  */
 export async function markInstallationNeedsAttention(
   db: Database,
@@ -59,15 +61,22 @@ export async function markInstallationNeedsAttention(
   externalId: string,
   reason: string,
   now: Date = new Date(),
-): Promise<void> {
-  await db
+): Promise<FlaggedConnection[]> {
+  const which = and(eq(integrations.kind, kind), eq(integrations.externalId, externalId))
+  const flagged = await db
     .update(integrations)
     .set({
       needsAttention: true,
       needsAttentionReason: reason,
-      needsAttentionAt: sql`coalesce(${integrations.needsAttentionAt}, ${now.toISOString()}::timestamptz)`,
+      needsAttentionAt: now,
     })
-    .where(and(eq(integrations.kind, kind), eq(integrations.externalId, externalId)))
+    .where(and(which, eq(integrations.needsAttention, false)))
+    .returning(flaggedConnectionColumns)
+  await db
+    .update(integrations)
+    .set({ needsAttentionReason: reason })
+    .where(and(which, eq(integrations.needsAttention, true)))
+  return flagged
 }
 
 /** Clears the state above, after a call to the host succeeded. */

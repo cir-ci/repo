@@ -1,12 +1,14 @@
 import { isIntegrationEvent, type IntegrationEvent } from '@circi/core'
 import { openSecret } from '@circi/core/node'
 import { type Database, type Job } from '@circi/db'
-import { getIntegrationSendData, setIntegrationAttention } from '@circi/db/repositories'
+import { getIntegrationSendData } from '@circi/db/repositories'
 import {
   type IntegrationDefinition,
   integrationRegistry,
   mappingHandles,
 } from '@circi/integrations'
+
+import { flagIntegrationAttention } from '#src/notifications/system-notices.ts'
 
 /**
  * The `integration-event` job: one domain event for one integration (queued by
@@ -78,7 +80,7 @@ export async function integrationEvent(
     : undefined
   if (!credentials) {
     const reason = `The ${definition.name} credentials can't be read; connect it again`
-    await deps.db.transaction((tx) => setIntegrationAttention(tx, data.integration.id, reason))
+    await deps.db.transaction((tx) => flagIntegrationAttention(tx, data.integration.id, reason))
     return { status: 'needs-attention', reason }
   }
 
@@ -102,7 +104,7 @@ export async function integrationEvent(
   } catch (err) {
     const reason = definition.needsAttention(err)
     if (reason) {
-      await deps.db.transaction((tx) => setIntegrationAttention(tx, data.integration.id, reason))
+      await deps.db.transaction((tx) => flagIntegrationAttention(tx, data.integration.id, reason))
       return { status: 'needs-attention', reason }
     }
     throw err

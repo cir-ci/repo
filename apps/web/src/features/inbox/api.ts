@@ -73,12 +73,33 @@ function triageAssignedDetail(payload: Record<string, unknown>): string | undefi
   return count > 1 ? `${label} and ${count - 1} more` : label
 }
 
+/** "Acme Slack: the token was revoked": which connection, and why. */
+function connectionDetail(
+  payload: Record<string, unknown>,
+  workspace: { name: string } | null,
+): string | undefined {
+  const name = text(payload['name'])
+  const reason = text(payload['reason'])
+  const which = [workspace?.name, name].filter(Boolean).join(' · ')
+  return which && reason ? `${which}: ${reason}` : which || reason || undefined
+}
+
+/** "Checkout and 2 more": the screenshots that just turned flaky. */
+function flakyDetail(payload: Record<string, unknown>): string | undefined {
+  const first = text(payload['name'])
+  if (!first) return undefined
+  const count = typeof payload['count'] === 'number' ? payload['count'] : 1
+  return count > 1 ? `${first} and ${count - 1} more` : first
+}
+
 /** What the words of a notification need: an inbox row has all of it, and so has a search result. */
 export interface NotificationWords {
   kind: NotificationKind
   actor: { name: string } | null
   build: { number: number } | null
   project: { name: string } | null
+  /** Which workspace, for notices that name a connection (two workspaces may both have a "Slack"). */
+  workspace?: { name: string } | null
   payload: Record<string, unknown>
 }
 
@@ -108,10 +129,12 @@ export function notificationText(item: NotificationWords): { title: string; deta
           : `Your review of${build} is overdue`,
     },
     connection_needs_attention: {
-      title: `${item.project?.name ?? 'A project'}'s git connection needs attention`,
+      title: 'Connection needs attention',
+      detail: connectionDetail(item.payload, item.workspace ?? null),
     },
     flaky_detected: {
       title: `Flaky screenshot found${item.project ? ` in ${item.project.name}` : ''}`,
+      detail: flakyDetail(item.payload),
     },
     triage_assigned: {
       title: 'Assigned to you as the person on triage',
@@ -236,7 +259,6 @@ export function notificationGlyph(kind: NotificationKind): Status | undefined {
 /** What the Open button says: the review, the thread, the build, or (without a build) the project. */
 export function openLabel(item: Inbox.Item): string {
   if (item.kind === 'mentioned') return 'Open thread'
-  if (item.kind === 'connection_needs_attention') return 'Open project'
   if (item.kind === 'review_requested' || item.kind === 'review_re_requested') return 'Open review'
   if (item.kind === 'review_overdue') return 'Open review'
   return item.build ? 'Open build' : 'Open project'
@@ -244,7 +266,7 @@ export function openLabel(item: Inbox.Item): string {
 
 /** The sentence after the title in the pane for notices that say something beyond who did what. */
 export function systemText(item: Inbox.Item): string | undefined {
-  if (item.kind === 'connection_needs_attention') {
+  if (item.kind === 'connection_needs_attention' && item.payload['git'] === true) {
     return "Pull requests may no longer wait for visual review until it's reconnected."
   }
   if (item.kind === 'flaky_detected') {

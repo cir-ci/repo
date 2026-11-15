@@ -8,6 +8,8 @@ export namespace seedNotification {
     userId: string
     kind?: Notification['kind']
     buildId?: string | null
+    projectId?: string | null
+    workspaceId?: string | null
     actorId?: string | null
     payload?: Record<string, unknown>
     readAt?: Date | null
@@ -28,6 +30,8 @@ export async function seedNotification(
       userId: input.userId,
       kind: input.kind ?? 'review_requested',
       buildId: input.buildId ?? null,
+      projectId: input.projectId ?? null,
+      workspaceId: input.workspaceId ?? null,
       actorId: input.actorId ?? null,
       payload: input.payload ?? {},
       readAt: input.readAt ?? null,

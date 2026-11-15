@@ -1,6 +1,6 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import type { InstanceAdmin } from '@circi/api'
 import { createUser, type Mailer } from '@circi/auth'
@@ -19,6 +19,7 @@ import { instanceProbes } from '#composition/doctor-probes.ts'
 import { runDoctor } from '#composition/doctor.ts'
 import { instanceEnvOf } from '#composition/instance-env.ts'
 import { buildServer } from '#http/app.ts'
+import { hidePath } from '#http/routes/dashboard/instance/health.ts'
 import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
@@ -371,6 +372,37 @@ const checklist = async () =>
     await asAdmin('GET', '/api/instance/health/address-checklist')
   ).json<InstanceAdmin.AddressChecklist>()
 
+describe('hidePath', () => {
+  it('keeps only the last folder, wherever the text names the path', () => {
+    expect(hidePath('/srv/circi/data · 3 GB free', '/srv/circi/data/')).toBe('…/data · 3 GB free')
+    expect(hidePath(null, '/srv/circi/data')).toBeNull()
+    expect(hidePath('ENOENT /srv/circi/data/x', undefined)).toBe('ENOENT /srv/circi/data/x')
+  })
+
+  it('matches whole path segments only', () => {
+    expect(
+      hidePath('/srv/data-old and /srv/data/x and /srv/data2 and /a/srv/data', '/srv/data'),
+    ).toBe('/srv/data-old and …/data/x and /srv/data2 and /a/srv/data')
+  })
+
+  it('also hides the resolved real path, which disk errors name', async () => {
+    const real = await mkdtemp(join(tmpdir(), 'circi-real-'))
+    const link = `${real}-link`
+    await symlink(real, link)
+    try {
+      const text = `ENOENT: no such file, open '${await realpath(link)}/x' (${link})`
+      const hidden = hidePath(text, link)
+      expect(hidden).not.toContain(real)
+      expect(hidden).toBe(
+        `ENOENT: no such file, open '…/${basename(link)}/x' (…/${basename(link)})`,
+      )
+    } finally {
+      await rm(link, { force: true })
+      await rm(real, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('health', () => {
   it('runs the same doctor checks as the CLI', async () => {
     const res = await asAdmin('GET', '/api/instance/health/checks')
@@ -406,8 +438,10 @@ describe('health', () => {
       level: 'ok',
       label: 'Storage',
       detail: 'Reachable and writable.',
-      value: config.storage.driver === 'fs' ? config.storage.path : undefined,
+      value: config.storage.driver === 'fs' ? `…/${basename(config.storage.path)}` : undefined,
     })
+    // No finding names the server's folder, in any field.
+    expect(JSON.stringify(body)).not.toContain(dir)
     // The mail server accepts nothing here (the fake mailer has no `verify`): a note, with the server as value.
     expect(by['mail']).toMatchObject({ label: 'Mail', value: 'smtp.acme.test:587' })
   })

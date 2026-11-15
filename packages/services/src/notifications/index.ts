@@ -10,3 +10,9 @@ export {
   unsnoozeNotification,
   updateNotificationPreferences,
 } from './notifications.ts'
+export {
+  flagInstallationAttention,
+  flagIntegrationAttention,
+  notifyConnectionNeedsAttention,
+  notifyFlakyDetected,
+} from './system-notices.ts'

@@ -61,6 +61,8 @@ export async function createNotification(
       userId: input.userId,
       kind: input.kind,
       buildId: input.buildId ?? null,
+      projectId: input.projectId ?? null,
+      workspaceId: input.workspaceId ?? null,
       actorId: input.actorId ?? null,
       payload: input.payload ?? {},
     })
@@ -73,6 +75,10 @@ export namespace createNotification {
     userId: string
     kind: NotificationKind
     buildId?: string | null
+    /** For a notice about a project without a build. */
+    projectId?: string | null
+    /** For a notice about a workspace (no build, no project). */
+    workspaceId?: string | null
     actorId?: string | null
     payload?: Record<string, unknown>
   }

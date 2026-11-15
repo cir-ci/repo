@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { type WorkspaceIntegration } from '#queries/workspace-integrations.ts'
 import { integrationProjects, integrations, projects } from '#schema/index.ts'
+import { type FlaggedConnection, flaggedConnectionColumns } from '#shared/flagged-connection.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
@@ -61,24 +62,40 @@ export async function deleteIntegration(
   return rows.length > 0
 }
 
-/** Flags (or, with `reason` null, clears) that CirCI can't use the integration. */
+/**
+ * Flags (or, with `reason` null, clears) that CirCI can't use the integration. Returns the
+ * connection when it just went from working to flagged (undefined otherwise), so the caller can
+ * tell people once per failure.
+ */
 export async function setIntegrationAttention(
   db: Database,
   integrationId: string,
   reason: string | null,
-): Promise<void> {
-  await db
+): Promise<FlaggedConnection | undefined> {
+  if (reason === null) {
+    await db
+      .update(integrations)
+      .set({ needsAttention: false, needsAttentionReason: null, needsAttentionAt: null })
+      .where(eq(integrations.id, integrationId))
+    return undefined
+  }
+  const first = await db
     .update(integrations)
     .set({
-      needsAttention: reason !== null,
+      needsAttention: true,
       needsAttentionReason: reason,
-      // The time of the first failure is kept while it keeps failing.
-      needsAttentionAt:
-        reason === null ? null : sql`coalesce(${integrations.needsAttentionAt}, now())`,
+      needsAttentionAt: sql`now()`,
     })
+    .where(and(eq(integrations.id, integrationId), eq(integrations.needsAttention, false)))
+    .returning(flaggedConnectionColumns)
+  if (first[0]) return first[0]
+  // Already flagged: the time of the first failure stays, the reason may be newer.
+  await db
+    .update(integrations)
+    .set({ needsAttentionReason: reason })
     .where(eq(integrations.id, integrationId))
+  return undefined
 }
-
 /** Points a project at something in the integration (a channel, project, file); replaces any earlier mapping. */
 export async function setIntegrationProject(
   db: Database,

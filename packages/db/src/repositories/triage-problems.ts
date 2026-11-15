@@ -18,20 +18,24 @@ const CHUNK = 5000
  * the rows that differ (and, with `branch`, does nothing for a branch that isn't the default),
  * and runs one project at a time (an advisory lock held to the end of the
  * transaction), so two writers can't leave an older answer behind a newer one.
+ *
+ * Returns the names of the screenshots that entered the flaky list in this call, decided under
+ * that lock, so each is reported exactly once even when two builds finish together. Data only:
+ * telling people is the calling service's job (`notifyFlakyDetected`).
  */
 export async function refreshTriageProblems(
   db: Database,
   projectId: string,
   options: { branch?: string | null } = {},
-): Promise<void> {
-  await db.transaction(async (tx) => {
+): Promise<string[]> {
+  return db.transaction(async (tx) => {
     // A build on another branch can't change the queue.
     if (options.branch !== undefined) {
       const [row] = await tx
         .select({ defaultBranch: projects.defaultBranch })
         .from(projects)
         .where(eq(projects.id, projectId))
-      if (row?.defaultBranch !== options.branch) return
+      if (row?.defaultBranch !== options.branch) return []
     }
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`triage:${projectId}`}, 0))`,
@@ -44,7 +48,7 @@ export async function refreshTriageProblems(
       })
       .from(projects)
       .where(eq(projects.id, projectId))
-    if (!project) return
+    if (!project) return []
     const wanted = await findTriageProblems(tx, project)
     const stored = await tx
       .select({ kind: triageProblems.kind, key: triageProblems.key })
@@ -76,6 +80,7 @@ export async function refreshTriageProblems(
         .values(toAdd.slice(i, i + CHUNK).map((p) => ({ projectId, kind: p.kind, key: p.key })))
         .onConflictDoNothing()
     }
+    return toAdd.filter((p) => p.kind === 'flaky').map((p) => p.key)
   })
 }
 

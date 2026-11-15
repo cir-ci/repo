@@ -34,6 +34,7 @@ import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
 import { notify } from '#src/notifications/notifications.ts'
+import { notifyFlakyDetected } from '#src/notifications/system-notices.ts'
 import { type UndoToken, recordUndo } from '#src/undo/record.ts'
 
 import type { BuildReviewUndo, RequestReviewUndo, RequestSnoozeUndo } from './undo.ts'
@@ -75,12 +76,18 @@ async function decideSnapshots(
 ): Promise<{ build: Build; undo: UndoToken | null }> {
   const { reason, userId, ...decision } = input
   await assertRejectReason(tx, input)
-  const recorded = await recordSnapshotReviews(tx, {
-    ...decision,
-    userId,
-    ...(reason ? { reason } : {}),
-  })
+  const addedFlaky: string[] = []
+  const recorded = await recordSnapshotReviews(
+    tx,
+    { ...decision, userId, ...(reason ? { reason } : {}) },
+    addedFlaky,
+  )
   const { build, changed, decided, reasons, reviewerName } = recorded
+  await notifyFlakyDetected(tx, {
+    projectId: build.projectId,
+    buildId: build.id,
+    names: addedFlaky,
+  })
   const closedRequestIds: string[] = []
   const noticeIds: string[] = []
   if (build.reviewStatus !== 'pending') {

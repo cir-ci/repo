@@ -44,11 +44,15 @@ function* chunks<T>(items: T[], size: number): Generator<T[]> {
 export async function recordSnapshotReviews(
   db: Database,
   input: recordSnapshotReviews.Input,
+  addedFlaky?: string[],
 ): Promise<recordSnapshotReviews.Result> {
   return db.transaction(async (tx) => {
     const result = await decideSnapshots(tx, input)
     // The queue's no-baseline problems depend on what is approved.
-    await refreshTriageProblems(tx, result.build.projectId, { branch: result.build.branch })
+    const added = await refreshTriageProblems(tx, result.build.projectId, {
+      branch: result.build.branch,
+    })
+    addedFlaky?.push(...added)
     return result
   })
 }
@@ -456,11 +460,15 @@ export async function getBuildReviewSummary(
 export async function restoreSnapshotReviews(
   db: Database,
   input: restoreSnapshotReviews.Input,
+  addedFlaky?: string[],
 ): Promise<restoreSnapshotReviews.Result> {
   return db.transaction(async (tx) => {
     const result = await restoreDecisions(tx, input)
     if (!result.stale) {
-      await refreshTriageProblems(tx, result.build.projectId, { branch: result.build.branch })
+      const added = await refreshTriageProblems(tx, result.build.projectId, {
+        branch: result.build.branch,
+      })
+      addedFlaky?.push(...added)
     }
     return result
   })

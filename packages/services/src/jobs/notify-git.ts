@@ -7,7 +7,6 @@ import {
   getGitTarget,
   getPrCommentId,
   clearInstallationNeedsAttention,
-  markInstallationNeedsAttention,
   setCheckRunId,
   setPrCommentId,
 } from '@circi/db/queue'
@@ -23,6 +22,7 @@ import {
 } from '@circi/integrations/git'
 
 import { gateInputs } from '#src/builds/gate.ts'
+import { flagInstallationAttention } from '#src/notifications/system-notices.ts'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
 
@@ -106,7 +106,11 @@ export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyG
     // and finish the job; the next build's job tries again, and clears the state once the host
     // answers.
     await deps.db.transaction((tx) =>
-      markInstallationNeedsAttention(tx, first.kind, first.installationId, reason),
+      flagInstallationAttention(tx, {
+        kind: first.kind,
+        installationId: first.installationId,
+        reason,
+      }),
     )
     return {
       status: 'skipped',

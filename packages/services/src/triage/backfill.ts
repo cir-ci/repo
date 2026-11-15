@@ -17,6 +17,8 @@ export async function backfillTriageProblems(db: Database): Promise<number> {
   if ((await getSetting(db, TRIAGE_PROBLEMS_BACKFILLED_KEY)) !== undefined) return 0
   const ids = await listProjectIds(db)
   for (const projectId of ids) {
+    // The names it returns are not announced: this fills the table for history that predates it,
+    // and announcing every screenshot already flaky would flood each project's members at upgrade.
     // oxlint-disable-next-line no-await-in-loop -- one project at a time keeps each lock short
     await refreshTriageProblems(db, projectId)
   }

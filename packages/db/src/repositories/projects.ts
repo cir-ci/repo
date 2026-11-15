@@ -139,6 +139,7 @@ export async function updateProjectSettings(
   db: Database,
   projectId: string,
   patch: Partial<projectSettings.Settings>,
+  addedFlaky?: string[],
 ): Promise<projectSettings.Settings> {
   const set: Partial<projectSettings.Settings> = {}
   if (patch.name !== undefined) {
@@ -224,7 +225,8 @@ export async function updateProjectSettings(
     assertFound(row, 'Project not found')
     // The queue's problems follow the default branch and the flaky threshold.
     if (set.defaultBranch !== undefined || set.flakyAfterChanges !== undefined) {
-      await refreshTriageProblems(db, projectId)
+      const added = await refreshTriageProblems(db, projectId)
+      addedFlaky?.push(...added)
     }
     return projectSettings(row)
   } catch (err) {

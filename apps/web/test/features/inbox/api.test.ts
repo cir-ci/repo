@@ -9,6 +9,7 @@ import {
   notificationTarget,
   notificationText,
   openLabel,
+  systemText,
   replyTarget,
   snoozeBody,
   validateInboxSearch,
@@ -39,6 +40,8 @@ const item = (over: Partial<Inbox.Item> = {}): Inbox.Item => ({
   ...over,
 })
 
+const connectionText = (git: boolean) =>
+  systemText(item({ kind: 'connection_needs_attention', build: null, payload: { git } }))
 const title = (kind: Inbox.Item['kind'], over: Partial<Inbox.Item> = {}) =>
   notificationText(item({ kind, ...over })).title
 
@@ -50,12 +53,31 @@ describe('notificationText', () => {
     expect(title('build_approved')).toBe('Ada approved build #12')
     expect(title('build_rejected')).toBe('Ada rejected build #12')
     expect(title('review_overdue', { actor: null })).toBe('Your review of build #12 is overdue')
-    expect(title('connection_needs_attention', { build: null })).toBe(
-      "Web's git connection needs attention",
-    )
+    expect(title('connection_needs_attention', { build: null })).toBe('Connection needs attention')
     expect(title('flaky_detected', { build: null, actor: null })).toBe(
       'Flaky screenshot found in Web',
     )
+  })
+
+  it('says which connection needs attention and which screenshots turned flaky', () => {
+    const connection = notificationText(
+      item({
+        kind: 'connection_needs_attention',
+        build: null,
+        actor: null,
+        workspace: { slug: 'acme', name: 'Acme Inc' },
+        payload: { name: 'Slack', integrationKind: 'slack', reason: 'The token was revoked' },
+      }),
+    )
+    expect(connection).toEqual({
+      title: 'Connection needs attention',
+      detail: 'Acme Inc · Slack: The token was revoked',
+    })
+    const flaky = (payload: Record<string, unknown>) =>
+      notificationText(item({ kind: 'flaky_detected', actor: null, payload })).detail
+    expect(flaky({ name: 'Checkout', count: 1 })).toBe('Checkout')
+    expect(flaky({ name: 'Checkout', count: 3 })).toBe('Checkout and 2 more')
+    expect(flaky({})).toBeUndefined()
   })
 
   it('shows the rejection reason and the mention snippet, not blanks', () => {
@@ -164,6 +186,11 @@ describe('the pane', () => {
     expect(openLabel(item({ kind: 'connection_needs_attention', build: null }))).toBe(
       'Open project',
     )
+  })
+
+  it('words the pull request warning only for git connections, as the server says', () => {
+    expect(connectionText(true)).toContain('Pull requests')
+    expect(connectionText(false)).toBeUndefined()
   })
 
   it('counts the Snoozed tab only when something is snoozed', () => {
