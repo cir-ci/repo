@@ -15,7 +15,38 @@
 .item {
   display: inline-flex;
   align-items: center;
+  /* A crumb is never squeezed: the trail collapses whole crumbs into a menu instead. */
+  flex: none;
   min-width: 0;
+}
+
+/* The current crumb is the one that may be cut, and only when nothing is left to collapse. */
+.item[data-current] {
+  flex: 0 1 auto;
+}
+
+/* The "…" that opens the collapsed crumbs: a 24px target. */
+.more {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--circi-radius-inline);
+  background: none;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.more:hover,
+.more[data-popup-open] {
+  color: var(--circi-text-primary);
+  background: var(--circi-action-hover);
+}
+
+.more:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
 }
 
 /* Decorative chevron between crumbs, hidden from the accessibility tree. */

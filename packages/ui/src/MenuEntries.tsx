@@ -90,32 +90,47 @@ export function MenuEntries({ items }: { items: ReadonlyArray<Menu.Entry> }) {
         ))}
       </BaseMenu.RadioGroup>
     ) : (
-      <BaseMenu.Item
-        key={key}
-        className={styles.item}
-        data-tone={entry.tone}
-        disabled={entry.disabled}
-        aria-keyshortcuts={entry.shortcut}
-        aria-current={entry.current ? 'true' : undefined}
-        onClick={entry.onSelect}
-      >
-        {entry.icon ? (
-          <span className={styles.icon} aria-hidden="true">
-            {entry.icon}
-          </span>
-        ) : null}
-        <span className={styles.label}>{entry.label}</span>
-        {entry.trailing ? (
-          <span className={styles.trailing} aria-hidden="true">
-            {entry.trailing}
-          </span>
-        ) : null}
-        {entry.shortcut ? (
-          <kbd className={styles.shortcut} aria-hidden="true">
-            {entry.shortcut}
-          </kbd>
-        ) : null}
-      </BaseMenu.Item>
+      <ItemEntry key={key} entry={entry} />
     ),
+  )
+}
+
+/** A plain item, or with `href` a link item (an anchor: open in a new tab, copy the address). */
+function ItemEntry({ entry }: { entry: Menu.Item }) {
+  const content = (
+    <>
+      {entry.icon ? (
+        <span className={styles.icon} aria-hidden="true">
+          {entry.icon}
+        </span>
+      ) : null}
+      <span className={styles.label}>{entry.label}</span>
+      {entry.trailing ? (
+        <span className={styles.trailing} aria-hidden="true">
+          {entry.trailing}
+        </span>
+      ) : null}
+      {entry.shortcut ? (
+        <kbd className={styles.shortcut} aria-hidden="true">
+          {entry.shortcut}
+        </kbd>
+      ) : null}
+    </>
+  )
+  const common = {
+    className: styles.item,
+    'data-tone': entry.tone,
+    disabled: entry.disabled,
+    'aria-keyshortcuts': entry.shortcut,
+    'aria-current': entry.current ? ('true' as const) : undefined,
+  }
+  return entry.href === undefined ? (
+    <BaseMenu.Item {...common} onClick={entry.onSelect}>
+      {content}
+    </BaseMenu.Item>
+  ) : (
+    <BaseMenu.LinkItem {...common} href={entry.href} onClick={entry.onLinkClick}>
+      {content}
+    </BaseMenu.LinkItem>
   )
 }

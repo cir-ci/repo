@@ -1,5 +1,5 @@
 import { Menu as BaseMenu } from '@base-ui/react/menu'
-import type { ReactElement, ReactNode } from 'react'
+import type { MouseEventHandler, ReactElement, ReactNode } from 'react'
 
 import { cx } from './cx.ts'
 import { MenuEntries } from './MenuEntries.tsx'
@@ -42,6 +42,9 @@ export namespace Menu {
     type?: 'item'
     label: string
     onSelect?: () => void
+    /** Makes the item a link (an anchor); `onLinkClick` can route it client-side (`preventDefault()`). */
+    href?: string
+    onLinkClick?: MouseEventHandler<HTMLElement>
     /** An icon before the label: 16px in `sm`, 18px at stroke 2 in `md`. */
     icon?: ReactNode
     /** Shortcut text shown on the right ("⌘K"); hidden from the item's name, exposed as `aria-keyshortcuts`. */

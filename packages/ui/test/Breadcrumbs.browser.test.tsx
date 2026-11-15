@@ -96,4 +96,45 @@ describe('Breadcrumbs', () => {
       .toBe(true)
     await expect.element(page.getByText('Workspace: opens the Inbox')).toBeVisible()
   })
+
+  it('collapses the earlier crumbs into a "…" menu of links when the room is narrow', async () => {
+    await render(
+      <div style={{ width: 200, display: 'flex' }}>
+        <Breadcrumbs
+          items={[
+            { label: 'Acme', href: '/a' },
+            { label: 'Settings', href: '/a/s' },
+            { label: 'Projects', href: '/a/s/p' },
+            { label: 'Web app', href: '/a/s/p/w' },
+            { label: 'Review rules' },
+          ]}
+        />
+      </div>,
+    )
+    const nav = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect
+      .element(nav.getByRole('heading', { name: 'Review rules' }).or(nav.getByText('Review rules')))
+      .toBeVisible()
+    const current = nav.getByText('Review rules').element()
+    expect(current.scrollWidth).toBeLessThanOrEqual(current.clientWidth)
+    const more = nav.getByRole('button', { name: 'Earlier pages' })
+    await expect.element(more).toBeVisible()
+    // No crumb is squeezed below its text, and the trail stays inside its room.
+    for (const el of nav.getByRole('listitem').elements()) {
+      expect(el.getBoundingClientRect().width).toBeGreaterThanOrEqual(24)
+    }
+    expect(nav.element().scrollWidth).toBeLessThanOrEqual(nav.element().clientWidth + 1)
+    await more.click()
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Web app' }))
+      .toHaveAttribute('href', '/a/s/p/w')
+    await expect.element(page.getByRole('menuitem', { name: 'Settings' })).toBeVisible()
+  })
+
+  it('keeps every crumb when they fit', async () => {
+    await render(<Breadcrumbs items={ITEMS} />)
+    await expect
+      .element(page.getByRole('button', { name: 'Earlier pages' }))
+      .not.toBeInTheDocument()
+  })
 })

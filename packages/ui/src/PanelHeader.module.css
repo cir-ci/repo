@@ -66,6 +66,15 @@
     flex-wrap: nowrap;
   }
 
+  /* The spacer would cost a second 8px gap; the actions push themselves to the right instead. */
+  .root > .spacer {
+    display: none;
+  }
+
+  .root > .actions {
+    margin-left: auto;
+  }
+
   .root > :not(.actions, .spacer) {
     flex: 0 1 auto;
     min-width: 0;

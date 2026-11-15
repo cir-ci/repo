@@ -86,6 +86,51 @@ describe('PageHeading on a phone', () => {
   })
 })
 
+describe('PageHeading with a long trail at 390px', () => {
+  const trail = [
+    workspaceCrumb({ slug: 'acme', name: 'Acme' }),
+    { label: 'Settings' },
+    { label: 'Projects' },
+    projectCrumb('acme', { slug: 'api', name: 'API' }),
+  ]
+
+  it.each([
+    ['Review rules', undefined],
+    ['Build #97', <span key="s">Needs review</span>],
+  ])('keeps "%s" whole, the crumbs apart and the buttons in place', async (title, status) => {
+    await renderPage(
+      <PageHeading
+        crumbs={trail}
+        title={title}
+        status={status}
+        actions={<button type="button">Add rule</button>}
+      />,
+      { viewport: [390, 844] },
+    )
+    const nav = page.getByRole('navigation', { name: 'Breadcrumb' })
+    const current = nav.getByRole('heading', { name: title }).element()
+    await expect.element(nav.getByRole('heading', { name: title })).toBeVisible()
+    expect(current.scrollWidth).toBeLessThanOrEqual(current.clientWidth)
+    const crumbs = nav.getByRole('listitem').elements()
+    for (const el of crumbs) expect(el.getBoundingClientRect().width).toBeGreaterThanOrEqual(24)
+    // Side by side, in order, none over another.
+    const gaps = crumbs
+      .slice(1)
+      .map(
+        (el, i) =>
+          el.getBoundingClientRect().left - (crumbs[i]?.getBoundingClientRect().right ?? 0),
+      )
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(-1)
+    // The earlier crumbs are still reachable.
+    await expect.element(nav.getByRole('button', { name: 'Earlier pages' })).toBeVisible()
+    const trailEnd = nav.element().getBoundingClientRect().right
+    const add = page.getByRole('button', { name: 'Add rule' })
+    await expect.element(add).toBeVisible()
+    expect(add.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(trailEnd)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+  })
+})
+
 function buildHeading() {
   return (
     <AppFrame sidebar={<span>Side</span>} compactBar={<span>Bar</span>}>
