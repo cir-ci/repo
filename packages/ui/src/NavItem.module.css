@@ -4,6 +4,8 @@
   justify-content: flex-start;
   gap: 10px;
   box-sizing: border-box;
+  /* Never squeezed by a short sidebar column: the sidebar scrolls instead. */
+  flex-shrink: 0;
   height: 32px;
   padding: 0 10px;
   border: 0;
