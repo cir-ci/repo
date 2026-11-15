@@ -10,7 +10,7 @@ import {
   TextField,
 } from '@circi/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { type FormEvent, useDeferredValue, useState } from 'react'
+import { type FormEvent, type ReactNode, useDeferredValue, useState } from 'react'
 
 import { workspaceQuery } from '#features/members/api.ts'
 import { branchesQuery, suggestionsQuery } from '#features/projects/api/index.ts'
@@ -30,6 +30,7 @@ import {
   withBranch,
   withState,
   withText,
+  suggestionChoices,
   without,
 } from './builds-filters.ts'
 import {
@@ -81,7 +82,7 @@ export function BuildFilterBar({
                 <Button
                   variant="filter"
                   size="sm"
-                  pressed={active}
+                  active={active}
                   aria-keyshortcuts={field === 'status' ? 'f' : undefined}
                 >
                   {chipName(field, filters, labels)}
@@ -227,34 +228,92 @@ function TextEditor({
   const currentName = current === undefined ? undefined : fieldValue(field, filters, labels)
   const [text, setText] = useState(currentName === PENDING_NAME ? '' : (currentName ?? ''))
   const label = FILTER_FIELDS.find((f) => f.field === field)?.label ?? field
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    // Unchanged text is still the person already filtered by, not their name as free text.
-    onChange(withText(filters, field, text === currentName && current ? current : text))
+  // Unchanged text is still the person already filtered by, not their name as free text.
+  const apply = (value: string) =>
+    onChange(withText(filters, field, value === currentName && current ? current : value))
+  if (field === 'author' || field === 'reviewer') {
+    return (
+      <PersonEditor
+        workspace={workspace}
+        field={field}
+        label={label}
+        text={text}
+        onTextChange={setText}
+        onApply={apply}
+        onPick={(value) => onChange(withText(filters, field, value))}
+      />
+    )
   }
   return (
-    <form onSubmit={submit} className={styles.form}>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        apply(text)
+      }}
+      className={styles.form}
+    >
       <TextField label={label} value={text} autoFocus onChange={(e) => setText(e.target.value)} />
       <Button type="submit" size="sm" variant="primary">
         Apply
       </Button>
-      {field === 'author' || field === 'reviewer' ? (
-        <Suggestions
-          workspace={workspace}
-          field={field}
-          text={text}
-          onPick={(value) => onChange(withText(filters, field, value))}
-        />
-      ) : null}
+    </form>
+  )
+}
+
+/**
+ * The typeahead both pickers share: a field that suggests while you type (the caller narrows
+ * `items`), arrow keys and Enter on a highlighted suggestion pick it, Enter with none highlighted
+ * applies the text, and Apply does the same. It is the `Autocomplete` wrapper in a form.
+ */
+function TypeaheadForm({
+  label,
+  listLabel,
+  text,
+  onTextChange,
+  items,
+  emptyText,
+  onPick,
+  onApply,
+}: {
+  label: string
+  listLabel: string
+  text: string
+  onTextChange: (text: string) => void
+  items: readonly string[]
+  emptyText?: ReactNode
+  onPick: (item: string) => void
+  onApply: () => void
+}) {
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        onApply()
+      }}
+      className={styles.form}
+    >
+      <Autocomplete
+        label={label}
+        value={text}
+        autoFocus
+        onValueChange={onTextChange}
+        items={items}
+        onPick={onPick}
+        listLabel={listLabel}
+        {...(emptyText ? { emptyText } : {})}
+      />
+      <Button type="submit" size="sm" variant="primary">
+        Apply
+      </Button>
     </form>
   )
 }
 
 /**
  * The Branch chip's picker, like GitHub's branch select: the branches builds were made on, most
- * recent first, narrowed as you type (the server matches any part of the name, in any case),
- * with arrow keys and Enter. Picking one filters to exactly that branch; text that is not a
- * branch filters by branches that contain it.
+ * recent first, narrowed as you type (the server matches any part of the name, in any case).
+ * Picking one filters to exactly that branch; text that is not a branch filters by branches that
+ * contain it.
  */
 function BranchEditor({
   workspace,
@@ -275,62 +334,59 @@ function BranchEditor({
   })
   const names = (data?.branches ?? []).map((b) => b.name)
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault()
-        onChange(withBranch(filters, text, { known: names }))
-      }}
-      className={styles.form}
-    >
-      <Autocomplete
-        label="Branch"
-        value={text}
-        autoFocus
-        onValueChange={setText}
-        items={names}
-        onPick={(name) => onChange(withBranch(filters, name, { picked: true }))}
-        listLabel="Branches"
-        emptyText={
-          data
-            ? text.trim()
-              ? `No branch matches “${text.trim()}”. Press Enter to filter by name.`
-              : 'No branches yet.'
-            : 'Loading branches'
-        }
-      />
-      <Button type="submit" size="sm" variant="primary">
-        Apply
-      </Button>
-    </form>
+    <TypeaheadForm
+      label="Branch"
+      listLabel="Branches"
+      text={text}
+      onTextChange={setText}
+      items={names}
+      onPick={(name) => onChange(withBranch(filters, name, { picked: true }))}
+      onApply={() => onChange(withBranch(filters, text, { known: names }))}
+      emptyText={
+        data
+          ? text.trim()
+            ? `No branch matches “${text.trim()}”. Press Enter to filter by name.`
+            : 'No branches yet.'
+          : 'Loading branches'
+      }
+    />
   )
 }
 
-/** Typeahead for the author and reviewer chips: the workspace's members, narrowed as you type. */
-function Suggestions({
+/** The author and reviewer pickers: the workspace's members and the logins seen, narrowed as you type. */
+function PersonEditor({
   workspace,
   field,
+  label,
   text,
+  onTextChange,
+  onApply,
   onPick,
 }: {
   workspace: string
   field: 'author' | 'reviewer'
+  label: string
   text: string
+  onTextChange: (text: string) => void
+  onApply: (text: string) => void
   onPick: (value: string) => void
 }) {
   const typed = useDeferredValue(text.trim())
   const { data } = useQuery(suggestionsQuery(workspace, field, typed))
-  const items = data?.suggestions ?? []
-  if (items.length === 0) return null
+  const choices = suggestionChoices(data?.suggestions ?? [])
   return (
-    <ul aria-label="Suggestions" className={styles.suggestions}>
-      {items.map((s) => (
-        <li key={`${s.kind}:${s.value}`}>
-          <Button size="sm" variant="ghost" onClick={() => onPick(s.value)}>
-            {s.label}
-          </Button>
-        </li>
-      ))}
-    </ul>
+    <TypeaheadForm
+      label={label}
+      listLabel="Suggestions"
+      text={text}
+      onTextChange={onTextChange}
+      items={choices.map((c) => c.label)}
+      onPick={(picked) => {
+        const choice = choices.find((c) => c.label === picked)
+        if (choice) onPick(choice.value)
+      }}
+      onApply={() => onApply(text)}
+    />
   )
 }
 

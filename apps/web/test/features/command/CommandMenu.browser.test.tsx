@@ -17,6 +17,8 @@ import { sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { openDialogs, toastNamed, toasts } from '#test/support/toast.ts'
 
+const optionElements = () => page.getByRole('option').elements()
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -453,6 +455,28 @@ describe('typing', () => {
     await expect.element(peek.getByText('Needs review. Awaiting review.')).toBeVisible()
     await userEvent.keyboard('{ArrowUp}')
     await expect.element(buildRow).not.toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('Home and End jump to the ends of the list while the field is empty, and PageDown moves a page', async () => {
+    api()
+    await show()
+    await openMenu()
+    await expect.poll(() => optionElements().length).toBeGreaterThan(3)
+    const selectedIndex = () =>
+      optionElements().findIndex((o) => o.getAttribute('aria-selected') === 'true')
+    await userEvent.keyboard('{End}')
+    await expect.poll(selectedIndex).toBe(optionElements().length - 1)
+    await userEvent.keyboard('{Home}')
+    await expect.poll(selectedIndex).toBe(0)
+    await userEvent.keyboard('{PageDown}')
+    await expect.poll(selectedIndex).toBe(Math.min(8, optionElements().length - 1))
+    await userEvent.keyboard('{PageUp}')
+    await expect.poll(selectedIndex).toBe(0)
+    // With text in the field Home keeps moving the caret.
+    await userEvent.type(field(), 'ab')
+    await userEvent.keyboard('{Home}')
+    const input = field().element()
+    expect(input instanceof HTMLInputElement && input.selectionStart).toBe(0)
   })
 
   it('wires the combobox, the listbox and the live count', async () => {

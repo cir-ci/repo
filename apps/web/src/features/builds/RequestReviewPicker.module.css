@@ -1,51 +1,33 @@
-/* The board's picker: 264px wide, 4px padding, 32px rows. */
+/* The board's picker: 264px wide. */
 .popup {
   width: 264px;
   min-width: 0;
   max-width: 264px;
-  gap: 0;
-  padding: 4px;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
 .heading {
+  display: block;
   padding: 6px 8px 4px;
   font-weight: 500;
 }
 
-.people {
-  display: flex;
-  flex-direction: column;
-  max-height: 320px;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
+.footer {
+  display: block;
+  margin-top: 4px;
+  padding: 8px 8px 6px;
+  border-top: 1px solid var(--circi-line-subtle);
 }
 
-.person {
+/* Someone already asked: the name and "Requested", in a row as tall as an item. */
+.asked {
   display: flex;
   gap: 8px;
   align-items: center;
   box-sizing: border-box;
-  width: 100%;
-  height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--circi-text-primary);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.person:hover,
-.person:focus-visible {
-  background: var(--circi-action-hover);
-}
-
-.person[aria-disabled='true'] {
-  cursor: default;
+  height: 28px;
+  padding-inline: 8px;
 }
 
 .name {
@@ -54,10 +36,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.footer {
-  margin-top: 4px;
-  padding: 8px 8px 6px;
-  border-top: 1px solid var(--circi-line-subtle);
 }

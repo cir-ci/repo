@@ -7,7 +7,7 @@ import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf, type Tab, titleOf } from '#lib/tabs.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
-import { TabTile } from './TabStrip.tsx'
+import { TabTile, tabMenuItems } from './TabStrip.tsx'
 
 import styles from './PhoneTabSwitcher.module.css'
 
@@ -17,6 +17,8 @@ const SWIPE_PX = 80
 const HOLD_MS = 500
 /** A finger that moves further than this is scrolling or swiping, not holding. */
 const SLOP_PX = 10
+/** A press that moved further than this is a drag: the click that ends it is not a tap. */
+const TAP_SLOP_PX = 6
 
 /** The count of open tabs in the page header on a phone in the installed app; it opens the switcher. */
 export function PhoneTabsButton() {
@@ -36,8 +38,8 @@ export function PhoneTabsButton() {
 
 /**
  * The phone's tab switcher: a grid of cards (tile and title) like a mobile browser's. Tap
- * switches; the 44px × or a swipe sideways closes; holding a card opens a sheet with Pin, Close and
- * Close others. Pinned tabs come first and the active one has the accent outline. Nothing is
+ * switches; the 44px × or a swipe sideways closes; holding a card opens a sheet with the tab menu's
+ * items (Pin, Duplicate, Copy link, Close, Close others). Pinned tabs come first and the active one has the accent outline. Nothing is
  * swipe-only: the × and the sheet do the same.
  */
 export function PhoneTabSwitcher() {
@@ -104,36 +106,23 @@ export function PhoneTabSwitcher() {
       >
         {holding ? (
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => {
-                useTabStore.getState().togglePin(holding.id)
-                setHolding(null)
-              }}
-            >
-              {holding.pinned ? 'Unpin tab' : 'Pin tab'}
-            </button>
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => {
-                close(holding.id)
-                setHolding(null)
-              }}
-            >
-              Close tab
-            </button>
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => {
-                useTabStore.getState().closeOthers(holding.id)
-                setHolding(null)
-              }}
-            >
-              Close other tabs
-            </button>
+            {tabMenuItems(holding, closedCount).map((entry) =>
+              entry.type === 'separator' ? (
+                <hr key="separator" className={styles.separator} />
+              ) : entry.type === undefined || entry.type === 'item' ? (
+                <button
+                  key={entry.label}
+                  type="button"
+                  className={styles.action}
+                  onClick={() => {
+                    entry.onSelect?.()
+                    setHolding(null)
+                  }}
+                >
+                  {entry.label}
+                </button>
+              ) : null,
+            )}
           </div>
         ) : null}
       </Sheet>
@@ -145,6 +134,8 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const held = useRef(false)
+  // The press moved: the click that ends it is the end of a drag, not a tap.
+  const moved = useRef(false)
   const [dx, setDx] = useState(0)
   // What `up` reads: the last move, even when no render came between it and the release (a quick flick).
   const dragged = useRef(0)
@@ -153,6 +144,7 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
   const down = (event: PointerEvent) => {
     start.current = { x: event.clientX, y: event.clientY }
     held.current = false
+    moved.current = false
     dragged.current = 0
     timer.current = setTimeout(() => {
       held.current = true
@@ -166,6 +158,8 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
     const from = start.current
     if (!from) return
     const x = event.clientX - from.x
+    if (Math.abs(x) > TAP_SLOP_PX || Math.abs(event.clientY - from.y) > TAP_SLOP_PX)
+      moved.current = true
     if (Math.abs(x) > SLOP_PX || Math.abs(event.clientY - from.y) > SLOP_PX) stopTimer()
     dragged.current = x
     setDx(x)
@@ -196,8 +190,8 @@ function TabCard({ tab, active, onOpen, onClose, onHold }: TabCard.Props) {
         className={styles.open}
         aria-current={active ? 'true' : undefined}
         onClick={() => {
-          // The click that ends a long press or a drag is not a tap.
-          if (!held.current) onOpen()
+          // The click that ends a long press or a drag (any move past a few px) is not a tap.
+          if (!held.current && !moved.current) onOpen()
         }}
       >
         <TabTile href={hrefOf(tab)} />

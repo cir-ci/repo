@@ -8,6 +8,7 @@ import {
   hasFilters,
   parseBuildsSearch,
   parseFilters,
+  suggestionChoices,
   toQuery,
   toWorkspaceQuery,
   toSearch,
@@ -144,5 +145,21 @@ describe('toWorkspaceQuery', () => {
     expect(toWorkspaceQuery({})).toBe('')
     expect(toWorkspaceQuery({ review: 'pending' }, 'b1')).toBe('?review=pending&before=b1')
     expect(toWorkspaceQuery({}, 'b1')).toBe('?before=b1')
+  })
+})
+
+describe('suggestionChoices', () => {
+  it('keeps one entry per person and tells equal names apart by their value', () => {
+    expect(
+      suggestionChoices([
+        { value: 'u1', label: 'Ada Lovelace' },
+        { value: 'octocat', label: 'octocat' },
+        { value: 'u2', label: 'Ada Lovelace' },
+      ]),
+    ).toEqual([
+      { value: 'u1', label: 'Ada Lovelace' },
+      { value: 'octocat', label: 'octocat' },
+      { value: 'u2', label: 'Ada Lovelace · u2' },
+    ])
   })
 })

@@ -1,7 +1,6 @@
 import {
   Avatar,
-  CloseIcon,
-  ContextMenu,
+  ClosableTabs,
   FrameIcon,
   IconButton,
   InboxIcon,
@@ -11,7 +10,7 @@ import {
   SettingsIcon,
   InsightsIcon,
 } from '@circi/ui'
-import { type MouseEvent, type ReactNode, type RefObject, useLayoutEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { copyLinkItem, menuEntries, separator } from '#lib/row-menu.ts'
@@ -74,75 +73,11 @@ export function tabMenuItems(tab: Tab, closedCount: number): Menu.Entry[] {
 }
 
 /**
- * Puts the highlight under the tab `tabId` (hidden with none). `animate` false jumps there without
- * the glide (the first placement, a resize).
- */
-function placeIndicator(
-  strip: HTMLElement | null,
-  mark: HTMLElement | null,
-  tabId: string | null,
-  animate: boolean,
-): void {
-  if (!strip || !mark) return
-  const tab = tabId
-    ? strip.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(tabId)}"]`)
-    : null
-  if (!tab) {
-    mark.style.opacity = '0'
-    return
-  }
-  if (!animate) mark.dataset['still'] = ''
-  mark.style.opacity = '1'
-  mark.style.left = `${tab.offsetLeft}px`
-  mark.style.width = `${tab.offsetWidth}px`
-  if (!animate) {
-    // Applied without the transition, then the transition is back for the next move.
-    void mark.offsetWidth
-    delete mark.dataset['still']
-  }
-}
-
-/**
- * The active tab's highlight, one element behind the tabs that glides to the active tab (its left
- * and width; the CSS transition does the motion). It is placed without motion the first time, and
- * follows the tab at once when the strip resizes (the window, tabs shrinking as more open).
- */
-function useActiveIndicator(
-  list: RefObject<HTMLDivElement | null>,
-  activeId: string,
-  count: number,
-) {
-  const indicator = useRef<HTMLSpanElement>(null)
-  const placed = useRef(false)
-  const target = useRef<string | null>(null)
-  const skipReport = useRef(true)
-  // A switch glides (the first placement doesn't: nothing to glide from).
-  useLayoutEffect(() => {
-    target.current = count > 0 ? activeId : null
-    placeIndicator(list.current, indicator.current, target.current, placed.current)
-    placed.current = true
-  }, [list, activeId, count])
-  // One observer for the strip's life: a new observer reports at once, and acting on that report
-  // would cancel a glide in progress, so the first report is skipped.
-  useLayoutEffect(() => {
-    const strip = list.current
-    if (!strip) return undefined
-    skipReport.current = true
-    const resized = new ResizeObserver(() => {
-      if (skipReport.current) skipReport.current = false
-      else placeIndicator(strip, indicator.current, target.current, false)
-    })
-    resized.observe(strip)
-    return () => resized.disconnect()
-  }, [list])
-  return indicator
-}
-
-/**
  * The installed app's tabs, as a row: the project tile and the page's title (pinned tabs show the tile
- * or icon only), a close button on hover or focus, a new-tab button at the end. Click switches, a
- * middle click closes, the right click (or the menu key) opens the tab's menu. The row sits in the
- * window's title bar strip (window-controls-overlay) or at the top of the frame (standalone).
+ * or icon only), a close button on hover or focus, a new-tab button at the end. Click switches, the
+ * arrow keys move between tabs (Delete closes the focused one), a middle click closes, the right
+ * click (or the menu key) opens the tab's menu. The row sits in the window's title bar strip
+ * (window-controls-overlay) or at the top of the frame (standalone).
  */
 export function TabStrip() {
   const tabs = useTabStore((s) => s.tabs)
@@ -151,65 +86,26 @@ export function TabStrip() {
   const activate = useTabStore((s) => s.activate)
   const close = useTabStore((s) => s.close)
   const openNew = useTabStore((s) => s.openNew)
-  const list = useRef<HTMLDivElement>(null)
-  const indicator = useActiveIndicator(list, activeId, tabs.length)
 
   return (
     <div className={styles.root}>
-      <div ref={list} role="tablist" aria-label="Tabs" className={styles.list}>
-        <span ref={indicator} className={styles.indicator} aria-hidden="true" />
-        {tabs.map((tab) => {
-          const label = titleOf(tab)
-          const active = tab.id === activeId
-          const middleClick = (event: MouseEvent) => {
-            if (event.button !== 1) return
-            event.preventDefault()
-            close(tab.id)
-          }
-          return (
-            <ContextMenu
-              key={tab.id}
-              items={tabMenuItems(tab, closedCount)}
-              trigger={
-                <div
-                  className={styles.tab}
-                  data-tab-id={tab.id}
-                  data-active={active ? '' : undefined}
-                  data-pinned={tab.pinned ? '' : undefined}
-                  role="presentation"
-                  onAuxClick={middleClick}
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    {...(tab.pinned ? { 'aria-label': label, title: label } : {})}
-                    className={styles.main}
-                    onClick={() => activate(tab.id)}
-                  >
-                    <TabTile href={hrefOf(tab)} />
-                    {tab.pinned ? null : <span className={styles.label}>{label}</span>}
-                  </button>
-                  {tab.pinned ? null : (
-                    <button
-                      type="button"
-                      className={styles.close}
-                      aria-label={`Close ${label}`}
-                      tabIndex={-1}
-                      onClick={() => close(tab.id)}
-                    >
-                      <CloseIcon size={14} />
-                    </button>
-                  )}
-                </div>
-              }
-            />
-          )
-        })}
-      </div>
-      <IconButton label="New tab" className={styles.new} onClick={openNew}>
-        <PlusIcon size={16} />
-      </IconButton>
+      <ClosableTabs
+        label="Tabs"
+        value={activeId}
+        onChange={activate}
+        onClose={close}
+        tabs={tabs.map((tab) => ({
+          id: tab.id,
+          label: titleOf(tab),
+          icon: <TabTile href={hrefOf(tab)} />,
+          pinned: tab.pinned,
+          menu: tabMenuItems(tab, closedCount),
+        }))}
+      >
+        <IconButton label="New tab" className={styles.new} onClick={openNew}>
+          <PlusIcon size={16} />
+        </IconButton>
+      </ClosableTabs>
     </div>
   )
 }

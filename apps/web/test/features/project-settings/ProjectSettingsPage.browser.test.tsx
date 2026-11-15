@@ -687,34 +687,55 @@ describe('ProjectSettingsPage', () => {
       )
       await show()
       await openPicker()
-      const group = page.getByRole('group', { name: 'Icon' })
+      const group = page.getByRole('radiogroup', { name: 'Icon' })
       // Only the rows in view are drawn: "No icon" and a screenful, not 2,000 buttons.
-      await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
-      await expect.poll(() => group.getByRole('button').elements().length).toBeGreaterThan(10)
-      expect(group.getByRole('button').elements().length).toBeLessThan(DRAWN_AT_MOST)
+      await expect.element(group.getByRole('radio', { name: 'No icon' })).toBeVisible()
+      await expect.poll(() => group.getByRole('radio').elements().length).toBeGreaterThan(10)
+      expect(group.getByRole('radio').elements().length).toBeLessThan(DRAWN_AT_MOST)
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('globe')
-      await expect
-        .element(group.getByRole('button', { name: 'Globe', exact: true }))
-        .toHaveAttribute('aria-pressed', 'true')
+      await expect.element(group.getByRole('radio', { name: 'Globe', exact: true })).toBeChecked()
       // "dog" is not one of the first 31 icons.
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('dog')
-      await page.getByRole('button', { name: 'Dog', exact: true }).click()
+      await page.getByRole('radio', { name: 'Dog', exact: true }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toEqual({ icon: 'dog' })
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('zzz')
       await expect.element(page.getByText('No icon matches “zzz”.')).toBeVisible()
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('')
-      await page.getByRole('button', { name: 'No icon' }).click()
+      await page.getByRole('radio', { name: 'No icon' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
       expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
+    })
+
+    it('is one radio group: one Tab stop, arrows move within the grid and choose', async () => {
+      const fake = api({ appearance: ARIA }, { [`PATCH ${API}/appearance`]: { status: 200 } })
+      await show()
+      await openPicker()
+      const group = page.getByRole('radiogroup', { name: 'Icon' })
+      await expect.element(group.getByRole('radio', { name: 'No icon' })).toBeChecked()
+      const radios = () => group.getByRole('radio').elements()
+      // The chosen one is the only Tab stop.
+      expect(radios().filter((el) => el.tabIndex === 0)).toHaveLength(1)
+      group.getByRole('radio', { name: 'No icon' }).element().focus()
+      await userEvent.keyboard('{ArrowRight}')
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(document.activeElement).toBe(radios()[1])
+      // Down goes to the cell below, the one at the same x a row further.
+      const here = radios()[1]!.getBoundingClientRect()
+      await userEvent.keyboard('{ArrowDown}')
+      await expect
+        .poll(() => Math.round(document.activeElement?.getBoundingClientRect().left ?? 0))
+        .toBe(Math.round(here.left))
+      expect(document.activeElement?.getBoundingClientRect().top).toBeGreaterThan(here.top)
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
     })
 
     it('loads the next icons as the grid scrolls, drawing only the rows in view', async () => {
       api({ appearance: ARIA })
       await show()
       await openPicker()
-      const group = page.getByRole('group', { name: 'Icon' })
-      await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
+      const group = page.getByRole('radiogroup', { name: 'Icon' })
+      await expect.element(group.getByRole('radio', { name: 'No icon' })).toBeVisible()
       expect(page.getByRole('button', { name: 'Show more icons' }).elements()).toHaveLength(0)
       const scroller = group.element().parentElement
       if (!scroller) throw new Error('no scroll box')
@@ -725,14 +746,15 @@ describe('ProjectSettingsPage', () => {
           () => {
             scroller.scrollTop = scroller.scrollHeight
             scroller.dispatchEvent(new Event('scroll'))
-            return group.getByRole('button', { name: last, exact: true }).elements().length
+            return group.getByRole('radio', { name: last, exact: true }).elements().length
           },
           { timeout: 15_000, interval: 50 },
         )
         .toBe(1)
-      // Still a screenful of buttons, and "No icon" (at the top) is no longer drawn.
-      expect(group.getByRole('button').elements().length).toBeLessThan(DRAWN_AT_MOST)
-      expect(group.getByRole('button', { name: 'No icon' }).elements()).toHaveLength(0)
+      // Still a screenful of radios, plus the chosen one ("No icon", scrolled out of view), which
+      // stays drawn so the group keeps its Tab stop.
+      expect(group.getByRole('radio').elements().length).toBeLessThan(DRAWN_AT_MOST)
+      expect(group.getByRole('radio', { name: 'No icon' }).element().tabIndex).toBe(0)
     })
 
     it("shows the server's refusal", async () => {

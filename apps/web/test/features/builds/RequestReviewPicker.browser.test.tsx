@@ -74,15 +74,16 @@ function show(
   return { ready, onOpenChange }
 }
 
-const picker = () => page.getByRole('dialog', { name: 'Request review from web-app members' })
+const picker = () => page.getByRole('menu')
+const person = (name: string) => picker().getByRole('menuitem', { name })
 
 describe('RequestReviewPicker', () => {
-  it('is a popover headed "Request review from web-app members" listing the members, with no search field', async () => {
+  it('is a menu headed "Request review from web-app members" listing the members, with no search field', async () => {
     await show().ready
     await expect
       .element(picker().getByText('Request review from web-app members').first())
       .toBeVisible()
-    await expect.element(picker().getByRole('button', { name: /Grace Hopper/ })).toBeVisible()
+    await expect.element(person('Grace Hopper')).toBeVisible()
     expect(picker().getByRole('textbox').elements()).toHaveLength(0)
     // Anchored, not a modal: the trigger stays in the page.
     await expect.element(page.getByRole('button', { name: 'Request review' })).toBeVisible()
@@ -90,11 +91,11 @@ describe('RequestReviewPicker', () => {
 
   it('leaves the signed-in user out and says why', async () => {
     await show().ready
-    await expect.element(picker().getByRole('button', { name: /Grace Hopper/ })).toBeVisible()
+    await expect.element(person('Grace Hopper')).toBeVisible()
     // Ada (u1) is the signed-in user of every page test.
     expect(
       picker()
-        .getByRole('button', { name: /Ada Lovelace/ })
+        .getByRole('menuitem', { name: /Ada Lovelace/ })
         .elements(),
     ).toHaveLength(0)
     await expect
@@ -107,7 +108,7 @@ describe('RequestReviewPicker', () => {
     expect(calls.filter((c) => c.path.endsWith('/members'))).toHaveLength(0)
   })
 
-  it('labels someone already asked "Requested" and choosing them does nothing', async () => {
+  it('shows someone already asked as a plain "Requested" row: not an item, so the keyboard skips it', async () => {
     const { ready, onOpenChange } = show(undefined, true, [
       {
         type: 'review_requested',
@@ -117,16 +118,20 @@ describe('RequestReviewPicker', () => {
       },
     ])
     const { calls } = await ready
-    const grace = picker().getByRole('button', { name: /Grace Hopper/ })
-    await expect.element(grace.getByText('Requested')).toBeVisible()
+    await expect.element(picker().getByText('Grace Hopper')).toBeVisible()
+    await expect.element(picker().getByText('Requested')).toBeVisible()
     expect(
       picker()
-        .getByRole('button', { name: /Alan Turing/ })
-        .getByText('Requested')
+        .getByRole('menuitem', { name: /Grace Hopper/ })
         .elements(),
     ).toHaveLength(0)
-    await expect.element(grace).toHaveAttribute('aria-disabled', 'true')
-    grace.element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(person('Alan Turing').getByText('Requested').elements()).toHaveLength(0)
+    // Home and the arrows only ever reach the items: Alan is the one item left.
+    person('Alan Turing').element().focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(person('Alan Turing')).toHaveFocus()
+    // Clicking the row asks no one.
+    await picker().getByText('Grace Hopper').click()
     await new Promise((r) => setTimeout(r, 100))
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0)
     expect(onOpenChange).not.toHaveBeenCalled()
@@ -135,9 +140,7 @@ describe('RequestReviewPicker', () => {
   it('asks the picked member and closes', async () => {
     const { ready, onOpenChange } = show()
     const { calls } = await ready
-    await picker()
-      .getByRole('button', { name: /Grace Hopper/ })
-      .click()
+    await person('Grace Hopper').click()
     await expect
       .poll(() => calls.find((c) => c.method === 'POST')?.body)
       .toEqual({ buildIds: ['b7'], reviewerIds: ['u2'] })
@@ -148,9 +151,7 @@ describe('RequestReviewPicker', () => {
   it('takes the request back with Undo on its toast', async () => {
     const { ready } = show()
     const { calls } = await ready
-    await picker()
-      .getByRole('button', { name: /Grace Hopper/ })
-      .click()
+    await person('Grace Hopper').click()
     await toastNamed('Asked Grace Hopper to review').getByRole('button', { name: 'Undo' }).click()
     await expect.element(toastNamed('Undone')).toBeVisible()
     expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual([
@@ -159,20 +160,16 @@ describe('RequestReviewPicker', () => {
     ])
   })
 
-  it("shows the server's refusal and stays open", async () => {
-    const { ready, onOpenChange } = show({
+  it("toasts the server's refusal", async () => {
+    const { ready } = show({
       status: 403,
       body: { error: 'You cannot ask yourself' },
     })
     await ready
-    await picker()
-      .getByRole('button', { name: /Grace Hopper/ })
-      .click()
-    await expect.element(picker().getByRole('alert')).toHaveTextContent('You cannot ask yourself')
+    await person('Grace Hopper').click()
     await expect
       .element(toastNamed("Couldn't ask for a review: You cannot ask yourself"))
       .toBeVisible()
-    expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 
   it('closes with Escape', async () => {

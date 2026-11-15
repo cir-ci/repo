@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useState } from 'react'
 
 import { Button } from './Button.tsx'
 import { Dialog } from './Dialog.tsx'
@@ -40,25 +40,19 @@ export function ImageDialog({
   const [shown, setShown] = useState(current)
   if (current && current !== shown) setShown(current)
 
-  useEffect(() => {
-    if (!open || count < 2) return undefined
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-      const target = event.target
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))
-      )
-        return
-      event.preventDefault()
-      const step = event.key === 'ArrowLeft' ? -1 : 1
-      onIndexChange((index + step + count) % count)
-    }
-    // Capture: the dialog's own key handling stops arrow keys before they bubble to the document.
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => document.removeEventListener('keydown', onKeyDown, true)
-  }, [open, count, index, onIndexChange])
+  // The dialog traps focus, so its own key handling sees the arrow keys; moves count from the shown image.
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (count < 2 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    const target = event.target
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName))
+    )
+      return
+    event.preventDefault()
+    onIndexChange((at + (event.key === 'ArrowLeft' ? -1 : 1) + count) % count)
+  }
 
   const image = current ?? shown
   if (!image) return null
@@ -68,6 +62,7 @@ export function ImageDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="image"
+      onKeyDown={onKeyDown}
       title={image.caption}
       headerEnd={
         <>

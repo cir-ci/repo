@@ -24,6 +24,7 @@ import { type CSSProperties, type ReactNode, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
 import type { Size } from '#features/regions/ignore-regions.ts'
+import { KeyboardRegionToggle } from '#features/regions/KeyboardRegionToggle.tsx'
 import {
   type Annotations,
   RegionLayer,
@@ -300,18 +301,7 @@ export function Viewer({
               </span>
             ) : null}
             {annotatable ? (
-              // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
-              <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
-                <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
-                  <IconButton
-                    label="Mark a region with the keyboard"
-                    aria-pressed={keyboardTool}
-                    onClick={() => setKeyboardTool(!keyboardTool)}
-                  >
-                    <span aria-hidden="true">⌖</span>
-                  </IconButton>
-                </Tooltip>
-              </span>
+              <KeyboardRegionToggle on={keyboardTool} onChange={setKeyboardTool} />
             ) : null}
             <ViewOptionsMenu
               checkerboard={checkerboard}

@@ -1,5 +1,5 @@
 import { Button as BaseButton } from '@base-ui/react/button'
-import { type MouseEventHandler, type ReactNode, useState } from 'react'
+import type { MouseEventHandler, ReactNode } from 'react'
 
 import { cx } from './cx.ts'
 
@@ -16,9 +16,10 @@ import styles from './Button.module.css'
  * (it isn't a button, so it has no `loading` or `disabled`). `variant="link"` drops the chrome: accent
  * text, underlined on hover, for an action that reads as a sentence.
  *
- * `toggle` and `filter` (a dashed chip that turns solid when on) are buttons with `aria-pressed`:
- * controlled with `pressed` + `onPressedChange`, or uncontrolled with `defaultPressed`.
- * `select-trigger` is the chrome-less look for a button that opens a list.
+ * `filter` is a dashed chip that turns solid while `active` (a filter is set): a plain button, often
+ * a popover trigger, so the state is `data-active`, not `aria-pressed`. For a button that is on or
+ * off use `Toggle` (or `IconToggle`). `select-trigger` is the chrome-less look for a button that
+ * opens a list.
  */
 export function Button({
   variant = 'secondary',
@@ -30,14 +31,9 @@ export function Button({
   children,
   href,
   onClick,
-  pressed,
-  defaultPressed = false,
-  onPressedChange,
+  active,
   ...rest
 }: Button.Props) {
-  const [ownPressed, setOwnPressed] = useState(defaultPressed)
-  const pressable = variant === 'toggle' || variant === 'filter'
-  const isPressed = pressed ?? ownPressed
   if (href !== undefined) {
     return (
       <a
@@ -46,6 +42,7 @@ export function Button({
         className={cx(styles.root, className)}
         data-variant={variant}
         data-size={size}
+        data-active={active ? '' : undefined}
       >
         {leading}
         {children}
@@ -56,18 +53,11 @@ export function Button({
     <BaseButton
       type="button"
       {...rest}
-      onClick={(event) => {
-        onClick?.(event)
-        if (pressable && !event.defaultPrevented) {
-          setOwnPressed(!isPressed)
-          onPressedChange?.(!isPressed)
-        }
-      }}
+      onClick={onClick}
       className={cx(styles.root, className)}
       data-variant={variant}
       data-size={size}
-      aria-pressed={pressable ? isPressed : undefined}
-      data-pressed={pressable && isPressed ? '' : undefined}
+      data-active={active ? '' : undefined}
       data-loading={loading ? '' : undefined}
       disabled={disabled || loading}
       focusableWhenDisabled={loading || undefined}
@@ -85,15 +75,7 @@ export namespace Button {
     'render' | 'children' | 'className' | 'onClick'
   > {
     /** `secondary` is the default; `primary` for the one action a screen leads to; `link` for a text-only action. */
-    variant?:
-      | 'primary'
-      | 'secondary'
-      | 'danger'
-      | 'ghost'
-      | 'link'
-      | 'toggle'
-      | 'filter'
-      | 'select-trigger'
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'link' | 'filter' | 'select-trigger'
     /** `md` is 28px high, `sm` 24px, `lg` 36px (the sign-in and setup pages). */
     size?: 'md' | 'sm' | 'lg'
     /** Show a spinner and disable the button while the action runs. */
@@ -101,12 +83,8 @@ export namespace Button {
     /** An icon before the label (16px; replaced by the spinner while loading). */
     leading?: ReactNode
     children?: ReactNode
-    /** `toggle` and `filter` only: whether the button is on (`aria-pressed`). */
-    pressed?: boolean
-    /** `toggle` and `filter` only, uncontrolled: whether it starts on. */
-    defaultPressed?: boolean
-    /** `toggle` and `filter` only: called with the new state after a click. */
-    onPressedChange?: (pressed: boolean) => void
+    /** `filter` only: the chip is solid while a filter is set (`data-active`; not `aria-pressed`). */
+    active?: boolean
     /** Render an anchor instead of a button, to go somewhere (client-side routing: `preventDefault()` in `onClick`). */
     href?: string
     onClick?: MouseEventHandler<HTMLElement>

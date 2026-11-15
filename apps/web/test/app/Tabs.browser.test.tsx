@@ -155,7 +155,8 @@ async function renderApp(path = '/') {
 }
 
 /** The active tab's highlight, and the active tab. */
-const indicator = () => document.querySelector<HTMLElement>('[role="tablist"] > span[aria-hidden]')!
+const indicator = () =>
+  document.querySelector<HTMLElement>('[role="tablist"] > [role="presentation"]')!
 const activeTab = () => document.querySelector<HTMLElement>('[role="tablist"] [data-active]')!
 
 /** The offset the tab row gives the page's panel (its header sticks below the tabs). */
@@ -265,7 +266,7 @@ describe('tabs in the installed app', () => {
     await expect.poll(() => tabs().elements()).toHaveLength(2)
     // The first tab is in the background now: its close button is hidden until hovered.
     const background = tabs().first()
-    const tab = background.element().parentElement!
+    const tab = background.element()
     const label = tab.querySelector('span:last-child')!
     const before = {
       tab: tab.getBoundingClientRect().width,
@@ -277,6 +278,58 @@ describe('tabs in the installed app', () => {
       .toBeVisible()
     expect(tab.getBoundingClientRect().width).toBe(before.tab)
     expect(label.getBoundingClientRect().width).toBe(before.label)
+  })
+
+  it('is one Tab stop; arrow keys, Home and End move between tabs, and Delete closes the focused one', async () => {
+    installedAs('standalone')
+    await renderApp()
+    store().openNew()
+    store().openNew()
+    await expect.poll(() => tabs().elements()).toHaveLength(3)
+    // Only the chosen tab is in the Tab order.
+    expect(
+      tabs()
+        .elements()
+        .filter((el) => el.tabIndex === 0),
+    ).toHaveLength(1)
+    const active = tabs().nth(2)
+    active.element().focus()
+    await press('{ArrowLeft}')
+    await expect.element(tabs().nth(1)).toHaveFocus()
+    await press('{Home}')
+    await expect.element(tabs().nth(0)).toHaveFocus()
+    await press('{End}')
+    await expect.element(tabs().nth(2)).toHaveFocus()
+    // Moving focus is not choosing: Enter does that.
+    await press('{ArrowLeft}')
+    expect(store().tabs[1]?.id).not.toBe(store().activeId)
+    await press('{Enter}')
+    expect(store().tabs[1]?.id).toBe(store().activeId)
+    await press('{Delete}')
+    await expect.poll(() => tabs().elements()).toHaveLength(2)
+  })
+
+  it('keeps the close buttons out of the tablist and out of the Tab order', async () => {
+    installedAs('standalone')
+    await renderApp()
+    store().openNew()
+    await expect.poll(() => tabs().elements()).toHaveLength(2)
+    const list = document.querySelector('[role="tablist"]')!
+    expect(list.querySelector('button:not([role="tab"])')).toBeNull()
+    const closes = page.getByRole('button', { name: /^Close / }).elements()
+    expect(closes).toHaveLength(2)
+    for (const close of closes) {
+      expect(list.contains(close)).toBe(false)
+      expect(close.tabIndex).toBe(-1)
+    }
+    // Each sits over its own tab's right edge.
+    const [first] = closes
+    const tab = tabs().first().element().getBoundingClientRect()
+    const box = first!.getBoundingClientRect()
+    expect(box.right).toBeLessThanOrEqual(tab.right)
+    expect(box.left).toBeGreaterThan(tab.left)
+    await page.getByRole('button', { name: /^Close Projects page/ }).click({ force: true })
+    await expect.poll(() => tabs().elements()).toHaveLength(1)
   })
 
   it('glides the highlight to the tab switched to, and fades the page in', async () => {
@@ -312,7 +365,7 @@ describe('tabs in the installed app', () => {
     expect(fades().some((el) => el.hasAttribute('data-tab-row'))).toBe(false)
     animate.mockRestore()
     await expect.poll(() => indicator().offsetLeft).toBe(activeTab().offsetLeft)
-    expect(activeTab().querySelector('[role="tab"]')?.getAttribute('aria-selected')).toBe('true')
+    expect(activeTab().getAttribute('aria-selected')).toBe('true')
   })
 
   it("keeps every tab's width when a page changes its title (no jitter)", async () => {
@@ -326,7 +379,7 @@ describe('tabs in the installed app', () => {
     const widths = () =>
       tabs()
         .elements()
-        .map((el) => el.parentElement!.getBoundingClientRect().width)
+        .map((el) => el.getBoundingClientRect().width)
     const before = widths()
     // The tabs' width is their own, not their titles': 180px each while there's room.
     expect(before).toEqual([180, 180])
@@ -480,6 +533,29 @@ describe('tabs on a phone, installed', () => {
     await expect.poll(() => store().tabs.length).toBe(1)
   })
 
+  it('does not open a tab when a short sideways drag is released on it', async () => {
+    await phone()
+    store().openNew()
+    const before = store().activeId
+    await page.getByRole('button', { name: 'Tabs, 2 open' }).click()
+    const open = page.getByRole('button', { name: /^Projects page/ }).element()
+    const li = open.closest('li')
+    if (!li) throw new Error('no card')
+    // 20px: more than a tap, far less than a swipe that closes.
+    pointer(li, 'pointerdown', 200)
+    pointer(li, 'pointermove', 220)
+    pointer(li, 'pointerup', 220)
+    open.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(store().activeId).toBe(before)
+    expect(store().tabs).toHaveLength(2)
+    await expect.element(page.getByRole('dialog', { name: '2 tabs' })).toBeVisible()
+    // A plain tap still opens it.
+    pointer(li, 'pointerdown', 200)
+    pointer(li, 'pointerup', 201)
+    open.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(store().activeId).not.toBe(before)
+  })
+
   it('opens Pin, Close and Close others on a long press', async () => {
     await phone()
     store().openNew()
@@ -491,6 +567,11 @@ describe('tabs on a phone, installed', () => {
     if (!li) throw new Error('no card')
     pointer(li, 'pointerdown', 200)
     await expect.element(page.getByRole('button', { name: 'Close other tabs' })).toBeVisible()
+    // The same set the desktop tab menu offers.
+    const names = ['Pin tab', 'Duplicate tab', 'Copy link', 'Close tab', 'Close other tabs']
+    expect(
+      names.map((name) => page.getByRole('button', { name, exact: true }).elements().length),
+    ).toEqual([1, 1, 1, 1, 1])
     await page.getByRole('button', { name: 'Pin tab' }).click()
     await expect.poll(() => store().tabs.filter((t) => t.pinned)).toHaveLength(1)
   })

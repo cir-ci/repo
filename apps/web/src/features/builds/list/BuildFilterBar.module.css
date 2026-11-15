@@ -16,7 +16,7 @@
   border-bottom-right-radius: 0;
 }
 
-/* The design system's IconButton, joined to the chip: the chip's height and its pressed look. */
+/* The design system's IconButton, joined to the chip: the chip's height and its set look. */
 .chip > .clear {
   width: 22px;
   height: auto;
@@ -53,14 +53,4 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.suggestions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }

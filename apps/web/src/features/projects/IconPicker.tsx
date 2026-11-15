@@ -1,17 +1,25 @@
-import { Avatar, Button, Text, type ProjectColor } from '@circi/ui'
+import { Avatar, Radio, RadioGroup, Text, type ProjectColor } from '@circi/ui'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual'
+import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { filterIcons, ICON_PAGE, iconLabel, iconColumns, ICON_ROW_HEIGHT } from './appearance.ts'
 
 import styles from './IconPicker.module.css'
+
+/** The value of the "No icon" cell (a radio's value is a string). */
+const NO_ICON = '#none'
 
 /**
  * The project icon grid: every Lucide icon matching the search, in a scrolling box. The matches
  * come a page at a time from an infinite query (the next page loads as the end scrolls into
  * view), and only the rows in view are drawn, so 2,000 icons cost what a screenful does.
  * "No icon" is always the first cell.
+ *
+ * One radio group: one Tab stop (the chosen icon's), the arrow keys move and choose. Left and
+ * Right step through the cells, Up and Down by a row (scrolling it into view first: only the rows
+ * in view exist). The chosen icon's row stays drawn when scrolled out of view, so the group always
+ * has its Tab stop.
  */
 export function IconPicker({ project, name, color, icon, query, onPick }: IconPicker.Props) {
   const scroller = useRef<HTMLDivElement>(null)
@@ -50,12 +58,18 @@ export function IconPicker({ project, name, color, icon, query, onPick }: IconPi
     scroller.current?.scrollTo?.({ top: 0 })
   }, [query])
 
+  const chosenRow = Math.floor(Math.max(cells.indexOf(icon), 0) / columns)
+
   // oxlint-disable-next-line react/incompatible-library -- the app doesn't use React Compiler; the virtualizer re-renders this component itself.
   const virtualizer = useVirtualizer({
     count: rows,
     getScrollElement: () => scroller.current,
     estimateSize: () => ICON_ROW_HEIGHT,
     overscan: 4,
+    rangeExtractor: (range) =>
+      [...new Set([...defaultRangeExtractor(range), chosenRow])]
+        .filter((row) => row < rows)
+        .toSorted((a, b) => a - b),
   })
   const items = virtualizer.getVirtualItems()
   const lastRow = items.at(-1)?.index ?? 0
@@ -65,14 +79,37 @@ export function IconPicker({ project, name, color, icon, query, onPick }: IconPi
     if (hasNextPage && !isFetchingNextPage && lastRow >= rows - 2) void fetchNextPage()
   }, [hasNextPage, isFetchingNextPage, lastRow, rows, fetchNextPage])
 
+  // Up and Down: the cell a row away, its row scrolled in, then it takes focus (and, as with the arrow keys, is chosen).
+  const moveByRow = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    const cell =
+      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-cell]') : null
+    const at = Number(cell?.dataset['cell'])
+    if (!cell || !Number.isInteger(at)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const next = at + (event.key === 'ArrowUp' ? -columns : columns)
+    if (next < 0 || next >= cells.length) return
+    virtualizer.scrollToIndex(Math.floor(next / columns))
+    const reach = (tries: number) => {
+      const el = scroller.current?.querySelector<HTMLElement>(`[data-cell="${next}"]`)
+      if (el) {
+        el.focus()
+      } else if (tries > 0) requestAnimationFrame(() => reach(tries - 1))
+    }
+    requestAnimationFrame(() => reach(10))
+  }
+
   return (
     <>
       <div ref={scroller} className={styles.scroller}>
-        <div
-          role="group"
-          aria-label="Icon"
+        <RadioGroup
+          label="Icon"
+          value={icon ?? NO_ICON}
+          onValueChange={(next) => onPick(next === NO_ICON ? null : next)}
           className={styles.canvas}
           style={{ height: virtualizer.getTotalSize() }}
+          onKeyDownCapture={moveByRow}
         >
           {items.map((row) => (
             <div
@@ -80,16 +117,14 @@ export function IconPicker({ project, name, color, icon, query, onPick }: IconPi
               className={styles.row}
               style={{ transform: `translateY(${row.start}px)` }}
             >
-              {cells.slice(row.index * columns, (row.index + 1) * columns).map((cell) => {
+              {cells.slice(row.index * columns, (row.index + 1) * columns).map((cell, offset) => {
                 const label = cell === null ? 'No icon' : iconLabel(cell)
                 return (
-                  <Button
+                  <Radio
                     key={cell ?? 'none'}
-                    variant="toggle"
-                    size="md"
+                    value={cell ?? NO_ICON}
                     className={styles.cell}
-                    pressed={icon === cell}
-                    onPressedChange={() => onPick(cell)}
+                    data-cell={row.index * columns + offset}
                     aria-label={label}
                     title={label}
                   >
@@ -102,12 +137,12 @@ export function IconPicker({ project, name, color, icon, query, onPick }: IconPi
                       icon={cell}
                       size={20}
                     />
-                  </Button>
+                  </Radio>
                 )
               })}
             </div>
           ))}
-        </div>
+        </RadioGroup>
       </div>
       {matches.length === 0 ? (
         <Text variant="small" tone="tertiary">

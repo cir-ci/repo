@@ -6,6 +6,7 @@ import {
   EnlargeTrigger,
   ImageDialog,
   TextField,
+  Toggle,
   tokens,
 } from '#src/index.ts'
 
@@ -40,12 +41,10 @@ const ButtonVariants = () => (
       <Button variant="link">Link</Button>
     </div>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <Button variant="toggle">Toggle</Button>
-      <Button variant="toggle" defaultPressed>
-        Toggle on
-      </Button>
+      <Toggle>Toggle</Toggle>
+      <Toggle defaultPressed>Toggle on</Toggle>
       <Button variant="filter">Filter</Button>
-      <Button variant="filter" defaultPressed>
+      <Button variant="filter" active>
         Filter on
       </Button>
       <Button variant="select-trigger">main</Button>

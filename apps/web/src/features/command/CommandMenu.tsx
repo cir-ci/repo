@@ -38,6 +38,7 @@ import {
   scopeOf,
   TIPS,
   wordsOf,
+  jumpIndex,
   wrapIndex,
 } from './model.ts'
 import {
@@ -206,6 +207,8 @@ export function CommandMenu({
       ]
     : view.groups
   const flat = flatten(groups)
+  // Each row's place in the flat list, worked out once (not searched for per row on every render).
+  const rowIndex = new Map(flat.map((entry, i) => [entry, i]))
   const current =
     flat.length === 0
       ? -1
@@ -483,9 +486,18 @@ export function CommandMenu({
       e.preventDefault()
       setActive(wrapIndex(flat.length, current, delta))
     }
+    // Home and End move the caret while there is text to edit (or with ⌘ or Ctrl), else they jump in the list.
+    const jump = (to: 'first' | 'last' | 'pageUp' | 'pageDown') => {
+      e.preventDefault()
+      setActive(jumpIndex(flat.length, current, to))
+    }
     if (e.key === 'ArrowDown') move(1)
     else if (e.key === 'ArrowUp') move(-1)
-    else if (e.key === 'Enter') {
+    else if (e.key === 'PageDown') jump('pageDown')
+    else if (e.key === 'PageUp') jump('pageUp')
+    else if ((e.key === 'Home' || e.key === 'End') && (text === '' || mod)) {
+      jump(e.key === 'Home' ? 'first' : 'last')
+    } else if (e.key === 'Enter') {
       e.preventDefault()
       if (!highlighted) return
       if (e.shiftKey && highlighted.target.type === 'reviewer') {
@@ -635,7 +647,7 @@ export function CommandMenu({
                   </div>
                 ) : null}
                 {items.map((entry) => {
-                  const i = flat.indexOf(entry)
+                  const i = rowIndex.get(entry) ?? -1
                   return (
                     <CommandRow
                       key={entry.id}

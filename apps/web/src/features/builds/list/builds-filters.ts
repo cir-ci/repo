@@ -148,6 +148,23 @@ export function dayEnd(day: string): string | undefined {
 /** The date input value (`2026-11-08`) of an ISO datetime, or empty. */
 export const dayOf = (iso: string | undefined) => (iso ? iso.slice(0, 10) : '')
 
+/**
+ * The author and reviewer suggestions as the picker's list: one entry per label (the list's items
+ * are their texts). Two people with the same name stay apart: the later ones show their value
+ * after the name ("Ada Lovelace · u2").
+ */
+export function suggestionChoices(
+  suggestions: ReadonlyArray<{ value: string; label: string }>,
+): { label: string; value: string }[] {
+  const seen = new Set<string>()
+  return suggestions.map((s) => {
+    const label = seen.has(s.label) ? `${s.label} · ${s.value}` : s.label
+    seen.add(label)
+    seen.add(s.label)
+    return { label, value: s.value }
+  })
+}
+
 /** `filters` with one text filter set (empty clears it). */
 export function withText(
   filters: BuildFilters,

@@ -12,11 +12,11 @@ const IMAGES: ImageDialog.Image[] = [
   { src: PIXEL, caption: 'This build · a0f30cf', label: 'This build', width: 1280, height: 960 },
 ]
 
-function Harness(props: { images?: ImageDialog.Image[] }) {
+function Harness(props: { images?: ImageDialog.Image[]; start?: number }) {
   const [at, setAt] = useState<number | null>(null)
   return (
     <>
-      <EnlargeTrigger label="Enlarge this build" onClick={() => setAt(1)}>
+      <EnlargeTrigger label="Enlarge this build" onClick={() => setAt(props.start ?? 1)}>
         <img src={PIXEL} alt="" width={200} height={100} />
       </EnlargeTrigger>
       <ImageDialog
@@ -60,6 +60,18 @@ describe('ImageDialog', () => {
       .toBeVisible()
     await userEvent.keyboard('{ArrowLeft}')
     await expect.element(page.getByRole('dialog', { name: 'This build · a0f30cf' })).toBeVisible()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect
+      .element(page.getByRole('dialog', { name: 'Baseline · build #1 on main' }))
+      .toBeVisible()
+  })
+
+  it('counts arrow keys from the image shown when the index is out of range', async () => {
+    const three = [...IMAGES, { src: PIXEL, caption: 'Diff · a0f30cf', label: 'Diff' }]
+    await render(<Harness images={three} start={4} />)
+    await trigger().click()
+    // 4 is clamped to the last image (2); → goes to the first, not to raw 4 + 1 = 5 mod 3.
+    await expect.element(page.getByRole('dialog', { name: 'Diff · a0f30cf' })).toBeVisible()
     await userEvent.keyboard('{ArrowRight}')
     await expect
       .element(page.getByRole('dialog', { name: 'Baseline · build #1 on main' }))

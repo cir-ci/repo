@@ -24,7 +24,25 @@
 
 /* Square cells: the width the column count is worked out from (appearance.ts). */
 .cell {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 36px;
-  padding-inline: 0;
+  height: 28px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-control);
+  color: var(--circi-text-secondary);
+}
+
+.cell:hover {
+  background: var(--circi-action-hover);
+}
+
+.cell[data-checked],
+.cell[data-checked]:hover {
+  border-color: var(--circi-line-strong);
+  background: var(--circi-action-selected);
+  color: var(--circi-text-primary);
 }

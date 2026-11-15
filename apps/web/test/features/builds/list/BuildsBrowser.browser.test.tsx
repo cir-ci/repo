@@ -68,11 +68,15 @@ describe('filters', () => {
     await show('/acme/web?review=pending&branch=feature%2Fx')
     await expect
       .element(page.getByRole('button', { name: 'Status: Needs review' }))
-      .toHaveAttribute('aria-pressed', 'true')
+      .toHaveAttribute('data-active')
     await expect.element(page.getByRole('button', { name: 'Branch: feature/x' })).toBeVisible()
     await expect
       .element(page.getByRole('button', { name: 'Author' }))
-      .toHaveAttribute('aria-pressed', 'false')
+      .not.toHaveAttribute('data-active')
+    // A chip is a popover trigger, not a toggle: expanded, never pressed.
+    await expect
+      .element(page.getByRole('button', { name: 'Author' }))
+      .not.toHaveAttribute('aria-pressed')
     expect(fake.urls).toContain('/api/projects/acme/web?review=pending&branch=feature%2Fx')
   })
 
@@ -85,7 +89,7 @@ describe('filters', () => {
     await expect.poll(() => fake.urls).toContain('/api/projects/acme/web?review=approved')
     await expect
       .element(page.getByRole('button', { name: 'Status: Approved' }))
-      .toHaveAttribute('aria-pressed', 'true')
+      .toHaveAttribute('data-active')
 
     await page.getByRole('button', { name: 'Branch' }).click()
     await page.getByRole('combobox', { name: 'Branch' }).fill('main')
@@ -236,7 +240,7 @@ describe('filters', () => {
     gate.resolve()
     await expect
       .element(page.getByRole('button', { name: 'Status: Approved' }))
-      .toHaveAttribute('aria-pressed', 'true')
+      .toHaveAttribute('data-active')
     const after = list.element().getBoundingClientRect()
     expect([after.top, after.height]).toEqual([before[1]?.top, before[1]?.height])
   })
@@ -275,7 +279,7 @@ describe('filters', () => {
         .toBeVisible()
       await chip.click()
       await expect
-        .element(page.getByRole('textbox', { name: 'Reviewer' }))
+        .element(page.getByRole('combobox', { name: 'Reviewer' }))
         .toHaveValue('Ada Lovelace')
       // Applying without a change keeps filtering by the person, not by their name as text.
       await page.getByRole('button', { name: 'Apply' }).click()
@@ -670,15 +674,21 @@ describe('ViewPage', () => {
     })
     await showView()
     await page.getByRole('button', { name: 'Author' }).click()
-    const list = page.getByRole('list', { name: 'Suggestions' })
-    await expect.element(list.getByRole('button', { name: 'octocat' })).toBeVisible()
-    await page.getByRole('textbox', { name: 'Author' }).fill('ada')
+    const list = page.getByRole('listbox', { name: 'Suggestions' })
+    await expect.element(list.getByRole('option', { name: 'octocat' })).toBeVisible()
+    await page.getByRole('combobox', { name: 'Author' }).fill('ada')
     await expect
       .poll(() => asked.some((u) => u.includes('field=author') && u.includes('q=ada')))
       .toBe(true)
-    await list.getByRole('button', { name: 'Ada Lovelace' }).click()
+    await list.getByRole('option', { name: 'Ada Lovelace' }).click()
     await expect.element(page.getByRole('button', { name: 'Author: Ada Lovelace' })).toBeVisible()
     await expect.poll(() => asked.some((u) => u.includes('builds?author=u1'))).toBe(true)
+    // By keyboard: arrows to a suggestion and Enter picks it (the user ID, not the text).
+    await page.getByRole('button', { name: 'Author: Ada Lovelace' }).click()
+    await page.getByRole('combobox', { name: 'Author' }).fill('')
+    await expect.element(page.getByRole('option', { name: 'octocat' })).toBeVisible()
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+    await expect.poll(() => asked.some((u) => u.includes('builds?author=octocat'))).toBe(true)
   })
 
   it('says when the view does not exist', async () => {

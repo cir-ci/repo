@@ -11,6 +11,7 @@ import {
   GROUP_CAP,
   type ListInput,
   type ListView,
+  jumpIndex,
   keyEvents,
   matchScore,
   type Needs,
@@ -194,6 +195,27 @@ describe('wrapIndex', () => {
     expect(wrapIndex(3, -1, 1)).toBe(0)
     expect(wrapIndex(3, -1, -1)).toBe(2)
     expect(wrapIndex(0, -1, 1)).toBe(-1)
+  })
+})
+
+describe('jumpIndex', () => {
+  it('Home and End go to the ends', () => {
+    expect(jumpIndex(20, 7, 'first')).toBe(0)
+    expect(jumpIndex(20, 7, 'last')).toBe(19)
+  })
+  it('a page moves by a screenful and stops at the ends instead of wrapping', () => {
+    expect(jumpIndex(20, 2, 'pageDown')).toBe(10)
+    expect(jumpIndex(20, 15, 'pageDown')).toBe(19)
+    expect(jumpIndex(20, 10, 'pageUp')).toBe(2)
+    expect(jumpIndex(20, 3, 'pageUp')).toBe(0)
+  })
+  it('starts from the top for PageDown and the bottom for PageUp when nothing is highlighted', () => {
+    expect(jumpIndex(20, -1, 'pageDown')).toBe(7)
+    expect(jumpIndex(20, -1, 'pageUp')).toBe(12)
+  })
+  it('is -1 for an empty list', () => {
+    expect(jumpIndex(0, -1, 'first')).toBe(-1)
+    expect(jumpIndex(0, -1, 'pageDown')).toBe(-1)
   })
 })
 

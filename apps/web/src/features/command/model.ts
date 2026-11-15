@@ -79,6 +79,26 @@ export function wrapIndex(length: number, current: number, delta: 1 | -1): numbe
   return (current + delta + length) % length
 }
 
+/** How many rows PageUp and PageDown move: about a screenful of the list. */
+export const PAGE_STEP = 8
+
+/**
+ * Where Home, End, PageUp and PageDown go in a list of `length` rows from `current` (-1: none):
+ * Home and End to the first and last, a page up or down by `PAGE_STEP` without wrapping (it stops
+ * at the end it runs into); -1 when there is nothing to pick.
+ */
+export function jumpIndex(
+  length: number,
+  current: number,
+  to: 'first' | 'last' | 'pageUp' | 'pageDown',
+): number {
+  if (length === 0) return -1
+  if (to === 'first') return 0
+  if (to === 'last') return length - 1
+  const from = current < 0 ? (to === 'pageDown' ? -1 : length) : current
+  return Math.min(Math.max(from + (to === 'pageDown' ? PAGE_STEP : -PAGE_STEP), 0), length - 1)
+}
+
 const enc = encodeURIComponent
 const projectPath = (workspace: string, project: string) => `/${enc(workspace)}/${enc(project)}`
 export { buildPath } from './results.ts'

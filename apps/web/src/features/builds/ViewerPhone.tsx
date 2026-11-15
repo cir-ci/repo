@@ -4,6 +4,7 @@ import {
   ExpandLessIcon,
   ExpandMoreIcon,
   IconButton,
+  IconToggle,
   SegmentedControl,
   SquareDashedIcon,
   Text,
@@ -81,14 +82,14 @@ export function PhoneControls({
           <ExpandMoreIcon />
         </IconButton>
         {canDraw ? (
-          <IconButton
+          <IconToggle
             label="Draw a region"
-            aria-pressed={drawing}
+            pressed={drawing}
+            onPressedChange={onDrawing}
             className={styles.draw}
-            onClick={() => onDrawing(!drawing)}
           >
             <SquareDashedIcon />
-          </IconButton>
+          </IconToggle>
         ) : null}
         <ViewOptionsMenu
           checkerboard={checkerboard}

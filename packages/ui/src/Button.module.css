@@ -145,19 +145,6 @@ a.root {
   text-decoration: none;
 }
 
-/* A button that is on or off (`aria-pressed`): the "on" state is the selected row fill. */
-.root[data-variant='toggle'] {
-  background: transparent;
-  color: var(--circi-text-secondary);
-}
-
-.root[data-variant='toggle'][data-pressed],
-.root[data-variant='toggle'][data-pressed]:hover {
-  border-color: var(--circi-line-strong);
-  background: var(--circi-action-selected);
-  color: var(--circi-text-primary);
-}
-
 /* A filter chip: dashed and quiet when off, solid when on. 24px high. */
 .root[data-variant='filter'] {
   height: 24px;
@@ -166,8 +153,8 @@ a.root {
   color: var(--circi-text-secondary);
 }
 
-.root[data-variant='filter'][data-pressed],
-.root[data-variant='filter'][data-pressed]:hover {
+.root[data-variant='filter'][data-active],
+.root[data-variant='filter'][data-active]:hover {
   border-style: solid;
   background: var(--circi-action-selected);
   color: var(--circi-text-primary);
@@ -185,7 +172,6 @@ a.root {
   background: var(--circi-action-hover);
 }
 
-.root[data-disabled][data-variant='toggle']:hover,
 .root[data-disabled][data-variant='filter']:hover,
 .root[data-disabled][data-variant='select-trigger']:hover {
   background: transparent;

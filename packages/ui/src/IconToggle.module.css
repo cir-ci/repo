@@ -1,0 +1,71 @@
+.root {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--circi-radius-control);
+  background: transparent;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.root svg {
+  width: 16px;
+  height: 16px;
+}
+
+.root:hover {
+  background: var(--circi-action-hover);
+}
+
+.root[data-pressed],
+.root[data-pressed]:hover {
+  background: var(--circi-action-selected);
+  color: var(--circi-text-primary);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}
+
+/* A phone: every target is at least 44px (the icon stays 16px). */
+@media (max-width: 819.98px) {
+  .root {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* In a page header a phone's button is 36px; its tap area is still 44px. */
+@media (max-width: 819.98px) {
+  :global([data-panel-header]) .root {
+    position: relative;
+    width: 36px;
+    height: 36px;
+  }
+
+  :global([data-panel-header]) .root::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+}

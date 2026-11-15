@@ -1,5 +1,5 @@
 import type { Comment, IgnoreRegion } from '@circi/api'
-import { Heading, IconButton, ImageDialog, Text, Tooltip } from '@circi/ui'
+import { Heading, ImageDialog, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 
@@ -15,6 +15,7 @@ import { usePhone } from '#lib/use-phone.ts'
 
 import { regionsOf, sizeOf, toPixels } from './ignore-regions.ts'
 import { IgnoreRegionsPanel } from './IgnoreRegionsPanel.tsx'
+import { KeyboardRegionToggle } from './KeyboardRegionToggle.tsx'
 import { RegionBoxes } from './RegionBoxes.tsx'
 import { type Annotations, RegionOverlay } from './RegionLayer.tsx'
 import { RegionStage } from './RegionStage.tsx'
@@ -103,18 +104,7 @@ export function IgnoreRegionsEditor({
               </Text>
             ) : null}
             {annotations ? (
-              // Dragging needs no button: the keyboard path stays, shown only while it has focus.
-              <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
-                <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
-                  <IconButton
-                    label="Mark a region with the keyboard"
-                    aria-pressed={keyboardTool}
-                    onClick={() => setKeyboardTool(!keyboardTool)}
-                  >
-                    <span aria-hidden="true">⌖</span>
-                  </IconButton>
-                </Tooltip>
-              </span>
+              <KeyboardRegionToggle on={keyboardTool} onChange={setKeyboardTool} />
             ) : null}
           </div>
           <RegionStage

@@ -17,9 +17,8 @@
   flex: 1;
 }
 
-/* Draw mode on: the button reads as pressed. */
-.draw[aria-pressed='true'] {
-  background: var(--circi-action-selected);
+/* Draw mode on: the toggle's selected fill, in the annotation color. */
+.draw[data-pressed] {
   color: var(--circi-annotation-text);
 }
 

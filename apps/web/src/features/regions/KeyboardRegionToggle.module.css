@@ -1,0 +1,8 @@
+/* Out of sight until the keyboard reaches it (or it is on). */
+.root:not(:focus-within):not([data-on]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

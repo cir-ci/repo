@@ -252,15 +252,6 @@
   }
 }
 
-/* Out of sight until the keyboard reaches it (or it is on). */
-.keyTool:not(:focus-within):not([data-on]) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
 /* Drawing is always on: the image and its frame take a crosshair, the markers keep theirs. */
 .stage[data-annotatable],
 .stage[data-annotatable] > .frame > button {

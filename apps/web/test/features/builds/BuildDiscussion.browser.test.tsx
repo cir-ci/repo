@@ -374,7 +374,7 @@ describe('requesting a review', () => {
     await expect.element(viewerTitle()).toBeVisible()
     expect(page.getByText(/Requested from/).elements()).toHaveLength(0)
     await userEvent.keyboard('{Shift>}R{/Shift}')
-    const dialog = page.getByRole('dialog', { name: /^Request review from/ })
+    const dialog = page.getByRole('menu')
     // The server records the request; the activity the picker reads then lists it.
     api.activity = [
       {
@@ -384,7 +384,7 @@ describe('requesting a review', () => {
         by: { id: 'u1', name: 'Ada Lovelace', image: null },
       },
     ]
-    await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
+    await dialog.getByRole('menuitem', { name: /Grace Hopper/ }).click()
     await expect.element(dialog).not.toBeInTheDocument()
     const people = page.getByRole('tabpanel').getByRole('region', { name: 'People' })
     await expect.element(people.getByText('Grace Hopper')).toBeVisible()
@@ -401,9 +401,9 @@ describe('requesting a review, the picker', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('{Shift>}R{/Shift}')
-    const dialog = page.getByRole('dialog', { name: /^Request review from/ })
+    const dialog = page.getByRole('menu')
     await expect.element(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
+    await dialog.getByRole('menuitem', { name: /Grace Hopper/ }).click()
     await vi.waitFor(() =>
       expect(api.requests).toEqual([{ buildIds: [expect.any(String)], reviewerIds: ['u2'] }]),
     )

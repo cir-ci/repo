@@ -24,6 +24,7 @@ export function Dialog({
   headerEnd,
   dismissible = true,
   initialFocus,
+  onKeyDown,
   children,
   ...rest
 }: Dialog.Props) {
@@ -36,6 +37,7 @@ export function Dialog({
           <BaseDialog.Popup
             className={styles.popup}
             data-size={size}
+            {...(onKeyDown ? { onKeyDown } : {})}
             {...(initialFocus === undefined ? {} : { initialFocus })}
           >
             <header className={styles.header}>
@@ -81,6 +83,8 @@ export namespace Dialog {
     dismissible?: boolean
     /** What takes focus when it opens: a ref to the field to type in (default: the first control, the close button). */
     initialFocus?: BaseDialog.Popup.Props['initialFocus']
+    /** Key presses inside the dialog (the popup): focus is trapped, so they are the dialog's own. */
+    onKeyDown?: BaseDialog.Popup.Props['onKeyDown']
     children?: ReactNode
   }
 }

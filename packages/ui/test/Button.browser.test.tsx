@@ -108,39 +108,23 @@ describe('Button', () => {
     await link.click()
     await expect.poll(() => onClick).toHaveBeenCalledTimes(1)
   })
-  it('toggle and filter are buttons with aria-pressed that flip on click and Space', async () => {
-    const onPressedChange = vi.fn<(pressed: boolean) => void>()
+  it('a filter chip is a plain button: `active` is a data attribute, never aria-pressed', async () => {
     await render(
       <>
-        <Button variant="toggle" onPressedChange={onPressedChange}>
-          Wrap
-        </Button>
-        <Button variant="filter" defaultPressed>
+        <Button variant="filter">Branch</Button>
+        <Button variant="filter" active>
           Status
         </Button>
       </>,
     )
-    const wrap = page.getByRole('button', { name: 'Wrap' })
-    await expect.element(wrap).toHaveAttribute('aria-pressed', 'false')
-    await wrap.click()
-    await expect.element(wrap).toHaveAttribute('aria-pressed', 'true')
-    await userEvent.keyboard(' ')
-    await expect.element(wrap).toHaveAttribute('aria-pressed', 'false')
-    expect(onPressedChange.mock.calls.map(([pressed]) => pressed)).toEqual([true, false])
-    const filter = page.getByRole('button', { name: 'Status' })
-    await expect.element(filter).toHaveAttribute('aria-pressed', 'true')
-    expect(getComputedStyle(filter.element()).height).toBe('24px')
-  })
-
-  it('a controlled pressed button follows its prop', async () => {
-    await render(
-      <Button variant="toggle" pressed>
-        Wrap
-      </Button>,
-    )
-    const wrap = page.getByRole('button', { name: 'Wrap' })
-    await wrap.click()
-    await expect.element(wrap).toHaveAttribute('aria-pressed', 'true')
+    const off = page.getByRole('button', { name: 'Branch' })
+    const on = page.getByRole('button', { name: 'Status' })
+    await expect.element(off).not.toHaveAttribute('data-active')
+    await expect.element(on).toHaveAttribute('data-active')
+    await expect.element(on).not.toHaveAttribute('aria-pressed')
+    expect(getComputedStyle(on.element()).height).toBe('24px')
+    expect(getComputedStyle(on.element()).borderTopStyle).toBe('solid')
+    expect(getComputedStyle(off.element()).borderTopStyle).toBe('dashed')
   })
 
   it('other variants have no aria-pressed; select-trigger has no chrome', async () => {
