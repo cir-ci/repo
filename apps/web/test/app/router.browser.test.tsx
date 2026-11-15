@@ -30,6 +30,18 @@ describe('the app router', () => {
     expect(build.state.matches.at(-1)?.routeId).toBe('/$workspace/$project/builds/$number')
   })
 
+  it("sends a project's insights and reviews addresses to the workspace's pages", async () => {
+    const history = createMemoryHistory({ initialEntries: ['/acme/web-app/insights'] })
+    const insights = createAppRouter({ history })
+    await insights.load()
+    expect(insights.state.location.pathname).toBe('/workspaces/acme/insights')
+    expect(insights.state.location.search).toMatchObject({ project: 'web-app' })
+    expect(history.length).toBe(1)
+    const reviews = await open('/acme/web-app/reviews')
+    expect(reviews.state.location.pathname).toBe('/workspaces/acme/reviews')
+    expect(reviews.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/reviews')
+  })
+
   it('has the bare workspace settings address and General at its own', async () => {
     const hub = await open('/workspaces/acme/settings')
     expect(hub.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')
