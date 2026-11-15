@@ -576,6 +576,83 @@ function pointerDrag(
   fire('pointerup', toX)
 }
 
+const layerOf = () => page.getByRole('img', { name: 'Changed pixels: checkout / payment' })
+
+async function opened() {
+  fakeBuildApi(detail())
+  await renderBuild('/acme/web-app/builds/7?mode=overlay')
+  await expect.element(layerOf()).toBeVisible()
+}
+
+describe('overlay diff layer', () => {
+  it('keeps the opacity slider on the image, not in the toolbar', async () => {
+    await opened()
+    const slider = page.getByRole('slider', { name: 'Diff layer' })
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '70')
+    expect(slider.element().closest('figure')).not.toBeNull()
+    expect(page.getByRole('slider').elements()).toHaveLength(1)
+    // Nothing in the viewer's toolbar (the row with the title and the view modes) is a slider.
+    const toolbar = page.getByRole('group', { name: 'View' }).element().parentElement
+    expect(toolbar?.querySelector('[role="slider"]')).toBeNull()
+  })
+
+  it('changes the layer opacity from the slider', async () => {
+    await opened()
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.7' })
+    page.getByRole('slider', { name: 'Diff layer' }).element().focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.75' })
+    await expect.element(page.getByText('75%')).toBeVisible()
+  })
+
+  it('steps by 10% with [ and ], within 0 and 100', async () => {
+    await opened()
+    await userEvent.keyboard(']')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.8' })
+    // (`[[` is how the keyboard syntax types one `[`.)
+    await userEvent.keyboard('[[')
+    await userEvent.keyboard('[[')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.6' })
+    await userEvent.keyboard(']]]]]]]]')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '1' })
+    await expect
+      .element(page.getByRole('slider', { name: 'Diff layer' }))
+      .toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('shows the layer at 0% while Alt is held, then restores it', async () => {
+    await opened()
+    await userEvent.keyboard('{Alt>}')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0' })
+    await userEvent.keyboard('{/Alt}')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.7' })
+    // The slider kept its value throughout.
+    await expect
+      .element(page.getByRole('slider', { name: 'Diff layer' }))
+      .toHaveAttribute('aria-valuenow', '70')
+  })
+
+  it('does not draw a region from a press on the pill, but does elsewhere on the image', async () => {
+    await opened()
+    const head = page.getByRole('img', { name: 'This build: checkout / payment' }).element()
+    head.style.width = '400px'
+    head.style.height = '300px'
+    const slider = page.getByRole('slider', { name: 'Diff layer' })
+    const pill = slider.element().closest('div[class*="pill"]')
+    expect(pill).not.toBeNull()
+    const box = pill?.getBoundingClientRect()
+    if (!box) throw new Error('no pill')
+    pointerDrag(pill, 'mouse', { x: box.left + 6, y: box.top + 6 }, box.left - 80)
+    expect(page.getByRole('dialog', { name: 'Comment on this region' }).elements()).toHaveLength(0)
+    const layer = page.getByTestId('region-layer')
+    await userEvent.dragAndDrop(layer, layer, {
+      sourcePosition: { x: 20, y: 20 },
+      targetPosition: { x: 120, y: 90 },
+    })
+    await expect.element(page.getByRole('dialog', { name: 'Comment on this region' })).toBeVisible()
+  })
+})
+
 describe('zoom and stepping', () => {
   it('fits by default, then shows the real size and steps', async () => {
     fakeBuildApi(detail())

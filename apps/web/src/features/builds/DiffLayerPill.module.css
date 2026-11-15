@@ -1,0 +1,60 @@
+/* In the image frame's bottom-right corner: the caption is above the frame, the zoom controls are
+   in the toolbar and region markers sit on the image itself, so this corner is the free one. */
+.pill {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--circi-surface-raised) 88%, transparent);
+  color: var(--circi-text-primary);
+  line-height: normal;
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+  touch-action: none;
+  cursor: default;
+}
+
+.pill[data-touch] {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+:hover > .pill,
+.pill:focus-within,
+.pill:has([data-dragging]) {
+  opacity: 1;
+}
+
+/* No hover on a touch screen: always shown. */
+@media (hover: none) {
+  .pill {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill {
+    transition: none;
+  }
+}
+
+.slider {
+  width: 96px;
+  min-width: 96px;
+}
+
+.value {
+  min-width: 4ch;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}

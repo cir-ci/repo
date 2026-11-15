@@ -16,7 +16,6 @@ import {
   FrameIcon,
   ScrollArea,
   SegmentedControl,
-  Slider,
   StatusIcon,
   Text,
   Tooltip,
@@ -37,6 +36,7 @@ import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
+import { DiffLayerPill, useDiffLayerKeys } from './DiffLayerPill.tsx'
 import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
 import { changeSummary, unreadableReason } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
@@ -82,6 +82,7 @@ export function Viewer({
   // A screenshot the server couldn't read shows no images (the file may not be one), only why.
   const diff = given.status === 'failed' ? { ...given, base: null, head: null, diff: null } : given
   const [opacity, setOpacity] = useState(70)
+  // Holding Alt shows the layer at 0% (the baseline's pixels as they are), without touching `opacity`.
   const [at, setAt] = useState(50)
   const [zoom, setZoom] = useState<Zoom>('fit')
   // The keyboard way to place a region on this build's image; dragging needs no switch.
@@ -103,6 +104,7 @@ export function Viewer({
     : comparable && (props.mode !== DESIGN_MODE || designEnabled)
       ? props.mode
       : 'side'
+  const peeking = useDiffLayerKeys(mode === 'overlay' && comparable, (update) => setOpacity(update))
   const modeOptions = designEnabled
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
@@ -271,21 +273,6 @@ export function Viewer({
                 }}
               />
             ) : null}
-            {comparable && mode === 'overlay' ? (
-              <span className={styles.slider}>
-                <Text variant="small" tone="secondary">
-                  Diff layer
-                </Text>
-                <Slider
-                  label="Diff layer"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={opacity}
-                  onValueChange={setOpacity}
-                />
-              </span>
-            ) : null}
             {annotatable ? (
               <KeyboardRegionToggle on={keyboardTool} onChange={setKeyboardTool} />
             ) : null}
@@ -427,9 +414,10 @@ export function Viewer({
                 src={fileUrl(diff.diff.sha256)}
                 alt={`Changed pixels: ${diff.name}`}
                 className={styles.cover}
-                style={{ opacity: opacity / 100 }}
+                style={{ opacity: (peeking ? 0 : opacity) / 100 }}
               />
               {layer ? <RegionLayer annotations={layer} /> : null}
+              <DiffLayerPill value={opacity} onValueChange={setOpacity} touch={phone} />
             </div>
           </figure>
         ) : null}

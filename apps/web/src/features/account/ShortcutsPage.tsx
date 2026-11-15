@@ -16,7 +16,7 @@ export function ShortcutsPage() {
   if (phone) return <Navigate to="/account/profile" replace />
   return (
     <Frame crumbs={['Account', 'Keyboard shortcuts']} width="wide">
-      <ShortcutGroups />
+      <ShortcutGroups focusable />
     </Frame>
   )
 }

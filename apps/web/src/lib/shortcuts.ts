@@ -73,6 +73,8 @@ export namespace Shortcut {
     | { type: 'moveTab'; delta: -1 | 1 }
     | { type: 'go'; to: GoTarget }
     | { type: 'mode'; mode: ViewMode }
+    | { type: 'diffLayer'; delta: -10 | 10 }
+    | { type: 'peekBaseline' }
 
   /** The handler for each action type; `useShortcutHandlers` binds them. */
   export type Handlers = {
@@ -365,6 +367,29 @@ export const SHORTCUTS: readonly Shortcut[] = [
     group: 'Build review',
     description: MODE_NAME[DESIGN_MODE],
     action: { type: 'mode', mode: DESIGN_MODE },
+  },
+  {
+    key: '[',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Overlay: step the diff layer down or up by 10%, with [ and ]',
+    action: { type: 'diffLayer', delta: -10 },
+  },
+  {
+    key: ']',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Overlay: more of the diff layer',
+    action: { type: 'diffLayer', delta: 10 },
+    listed: false,
+  },
+  {
+    // Never matched by `handleKeydown` (a bare Alt has no token): the viewer listens for it, hold it.
+    key: 'alt',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Overlay: hold to peek at the baseline',
+    action: { type: 'peekBaseline' },
   },
 ]
 

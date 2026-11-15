@@ -30,7 +30,7 @@ describe('the shortcut registry', () => {
     // The tab keys only in the installed app, and ⌥2 to ⌥9 stand under the one row for ⌥1.
     const listed = shortcutGroups(true, true).flatMap((g) => g.shortcuts)
     expect(listed).toHaveLength(SHORTCUTS.filter((s) => s.listed !== false).length)
-    const plain = SHORTCUTS.filter((s) => !s.installed).length
+    const plain = SHORTCUTS.filter((s) => !s.installed && s.listed !== false).length
     expect(shortcutGroups(false, false).flatMap((g) => g.shortcuts)).toHaveLength(plain - 1)
   })
 
