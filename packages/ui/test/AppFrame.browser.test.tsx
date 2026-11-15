@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { AppFrame, PanelHeader, ResizeHandle } from '#src/index.ts'
+import { AppFrame, PanelHeader, ResizeHandle, visuallyHidden } from '#src/index.ts'
 
 // Headless Chromium draws overlay scrollbars (no layout width): read the sizes the CSS sets.
 const bar = (el: Element) => getComputedStyle(el, '::-webkit-scrollbar').width
@@ -143,6 +143,26 @@ describe('AppFrame from 820px up: the panel scrolls, not the window', () => {
     expect(window.scrollY).toBe(0)
     const side = page.getByRole('navigation').element().parentElement!
     expect(side.getBoundingClientRect().height).toBe(window.innerHeight)
+  })
+
+  it('keeps a visually hidden label far down the page from stretching the window or an inner list', async () => {
+    // Insights' table caption and the Inbox rows' "Unread." label: absolutely placed with no
+    // positioned parent, they used to sit against the window (or the panel) far down the content.
+    await page.viewport(1280, 800)
+    await render(
+      <AppFrame sidebar={<div>Nav</div>}>
+        <div style={{ height: 3000 }} />
+        <span style={visuallyHidden}>Unread. </span>
+        <div style={{ height: 300, overflowY: 'auto' }} data-testid="list">
+          <div style={{ height: 2000 }} />
+          <span style={visuallyHidden}>Unread. </span>
+        </div>
+      </AppFrame>,
+    )
+    expect(document.scrollingElement!.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    const main = page.getByRole('main').element()
+    // The panel scrolls its own content (3000 + 300 and padding), not the inner list's 2000 again.
+    expect(main.scrollHeight).toBeLessThan(3300 + 200)
   })
 
   it('keeps the page header above the scroller while the panel scrolls', async () => {

@@ -1,4 +1,6 @@
 .root {
+  /* The containing block of anything hidden or badged inside the row, so it scrolls with the row. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start;

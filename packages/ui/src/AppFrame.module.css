@@ -59,7 +59,11 @@
   flex: none;
 }
 
+/* Positioned, so it is the containing block of whatever the page places absolutely (a visually
+   hidden caption, a chart's layers) and that scrolls with it: otherwise such an element is placed
+   against the window, at its spot far down the scrolled content, and the window scrolls. */
 .main {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;

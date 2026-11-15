@@ -195,6 +195,10 @@ export const monoFont =
 /** For text that screen readers need but sighted users don't. */
 export const visuallyHidden = {
   position: 'absolute',
+  // Pinned to its containing block's corner: left at its place in the flow, a label far down a
+  // scrolled list would stretch whatever scrolls around that block (the panel, or the window).
+  top: 0,
+  left: 0,
   width: 1,
   height: 1,
   padding: 0,
