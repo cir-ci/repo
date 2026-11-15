@@ -465,7 +465,10 @@ async function uploadStep(
     number = half.build.number
   } else {
     const result = await upload({ ...ci, wait: true })
-    if (result.exitCode === 2) throw new Error(`Upload of ${p.slug} ${step.branch} failed`)
+    // A build with a corrupt screenshot (`broken`) ends with exit 2 on a blocking project: that is
+    // the state it is seeded to show, so only a build the server couldn't process stops the seed.
+    const unreadableOnly = result.status?.unreadable.length && result.status.build.status !== 'error'
+    if (result.exitCode === 2 && !unreadableOnly) throw new Error(`Upload of ${p.slug} ${step.branch} failed`)
     number = result.build.number
   }
   await interact(p, step, number, world)
