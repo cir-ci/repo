@@ -261,8 +261,6 @@ const EXCEPTIONS: Partial<Record<RuleId, Record<string, string>>> = {
       "A building block called inside the transaction of the service that changed something (its doc comment): it takes the caller's handle and opens none.",
     'packages/services/src/notifications/system-notices.ts':
       "Building blocks called inside the transaction of the job or service that found the failure (their doc comments): they take the caller's handle and open none.",
-    'packages/services/src/triage/backfill.ts':
-      'A one-off pass over every project: each refresh opens its own transaction and lock, and one transaction around all of them would hold a connection and a lock per project for the whole pass.',
     'packages/services/src/pipeline/files.ts':
       'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
     'packages/services/src/pipeline/process.ts':

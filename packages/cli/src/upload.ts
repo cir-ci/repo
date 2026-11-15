@@ -208,7 +208,7 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
     // An input problem, not a visual change: no review settles it. It follows the project's
     // blocking setting like a build that failed to process: when the outcome fails the job ends
     // with an error (2) rather than the "needs review" exit (1); otherwise it passes, warned.
-    for (const shot of status.unreadable ?? []) log(`error: ${shot.name}: ${shot.reason}`)
+    for (const shot of status.unreadable) log(`error: ${shot.name}: ${shot.reason}`)
     log(`Upload the build again with valid PNGs: ${status.build.url}`)
     if (status.outcome.state === 'fail') result.exitCode = 2
     return result

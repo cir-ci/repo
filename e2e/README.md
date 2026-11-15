@@ -112,7 +112,6 @@ Which file uses what (this list is the decision record; keep it current):
 | webhooks-ssrf | dedicated | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false` |
 | postgres/advisory-lock, postgres/instance-config, postgres/job-queue | `default`, shared | each makes a database of its own on the stack's Postgres (`freshDatabase`), so the stack's server and worker never see it |
 | postgres/instance-config-pickup | dedicated | changes instance-wide settings and waits out the server's real 30 s cache |
-| triage-backfill | dedicated | restarts the app container, clears the instance-wide backfill marker |
 | cli-retry, session-cache | `default`, shared | own tenant; cli-retry puts a fault-injecting proxy (`fakes/fault-proxy.ts`) in front of the server |
 | signed-file-links | `s3`, shared | own tenant; screenshots and a site asset in LocalStack |
 

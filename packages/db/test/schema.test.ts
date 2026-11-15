@@ -1,14 +1,4 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-import {
-  createTestDb,
-  seedBuild,
-  seedComment,
-  seedProject,
-  seedReviewRequest,
-  seedUser,
-} from '@circi/db/testing'
+import { createTestDb, seedProject } from '@circi/db/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -104,42 +94,6 @@ describe('migrations', () => {
       'workspace_domains',
       'workspace_settings',
     ])
-  })
-
-  it('0001 backfills the kept names from the users table', async () => {
-    const { project, owner } = await seedProject(t.db)
-    const asker = await seedUser(t.db)
-    const build = await seedBuild(t.db, project.id)
-    const request = await seedReviewRequest(t.db, {
-      buildId: build.id,
-      reviewerId: owner.id,
-      requestedById: asker.id,
-    })
-    const comment = await seedComment(t.db, { buildId: build.id, authorId: asker.id })
-    // Rows as they were before the migration: no names kept.
-    await t.db.execute(sql`update review_requests set reviewer_name = '', requested_by_name = null`)
-    await t.db.execute(sql`update comments set author_name = null`)
-
-    const file = readFileSync(join(migrationsFolder, '0001_snapshot_names.sql'), 'utf8')
-    const updates = file
-      .split('--> statement-breakpoint')
-      .filter((q) => q.trim().startsWith('UPDATE'))
-    expect(updates).toHaveLength(3)
-    for (const q of updates) {
-      // oxlint-disable-next-line no-await-in-loop -- in order
-      await t.db.execute(sql.raw(q))
-    }
-
-    const [r] = await t.db
-      .select()
-      .from(schema.reviewRequests)
-      .where(eq(schema.reviewRequests.id, request.id))
-    const [c] = await t.db.select().from(schema.comments).where(eq(schema.comments.id, comment.id))
-    const [reviewerRow] = await t.db.select().from(schema.user).where(eq(schema.user.id, owner.id))
-    const [askerRow] = await t.db.select().from(schema.user).where(eq(schema.user.id, asker.id))
-    expect(r?.reviewerName).toBe(reviewerRow?.name)
-    expect(r?.requestedByName).toBe(askerRow?.name)
-    expect(c?.authorName).toBe(askerRow?.name)
   })
 
   it('are idempotent', async () => {

@@ -117,7 +117,7 @@ export const projectMembers = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
-    /** Who added them; null for the migration's backfill, or after that person's account is deleted. */
+    /** Who added them; null after that person's account is deleted. */
     addedBy: text('added_by').references(() => user.id, { onDelete: 'set null' }),
   },
   (t) => [

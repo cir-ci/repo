@@ -6,13 +6,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   assignTriage,
-  backfillTriageProblems,
   createIgnoreRegion,
   deleteIgnoreRegion,
   dismissTriage,
   rerunFailedBuild,
   snoozeTriage,
-  TRIAGE_PROBLEMS_BACKFILLED_KEY,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -169,30 +167,5 @@ describe('rerunFailedBuild', () => {
     await expect(rerunFailedBuild(t.db, { projectId: project.id, number: 999 })).rejects.toThrow(
       /not found/,
     )
-  })
-})
-
-describe('backfillTriageProblems', () => {
-  it('fills the stored triage rows of projects that predate them, once', async () => {
-    const { project } = await setup()
-    const stored = () =>
-      t.db
-        .select()
-        .from(schema.triageProblems)
-        .where(eq(schema.triageProblems.projectId, project.id))
-    // A project from before migration 0002: builds, but no rows.
-    await t.db.delete(schema.triageProblems).where(eq(schema.triageProblems.projectId, project.id))
-    await t.db
-      .delete(schema.instanceSettings)
-      .where(eq(schema.instanceSettings.key, TRIAGE_PROBLEMS_BACKFILLED_KEY))
-    expect(await stored()).toHaveLength(0)
-
-    expect(await backfillTriageProblems(t.db)).toBeGreaterThan(0)
-    expect(await stored()).toEqual([{ projectId: project.id, kind: 'failed', key: 'build:1' }])
-
-    // The marker is set: a later start leaves everything alone.
-    await t.db.delete(schema.triageProblems).where(eq(schema.triageProblems.projectId, project.id))
-    expect(await backfillTriageProblems(t.db)).toBe(0)
-    expect(await stored()).toHaveLength(0)
   })
 })

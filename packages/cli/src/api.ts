@@ -52,8 +52,8 @@ export namespace ApiClient {
       failed: number
       total: number
     }
-    /** Screenshots the server couldn't read, with why; absent from an older server. */
-    unreadable?: { name: string; reason: string }[]
+    /** Screenshots the server couldn't read, with why. */
+    unreadable: { name: string; reason: string }[]
     outcome: { state: 'pending' | 'pass' | 'fail'; summary: string; warning?: string }
     gate: 'exit-code' | 'status'
     errorMessage: string | null

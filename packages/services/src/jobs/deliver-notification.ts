@@ -6,14 +6,7 @@ import { sendNotificationEmail } from './send-notification-email.ts'
 
 /**
  * The `notification-email` job: everything that follows one inbox notification besides the
- * inbox row itself. The queue name and the payload (`{ notificationId }`) are the ones that
- * existed when it only sent email, so rows queued before a deploy are still understood.
- *
- * Rolling deploys: a server that queues this job for a push only (the person turned email off)
- * may be answered by a worker that predates push. That worker finds "opted out" or "this kind is
- * not emailed" and completes the job without sending anything, so one push can be lost during the
- * deploy, never an email twice. A new worker given a job from an old server also looks at push, which
- * is harmless: it sends only what the person's settings allow.
+ * inbox row itself (the email, then the web push). The payload is `{ notificationId }`.
  */
 
 export namespace deliverNotification {

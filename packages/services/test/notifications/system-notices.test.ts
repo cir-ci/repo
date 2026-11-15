@@ -19,13 +19,11 @@ import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
-  backfillTriageProblems,
   changeProjectSettings,
   completeBuild,
   flagInstallationAttention,
   flagIntegrationAttention,
   notifyFlakyDetected,
-  TRIAGE_PROBLEMS_BACKFILLED_KEY,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -207,21 +205,6 @@ describe('flaky screenshot found', () => {
     await build('B', true, 'complete')
     expect(await refreshTriageProblems(t.db, project.id)).toEqual(['home'])
     expect(await refreshTriageProblems(t.db, project.id)).toEqual([])
-  })
-
-  it('keeps the backfill quiet about screenshots that were already flaky', async () => {
-    const { project, owner, build } = await flakyProject()
-    await build('B', true, 'complete')
-    await t.db
-      .delete(schema.instanceSettings)
-      .where(eq(schema.instanceSettings.key, TRIAGE_PROBLEMS_BACKFILLED_KEY))
-    await backfillTriageProblems(t.db)
-    const stored = await t.db
-      .select()
-      .from(schema.triageProblems)
-      .where(eq(schema.triageProblems.projectId, project.id))
-    expect(stored.map((p) => p.kind)).toContain('flaky')
-    expect(await noticesOf(owner.id, 'flaky_detected')).toEqual([])
   })
 
   it('says nothing for an empty list', async () => {

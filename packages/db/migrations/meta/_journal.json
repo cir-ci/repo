@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794387469964,
+      "when": 1794728606146,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1794413413914,
-      "tag": "0001_snapshot_names",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1794499058503,
-      "tag": "0002_files_thumbnails_fk_indexes_triage_problems",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1794499693059,
-      "tag": "0003_expired_site_hostnames",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1794518785800,
-      "tag": "0004_build_idempotency_key",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1794728259826,
-      "tag": "0005_furry_gwen_stacy",
       "breakpoints": true
     }
   ]

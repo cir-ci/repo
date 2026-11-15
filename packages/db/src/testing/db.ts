@@ -128,7 +128,7 @@ export async function seedUser(db: Database, email?: string): Promise<User> {
 }
 
 /**
- * Adds a user to a workspace. Like the upgrade did for the projects that existed, they join every
+ * Adds a user to a workspace. They join every
  * project the workspace has now (pass `projects: []` to join none, or the project ids to join only
  * those); a project made later has to be joined on purpose.
  */
