@@ -105,12 +105,13 @@ export function ProjectPage() {
             tone="flaky"
             action={
               <Link
+                className={styles.openTriage}
                 {...clientLink({
                   to: '/$workspace/$project/triage',
                   params: { workspace, project },
                 })}
               >
-                Open Triage
+                Open Triage <span aria-hidden="true">↗</span>
               </Link>
             }
           >
