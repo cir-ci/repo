@@ -103,6 +103,24 @@ describe('InboxPage', () => {
     expect(split.scrollWidth).toBeLessThanOrEqual(split.clientWidth)
   })
 
+  it('keeps every footer action inside the pane at its narrowest width', async () => {
+    await page.viewport(1440, 800)
+    usePaneStore.setState({ widths: { 'inbox-pane': PANES['inbox-pane'].min } })
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await show('/inbox?item=n1')
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await expect.element(pane.getByRole('button', { name: /Approve all/ })).toBeVisible()
+    const card = pane.element().getBoundingClientRect()
+    expect(card.width).toBeLessThanOrEqual(PANES['inbox-pane'].min)
+    const buttons = [...pane.element().querySelectorAll('footer button, footer a')]
+    expect(buttons.length).toBeGreaterThanOrEqual(5)
+    for (const button of buttons) {
+      const box = button.getBoundingClientRect()
+      expect(box.left).toBeGreaterThanOrEqual(card.left)
+      expect(box.right).toBeLessThanOrEqual(card.right)
+    }
+  })
+
   it('marks read or unread with U', async () => {
     let readAt: string | null = null
     const api = fakeApi({

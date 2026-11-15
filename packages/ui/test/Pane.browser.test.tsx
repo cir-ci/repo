@@ -43,4 +43,29 @@ describe('Pane', () => {
     expect(small.getBoundingClientRect().width).toBe(280)
     expect(large.getBoundingClientRect().width).toBe(420)
   })
+
+  it('wraps many actions onto more rows instead of overflowing the card', async () => {
+    await render(
+      <div style={{ display: 'flex', width: 300 }}>
+        <Pane
+          label="Many"
+          width="sm"
+          actions={['Mark unread', 'Delete', 'Snooze', 'Open build', 'Approve all'].map((name) => (
+            <Button key={name}>{name}</Button>
+          ))}
+        />
+      </div>,
+    )
+    const card = page.getByRole('region', { name: 'Many' }).element().getBoundingClientRect()
+    const buttons = page.getByRole('button').elements()
+    expect(buttons).toHaveLength(5)
+    for (const button of buttons) {
+      const box = button.getBoundingClientRect()
+      expect(box.left).toBeGreaterThanOrEqual(card.left)
+      expect(box.right).toBeLessThanOrEqual(card.right)
+    }
+    expect(
+      new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size,
+    ).toBeGreaterThan(1)
+  })
 })
