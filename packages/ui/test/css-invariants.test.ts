@@ -50,7 +50,7 @@ const OUTLINE_ALLOWED: Record<string, string> = {
   'apps/web/src/features/auth/AuthPage.module.css .column':
     "<main> is focused by the skip link only (tabindex=-1), as the shell's main",
   'packages/ui/src/CompareHandle.module.css .thumb':
-    'the thumb is a full-height column; the focus ring is drawn on its grip (.thumb:has(:focus-visible)::after)',
+    'the thumb is a full-height column; the focus ring is drawn on its grip (.thumb:has(:focus-visible) .grip)',
   'packages/ui/src/Select.module.css .positioner': 'a wrapper, never focused itself',
   'packages/ui/src/Select.module.css .popup':
     'the popup container takes focus; its items show focus',

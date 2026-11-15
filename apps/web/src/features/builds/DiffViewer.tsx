@@ -452,14 +452,10 @@ export function Viewer({
                 className={styles.cover}
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
+              {/* The layer draws and clicks as in the other modes; the handle sits above it and
+                  takes only the presses on the divider itself. */}
+              {layer ? <RegionLayer annotations={layer} /> : null}
               <CompareHandle label="Slider position" value={at} onValueChange={setAt} />
-              {/* A drag on the image moves the divider, so the layer draws only from the keyboard
-                  tool here; its markers stay clickable. */}
-              {layer ? (
-                <div className={styles.atop}>
-                  <RegionLayer annotations={{ ...layer, alwaysDraw: false }} />
-                </div>
-              ) : null}
             </div>
           </figure>
         ) : null}

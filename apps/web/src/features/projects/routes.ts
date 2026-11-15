@@ -40,4 +40,25 @@ const workspaceSettingsShortcut = createRoute({
   },
 })
 
-export const projectsRoutes = [projectsRoute, projectRoute, workspaceSettingsShortcut]
+// The project's Builds list is the project page itself, so `/<workspace>/<project>/builds` (the
+// address anyone would guess, next to `/builds/7`) goes there, keeping the filters. `replace` keeps
+// Back working.
+const buildsListShortcut = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace/$project/builds',
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/$workspace/$project',
+      params: { workspace: params.workspace, project: params.project },
+      search: true,
+      replace: true,
+    })
+  },
+})
+
+export const projectsRoutes = [
+  projectsRoute,
+  projectRoute,
+  workspaceSettingsShortcut,
+  buildsListShortcut,
+]

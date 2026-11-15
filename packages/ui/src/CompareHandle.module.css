@@ -3,15 +3,16 @@
   inset: 0;
 }
 
-/* The whole image is the control: a press or drag anywhere moves the divider. A vertical swipe
-   still scrolls the page on a phone. */
+.root {
+  pointer-events: none;
+}
+
 .control {
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  touch-action: pan-y;
   user-select: none;
-  cursor: ew-resize;
+  pointer-events: none;
 }
 
 /* Base UI sets `position: relative` inline, so the track fills the control by its size. */
@@ -20,14 +21,16 @@
   height: 100%;
 }
 
-/* The thumb is the divider: a column the grip's width (a comfortable hit area), the line down its
-   middle and the grip at the middle of the image. */
+/* The thumb is the divider: a 16px column (the hit area) with the line down its middle; only it
+   takes the pointer. A vertical swipe still scrolls the page on a phone. */
 .thumb {
   box-sizing: border-box;
-  width: 28px;
+  width: 16px;
   height: 100%;
   outline: none;
   cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: pan-y;
 }
 
 .thumb::before {
@@ -41,26 +44,32 @@
   background: var(--circi-accent-main);
 }
 
-.thumb::after {
-  content: '';
+/* The grip, 28px, centered on the line and the middle of the image (wider than the column; a
+   press on it still lands on the thumb). */
+.grip {
   position: absolute;
   top: 50%;
-  left: 0;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
   width: 28px;
   height: 28px;
-  translate: 0 -50%;
+  translate: -50% -50%;
   border: 2px solid var(--circi-accent-main);
   border-radius: 50%;
   background: var(--circi-surface-raised);
+  color: var(--circi-accent-text);
 }
 
-.thumb[data-dragging]::after {
+.thumb[data-dragging] .grip {
   background: var(--circi-accent-main);
+  color: var(--circi-surface-raised);
 }
 
 /* The focus ring: around the grip, and a wider line so the divider reads as focused. */
-.thumb:has(:focus-visible)::after {
+.thumb:has(:focus-visible) .grip {
   outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }

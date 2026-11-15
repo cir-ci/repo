@@ -16,6 +16,20 @@ describe('the app router', () => {
     expect(router.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')
   })
 
+  it('sends /<workspace>/<project>/builds to the project page, keeping the search and replacing the entry', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/acme/web-app/builds?branch=main'] })
+    const router = createAppRouter({ history })
+    await router.load()
+    expect(router.state.location.pathname).toBe('/acme/web-app')
+    expect(router.state.location.search).toMatchObject({ branch: 'main' })
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$project')
+    // Replaced, not pushed: Back doesn't land on the address that redirects again.
+    expect(history.length).toBe(1)
+    // A build's own address is untouched.
+    const build = await open('/acme/web-app/builds/7')
+    expect(build.state.matches.at(-1)?.routeId).toBe('/$workspace/$project/builds/$number')
+  })
+
   it('has the bare workspace settings address and General at its own', async () => {
     const hub = await open('/workspaces/acme/settings')
     expect(hub.state.matches.at(-1)?.routeId).toBe('/workspaces/$workspace/settings')

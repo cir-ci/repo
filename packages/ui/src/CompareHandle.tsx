@@ -1,13 +1,15 @@
 import { Slider as BaseSlider } from '@base-ui/react/slider'
 
 import { cx } from './cx.ts'
+import { ChevronLeftIcon, ChevronRightIcon } from './icons.ts'
 
 import styles from './CompareHandle.module.css'
 
 /**
  * The divider of a before / after compare, laid over the images it splits: a line the full height
- * with a grip, a Base UI `Slider` whose control covers the whole image so a drag anywhere moves it.
- * Place it inside a `position: relative` box that is exactly the image; the caller clips the "after"
+ * with a grip, a Base UI `Slider`. Only the divider takes the pointer (the line and the grip, a
+ * 16px-wide column): everything else on the image stays free for whatever is under it (drawing a
+ * region, markers). Place it inside a `position: relative` box that is exactly the image; the caller clips the "after"
  * image at `value`%. Arrow keys move by `step`, Home / End jump to the ends, and the grip is a
  * `slider` named by `label`.
  */
@@ -35,7 +37,12 @@ export function CompareHandle({
     >
       <BaseSlider.Control className={styles.control}>
         <BaseSlider.Track className={styles.track}>
-          <BaseSlider.Thumb aria-label={label} className={styles.thumb} />
+          <BaseSlider.Thumb aria-label={label} className={styles.thumb}>
+            <span className={styles.grip} aria-hidden="true">
+              <ChevronLeftIcon size={12} strokeWidth={2.25} />
+              <ChevronRightIcon size={12} strokeWidth={2.25} />
+            </span>
+          </BaseSlider.Thumb>
         </BaseSlider.Track>
       </BaseSlider.Control>
     </BaseSlider.Root>

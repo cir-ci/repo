@@ -508,7 +508,7 @@ describe('view modes', () => {
     await expect.element(slider).toHaveAttribute('aria-valuenow', '100')
   })
 
-  it('moves the divider by dragging anywhere on the image', async () => {
+  it('moves the divider only by dragging the handle', async () => {
     fakeBuildApi(detail())
     await renderBuild('/acme/web-app/builds/7?mode=slider')
     const slider = page.getByRole('slider', { name: 'Slider position' })
@@ -516,35 +516,65 @@ describe('view modes', () => {
     await expect.element(head).toBeVisible()
     const box = head.element().getBoundingClientRect()
     const y = box.top + box.height * 0.2
-    // Press well away from the handle (at 50%), at a quarter of the width, then drag to 80%. The
-    // topmost element there is the slider's control, not the image.
-    const press = { x: box.left + box.width * 0.25, y }
-    const target = document.elementFromPoint(press.x, press.y)
+    // The handle is at 50%: press on its line, drag to 80%.
+    const target = document.elementFromPoint(box.left + box.width * 0.5, y)
     expect(target).not.toBeNull()
-    expect(target?.closest('[role="group"], [data-orientation]')).not.toBe(head.element())
-    const fire = (type: string, x: number) =>
-      (type === 'pointerdown' ? target : document)?.dispatchEvent(
-        new PointerEvent(type, {
-          bubbles: true,
-          button: 0,
-          buttons: type === 'pointerup' ? 0 : 1,
-          pointerId: 1,
-          pointerType: 'mouse',
-          clientX: x,
-          clientY: y,
-        }),
-      )
-    fire('pointerdown', press.x)
-    fire('pointermove', box.left + box.width * 0.8)
-    fire('pointerup', box.left + box.width * 0.8)
+    expect(slider.element().parentElement?.contains(target)).toBe(true)
+    pointerDrag(target, 'mouse', { x: box.left + box.width * 0.5, y }, box.left + box.width * 0.8)
     await expect.poll(() => slider.element().getAttribute('aria-valuenow')).not.toBe('50')
     const now = Number(slider.element().getAttribute('aria-valuenow'))
     expect(now).toBeGreaterThan(70)
     expect(now).toBeLessThanOrEqual(85)
-    expect(target).not.toBe(head.element())
     await expect.element(head).toHaveStyle({ clipPath: `inset(0px 0px 0px ${now}%)` })
   })
+
+  it('draws a region by dragging elsewhere on the image, and a click leaves the divider', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?mode=slider')
+    const slider = page.getByRole('slider', { name: 'Slider position' })
+    const head = page.getByRole('img', { name: 'This build: checkout / payment' })
+    await expect.element(head).toBeVisible()
+    // The test images don't load: give the frame a size to draw on.
+    const base = page.getByRole('img', { name: 'Baseline: checkout / payment' }).element()
+    base.style.width = '400px'
+    base.style.height = '300px'
+    const handle = slider.element()
+    const layer = page.getByTestId('region-layer')
+    await userEvent.click(layer, { position: { x: 30, y: 30 } })
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
+    await userEvent.dragAndDrop(layer, layer, {
+      sourcePosition: { x: 20, y: 20 },
+      targetPosition: { x: 120, y: 90 },
+    })
+    await expect.element(page.getByRole('dialog', { name: 'Comment on this region' })).toBeVisible()
+    // (The page behind the box is out of the accessibility tree while it traps focus.)
+    expect(handle.getAttribute('aria-valuenow')).toBe('50')
+  })
 })
+
+function pointerDrag(
+  target: Element | null,
+  pointerType: 'mouse' | 'touch',
+  from: { x: number; y: number },
+  toX: number,
+) {
+  const fire = (type: string, x: number) =>
+    (type === 'pointerdown' ? target : document)?.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        button: 0,
+        buttons: type === 'pointerup' ? 0 : 1,
+        pointerId: 1,
+        pointerType,
+        isPrimary: true,
+        clientX: x,
+        clientY: from.y,
+      }),
+    )
+  fire('pointerdown', from.x)
+  fire('pointermove', toX)
+  fire('pointerup', toX)
+}
 
 describe('zoom and stepping', () => {
   it('fits by default, then shows the real size and steps', async () => {

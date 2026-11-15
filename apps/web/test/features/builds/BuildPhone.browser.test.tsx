@@ -218,7 +218,7 @@ describe('the build page on a phone', () => {
     }
   })
 
-  it('moves the slider divider by touch on the image', async () => {
+  it('moves the slider divider by touch on the handle, and not by touch elsewhere', async () => {
     await ready()
     await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Slider' }).click()
     const slider = page.getByRole('slider', { name: 'Slider position' })
@@ -227,25 +227,35 @@ describe('the build page on a phone', () => {
     await expect.element(head).toBeVisible()
     const box = head.element().getBoundingClientRect()
     const y = box.top + box.height * 0.3
-    const target = document.elementFromPoint(box.left + box.width * 0.2, y)
-    const fire = (type: string, x: number) =>
-      (type === 'pointerdown' ? target : document)?.dispatchEvent(
-        new PointerEvent(type, {
-          bubbles: true,
-          button: 0,
-          buttons: type === 'pointerup' ? 0 : 1,
-          pointerId: 1,
-          pointerType: 'touch',
-          isPrimary: true,
-          clientX: x,
-          clientY: y,
-        }),
-      )
-    fire('pointerdown', box.left + box.width * 0.2)
-    fire('pointermove', box.left + box.width * 0.7)
-    fire('pointerup', box.left + box.width * 0.7)
+    const touch = (target: Element | null, from: number, to: number) => {
+      const fire = (type: string, x: number) =>
+        (type === 'pointerdown' ? target : document)?.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            button: 0,
+            buttons: type === 'pointerup' ? 0 : 1,
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: x,
+            clientY: y,
+          }),
+        )
+      fire('pointerdown', from)
+      fire('pointermove', to)
+      fire('pointerup', to)
+    }
+    // Away from the handle: the divider stays.
+    const away = box.left + box.width * 0.2
+    touch(document.elementFromPoint(away, y), away, box.left + box.width * 0.7)
+    expect(slider.element().getAttribute('aria-valuenow')).toBe('50')
+    // On the handle's line: it follows the finger.
+    const line = box.left + box.width * 0.5
+    const onHandle = document.elementFromPoint(line, y)
+    expect(slider.element().parentElement?.contains(onHandle)).toBe(true)
+    touch(onHandle, line, box.left + box.width * 0.8)
     await expect.poll(() => slider.element().getAttribute('aria-valuenow')).not.toBe('50')
-    expect(Number(slider.element().getAttribute('aria-valuenow'))).toBeGreaterThan(60)
+    expect(Number(slider.element().getAttribute('aria-valuenow'))).toBeGreaterThan(70)
   })
 
   it('offers the four views, with Overlay and Side by side in the options menu', async () => {
