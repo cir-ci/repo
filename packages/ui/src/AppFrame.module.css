@@ -16,47 +16,26 @@
   user-select: none;
 }
 
-.nav {
+.sidebar .navRoot {
+  flex: 1 1 auto;
+}
+
+/* The entries' column: a flex column with a 1px gap, at least the nav's height so a footer with
+   `margin-top: auto` sits at the bottom. */
+.navContent {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 1px;
+  min-height: 100%;
+}
+
+/* Selector doubled to win over ScrollArea's own viewport rule. The thumb is laid over the 8px side
+   padding, so the entries keep their width whether or not it shows. */
+.sidebar .nav {
+  flex: 1 1 auto;
   box-sizing: border-box;
   min-height: 0;
   padding: 10px 8px;
-}
-
-/* The sidebar's scrollbar is narrower than the page's (6px against 10px) and shows only while the
-   sidebar is hovered, scrolled or has keyboard focus. */
-.nav::-webkit-scrollbar {
-  width: 6px;
-}
-
-.nav::-webkit-scrollbar-thumb {
-  border-width: 1px;
-  background-color: transparent;
-}
-
-.nav:hover::-webkit-scrollbar-thumb,
-.nav:has(:focus-visible)::-webkit-scrollbar-thumb,
-.nav[data-scrolling]::-webkit-scrollbar-thumb {
-  background-color: var(--circi-scrollbar-thumb);
-}
-
-.nav::-webkit-scrollbar-thumb:hover {
-  background-color: var(--circi-scrollbar-thumb-hover);
-}
-
-@supports not selector(::-webkit-scrollbar) {
-  .nav {
-    scrollbar-color: transparent transparent;
-  }
-
-  .nav:hover,
-  .nav:has(:focus-visible),
-  .nav[data-scrolling] {
-    scrollbar-color: var(--circi-scrollbar-thumb) transparent;
-  }
 }
 
 .panel {
@@ -116,7 +95,7 @@
   }
 
   /* No drag handle below 820px: the sidebar is a drawer or stacked. */
-  .sidebar > :not(nav) {
+  .sidebar > :not(.navRoot) {
     display: none;
   }
 
@@ -194,8 +173,11 @@
     min-height: 0;
   }
 
-  .nav {
-    overflow-y: auto;
+  /* The sidebar is the frame's height: the nav takes exactly that and scrolls inside it. */
+  .sidebar .navRoot,
+  .sidebar .nav {
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .root[data-sidebar-collapsed] .sidebar {

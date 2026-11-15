@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { AppFrame, PanelHeader, ResizeHandle } from '#src/index.ts'
 
@@ -262,7 +262,7 @@ describe('AppFrame resizable sidebar', () => {
     expect(page.getByRole('separator').elements()).toHaveLength(0)
   })
 
-  it('gives the sidebar a narrower scrollbar than the page, marked while it scrolls', async () => {
+  it('scrolls the sidebar in the nav landmark with an overlay thumb, the page keeps its 10px bar', async () => {
     await page.viewport(1200, 400)
     await render(
       <AppFrame sidebar={<div style={{ height: 2000, flexShrink: 0 }}>Long sidebar</div>}>
@@ -270,11 +270,55 @@ describe('AppFrame resizable sidebar', () => {
       </AppFrame>,
     )
     const nav = page.getByRole('navigation', { name: 'Main' }).element()
-    expect(bar(nav)).toBe('6px')
-    expect(bar(page.getByRole('main').element())).toBe('10px')
+    expect(nav.tagName).toBe('NAV')
     expect(nav.scrollHeight).toBeGreaterThan(nav.clientHeight)
-    nav.scrollTop = 200
-    await expect.poll(() => nav.hasAttribute('data-scrolling')).toBe(true)
+    // The nav is the viewport: no wrapper between it and its entries in the accessibility tree.
+    expect(page.getByRole('navigation').elements()).toHaveLength(1)
+    expect(bar(page.getByRole('main').element())).toBe('10px')
+    // The sidebar scrolls inside the frame: the window itself never does.
+    expect(document.scrollingElement!.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    await userEvent.hover(nav)
+    const thumb = document.querySelector('[data-orientation="vertical"] > div')!
+    await expect.poll(() => getComputedStyle(thumb.parentElement!).opacity).toBe('1')
+    // The thumb lies within the nav's 8px right padding.
+    const navBox = nav.getBoundingClientRect()
+    const thumbBox = thumb.getBoundingClientRect()
+    expect(thumbBox.right).toBeLessThanOrEqual(navBox.right)
+    expect(thumbBox.width).toBeLessThanOrEqual(8)
+  })
+
+  it('keeps an entry the same width with and without sidebar overflow', async () => {
+    await page.viewport(1200, 400)
+    const entry = <a href="/x">Entry</a>
+    const { rerender } = await render(
+      <AppFrame sidebar={entry} sidebarWidth={244}>
+        Page
+      </AppFrame>,
+    )
+    const nav = page.getByRole('navigation', { name: 'Main' }).element()
+    const link = page.getByRole('link', { name: 'Entry' }).element()
+    expect(nav.scrollHeight).toBeLessThanOrEqual(nav.clientHeight)
+    const without = link.getBoundingClientRect().width
+    await rerender(
+      <AppFrame
+        sidebar={
+          <>
+            {entry}
+            <div style={{ height: 2000, flexShrink: 0 }}>Long sidebar</div>
+          </>
+        }
+        sidebarWidth={244}
+      >
+        Page
+      </AppFrame>,
+    )
+    await expect.poll(() => nav.scrollHeight > nav.clientHeight).toBe(true)
+    expect(link.getBoundingClientRect().width).toBe(without)
+    // Content that grew after mount still gets its thumb, without a scroll first.
+    await userEvent.hover(nav)
+    await expect.poll(() => document.querySelector('[data-orientation="vertical"]')).not.toBeNull()
+    // 244px sidebar less the 8px padding on both sides.
+    expect(without).toBe(228)
   })
 })
 

@@ -15,7 +15,13 @@ import styles from './ScrollArea.module.css'
  * like a flex item (`flex: 1 1 0`). The viewport is marked `data-scroll-area`, which the region
  * drag's auto-scroll looks for.
  */
-export function ScrollArea({ className, rootClassName, children, ...props }: ScrollArea.Props) {
+export function ScrollArea({
+  className,
+  rootClassName,
+  contentClassName,
+  children,
+  ...props
+}: ScrollArea.Props) {
   return (
     <BaseScrollArea.Root className={cx(styles.root, rootClassName)}>
       <BaseScrollArea.Viewport
@@ -23,7 +29,11 @@ export function ScrollArea({ className, rootClassName, children, ...props }: Scr
         className={cx(styles.viewport, className)}
         data-scroll-area=""
       >
-        {children}
+        {contentClassName === undefined ? (
+          children
+        ) : (
+          <BaseScrollArea.Content className={contentClassName}>{children}</BaseScrollArea.Content>
+        )}
       </BaseScrollArea.Viewport>
       <BaseScrollArea.Scrollbar orientation="vertical" className={styles.scrollbar}>
         <BaseScrollArea.Thumb className={styles.thumb} />
@@ -42,5 +52,11 @@ export namespace ScrollArea {
     className?: string | undefined
     /** Styles the frame around the viewport (its size in the parent). */
     rootClassName?: string | undefined
+    /**
+     * Wraps the children in Base UI's content element, which the scrollbars watch for size changes
+     * (without it they notice content that grows after mount only on the first scroll). Give it the
+     * layout of the children (flex, gap).
+     */
+    contentClassName?: string | undefined
   }
 }

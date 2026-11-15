@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { PanelSlotContext } from './panel-slot.ts'
-import { useScrollingFlag } from './use-scrolling.ts'
+import { ScrollArea } from './ScrollArea.tsx'
 
 import styles from './AppFrame.module.css'
 
@@ -15,7 +15,6 @@ import styles from './AppFrame.module.css'
  * the scrollbar sits inside the panel (stopping at the bar on a phone) and nothing shifts.
  */
 export function AppFrame(props: AppFrame.Props) {
-  const onNavScroll = useScrollingFlag()
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   const height =
     typeof props.minHeight === 'number'
@@ -40,13 +39,17 @@ export function AppFrame(props: AppFrame.Props) {
     >
       {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
       <div className={styles.sidebar} style={sidebarStyle}>
-        <nav
+        {/* The nav landmark is the scrolling viewport itself (no wrapper in the accessibility
+            tree); its scrollbar is an overlay thumb, so it never narrows the entries. */}
+        <ScrollArea
+          rootClassName={styles.navRoot}
           className={styles.nav}
+          contentClassName={styles.navContent}
           aria-label={props.sidebarLabel ?? 'Main'}
-          onScroll={onNavScroll}
+          render={<nav />}
         >
           {props.sidebar}
-        </nav>
+        </ScrollArea>
         {props.sidebarCollapsed ? null : props.sidebarHandle}
       </div>
       {/* The panel: what is above the scroller (the app's tab row, the page's header) stays put;
