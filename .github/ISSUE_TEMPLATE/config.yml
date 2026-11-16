@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature request or idea
+    url: https://github.com/cir-ci/repo/discussions/new?category=ideas
+    about: Ideas start as a discussion. A maintainer opens an issue once the work is well understood.
+  - name: Question
+    url: https://github.com/cir-ci/repo/discussions/new?category=q-a
+    about: How do I...? Why does CirCI...? Ask in Q&A. If something is broken, file a bug report instead.
+  - name: Documentation
+    url: https://github.com/cir-ci/documentation/issues/new/choose
+    about: A mistake or gap in circi.dev goes to the documentation repository.

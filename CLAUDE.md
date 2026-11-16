@@ -1,6 +1,6 @@
 # CirCI: working conventions
 
-Self-hosted visual regression testing (see PLAN.md for the design, README.md for use).
+Self-hosted visual regression testing (README.md for use, docs/ for the references).
 
 ## Commands
 
@@ -105,7 +105,7 @@ store in `packages/db/src/repositories/`, the wire type in `packages/api`. A new
 body in `services/src/jobs/` or the area folder, a thin adapter in `apps/worker/src/handlers/`,
 never a new job name or payload key without a rolling-deploy plan (queued rows outlive a deploy).
 A pure rule: `packages/core`. Services tests mirror the folders under `packages/services/test/`.
-Background and the evidence behind these rules: `docs/architecture-review/` (layering.md first).
+The layer rules are enforced by `packages/services/test/layers.test.ts`.
 
 ## Types: namespaces for the types that belong to something
 

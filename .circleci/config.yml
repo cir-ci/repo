@@ -1,0 +1,237 @@
+# CirCI's CI. Two workflows:
+#
+#   gate  every push and pull request: `pnpm gate` (format check, lint, typecheck, the Node, UI and web
+#         browser tests, build). No Docker. Required status check: `gate`.
+#   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
+#         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
+#
+# The nightly run is a scheduled pipeline that sets the `nightly` parameter to true. Scheduled pipelines
+# are created in the CircleCI UI (Project Settings > Triggers > Add Trigger), not in this file: pick the
+# branch (main), a time, and add the pipeline parameter `nightly` = true. See CONTRIBUTING.md.
+version: 2.1
+
+parameters:
+  nightly:
+    type: boolean
+    default: false
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:26.13 # Node 26, the same major as .nvmrc
+    resource_class: large # 4 vCPU, 8 GB: the two browser test projects each take a quarter of the cores
+    working_directory: ~/circi
+    environment:
+      CI: 'true'
+      TURBO_TELEMETRY_DISABLED: '1'
+  docker-vm:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large # 4 vCPU, 15 GB: the end-to-end stack needs the Docker VM's memory
+    working_directory: ~/circi
+    environment:
+      CI: 'true'
+      TURBO_TELEMETRY_DISABLED: '1'
+
+commands:
+  # Node 26 no longer ships Corepack, so install it, then let it fetch the pnpm in package.json's
+  # "packageManager" (pnpm 12).
+  setup-pnpm:
+    steps:
+      - run:
+          name: Enable pnpm through Corepack
+          command: |
+            sudo npm install --global corepack
+            sudo corepack enable
+            corepack install
+            pnpm --version
+            pnpm config set store-dir "$HOME/.pnpm-store"
+
+  # Machine images have no Node 26: install it with nvm from .nvmrc and put it on every later step's PATH.
+  setup-node-on-machine:
+    steps:
+      - run:
+          name: Install Node from .nvmrc
+          command: |
+            export NVM_DIR="$HOME/.nvm"
+            . "$NVM_DIR/nvm.sh"
+            nvm install
+            nvm alias default "$(cat .nvmrc)"
+            echo '. "$HOME/.nvm/nvm.sh"' >> "$BASH_ENV"
+            echo 'nvm use default >/dev/null' >> "$BASH_ENV"
+      - setup-pnpm
+
+  restore-pnpm-store:
+    steps:
+      - restore_cache:
+          keys:
+            - pnpm-store-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-store-v1-{{ arch }}-
+
+  save-pnpm-store:
+    steps:
+      - save_cache:
+          key: pnpm-store-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.pnpm-store
+
+  # Turborepo's cache (.turbo/cache) makes an unchanged task instant. The key is per revision, so every
+  # run saves; the restore falls back to the branch's latest, then to any run.
+  restore-turbo:
+    steps:
+      - restore_cache:
+          keys:
+            - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
+            - turbo-v1-{{ arch }}-{{ .Branch }}-
+            - turbo-v1-{{ arch }}-
+
+  save-turbo:
+    steps:
+      - save_cache:
+          key: turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .turbo
+          when: always
+
+  install-chromium:
+    parameters:
+      with-deps:
+        type: boolean
+        default: true
+    steps:
+      - restore_cache:
+          keys:
+            - playwright-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+      - run:
+          name: Install Chromium for Playwright
+          command: |
+            if [ "<< parameters.with-deps >>" = "true" ]; then
+              pnpm exec playwright install --with-deps chromium
+            else
+              pnpm exec playwright install chromium
+            fi
+      - save_cache:
+          key: playwright-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.cache/ms-playwright
+
+jobs:
+  # Required status check. Everything in `pnpm gate`, without Docker. The image has no Rust toolchain, so
+  # the build skips the native diff engine and the JS engine (the default) is what the tests use.
+  gate:
+    executor: node
+    steps:
+      - checkout
+      - setup-pnpm
+      - restore-pnpm-store
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+      - save-pnpm-store
+      - install-chromium
+      - restore-turbo
+      - run:
+          name: pnpm gate
+          command: pnpm gate
+          no_output_timeout: 20m
+      - save-turbo
+
+  # The end-to-end groups of `pnpm gate:full` (//#e2e:api and //#e2e:browser): the real server, worker and
+  # CLI image on Docker, with Chromium for the dashboard. The gate's own tasks run in the `gate` job.
+  e2e:
+    executor: docker-vm
+    environment:
+      # 2 Vitest workers per group (the default of the e2e scripts); both groups run at once on 15 GB.
+      E2E_WORKERS: '2'
+    steps:
+      - checkout
+      - setup-node-on-machine
+      - restore-pnpm-store
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+      - save-pnpm-store
+      - install-chromium
+      - restore-turbo
+      - run:
+          name: Build (the end-to-end tests use the CLI's dist)
+          command: pnpm build
+      - run:
+          name: End-to-end tests
+          command: |
+            E2E_ENV_FINGERPRINT="$(pnpm --silent e2e:fingerprint)" \
+              pnpm exec turbo run //#e2e:api //#e2e:browser
+          no_output_timeout: 30m
+      - save-turbo
+      - store_artifacts:
+          path: e2e/.artifacts
+          destination: e2e-artifacts
+
+  # What the old GitHub Actions workflow checked and the end-to-end tests don't: the shipped Compose files
+  # (deploy/docker-compose.yml + the S3 overlay) start, the admin commands run inside the image, sign-in
+  # works, and the storage driver passes its live tests against MinIO.
+  compose-smoke:
+    executor: docker-vm
+    environment:
+      POSTGRES_PASSWORD: ci-only-password
+      BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
+      COMPOSE: docker compose -f docker-compose.yml -f docker-compose.s3.yml
+    steps:
+      - checkout
+      - run:
+          name: Start the stack (Postgres, MinIO, CirCI)
+          working_directory: deploy
+          command: $COMPOSE up -d --build --wait --wait-timeout 300
+      - run:
+          name: Ready and healthy
+          command: curl -fsS http://localhost:3000/readyz
+      - run:
+          name: Admin commands work inside the image
+          working_directory: deploy
+          command: |
+            $COMPOSE exec -T circi circi admin user create --email ci@example.com --name CI \
+              --password ci-only-password-123
+            $COMPOSE exec -T circi circi admin workspace create --name "CI Workspace" --owner ci@example.com
+            $COMPOSE exec -T circi circi admin project create --org ci-workspace --name "Web" --json \
+              | grep -q '"token": "circi_'
+            $COMPOSE exec -T circi circi admin project list --org ci-workspace
+      - run:
+          name: Sign-in works, and the dashboard API needs it
+          command: |
+            test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/projects)" = 401
+            curl -fsS -c cookies.txt -H 'content-type: application/json' -H 'origin: http://localhost:3000' \
+              -d '{"email":"ci@example.com","password":"ci-only-password-123"}' \
+              http://localhost:3000/api/auth/sign-in/email
+            curl -fsS -b cookies.txt http://localhost:3000/api/projects | grep -q '"ci-workspace"'
+      - setup-node-on-machine
+      - restore-pnpm-store
+      - run:
+          name: Live S3 storage tests against MinIO
+          command: |
+            pnpm install --frozen-lockfile
+            CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 pnpm exec vitest run packages/storage
+      - run:
+          name: Logs on failure
+          working_directory: deploy
+          command: $COMPOSE logs --no-color
+          when: on_fail
+      - run:
+          name: Tear down
+          working_directory: deploy
+          command: $COMPOSE down -v
+          when: always
+
+workflows:
+  gate:
+    unless: << pipeline.parameters.nightly >>
+    jobs:
+      - gate
+
+  e2e:
+    when:
+      or:
+        - << pipeline.parameters.nightly >>
+        - equal: [main, << pipeline.git.branch >>]
+    jobs:
+      - e2e
+      - compose-smoke

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Upload screenshots from CI to a CirCI server",
+  "license": "GPL-3.0-only",
   "bin": {
     "circi": "./dist/main.mjs"
   },

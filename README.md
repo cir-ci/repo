@@ -2,7 +2,7 @@
 
 Self-hosted visual regression testing: a cheaper alternative to Argos-CI. CI uploads screenshots, the server diffs them against a baseline, and reviewers approve or reject the changes.
 
-**Status: M1 plus accounts.** CI uploads screenshots with `circi upload`, the worker diffs them against the right baseline, `--wait` fails the CI job when changes need review, and a dashboard shows the results to signed-in members of the workspace. Accounts, workspaces and CI tokens are handled by [better-auth](https://better-auth.com). Email login, single sign-on and git host integrations come next (M2). See [PLAN.md](PLAN.md) for the full design and milestones.
+**Status: in active development.** CI uploads screenshots with `circi upload` (or the Vitest and Argos-compatible clients), the worker diffs them against the right baseline, and the dashboard is where the team reviews them: an inbox, review requests, triage of flaky screenshots, comments on regions and live updates. Accounts, email login and single sign-on are handled by [better-auth](https://better-auth.com); GitHub, GitLab, Bitbucket, Slack, Linear, Jira and Figma are integrated. See the [Roadmap](https://circi.dev/roadmap/) for what is planned.
 
 ## Uploading from CI
 
@@ -115,7 +115,7 @@ Most of the instance can be set in the dashboard (Instance › Settings), saved 
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
 | `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Initial value, locks the setting when set. Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
 | `GC_GRACE_HOURS` | `24` | Initial value, locks the setting when set. Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
-| `CIRCI_DIFF_ENGINE` | `native` | `native` runs the pixel comparison in the Rust addon the image ships (about twice the builds per minute under load, at the same memory; see `docs/perf/2026-11-11-diff-engines.md`); if it can't load, the worker logs a warning and uses `js`. `js` runs it on the worker's event loop. `js-workers` runs the same JavaScript comparison in a pool of worker threads, off the event loop, with no native module; a thread that fails falls back to `js` for that call, with one warning |
+| `CIRCI_DIFF_ENGINE` | `native` | `native` runs the pixel comparison in the Rust addon the image ships (about twice the builds per minute under load, at the same memory; `perf/` measures it); if it can't load, the worker logs a warning and uses `js`. `js` runs it on the worker's event loop. `js-workers` runs the same JavaScript comparison in a pool of worker threads, off the event loop, with no native module; a thread that fails falls back to `js` for that call, with one warning |
 | `CIRCI_DIFF_THREADS` | cores - 1 | Threads of the `js-workers` engine (at least 1) |
 | `JOB_RETENTION_DAYS` | `14` | Initial value, locks the setting when set. Finished background jobs (done or failed) are deleted after this many days; `0` keeps them |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Initial value, locks the setting when set. Builds still uploading after this long fail, naming the missing shards; `0` never |
@@ -187,3 +187,7 @@ dev/             pnpm dev: the local QA environment (compose file, runner, seed)
 ```
 
 See [CLAUDE.md](CLAUDE.md) for the layering rules and type conventions.
+
+## License
+
+CirCI is free software, licensed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-only). See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute; contributions are licensed the same way.

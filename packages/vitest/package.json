@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
+  "license": "GPL-3.0-only",
   "files": [
     "dist"
   ],

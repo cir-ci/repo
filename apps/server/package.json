@@ -2,6 +2,7 @@
   "name": "@circi/server",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "bin": {
     "circi-server": "./dist/main.mjs"
   },
