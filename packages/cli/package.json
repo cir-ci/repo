@@ -1,6 +1,6 @@
 {
   "name": "@circi/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Upload screenshots from CI to a CirCI server",
   "keywords": [
     "ci",
