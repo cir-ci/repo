@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from 'react'
 import styles from './Tooltip.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §4): a small label that opens on hover or keyboard focus of
+ * Provisional: a small label that opens on hover or keyboard focus of
  * its child after 500ms (focus: at once) and closes on Escape or when the pointer leaves. Only
  * for icon buttons and truncated text: it is never the only place information lives (touch and
  * screen readers don't get it; an `IconButton` has its own accessible name).

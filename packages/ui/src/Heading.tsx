@@ -7,7 +7,7 @@ import styles from './Heading.module.css'
 const DEFAULT_ELEMENT = { display: 'h1', title: 'h2', heading: 'h3' } as const
 
 /**
- * Provisional (docs/design-gaps.md §11): `display` 20/600 (login and setup titles only), `title`
+ * Provisional: `display` 20/600 (login and setup titles only), `title`
  * 15/600 (dialog and empty-state titles), `heading` 13/600 (section headings). The level is the
  * look; `as` picks the element when the document outline needs another one.
  */

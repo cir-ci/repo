@@ -18,7 +18,8 @@ import { useStack } from '#stack/vitest.ts'
 const STACK_SECRET = 'e2e-secret-e2e-secret-e2e-secret-0123456789'
 
 const path = (hash: string, query = '') => `/api/files/${hash}${query}`
-const flip = (value: string) => `${value.slice(0, -1)}${value.endsWith('A') ? 'B' : 'A'}`
+// The first character: every bit of it counts (the last one of a base64url MAC carries unused bits).
+const flip = (value: string) => `${value.startsWith('A') ? 'B' : 'A'}${value.slice(1)}`
 const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex')
 
 type Signed = Build.Detail & { fileSignatures?: Record<string, string> }

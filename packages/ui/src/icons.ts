@@ -43,7 +43,7 @@ import { createElement } from 'react'
 /** Icon props: Lucide's, so `size`, `strokeWidth`, `className` and `aria-label` all work. */
 export type IconProps = LucideProps
 
-/** The defaults (docs/design-gaps.md §12): 16px, stroke 1.75, colour inherited, hidden from assistive tech. */
+/** The defaults: 16px, stroke 1.75, colour inherited, hidden from assistive tech. */
 function icon(Glyph: LucideIcon, name: string) {
   function Icon(props: IconProps) {
     return createElement(Glyph, {
@@ -122,7 +122,7 @@ export const InsightsIcon = icon(ChartColumn, 'InsightsIcon')
 export const InboxIcon = icon(Inbox, 'InboxIcon')
 export const InfoIcon = icon(Info, 'InfoIcon')
 export const MinusIcon = icon(Minus, 'MinusIcon')
-/** The "…" that opens a row's `Menu`, as the icon of an `IconButton` (docs/design-gaps.md §9, §12). */
+/** The "…" that opens a row's `Menu`, as the icon of an `IconButton`. */
 export const RowMenuIcon = icon(MoreHorizontal, 'RowMenuIcon')
 
 // The shell's navigation icons (sidebar, settings nav, account menu).
@@ -198,7 +198,7 @@ export const SunIcon = icon(Sun, 'SunIcon')
 export const UserPlusIcon = icon(UserPlus, 'UserPlusIcon')
 export const WebhookIcon = icon(Webhook, 'WebhookIcon')
 
-// The empty states' icons (docs/design-gaps.md §5): Lucide, drawn at 32px by `EmptyState`.
+// The empty states' icons: Lucide, drawn at 32px by `EmptyState`.
 export const AlarmClockIcon = icon(AlarmClock, 'AlarmClockIcon')
 export const ChartNoAxesColumnIcon = icon(ChartNoAxesColumn, 'ChartNoAxesColumnIcon')
 export const CheckCheckIcon = icon(CheckCheck, 'CheckCheckIcon')

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +8,7 @@ import { Mailbox } from '#clients/mail.ts'
 import { S3_ACCESS_KEY, S3_BUCKET, S3_SECRET_KEY, S3Bucket } from '#clients/s3.ts'
 
 import { removeRunProjectsSync, run } from './docker.ts'
-import { ARTIFACTS_DIR, COMPOSE_FILE } from './paths.ts'
+import { ARTIFACTS_DIR, COMPOSE_FILE, REPO_ROOT } from './paths.ts'
 
 export namespace Stack {
   export interface Options {
@@ -28,11 +28,26 @@ export namespace Stack {
     label?: string
     /** The shared profile this stack serves (set by the pool, shown in the timing summary). */
     profile?: string
+    /**
+     * How the image runs: `all` (default: server and worker in one process), `split` (`circi` runs
+     * `serve` and a separate `worker` container runs the jobs) or `second` (`circi` runs `all` and
+     * `server2` is another `serve` on a published port of its own, `stack.secondUrl`).
+     */
+    topology?: 'all' | 'split' | 'second'
+    /** Put Caddy (the dashboard block of deploy/Caddyfile) in front of `circi`: `stack.proxyUrl`. */
+    proxy?: boolean
     /** The pool reports the boot itself (the stack lives on after any one file): `stop()` stays silent. */
     pooled?: boolean
   }
 
-  export type Service = 'circi' | 'postgres' | 'mailpit' | 'localstack'
+  export type Service =
+    | 'circi'
+    | 'postgres'
+    | 'mailpit'
+    | 'localstack'
+    | 'worker'
+    | 'server2'
+    | 'caddy'
 }
 
 export interface Stack {
@@ -41,6 +56,10 @@ export interface Stack {
   /** Compose project name: `docker compose -p <project> ...` works while the stack is up. */
   composeProject: string
   ports: { http: number; mail: number; s3: number | undefined; db: number }
+  /** With `topology: 'second'`: the second server process, as the host reaches it (same `PUBLIC_URL`, so the same sessions). */
+  secondUrl: string | undefined
+  /** With `proxy: true`: Caddy in front of `circi`, as the host reaches it. */
+  proxyUrl: string | undefined
   /** The stack's Postgres as the host reaches it (the `circi` database; superuser `circi`). */
   databaseUrl: string
   storage: 'fs' | 's3'
@@ -84,6 +103,23 @@ export interface Stack {
   /** How long each phase of this stack took, in milliseconds (`setup` is filled in by `useStack`). */
   phases: { up: number; healthy: number; setup?: number; teardown?: number }
   stop(): Promise<void>
+}
+
+/**
+ * The dashboard block of `deploy/Caddyfile` (and its `no_internal` snippet), cut out of the real
+ * file and served over plain HTTP on port 80 (the real one gets a certificate for `DASHBOARD_HOST`,
+ * which needs the internet). So what runs is the shipped `reverse_proxy` configuration, whatever
+ * options it has.
+ */
+function dashboardCaddyfile(): string {
+  const text = readFileSync(join(REPO_ROOT, 'deploy', 'Caddyfile'), 'utf8')
+  const block = (start: string) => {
+    const from = text.indexOf(start)
+    const to = text.indexOf('\n}\n', from)
+    if (from < 0 || to < 0) throw new Error(`deploy/Caddyfile has no "${start}" block`)
+    return text.slice(from, to + 3)
+  }
+  return `${block('(no_internal) {')}\n\n${block('{$DASHBOARD_HOST} {').replace('{$DASHBOARD_HOST}', 'http://:80')}\n`
 }
 
 const sqlText = (value: string) => `'${value.replaceAll("'", "''")}'`
@@ -130,6 +166,8 @@ export function reportPhases(
 export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   const storage = options.storage ?? 'fs'
   const withS3 = storage === 's3' || options.localstack === true
+  const topology = options.topology ?? 'all'
+  const proxy = options.proxy === true
   counter += 1
   const project = `circi-e2e-${runId()}-${counter}-${randomBytes(2).toString('hex')}`
   const dir = await mkdtemp(join(tmpdir(), `${project}-`))
@@ -141,17 +179,37 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   let mail = 0
   let s3Port: number | undefined
   let dbPort = 0
+  let secondUrl: string | undefined
+  let proxyUrl: string | undefined
   let url = 'http://localhost'
 
   const environment: Record<string, string> = { ...options.env }
   const override = join(dir, 'override.json')
   const composeEnv: Record<string, string> = {
     E2E_PUBLIC_URL: url,
-    COMPOSE_PROFILES: withS3 ? 's3' : '',
+    COMPOSE_PROFILES: [
+      ...(withS3 ? ['s3'] : []),
+      ...(topology === 'all' ? [] : [topology]),
+      ...(proxy ? ['proxy'] : []),
+    ].join(','),
     COMPOSE_PROJECT_NAME: project,
   }
-  const writeOverride = () =>
-    writeFileSync(override, JSON.stringify({ services: { circi: { environment } } }))
+  const caddyfile = join(dir, 'Caddyfile')
+  const writeOverride = () => {
+    const extra = { environment }
+    writeFileSync(
+      override,
+      JSON.stringify({
+        services: {
+          circi: { environment, ...(topology === 'split' ? { command: ['serve'] } : {}) },
+          ...(topology === 'split' ? { worker: extra } : {}),
+          ...(topology === 'second' ? { server2: extra } : {}),
+          ...(proxy ? { caddy: { volumes: [`${caddyfile}:/etc/caddy/Caddyfile:ro`] } } : {}),
+        },
+      }),
+    )
+  }
+  if (proxy) writeFileSync(caddyfile, dashboardCaddyfile())
   writeOverride()
   const compose = (args: string[], extra: { allowFail?: boolean; timeoutMs?: number } = {}) =>
     run('docker', ['compose', '-f', COMPOSE_FILE, '-f', override, ...args], {
@@ -183,7 +241,16 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   const saveLogs = async () => {
     const out = join(ARTIFACTS_DIR, project)
     mkdirSync(out, { recursive: true })
-    for (const service of ['circi', 'postgres', 'mailpit', ...(withS3 ? ['localstack'] : [])]) {
+    const services = [
+      'circi',
+      'postgres',
+      'mailpit',
+      ...(withS3 ? ['localstack'] : []),
+      ...(topology === 'split' ? ['worker'] : []),
+      ...(topology === 'second' ? ['server2'] : []),
+      ...(proxy ? ['caddy'] : []),
+    ]
+    for (const service of services) {
       writeFileSync(join(out, `${service}.log`), await logs(service as Stack.Service))
     }
     return out
@@ -250,9 +317,23 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
     writeOverride()
     await bucket?.ensure()
     await compose([...wait, 'circi'], { timeoutMs: 300_000 })
+    const more = [
+      ...(topology === 'split' ? ['worker'] : []),
+      ...(topology === 'second' ? ['server2'] : []),
+      ...(proxy ? ['caddy'] : []),
+    ]
+    if (more.length > 0) {
+      await compose([...wait, ...more], { timeoutMs: 300_000 })
+      if (topology === 'second')
+        secondUrl = `${url.slice(0, url.lastIndexOf(':'))}:${await publishedPort('server2', 3000)}`
+      if (proxy)
+        proxyUrl = `${url.slice(0, url.lastIndexOf(':'))}:${await publishedPort('caddy', 80)}`
+    }
     phases.up = Date.now() - upBegan
     const healthyBegan = Date.now()
     await waitHealthy(url)
+    if (secondUrl) await waitHealthy(secondUrl)
+    if (proxyUrl) await waitHealthy(proxyUrl)
     phases.healthy = Date.now() - healthyBegan
   } catch (err) {
     await saveLogs().catch(() => undefined)
@@ -275,6 +356,8 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
     url,
     composeProject: project,
     ports: { http, mail, s3: s3Port, db: dbPort },
+    secondUrl,
+    proxyUrl,
     databaseUrl: `postgres://circi:e2e@127.0.0.1:${dbPort}/circi`,
     storage,
     sitesHost: options.sitesHost,

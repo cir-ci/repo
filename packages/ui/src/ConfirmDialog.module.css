@@ -76,7 +76,7 @@
   border-top: 1px solid var(--circi-line-subtle);
 }
 
-/* The confirming button is filled with the rejected colour (design-gaps §1). */
+/* The confirming button is filled with the rejected colour. */
 .footer .confirm[data-variant='danger'],
 .footer .confirm[data-variant='danger']:hover {
   border-color: transparent;

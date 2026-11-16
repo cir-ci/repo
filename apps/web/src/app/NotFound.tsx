@@ -2,7 +2,7 @@ import { EmptyState } from '@circi/ui'
 
 import { RouterLink } from '#lib/router-link.ts'
 
-/** The 404 page, rendered inside the shell (docs/design-gaps.md §5). */
+/** The 404 page, rendered inside the shell. */
 export function NotFound() {
   return (
     <EmptyState headingLevel={1} title="This page doesn't exist">

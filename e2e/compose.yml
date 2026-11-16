@@ -13,6 +13,28 @@
 # assigns a port when a container starts. So `edge`, a plain TCP forwarder, is started first and
 # owns the published port for the life of the stack; circi is started after it.
 
+# What the `circi` service and the extra processes share (the harness adds its per-run variables
+# to every one of them in the override file).
+x-circi-env: &circi-env
+  DATABASE_URL: postgres://circi:e2e@postgres:5432/circi
+  PUBLIC_URL: ${E2E_PUBLIC_URL}
+  BETTER_AUTH_SECRET: e2e-secret-e2e-secret-e2e-secret-0123456789
+  LOG_LEVEL: info
+  STORAGE_DRIVER: fs
+  STORAGE_PATH: /var/lib/circi/files
+  SMTP_HOST: mailpit
+  SMTP_PORT: '1025'
+  SMTP_FROM: CirCI <ci@circi.e2e>
+  WEBHOOK_ALLOW_PRIVATE_ADDRESSES: 'true'
+  # Fast: files nobody uses are collectable at once (tests that need the grace period set it).
+  GC_GRACE_HOURS: '0'
+  UPLOAD_TIMEOUT_MINUTES: '0'
+  # The tests send each client's address in X-Forwarded-For (e2e/src/clients/client-address.ts). A
+  # request from the host reaches the container from the compose network's gateway (e.g.
+  # 172.19.0.1 on Docker Desktop), so trust Docker's private bridge ranges, and only those:
+  # the test addresses themselves (10.x.x.x) stay untrusted hops, and so count as clients.
+  TRUSTED_PROXIES: '172.16.0.0/12,192.168.0.0/16'
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -130,24 +152,7 @@ services:
     pull_policy: never
     command: ['all']
     environment:
-      DATABASE_URL: postgres://circi:e2e@postgres:5432/circi
-      PUBLIC_URL: ${E2E_PUBLIC_URL}
-      BETTER_AUTH_SECRET: e2e-secret-e2e-secret-e2e-secret-0123456789
-      LOG_LEVEL: info
-      STORAGE_DRIVER: fs
-      STORAGE_PATH: /var/lib/circi/files
-      SMTP_HOST: mailpit
-      SMTP_PORT: '1025'
-      SMTP_FROM: CirCI <ci@circi.e2e>
-      WEBHOOK_ALLOW_PRIVATE_ADDRESSES: 'true'
-      # Fast: files nobody uses are collectable at once (tests that need the grace period set it).
-      GC_GRACE_HOURS: '0'
-      UPLOAD_TIMEOUT_MINUTES: '0'
-      # The tests send each client's address in X-Forwarded-For (e2e/src/clients/client-address.ts). A
-      # request from the host reaches the container from the compose network's gateway (e.g.
-      # 172.19.0.1 on Docker Desktop), so trust Docker's private bridge ranges, and only those:
-      # the test addresses themselves (10.x.x.x) stay untrusted hops, and so count as clients.
-      TRUSTED_PROXIES: '172.16.0.0/12,192.168.0.0/16'
+      <<: *circi-env
       # Per-run additions (storage, sites, GitHub App, SSO, ...) come from the override file.
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -169,6 +174,52 @@ services:
       postgres:
         condition: service_healthy
       mailpit:
+        condition: service_healthy
+
+  # The same image as separate processes (profile `split`: `circi` then runs `serve` only, and this
+  # one `worker`; profile `second`: this one is a second `serve` next to `circi`'s `all`, on a published port
+  # of its own). Both are chosen by the harness (`topology`), never started by default.
+  worker:
+    image: circi:e2e
+    pull_policy: never
+    profiles: ['split']
+    command: ['worker']
+    environment:
+      <<: *circi-env
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - files:/var/lib/circi/files
+    depends_on:
+      circi:
+        condition: service_healthy
+
+  server2:
+    image: circi:e2e
+    pull_policy: never
+    profiles: ['second']
+    command: ['serve']
+    environment:
+      <<: *circi-env
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - files:/var/lib/circi/files
+    ports:
+      - '127.0.0.1::3000'
+    depends_on:
+      circi:
+        condition: service_healthy
+
+  # The reverse proxy in front of circi (profile `proxy`), with the dashboard block of
+  # deploy/Caddyfile (the harness writes the file and mounts it in the override).
+  caddy:
+    image: caddy:2.10-alpine
+    profiles: ['proxy']
+    ports:
+      - '127.0.0.1::80'
+    depends_on:
+      circi:
         condition: service_healthy
 
 volumes:

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import { Logo } from './Logo.tsx'
 
@@ -10,7 +10,7 @@ import styles from './AuthPage.module.css'
  * content. "Self-hosted CirCI" sits at the foot. The `main` carries `id="content"`, which the
  * shell's skip link points at.
  */
-export function AuthPage({ title, subtitle, wide, compact, children }: AuthPage.Props) {
+export function AuthPage({ title, titleRef, subtitle, wide, compact, children }: AuthPage.Props) {
   return (
     <div className={styles.page}>
       <main
@@ -23,7 +23,9 @@ export function AuthPage({ title, subtitle, wide, compact, children }: AuthPage.
         <header className={styles.head}>
           <Logo size={compact ? 48 : 56} className={styles.logo} />
           <div>
-            <h1 className={styles.title}>{title}</h1>
+            <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined} className={styles.title}>
+              {title}
+            </h1>
             {/* Text in a paragraph; anything else (the setup's progress bar) in a div, which a p can't hold. */}
             {typeof subtitle === 'string' ? (
               <p className={styles.subtitle}>{subtitle}</p>
@@ -34,7 +36,7 @@ export function AuthPage({ title, subtitle, wide, compact, children }: AuthPage.
         </header>
         {children}
       </main>
-      <p className={styles.foot}>Self-hosted CirCI</p>
+      <footer className={styles.foot}>Self-hosted CirCI</footer>
     </div>
   )
 }
@@ -42,6 +44,8 @@ export function AuthPage({ title, subtitle, wide, compact, children }: AuthPage.
 export namespace AuthPage {
   export interface Props {
     title: ReactNode
+    /** Makes the title focusable from code (not by Tab), for a step that has no field to move focus to. */
+    titleRef?: Ref<HTMLHeadingElement>
     /** The line under the title: the instance's address, or what the page is for. */
     subtitle?: ReactNode
     /** A wider column, for a page that shows code to copy. */

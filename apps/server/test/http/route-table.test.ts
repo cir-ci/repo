@@ -11,7 +11,7 @@ import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN } from '#test/support/helpers.ts'
 
 /**
- * The URL-stability proof for the layering refactor (docs/architecture-review/layering.md §5): the
+ * The URL-stability proof for the layering refactor: the
  * full route table, every scope registered, as a sorted list of `METHOD url`. Moving a route file,
  * a handler or a service must not change it; a route added or removed on purpose updates the
  * snapshot (`pnpm vitest run -u apps/server/test/http/route-table.test.ts`) in the same commit.

@@ -36,7 +36,7 @@ describe('buildState', () => {
   })
 })
 
-describe('buildState status (docs/design-gaps.md §8)', () => {
+describe('buildState status', () => {
   it.each([
     [{ status: 'uploading', conclusion: null }, 'processing', 'Uploading'],
     [{ status: 'pending', conclusion: null }, 'processing', 'Uploading'],

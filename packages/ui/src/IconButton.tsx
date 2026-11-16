@@ -6,7 +6,7 @@ import { cx } from './cx.ts'
 import styles from './IconButton.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §1): a 28×28 ghost button holding one icon. `label` is the
+ * Provisional: a 28×28 ghost button holding one icon. `label` is the
  * accessible name and is required: an icon alone names nothing.
  */
 export function IconButton({ label, children, className, ...rest }: IconButton.Props) {

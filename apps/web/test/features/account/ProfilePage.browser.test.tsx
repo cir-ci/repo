@@ -288,7 +288,11 @@ describe('ProfilePage', () => {
     const button = page.getByRole('button', { name: 'Change picture' })
     await button.click()
     await expect
-      .element(page.getByRole('dialog', { name: 'Picture' }).getByText(/Gravatar for your email/))
+      .element(
+        page
+          .getByRole('dialog', { name: 'Picture' })
+          .getByText(/picture of the account you sign in with/),
+      )
       .toBeVisible()
     await userEvent.keyboard('{Escape}')
     await expect.element(button).toHaveFocus()

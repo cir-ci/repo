@@ -78,7 +78,7 @@ import page from './BuildPage.module.css'
 import styles from './BuildReview.module.css'
 
 /**
- * The build review screen (docs/design-gaps.md §7, provisional): the header with the decision,
+ * The build review screen: the header with the decision,
  * a strip of context, then the screenshot list (240px, its own scroll) beside the viewer.
  */
 export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {

@@ -7,7 +7,7 @@ import { TextField } from './TextField.tsx'
 import styles from './ConfirmDialog.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §3): the confirmation for a destructive action, on Base UI's
+ * Provisional: the confirmation for a destructive action, on Base UI's
  * `AlertDialog` (modal, no dismissal by a click outside; Escape cancels). Name the thing in
  * `title`. With `confirmText` (a project's slug, say) the destructive button stays disabled, and
  * Enter does nothing, until the user has typed it exactly.

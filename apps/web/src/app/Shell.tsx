@@ -16,7 +16,7 @@ import { useLive } from '#lib/live.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
 import { tellWorkerUser } from '#lib/private-files.ts'
-import { purgePersisted, startPersisting } from '#lib/query-persist.ts'
+import { forgetQueries, purgePersisted, startPersisting } from '#lib/query-persist.ts'
 import {
   readFreshSessionHint,
   readSessionHint,
@@ -76,7 +76,7 @@ export function Shell() {
     if (action === 'forget' || action === 'switch') {
       // On a switch the tab gate has already taken the new person's tabs (replacing the old ones).
       void purgePersisted({ keepTabs: action === 'switch' })
-      queryClient.clear()
+      forgetQueries(queryClient)
     }
     if (state.kind === 'signed-in' && (action === 'switch' || action === 'remember')) {
       writeSessionHint(state.user)

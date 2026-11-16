@@ -3,7 +3,7 @@ import { Button, EmptyState, RefreshIcon, WarningIcon } from '@circi/ui'
 import { HttpError } from './http.ts'
 
 /**
- * Error state (docs/design-gaps.md §5): what went wrong in plain words and the way to recover.
+ * Error state: what went wrong in plain words and the way to recover.
  * A 404 gets the page's own "not found" message; anything else offers to retry.
  */
 export function ErrorState(props: ErrorState.Props) {

@@ -2,7 +2,7 @@ import { StatusChip } from '@circi/ui'
 
 import { type BuildState, screenState } from './build-state.ts'
 
-/** A build's state as a chip: the glyph and the precise word (docs/design-gaps.md §8). */
+/** A build's state as a chip: the glyph and the precise word. */
 export function BuildStateLabel({ build, hasBaseline = true }: BuildStateLabel.Props) {
   const state = screenState(build, hasBaseline)
   return <StatusChip status={state.status}>{state.label}</StatusChip>

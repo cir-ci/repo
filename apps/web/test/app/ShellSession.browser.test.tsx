@@ -11,12 +11,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
+import type * as QueryPersist from '#lib/query-persist.ts'
+
 // The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
 vi.mock('#lib/auth-client.ts', () =>
   import('#test/support/auth-client.ts').then((m) => m.authClientModule),
 )
 // The stored cache is IndexedDB: what the shell asks of it is the point here, not the storage.
-vi.mock('#lib/query-persist.ts', () => ({
+vi.mock('#lib/query-persist.ts', async (importOriginal) => ({
+  // The in-memory part is real: the tests check what is left in the client.
+  forgetQueries: (await importOriginal<typeof QueryPersist>()).forgetQueries,
   purgePersisted: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   startPersisting: vi.fn<(client: unknown, userId: string) => void>(),
   restorePersisted: vi.fn<() => Promise<void>>(() => Promise.resolve()),
@@ -171,7 +175,9 @@ describe('a 401 from any request', () => {
         queryFn: () => Promise.reject(new HttpError(401, 'Not signed in')),
       }),
     ).rejects.toBeInstanceOf(HttpError)
-    expect(notify).toHaveBeenCalledWith('$sessionSignal')
+    // Asks the server past the cookie cache, then lets the app notice.
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('$sessionSignal'))
+    expect(auth.getSession).toHaveBeenCalledWith({ query: { disableCookieCache: true } })
     expect(purgePersisted).toHaveBeenCalled()
   })
 
@@ -186,7 +192,9 @@ describe('a 401 from any request', () => {
         })
         .execute(undefined),
     ).rejects.toBeInstanceOf(HttpError)
-    expect(notify).toHaveBeenCalledWith('$sessionSignal')
+    // Asks the server past the cookie cache, then lets the app notice.
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('$sessionSignal'))
+    expect(auth.getSession).toHaveBeenCalledWith({ query: { disableCookieCache: true } })
     expect(purgePersisted).toHaveBeenCalled()
   })
 

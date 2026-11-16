@@ -4,7 +4,7 @@ import type { Status } from '@circi/ui'
 /** A screenshot's kind: its diff status, plus "flaky" for one that keeps changing on the default branch. */
 export type ShotKind = DiffStatus | 'flaky'
 
-/** The word for each kind (docs/design-gaps.md §8). The glyph comes from `screenshotStatus`. */
+/** The word for each kind. The glyph comes from `screenshotStatus`. */
 export const DIFF_LABEL: Record<ShotKind, string> = {
   changed: 'Changed',
   added: 'Added',
@@ -16,7 +16,7 @@ export const DIFF_LABEL: Record<ShotKind, string> = {
 
 /**
  * The glyph for a screenshot, or for a count chip of one kind. The one place this rule exists
- * (docs/design-gaps.md §8): a changed, added or removed screenshot is pending until its build
+ *: a changed, added or removed screenshot is pending until its build
  * is reviewed (changed shows `needs-review`, added and removed their own ring-and-mark glyph),
  * then follows the decision: approved (by a person or automatically) is `approved`, rejected is
  * `rejected`. Flaky keeps its own glyph whatever the review, unchanged stays `neutral`, failed

@@ -1,10 +1,9 @@
-import { Badge, Banner, Button, Spinner, Text, TextField } from '@circi/ui'
+import { Badge, Banner, Button, Spinner, Text, TextField, useAnnounce } from '@circi/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { AuthPage } from '#features/auth/AuthPage.tsx'
-import { BannerSlot } from '#features/auth/BannerSlot.tsx'
 import { checksQuery, FINDING_LEVEL } from '#features/instance/api/admin.ts'
 import { capabilitiesQuery } from '#features/projects/api/index.ts'
 import { useCreateProject } from '#features/projects/api/new-project.ts'
@@ -15,8 +14,9 @@ import { keys } from '#lib/query-keys.ts'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
 
 import { useFinishSetup } from './api.ts'
-import { storageFindings } from './setup-model.ts'
+import { stepAnnouncement, storageFindings } from './setup-model.ts'
 import { SetupProgress } from './SetupProgress.tsx'
+import { useAnnounceStep, useFocusFirstInvalid } from './use-step-a11y.ts'
 
 import authStyles from '#features/auth/AuthForms.module.css'
 import styles from './Setup.module.css'
@@ -32,10 +32,19 @@ export function SetupContinue() {
   const [step, setStep] = useState<3 | 4>(3)
   // Only the created project's token and snippet need the wide column, not the project form.
   const created = useSetupStore((s) => s.project)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  // The account page this replaces had focus on a button that is gone: focus goes to the title
+  // (step 3 has no field; step 4's name field takes it when it mounts). Step 3 announces itself
+  // with its result (`StorageStep`), step 4 here.
+  useAnnounceStep(step)
+  useEffect(() => {
+    if (step === 3) titleRef.current?.focus()
+  }, [step])
   return (
     <AuthPage
       compact
       title="Set up CirCI"
+      titleRef={titleRef}
       subtitle={<SetupProgress step={step} />}
       wide={step === 4 && created !== undefined}
     >
@@ -53,6 +62,18 @@ function StorageStep({ onContinue }: { onContinue: () => void }) {
   const checks = useQuery(checksQuery())
   const findings = checks.data ? storageFindings(checks.data) : []
   const checking = checks.isFetching
+  const announce = useAnnounce()
+  // The result of each check is spoken: the findings change in place and have no live region of their
+  // own. The first one also says the step (one message at a time, so the two are one sentence).
+  const summary = findings.map((f) => `${f.label}: ${FINDING_LEVEL[f.level].label}`).join('. ')
+  const opened = useRef(false)
+  const checkedAt = checks.dataUpdatedAt
+  useEffect(() => {
+    // Each finished check is spoken, also one with the same result (`checkedAt` says it ran again).
+    if (!summary || checkedAt === 0) return
+    announce(opened.current ? summary : `${stepAnnouncement(3)}. ${summary}`)
+    opened.current = true
+  }, [summary, checkedAt, announce])
   return (
     <div className={authStyles.form}>
       {checking && findings.length === 0 ? (
@@ -106,6 +127,16 @@ function ProjectStep({ onBack }: { onBack: () => void }) {
   const [branch, setBranch] = useState(DEFAULT_BRANCH)
   const [nameError, setNameError] = useState<string | undefined>(undefined)
   const workspace = caps?.manageableWorkspaces[0]?.slug
+  const { formRef, focusInvalid } = useFocusFirstInvalid()
+  const createdRef = useRef<HTMLDivElement>(null)
+  const announce = useAnnounce()
+  // The form this replaces had focus: move it to the new content, which holds the token shown once.
+  const hasCreated = created !== undefined
+  useEffect(() => {
+    if (!hasCreated) return
+    createdRef.current?.focus()
+    announce('Project created. The CI token is shown only once.')
+  }, [hasCreated, announce])
 
   async function done() {
     // The cached capabilities are re-read first, so the app never sees a stale "setup pending".
@@ -123,6 +154,7 @@ function ProjectStep({ onBack }: { onBack: () => void }) {
     e.preventDefault()
     if (!name.trim()) {
       setNameError('Enter a name')
+      focusInvalid()
       return
     }
     if (!workspace) return
@@ -141,7 +173,7 @@ function ProjectStep({ onBack }: { onBack: () => void }) {
 
   if (created) {
     return (
-      <div className={authStyles.form}>
+      <div ref={createdRef} tabIndex={-1} className={`${authStyles.form} ${styles.created}`}>
         <CreatedStep created={created} compact />
         <div className={styles.actions}>
           <Button variant="primary" size="lg" onClick={() => void done()}>
@@ -153,8 +185,8 @@ function ProjectStep({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <form className={authStyles.form} onSubmit={submit} noValidate>
-      <BannerSlot>{create.error?.message}</BannerSlot>
+    <form ref={formRef} className={authStyles.form} onSubmit={submit} noValidate>
+      {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
       <TextField
         name="name"
         label="Project name"

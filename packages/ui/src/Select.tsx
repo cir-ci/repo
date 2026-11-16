@@ -9,7 +9,7 @@ import { visuallyHidden } from './theme.ts'
 import styles from './Select.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §2, §4): the same label / 32px control / description / error
+ * Provisional: the same label / 32px control / description / error
  * as `TextField`, with a chevron; the popup looks like a `Menu`. Arrow keys and type-ahead move
  * in the list, Enter or Space picks, Escape closes. Built on Base UI's `Select` inside `Field`.
  *

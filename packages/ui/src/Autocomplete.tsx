@@ -8,7 +8,7 @@ import { visuallyHidden } from './theme.ts'
 import styles from './Autocomplete.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §2): a text field that suggests values while you type, like
+ * Provisional: a text field that suggests values while you type, like
  * GitHub's branch select. The same label / 32px input / description / error as `TextField`, with
  * the suggestions as a listbox below it in the page's flow (no popup of its own, so it sits inside
  * a `Popover` without a second layer). Built on Base UI's `Autocomplete` inside `Field`.

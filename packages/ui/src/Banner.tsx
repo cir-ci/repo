@@ -14,7 +14,7 @@ const ICONS = {
 }
 
 /**
- * Provisional (docs/design-gaps.md §3): a full-width message at the top of a panel or section.
+ * Provisional: a full-width message at the top of a panel or section.
  * `role="alert"` only for `danger` (it interrupts a screen reader); the other tones are polite
  * `role="status"`. The tone is also named by the (hidden) icon's shape, not by colour alone.
  */

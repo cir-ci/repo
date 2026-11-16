@@ -41,5 +41,8 @@ export function verifyFileSignature(
   if (Math.floor((options.now ?? Date.now()) / 1000) >= exp) return false
   const expected = mac(secret, input.sha256, exp)
   const actual = Buffer.from(input.sig, 'base64url')
+  // One string per signature: base64url's last character has bits that decode to nothing, so
+  // without this a link with its last character changed would still verify.
+  if (actual.toString('base64url') !== input.sig) return false
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }

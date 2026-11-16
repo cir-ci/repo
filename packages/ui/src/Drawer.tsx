@@ -6,7 +6,7 @@ import { ScrollArea } from './ScrollArea.tsx'
 import styles from './Drawer.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §6): a panel that slides in from the left edge on Base UI's
+ * Provisional: a panel that slides in from the left edge on Base UI's
  * `Drawer`, for the sidebar on narrow screens. 280px wide (at most the viewport minus 48px),
  * `surface.chrome` fill; its content scrolls in a `ScrollArea` (an overlay thumb, as in the sidebar). Focus is trapped, Escape, a click on the backdrop or a swipe to the left
  * close it, and focus returns to what opened it. `title` is its accessible name (not shown).

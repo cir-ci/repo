@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
-import { purgePersisted } from '#lib/query-persist.ts'
+import { forgetQueries, purgePersisted } from '#lib/query-persist.ts'
 
 /**
  * Signs out and forgets everything fetched as this person (in memory and the stored cache), so
@@ -16,7 +16,7 @@ export function useSignOut(): () => Promise<void> {
     } finally {
       // Also the installed app's tabs and the recent visits and searches (purgePersisted).
       await purgePersisted()
-      queryClient.clear()
+      forgetQueries(queryClient)
     }
   }
 }

@@ -17,10 +17,19 @@ export class Session {
   readonly email: string
   /** The client address this person's requests come from (own per session, see `freshIp`). */
   readonly address: string
+  /** The origin the API sees: the dashboard's address, even when `url` is another process of it. */
+  readonly origin: string
   #cookies = new Map<string, string>()
 
-  constructor(url: string, email: string, setCookies: string[], address: string = freshIp()) {
+  constructor(
+    url: string,
+    email: string,
+    setCookies: string[],
+    address: string = freshIp(),
+    origin: string = url,
+  ) {
     this.url = url
+    this.origin = origin
     this.email = email
     this.address = address
     this.#absorb(setCookies)
@@ -37,6 +46,17 @@ export class Session {
       if (value === '' || /max-age=0/i.test(line)) this.#cookies.delete(name)
       else this.#cookies.set(name, value)
     }
+  }
+
+  /** The same person (the same cookies, copied) talking to another address of the same instance, e.g. a second server process or a proxy. */
+  on(url: string): Session {
+    return new Session(
+      url,
+      this.email,
+      [...this.#cookies].map(([k, v]) => `${k}=${v}`),
+      this.address,
+      this.origin,
+    )
   }
 
   get cookieHeader(): string {
@@ -58,7 +78,7 @@ export class Session {
       redirect: 'manual',
       headers: {
         ...clientAddressHeaders(this.address),
-        origin: this.url,
+        origin: this.origin,
         cookie: this.cookieHeader,
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       },

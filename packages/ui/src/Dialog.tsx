@@ -7,7 +7,7 @@ import { useRestoreFocus } from './use-restore-focus.ts'
 import styles from './Dialog.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §4): a modal on Base UI's `Dialog`. 440px wide for forms
+ * Provisional: a modal on Base UI's `Dialog`. 440px wide for forms
  * (`size="wide"`: 560, `size="catalog"`: 880 for a grid of choices), a 44px header with the title and a close button, and a footer for the
  * actions (primary last). Focus is trapped, Escape and a click on the backdrop close it, and
  * focus returns to what opened it.

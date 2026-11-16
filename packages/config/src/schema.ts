@@ -63,8 +63,7 @@ export const envSchema = z.object({
     z.coerce.number().int().min(1).max(5000).default(200),
   ),
   /**
-   * Pixel comparison of the diff step: the Rust addon (the default: fastest and leanest, see
-   * docs/perf/2026-11-11-diff-engines.md), pixelmatch in a worker-thread pool, or pixelmatch on the
+   * Pixel comparison of the diff step: the Rust addon (the default: fastest and leanest; `perf/` measures it), pixelmatch in a worker-thread pool, or pixelmatch on the
    * event loop. The first two fall back to js when they can't run.
    */
   CIRCI_DIFF_ENGINE: z.preprocess(

@@ -3,6 +3,7 @@ import { page } from 'vitest/browser'
 
 import { SetupPage } from '#features/setup/SetupPage.tsx'
 import { fakeFetch, json } from '#test/support/fetch.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 async function fillAccount(overrides: { code?: string; password?: string } = {}) {
@@ -87,6 +88,72 @@ describe('SetupPage, the account step', () => {
     await next()
     await expect.element(page.getByText('Step 2 of 4')).toBeVisible()
     expect(calls.at(-1)).toMatchObject({ path: '/api/setup/code', body: { code: 'good' } })
+  })
+})
+
+describe('SetupPage, keyboard and screen reader', () => {
+  it('moves focus to the first field with a problem when a submit is refused', async () => {
+    fakeFetch({
+      'POST /api/setup/code': json(
+        { error: 'That setup code is wrong. Find it in the server log.' },
+        403,
+      ),
+    })
+    await renderPage(<SetupPage />)
+    await next()
+    await expect.element(page.getByRole('textbox', { name: 'Setup code' })).toHaveFocus()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Setup code' }))
+      .toHaveAccessibleDescription('Enter the setup code')
+    await expect.element(page.getByRole('textbox', { name: 'Setup code' })).toBeInvalid()
+
+    // Only the email is wrong: focus skips the fields that are fine.
+    await fillAccount()
+    await page.getByRole('textbox', { name: 'Email' }).fill('nope')
+    await next()
+    await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveFocus()
+
+    // The server refusing the code puts focus back on the code field, with the reason.
+    await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
+    await next()
+    await expect.element(page.getByRole('textbox', { name: 'Setup code' })).toHaveFocus()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Setup code' }))
+      .toHaveAccessibleDescription(/That setup code is wrong/)
+  })
+
+  it('moves focus to the workspace field with a problem, and announces each step', async () => {
+    fakeFetch(routes())
+    await renderPage(<SetupPage />, { announcer: true })
+    // The first load is not announced (the page title is); a later step is.
+    expect(page.getByRole('status').element().textContent).toBe('')
+    await toWorkspaceStep()
+    await expect
+      .element(page.getByRole('status').filter({ hasText: 'Step 2 of 4: Workspace' }))
+      .toBeInTheDocument()
+    await next()
+    await expect.element(page.getByRole('textbox', { name: 'Workspace name' })).toHaveFocus()
+    await page.getByRole('textbox', { name: 'Workspace name' }).fill('Acme')
+    await page.getByRole('textbox', { name: 'Address' }).fill('Not An Address')
+    await next()
+    await expect.element(page.getByRole('textbox', { name: 'Address' })).toHaveFocus()
+    await page.getByRole('button', { name: 'Back' }).click()
+    await expect
+      .element(page.getByRole('status').filter({ hasText: 'Step 1 of 4: Account' }))
+      .toBeInTheDocument()
+  })
+
+  it('has no banner gap above the fields, and the footer is a landmark', async () => {
+    await renderPage(<SetupPage />)
+    const progress = page.getByText('Step 1 of 4').element().getBoundingClientRect()
+    const field = page
+      .getByRole('textbox', { name: 'Setup code' })
+      .element()
+      .getBoundingClientRect()
+    // Progress bar, then the first label (about 20px) and its field: the design has no reserved message row.
+    expect(field.top - progress.bottom).toBeLessThan(80)
+    expect(page.getByRole('contentinfo').element().textContent).toBe('Self-hosted CirCI')
+    expectOnePrimaryPerArea()
   })
 })
 

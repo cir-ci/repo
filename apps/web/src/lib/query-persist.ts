@@ -48,6 +48,19 @@ let active: Active | undefined
 let activeClient: QueryClient | undefined
 
 /**
+ * Empties what was fetched as the person who left, in memory. `QueryClient.clear()` would also
+ * drop the queries a mounted page is watching (the sign-in page's own, which started a moment
+ * ago): their observers keep a query that is no longer in the cache and never hear of it again,
+ * so the page stays blank. Queries nobody watches are removed; the watched ones are reset and
+ * fetched again.
+ */
+export function forgetQueries(queryClient: QueryClient): void {
+  queryClient.getMutationCache().clear()
+  queryClient.removeQueries({ type: 'inactive' })
+  void queryClient.resetQueries({ type: 'active' })
+}
+
+/**
  * A purge in one tab (sign-out, a 401, another person) tells the others, so none of them writes
  * the old person's cache back afterwards and their memory is emptied as well.
  */
@@ -56,7 +69,7 @@ const channel: BroadcastChannel | undefined =
   typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(PURGE_CHANNEL)
 channel?.addEventListener('message', () => {
   stopActive()
-  activeClient?.clear()
+  if (activeClient) forgetQueries(activeClient)
   forgetLocalPrivate(false)
 })
 
@@ -114,7 +127,7 @@ export function restorePersisted(queryClient: QueryClient, userId: string): Prom
       // Unreadable or no IndexedDB: start from the network, as without a stored cache.
     }
     if (state.dead) {
-      queryClient.clear()
+      forgetQueries(queryClient)
       return
     }
     state.stop = persistQueryClientSubscribe(setup)

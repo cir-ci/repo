@@ -29,13 +29,15 @@ describe('signed file links', () => {
   })
 
   it('serves a valid signature with no session, cached no longer than the link lives', async () => {
+    // Read the clock before asking: the server's second can only be the same or later.
+    const asked = Math.floor(Date.now() / 1000)
     const res = await anonymous(link(hash, signed(hash)))
     expect(res.statusCode).toBe(200)
     expect(res.headers['content-type']).toBe('image/png')
     const { exp } = signed(hash)
     const maxAge = Number(/max-age=(\d+)/.exec(String(res.headers['cache-control']))?.[1])
     expect(res.headers['cache-control']).toMatch(/^private, max-age=\d+$/)
-    expect(maxAge).toBeLessThanOrEqual(exp - Math.floor(Date.now() / 1000))
+    expect(maxAge).toBeLessThanOrEqual(exp - asked)
     expect(maxAge).toBeGreaterThan(0)
     expect(res.headers['content-security-policy']).toBe("sandbox; default-src 'none'")
     expect(res.headers['x-content-type-options']).toBe('nosniff')

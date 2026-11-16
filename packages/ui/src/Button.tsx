@@ -6,7 +6,7 @@ import { cx } from './cx.ts'
 import styles from './Button.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §1): a button on Base UI. Variants and sizes are data
+ * Provisional: a button on Base UI. Variants and sizes are data
  * attributes styled in `Button.module.css`; colours come from the `--circi-*` tokens only.
  *
  * `loading` keeps the label, shows a small spinner and disables the button (it stays focusable,

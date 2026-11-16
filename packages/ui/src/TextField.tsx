@@ -8,7 +8,7 @@ import { visuallyHidden } from './theme.ts'
 import styles from './TextField.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §2): label above a 32px control (36px with `size="lg"`), a description under it, and
+ * Provisional: label above a 32px control (36px with `size="lg"`), a description under it, and
  * an error that replaces the description. Built on Base UI's `Field`, which wires the label,
  * description and error to the input (`for`, `aria-describedby`, `aria-invalid`).
  *

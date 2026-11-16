@@ -4,7 +4,7 @@ import type { Status } from '@circi/ui'
 export interface BuildState {
   kind: BuildState.Kind
   label: string
-  /** The design system's status for the glyph (docs/design-gaps.md §8). */
+  /** The design system's status for the glyph. */
   status: Status
   tone: BuildState.Tone
 }
@@ -54,7 +54,7 @@ export function buildState(b: BuildState.Input): BuildState {
 
 /**
  * The state the review screen shows: `buildState`, except that a build with changes to review
- * but nothing to compare against (an orphan) is "No baseline" (docs/design-gaps.md §8).
+ * but nothing to compare against (an orphan) is "No baseline".
  */
 export function screenState(b: BuildState.Input, hasBaseline: boolean): BuildState.Screen {
   const state = buildState(b)

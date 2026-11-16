@@ -12,6 +12,8 @@ export interface AuthClientFake {
     error: { status: number } | null
   }
   signOut: ReturnType<typeof vi.fn<() => Promise<unknown>>>
+  /** The session re-check after a 401 (`sessionEnded`); answers "no session" unless a test says otherwise. */
+  getSession: ReturnType<typeof vi.fn<(arg?: unknown) => Promise<unknown>>>
   $store: { notify: (signal?: string) => void }
   organization: {
     getFullOrganization: ReturnType<typeof vi.fn<Fn>>
@@ -42,6 +44,9 @@ const defaults = {
     error: sessionError,
   }),
   signOut: vi.fn<() => Promise<unknown>>(),
+  getSession: vi.fn<(arg?: unknown) => Promise<unknown>>(() =>
+    Promise.resolve({ data: null, error: null }),
+  ),
   $store: { notify: () => {} },
   organization: {
     getFullOrganization: vi.fn<Fn>(),
@@ -80,6 +85,7 @@ export function resetAuthClient(): void {
   for (const method of Object.values(fake.organization))
     if (vi.isMockFunction(method)) method.mockReset()
   fake.signOut.mockReset()
+  fake.getSession.mockClear()
 }
 
 /** Resets the fake and applies `overrides` (e.g. `{ useSession }`); returns it for `mockResolvedValue`. */

@@ -24,7 +24,7 @@ part of the hash.
 Requirements: a running Docker daemon with Compose v2, Chromium for Playwright
 (`pnpm exec playwright install chromium`), and the repo installed. No ports are fixed, no
 network is needed after the images are pulled once (`postgres:18-alpine`,
-`localstack/localstack:4.9`, `axllent/mailpit:v1.27`).
+`localstack/localstack:4.9`, `axllent/mailpit:v1.27`, and `caddy:2.10-alpine` for the proxy test).
 
 ```sh
 pnpm test:e2e                                   # everything (both groups)
@@ -114,6 +114,10 @@ Which file uses what (this list is the decision record; keep it current):
 | postgres/instance-config-pickup | dedicated | changes instance-wide settings and waits out the server's real 30 s cache |
 | cli-retry, session-cache | `default`, shared | own tenant; cli-retry puts a fault-injecting proxy (`fakes/fault-proxy.ts`) in front of the server |
 | signed-file-links | `s3`, shared | own tenant; screenshots and a site asset in LocalStack |
+| live/live-updates | `default`, shared | own tenant; people and projects of its own, streams opened with `LiveStream` |
+| live/live-topology | dedicated (two stacks) | `topology: 'split'` (`circi` runs `serve`, a `worker` container the jobs) and `topology: 'second'` (a second `serve`, `stack.secondUrl`, next to `circi`'s `all`) |
+| live/live-proxy | dedicated | `proxy: true`: Caddy 2.10 with the dashboard block cut out of the real `deploy/Caddyfile` (plain HTTP; the real one needs a certificate), `stack.proxyUrl` |
+| live/live-limits | dedicated | `LIVE_MAX_STREAMS=6`, a full server for the whole file |
 
 
 ## Layout
@@ -176,7 +180,10 @@ Rules of thumb:
   then `http://127.0.0.1:<port>`
   because the sites domain must be unrelated to the dashboard host), `{ env: { ... } }` (any
   server variable, e.g. `GC_GRACE_HOURS`, `WORKSPACE_CREATION`, `AUTH_OIDC_*`).
-  Defaults the stack sets: `SMTP_*` to Mailpit, `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true`,
+  `{ topology: 'split' | 'second' }` runs the image as separate processes (see the table), `{ proxy: true }`
+puts Caddy in front. `LiveStream.open(session, { base })` (`src/clients/live.ts`) reads `GET /api/live`
+with timestamps; `session.on(url)` is the same person at another address of the same instance.
+Defaults the stack sets: `SMTP_*` to Mailpit, `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true`,
   `GC_GRACE_HOURS=0`, `UPLOAD_TIMEOUT_MINUTES=0`.
 - `stack.cli('workspace', 'create', ...)` runs `circi admin ...` in the container; `stack.sql(...)` runs
   SQL (e.g. to back-date a build for retention); `stack.exec(service, [...])` runs anything;

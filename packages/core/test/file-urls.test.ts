@@ -16,6 +16,10 @@ const check = (
     now === undefined ? {} : { now },
   )
 
+const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+/** Two base64url characters that differ only in the two low bits (a 43-character, 32-byte value ignores them). */
+const sameBytesAs = (a: string, b: string) => alphabet.indexOf(a) >> 2 === alphabet.indexOf(b) >> 2
+
 describe('signFileUrl / verifyFileSignature', () => {
   it('accepts its own signature until the expiry', () => {
     const now = 1_700_000_000_000
@@ -42,6 +46,14 @@ describe('signFileUrl / verifyFileSignature', () => {
     expect(check(signed, { exp: String(signed.exp + 3600) }, now)).toBe(false)
     expect(check(signed, { sig: signed.sig.slice(1) }, now)).toBe(false)
     expect(check(signed, { sig: '' }, now)).toBe(false)
+    // The last base64url character carries two unused bits: changing only those must not verify.
+    const last = signed.sig.at(-1) ?? ''
+    const sameBytes = alphabet
+      .split('')
+      .filter((c) => c !== last && c.charCodeAt(0) >= 0 && sameBytesAs(last, c))
+    expect(sameBytes.length).toBe(3)
+    for (const c of sameBytes)
+      expect(check(signed, { sig: `${signed.sig.slice(0, -1)}${c}` }, now)).toBe(false)
     expect(check(signed, { exp: 'soon' }, now)).toBe(false)
   })
 })

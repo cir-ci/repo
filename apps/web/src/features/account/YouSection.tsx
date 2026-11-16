@@ -46,8 +46,8 @@ export function YouSection({ user }: YouSection.Props) {
             panelLabel="Picture"
             panel={
               <Text variant="small" tone="tertiary">
-                CirCI uses the picture of the account you sign in with, then Gravatar for your
-                email, then a generated avatar.
+                CirCI uses the picture of the account you sign in with. Without one, it draws a
+                generated avatar.
               </Text>
             }
           >

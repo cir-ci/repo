@@ -24,7 +24,7 @@
   text-decoration: none;
 }
 
-/* Selected: the accent's subtle fill and a 2px inset bar (docs/design-gaps.md §13). */
+/* Selected: the accent's subtle fill and a 2px inset bar. */
 .row[aria-current='page'],
 .row[data-default] {
   background: var(--circi-accent-subtle);

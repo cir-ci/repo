@@ -1,9 +1,8 @@
 import { slugify } from '@circi/core'
-import { Button, TextField } from '@circi/ui'
+import { Banner, Button, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
 import { AuthPage } from '#features/auth/AuthPage.tsx'
-import { BannerSlot } from '#features/auth/BannerSlot.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { HttpError } from '#lib/http.ts'
@@ -20,6 +19,7 @@ import {
   workspaceSlug,
 } from './setup-model.ts'
 import { SetupProgress } from './SetupProgress.tsx'
+import { useAnnounceStep, useFocusFirstInvalid } from './use-step-a11y.ts'
 
 import authStyles from '#features/auth/AuthForms.module.css'
 import styles from './Setup.module.css'
@@ -46,21 +46,28 @@ export function SetupPage() {
   const [workspaceErrors, setWorkspaceErrors] = useState<WorkspaceErrors>({})
   const [error, setError] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
+  const { formRef, focusInvalid } = useFocusFirstInvalid()
+  useAnnounceStep(step)
 
   async function continueFromAccount(e: FormEvent) {
     e.preventDefault()
     const errors = validateAccount(account)
     setAccountErrors(errors)
     setError(undefined)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      focusInvalid()
+      return
+    }
     setBusy(true)
     try {
       // The code is the only thing the server can know is wrong this early.
       await checkSetupCode(account.code.trim())
       setStep(2)
     } catch (err) {
-      if (err instanceof HttpError && err.status === 403) setAccountErrors({ code: err.message })
-      else setError(err instanceof Error ? err.message : 'Setup failed')
+      if (err instanceof HttpError && err.status === 403) {
+        setAccountErrors({ code: err.message })
+        focusInvalid()
+      } else setError(err instanceof Error ? err.message : 'Setup failed')
     } finally {
       setBusy(false)
     }
@@ -71,7 +78,10 @@ export function SetupPage() {
     const errors = validateWorkspace(workspace)
     setWorkspaceErrors(errors)
     setError(undefined)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      focusInvalid()
+      return
+    }
     setBusy(true)
     try {
       await submitSetup({
@@ -105,11 +115,12 @@ export function SetupPage() {
       {step === 1 ? (
         <form
           key="account"
+          ref={formRef}
           className={authStyles.form}
           onSubmit={(e) => void continueFromAccount(e)}
           noValidate
         >
-          <BannerSlot>{error}</BannerSlot>
+          {error ? <Banner tone="danger">{error}</Banner> : null}
           <TextField
             name="code"
             label="Setup code"
@@ -165,11 +176,12 @@ export function SetupPage() {
       ) : (
         <form
           key="workspace"
+          ref={formRef}
           className={authStyles.form}
           onSubmit={(e) => void create(e)}
           noValidate
         >
-          <BannerSlot>{error}</BannerSlot>
+          {error ? <Banner tone="danger">{error}</Banner> : null}
           <TextField
             name="workspaceName"
             label="Workspace name"

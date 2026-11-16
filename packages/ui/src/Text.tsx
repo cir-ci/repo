@@ -5,7 +5,7 @@ import { cx } from './cx.ts'
 import styles from './Text.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §11): running text on the type scale. `body` 13/400, `small`
+ * Provisional: running text on the type scale. `body` 13/400, `small`
  * 12/400 (meta, descriptions), `micro` 11/500 (counts), `mono` 12 in the mono face (SHAs,
  * branches, tokens, diff %). Colour is a tone; the state tones are for state only.
  */

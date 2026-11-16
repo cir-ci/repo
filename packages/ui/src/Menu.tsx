@@ -7,7 +7,7 @@ import { MenuEntries } from './MenuEntries.tsx'
 import styles from './Menu.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §4): a dropdown on Base UI's `Menu`. Arrow keys move, type-
+ * Provisional: a dropdown on Base UI's `Menu`. Arrow keys move, type-
  * ahead jumps, Enter or Space picks, Escape closes and focus returns to the trigger. Items are
  * 28px high (`size="md"`: 36px rows, 14px text, 18px icons at stroke 2: the sidebar's workspace and account menus); an item may show shortcut text on the right (`Kbd`-style, display only: it does
  * not bind the key).

@@ -76,7 +76,9 @@ RUN mkdir -p /var/lib/circi/files && chown node:node /var/lib/circi/files \
 USER node
 VOLUME /var/lib/circi/files
 EXPOSE 3000
+# `circi worker` serves no HTTP (a container that runs it is healthy while it runs: it exits if the
+# worker stops), every other command answers /healthz.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+  CMD node -e "if(require('fs').readFileSync('/proc/1/cmdline','utf8').split('\\0').includes('worker'))process.exit(0);fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 ENTRYPOINT ["circi"]
 CMD ["all"]

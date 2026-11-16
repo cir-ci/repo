@@ -3,7 +3,7 @@ import type { Activity, Build, ReviewStatus } from '@circi/api'
 import { shotDecision, type ShotKind } from './diff-status.ts'
 
 /**
- * Review order (docs/design-gaps.md §7): what needs a decision first, then what doesn't. Only
+ * Review order: what needs a decision first, then what doesn't. Only
  * what needs no attention starts collapsed (Flaky opens when it holds the only changes).
  */
 export const GROUP_ORDER: readonly { kind: ShotKind; title: string; open: boolean }[] = [

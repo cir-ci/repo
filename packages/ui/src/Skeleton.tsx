@@ -3,7 +3,7 @@ import { cx } from './cx.ts'
 import styles from './Skeleton.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §5): a shimmering placeholder bar. It is visible at once;
+ * Provisional: a shimmering placeholder bar. It is visible at once;
  * wrap placeholders in `Delayed` so a fast load never flashes them. Hidden from assistive tech.
  */
 export function Skeleton({ width = '100%', height = 14, className }: Skeleton.Props) {

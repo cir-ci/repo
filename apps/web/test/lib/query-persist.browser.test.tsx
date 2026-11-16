@@ -1,8 +1,13 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { clear, createStore, get, keys as idbKeys } from 'idb-keyval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { purgePersisted, restorePersisted, startPersisting } from '#lib/query-persist.ts'
+import {
+  forgetQueries,
+  purgePersisted,
+  restorePersisted,
+  startPersisting,
+} from '#lib/query-persist.ts'
 import { readSessionHint, writeSessionHint } from '#lib/session-hint.ts'
 import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { RECENT_KEY, useRecentStore } from '#lib/stores/recent-store.ts'
@@ -121,4 +126,32 @@ describe('the stored query cache', () => {
     await new Promise((resolve) => setTimeout(resolve, 2600))
     expect(await stored()).toEqual([])
   }, 15_000)
+
+  it("forgetting drops the old person's data but leaves a page that is loading its own to finish", async () => {
+    const mine = client()
+    mine.setQueryData(['inbox', 'for-you'], { items: [1] })
+    mine.setQueryData(['projects', 'acme'], { items: [2] })
+    // The sign-in page has just started its own request when the old data is dropped.
+    const reply = { send: (_value: string) => {} }
+    const observer = new QueryObserver(mine, {
+      queryKey: ['setup'],
+      queryFn: () => new Promise<string>((resolve) => (reply.send = resolve)),
+    })
+    const stop = observer.subscribe(() => {})
+    // And a page still showing the old person's list refetches it once reset.
+    const watching = new QueryObserver(mine, {
+      queryKey: ['projects', 'acme'],
+      queryFn: () => Promise.resolve({ items: [] }),
+      staleTime: Infinity,
+    })
+    const stopWatching = watching.subscribe(() => {})
+
+    forgetQueries(mine)
+    expect(mine.getQueryData(['inbox', 'for-you'])).toBeUndefined()
+    reply.send('{"needed":false}')
+    await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe('{"needed":false}'))
+    await vi.waitFor(() => expect(watching.getCurrentResult().data).toEqual({ items: [] }))
+    stop()
+    stopWatching()
+  })
 })

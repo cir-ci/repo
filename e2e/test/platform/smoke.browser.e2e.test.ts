@@ -31,7 +31,7 @@ describe('fresh stack, local-disk storage', () => {
     await page.getByRole('heading', { name: 'Set up CirCI' }).waitFor()
 
     // Step 1: a wrong code is refused with the server's message, and nothing is created.
-    await page.getByText('Step 1 of 4').waitFor()
+    await page.getByText('Step 1 of 4', { exact: true }).waitFor()
     await page.getByLabel('Setup code').fill('000000-wrong')
     await page.getByLabel('Your name').fill(admin.name)
     await page.getByLabel('Email').fill(admin.email)
@@ -44,15 +44,15 @@ describe('fresh stack, local-disk storage', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
 
     // Step 2: the workspace. Submitting it creates the account and the workspace together.
-    await page.getByText('Step 2 of 4').waitFor()
+    await page.getByText('Step 2 of 4', { exact: true }).waitFor()
     await page.getByLabel('Workspace name').fill('Acme Inc')
     await page.getByRole('button', { name: 'Continue' }).click()
 
     // Step 3 (the account exists and the page resumes here): the storage check, then the project step,
     // which is skipped to reach the app.
-    await page.getByText('Step 3 of 4').waitFor()
+    await page.getByText('Step 3 of 4', { exact: true }).waitFor()
     await page.getByRole('button', { name: 'Continue' }).click()
-    await page.getByText('Step 4 of 4').waitFor()
+    await page.getByText('Step 4 of 4', { exact: true }).waitFor()
     await page.getByRole('button', { name: 'Skip for now' }).click()
     await page.getByRole('button', { name: `Account menu for ${admin.name}` }).waitFor()
 

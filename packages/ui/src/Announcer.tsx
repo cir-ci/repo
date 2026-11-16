@@ -15,7 +15,7 @@ const AnnouncerContext = createContext<(message: string) => void>(() => {})
 /**
  * Provides `useAnnounce()` and renders the single polite `role="status"` live region (always in
  * the DOM, so screen readers register it before the first message). Results show where the
- * action happened; the announcer is how a screen reader hears them (docs/design-gaps.md §3).
+ * action happened; the announcer is how a screen reader hears them.
  */
 export function AnnouncerProvider({ children }: AnnouncerProvider.Props) {
   const [message, setMessage] = useState('')

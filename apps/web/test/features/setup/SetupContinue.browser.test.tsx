@@ -10,6 +10,7 @@ import { Shell } from '#app/Shell.tsx'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import type { ReplyHandler } from '#test/support/fetch.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const caps = (setupPending: boolean) => ({
@@ -89,6 +90,28 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
     expect(page.getByRole('button', { name: 'Back' }).elements()).toHaveLength(0)
   })
 
+  it('puts focus on the title and says the step and the storage result', async () => {
+    await open(server())
+    await expect.element(page.getByText('Reachable and writable.')).toBeVisible()
+    // The page replaced the account step: focus is not left on a button that is gone.
+    await expect
+      .element(page.getByRole('heading', { name: 'Set up CirCI', level: 1 }))
+      .toHaveFocus()
+    await expect
+      .element(
+        page.getByRole('status').filter({ hasText: 'Step 3 of 4: Storage. Storage: Passing' }),
+      )
+      .toBeInTheDocument()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect
+      .element(page.getByRole('status').filter({ hasText: 'Step 4 of 4: Project' }))
+      .toBeInTheDocument()
+    await page.getByRole('button', { name: 'Back' }).click()
+    await expect
+      .element(page.getByRole('heading', { name: 'Set up CirCI', level: 1 }))
+      .toHaveFocus()
+  })
+
   it('opens the app, not the steps, once setup is done', async () => {
     await open(server({ pending: false }))
     await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
@@ -142,6 +165,7 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Create project' }).click()
     await expect.element(page.getByText('Enter a name')).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Project name' })).toHaveFocus()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
   })
 
@@ -170,6 +194,29 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
     await page.getByRole('button', { name: 'Done' }).click()
     await vi.waitFor(() => expect(useSetupStore.getState().project).toBeUndefined())
     expect(page.getByText('Step 4 of 4').elements()).toHaveLength(0)
+  })
+
+  it('moves focus to the token when it appears, and never scrolls sideways on a phone', async () => {
+    await renderPage(<Shell />, {
+      api: server(),
+      otherRoutes: ['/$workspace/$project'],
+      viewport: [390, 844],
+    })
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('textbox', { name: 'Project name' }).fill('Checkout flows')
+    expectOnePrimaryPerArea()
+    await page.getByRole('button', { name: 'Create project' }).click()
+    await expect.element(page.getByRole('button', { name: 'Done' })).toBeVisible()
+    expectOnePrimaryPerArea()
+    const token = page.getByText('circi_secret_token_value').first().element()
+    expect(token.closest('[tabindex="-1"]')).toBe(document.activeElement)
+    await expect
+      .element(page.getByRole('status').filter({ hasText: 'The CI token is shown only once' }))
+      .toBeInTheDocument()
+    // The snippet scrolls inside its box; the page itself stays as wide as the window.
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    const snippet = document.querySelector('pre')
+    expect(snippet?.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
   })
 
   it('skips the project and opens the app', async () => {

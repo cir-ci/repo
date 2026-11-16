@@ -43,7 +43,7 @@
         "open": "readonly"
       }
     },
-    // Layer rules (docs/architecture-review/layering.md section 4.2). packages/services/test/layers.test.ts
+    // Layer rules. packages/services/test/layers.test.ts
     // is the full enforcement (it also resolves `#` aliases and relative paths); these catch the
     // plain specifier cases at lint time.
     {

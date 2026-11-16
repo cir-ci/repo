@@ -4,7 +4,7 @@ import { dirname, join, normalize } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Layer tests: who may import whom (docs/architecture-review/layering.md section 4).
+ * Layer tests: who may import whom.
  *
  * Every rule below scans the source files of its scope and asserts on the PARSED import
  * specifiers (`import … from '…'`, `export … from '…'`, `import '…'` and `import('…')`), never on
@@ -232,7 +232,7 @@ const writesWithoutTx = (file: { text: string; imports: Resolved[] }) =>
       i.names.some((n) => MUTATING.test(n)),
   ) && !/\btx\b|withTransaction|\btransaction\(/.test(stripComments(file.text))
 
-/** Rule ids are the numbers of docs/architecture-review/layering.md section 4.1. */
+/** Rule ids are the numbers in the layer rules below. */
 type RuleId =
   | '1'
   | '2'
@@ -458,7 +458,7 @@ if (process.env.LAYERS_PRINT) {
   )
 }
 
-describe('layers: dependency rules (docs/architecture-review/layering.md section 4.1)', () => {
+describe('layers: dependency rules', () => {
   for (const rule of RULES) {
     const excused = Object.keys(EXCEPTIONS[rule.id] ?? {})
     it(`rule ${rule.id}: ${rule.title}`, () => {

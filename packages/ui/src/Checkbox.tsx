@@ -12,7 +12,7 @@ import styles from './Checkbox.module.css'
 const InGroup = createContext(false)
 
 /**
- * Provisional (docs/design-gaps.md §2): a 14×14 box (radius 3, checked fill `accent.main`) with
+ * Provisional: a 14×14 box (radius 3, checked fill `accent.main`) with
  * its label to the right; clicking the label toggles it and Space toggles it from the keyboard.
  * Inside a `CheckboxGroup` it is identified by `value`; on its own use `checked`/`defaultChecked`.
  */

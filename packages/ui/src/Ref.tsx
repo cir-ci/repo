@@ -9,7 +9,7 @@ import styles from './Ref.module.css'
 const COPIED_MS = 1500
 
 /**
- * Provisional (docs/design-gaps.md §9, §12): mono text for something the reader copies (a SHA, a
+ * Provisional: mono text for something the reader copies (a SHA, a
  * branch, a token) with a copy button named "Copy <label>". After copying, a "Copied" note
  * shows for a moment (in a polite `role="status"`); if the browser refuses the clipboard
  * nothing changes. `display` shows a shortened form (`value.slice(0, 7)`) while the full

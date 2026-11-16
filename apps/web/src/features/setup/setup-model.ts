@@ -7,6 +7,10 @@ export const SETUP_STEPS = ['Account', 'Workspace', 'Storage', 'Project'] as con
 /** `Step 2 of 4` for a step number from 1. */
 export const stepLabel = (step: number): string => `Step ${step} of ${SETUP_STEPS.length}`
 
+/** What a screen reader hears when a step opens: `Step 2 of 4: Workspace`. */
+export const stepAnnouncement = (step: number): string =>
+  `${stepLabel(step)}: ${SETUP_STEPS[step - 1] ?? ''}`
+
 /** What the server needs of a password (`MIN_PASSWORD_LENGTH` in `@circi/auth`). */
 export const MIN_PASSWORD_LENGTH = 12
 
