@@ -21,7 +21,8 @@
   color: var(--circi-state-review-text);
 }
 
-.root[data-status='processing'] {
+.root[data-status='processing'],
+.root[data-status='uploading'] {
   color: var(--circi-state-processing);
 }
 
@@ -31,4 +32,12 @@
 
 .root[data-status='rejected'] {
   color: var(--circi-state-rejected-text);
+}
+
+.root[data-status='expired'] {
+  color: var(--circi-text-tertiary);
+}
+
+.root[data-status='no-baseline'] {
+  color: var(--circi-text-secondary);
 }

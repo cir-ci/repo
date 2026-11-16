@@ -73,7 +73,10 @@ export function buildStatus(build: Pick<Review.Request['build'], 'status' | 'rev
   status: Status
   label: string
 } {
+  if (build.status === 'pending' || build.status === 'uploading')
+    return { status: 'uploading', label: 'Uploading' }
   if (isProcessing(build)) return { status: 'processing', label: 'Processing' }
+  if (build.status === 'expired') return { status: 'expired', label: 'Expired' }
   if (build.status === 'error') return { status: 'failed', label: 'Failed' }
   if (build.reviewStatus === 'approved') return { status: 'approved', label: 'Approved' }
   if (build.reviewStatus === 'rejected') return { status: 'rejected', label: 'Rejected' }

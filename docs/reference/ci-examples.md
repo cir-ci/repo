@@ -14,7 +14,7 @@ The dashboard's component tests run in headless Chromium (Vitest browser mode), 
 - uses: actions/checkout@v4
   with: { fetch-depth: 0 }
 - run: npx playwright test            # writes screenshots to ./screenshots
-- run: npx circi upload ./screenshots --wait
+- run: npx @circi/cli upload ./screenshots --wait
   env:
     CIRCI_TOKEN: ${{ secrets.CIRCI_TOKEN }}
     CIRCI_API_URL: https://ci.acme.io
@@ -29,7 +29,7 @@ strategy:
   matrix: { shard: [1, 2, 3, 4] }
 steps:
   - run: npx playwright test --shard=${{ matrix.shard }}/4
-  - run: npx circi upload ./screenshots --shard ${{ matrix.shard }}/4 --wait
+  - run: npx @circi/cli upload ./screenshots --shard ${{ matrix.shard }}/4 --wait
 ```
 
 Every job uploads its own screenshots; CirCI joins them into one build (they share the run's id) and processes it when the fourth arrives. A shard that never arrives fails the build after `UPLOAD_TIMEOUT_MINUTES` (default 60), naming the missing shards. A re-run of the workflow is a new attempt and starts a new build.
@@ -39,8 +39,8 @@ Every job uploads its own screenshots; CirCI joins them into one build (they sha
 `--name chromium` and `--name mobile` give each kind of build its own baselines:
 
 ```yaml
-- run: npx circi upload ./screenshots-chromium --name chromium
-- run: npx circi upload ./screenshots-mobile --name mobile
+- run: npx @circi/cli upload ./screenshots-chromium --name chromium
+- run: npx @circi/cli upload ./screenshots-mobile --name mobile
 ```
 
 ## GitLab CI
@@ -49,7 +49,7 @@ Every job uploads its own screenshots; CirCI joins them into one build (they sha
 visual:
   script:
     - npx playwright test
-    - npx circi upload ./screenshots --wait
+    - npx @circi/cli upload ./screenshots --wait
   variables:
     GIT_DEPTH: 0
 ```
@@ -61,7 +61,7 @@ Set `CIRCI_TOKEN` and `CIRCI_API_URL` under Settings → CI/CD → Variables. Fo
 - step:
     script:
       - npx playwright test
-      - npx circi upload ./screenshots --wait
+      - npx @circi/cli upload ./screenshots --wait
 ```
 Add the variables under Repository settings → Pipelines → Variables.
 
@@ -74,7 +74,7 @@ The GitHub Actions example works as is: the environment looks the same.
 ```groovy
 sh 'npx playwright test'
 withCredentials([string(credentialsId: 'circi-token', variable: 'CIRCI_TOKEN')]) {
-  sh 'CIRCI_API_URL=https://ci.acme.io npx circi upload ./screenshots --wait'
+  sh 'CIRCI_API_URL=https://ci.acme.io npx @circi/cli upload ./screenshots --wait'
 }
 ```
 Jenkins doesn't say which pull request a build is for unless you pass it: set `CIRCI_PR_NUMBER`, `CIRCI_BRANCH` and `CIRCI_BASE_BRANCH` (the multibranch plugin provides `CHANGE_ID`, `BRANCH_NAME` and `CHANGE_TARGET`).

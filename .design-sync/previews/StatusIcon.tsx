@@ -1,6 +1,19 @@
 import { StatusIcon, type Status } from '@circi/ui'
 
-const ALL: Status[] = ['approved', 'needs-review', 'processing', 'failed', 'rejected', 'neutral']
+const ALL: Status[] = [
+  'approved',
+  'needs-review',
+  'processing',
+  'failed',
+  'rejected',
+  'neutral',
+  'added',
+  'removed',
+  'flaky',
+  'expired',
+  'no-baseline',
+  'uploading',
+]
 
 /** Every state side by side: shape, not just colour, tells them apart. */
 export const AllStates = () => (

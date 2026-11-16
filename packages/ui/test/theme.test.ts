@@ -238,6 +238,23 @@ describe('palettes', () => {
       }
     })
 
+    it(`${scheme}: the expired and no-baseline glyphs (tertiary and secondary text tones) read at 3:1 and their chip words at 4.5:1 on every surface`, () => {
+      for (const surface of surfaces) {
+        for (const ink of [p.text.tertiary, p.text.secondary]) {
+          expect(contrast(ink, surface), `${ink} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    })
+
+    it(`${scheme}: the uploading glyph (the processing color) reads at 3:1 and the chip word at 4.5:1 on the panel, chrome and raised surfaces`, () => {
+      for (const surface of [p.surface.panel, p.surface.chrome, p.surface.raised]) {
+        expect(
+          contrast(p.state.processing, surface),
+          `processing on ${surface}`,
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
     it(`${scheme}: equals the canvas stylesheet's variables`, () => {
       expect(tokenVariables(scheme)).toEqual(canvas[scheme])
     })

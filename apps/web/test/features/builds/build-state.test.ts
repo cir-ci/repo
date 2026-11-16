@@ -38,15 +38,15 @@ describe('buildState', () => {
 
 describe('buildState status', () => {
   it.each([
-    [{ status: 'uploading', conclusion: null }, 'processing', 'Uploading'],
-    [{ status: 'pending', conclusion: null }, 'processing', 'Uploading'],
+    [{ status: 'uploading', conclusion: null }, 'uploading', 'Uploading'],
+    [{ status: 'pending', conclusion: null }, 'uploading', 'Uploading'],
     [{ status: 'processing', conclusion: null }, 'processing', 'Processing'],
     [{}, 'needs-review', 'Needs review'],
     [{ reviewStatus: 'approved' }, 'approved', 'Approved'],
     [{ reviewStatus: 'rejected' }, 'rejected', 'Rejected'],
     [{ conclusion: 'no_changes' }, 'approved', 'No changes'],
     [{ status: 'error', conclusion: null }, 'failed', 'Failed'],
-    [{ status: 'expired', conclusion: null }, 'neutral', 'Expired'],
+    [{ status: 'expired', conclusion: null }, 'expired', 'Expired'],
   ] as const)('%j is %s, "%s"', (over, status, label) => {
     expect(state(over)).toMatchObject({ status, label })
   })
@@ -63,7 +63,7 @@ describe('screenState', () => {
     expect(screenState(review, false)).toEqual({
       kind: 'orphan',
       label: 'No baseline',
-      status: 'neutral',
+      status: 'no-baseline',
     })
   })
 

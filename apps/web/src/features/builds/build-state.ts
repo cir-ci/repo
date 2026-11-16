@@ -36,13 +36,13 @@ export namespace BuildState {
 /** What to call a build, from its status, conclusion and review. Pure: no rendering. */
 export function buildState(b: BuildState.Input): BuildState {
   if (b.status === 'uploading' || b.status === 'pending')
-    return { kind: 'uploading', label: 'Uploading', status: 'processing', tone: 'neutral' }
+    return { kind: 'uploading', label: 'Uploading', status: 'uploading', tone: 'neutral' }
   if (b.status === 'processing')
     return { kind: 'processing', label: 'Processing', status: 'processing', tone: 'neutral' }
   if (b.status === 'error')
     return { kind: 'failed', label: 'Failed', status: 'failed', tone: 'danger' }
   if (b.status === 'expired')
-    return { kind: 'expired', label: 'Expired', status: 'neutral', tone: 'neutral' }
+    return { kind: 'expired', label: 'Expired', status: 'expired', tone: 'neutral' }
   if (b.reviewStatus === 'rejected')
     return { kind: 'rejected', label: 'Rejected', status: 'rejected', tone: 'rejected' }
   if (b.conclusion === 'no_changes')
@@ -59,6 +59,6 @@ export function buildState(b: BuildState.Input): BuildState {
 export function screenState(b: BuildState.Input, hasBaseline: boolean): BuildState.Screen {
   const state = buildState(b)
   if (state.kind === 'review' && !hasBaseline)
-    return { kind: 'orphan', label: 'No baseline', status: 'neutral' }
+    return { kind: 'orphan', label: 'No baseline', status: 'no-baseline' }
   return state
 }

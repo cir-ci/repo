@@ -24,6 +24,44 @@
   color: var(--circi-state-flaky);
 }
 
+.root[data-status='no-baseline'] {
+  color: var(--circi-text-secondary);
+}
+
+/* Expired is an end state, not a problem: the tertiary text tone (also the default). */
+.root[data-status='expired'] {
+  color: var(--circi-text-tertiary);
+}
+
+.root[data-status='uploading'] {
+  color: var(--circi-state-processing);
+}
+
+/* The arrow rises and fades in, over and over; still for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: arrow-rise 1.4s ease-out infinite;
+  }
+}
+
+@keyframes arrow-rise {
+  0% {
+    transform: translateY(1.6px);
+    opacity: 0;
+  }
+
+  40%,
+  80% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
 .root[data-status='processing'] {
   color: var(--circi-state-processing);
 }

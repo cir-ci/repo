@@ -13,6 +13,9 @@ export type Status =
   | 'added'
   | 'removed'
   | 'flaky'
+  | 'expired'
+  | 'no-baseline'
+  | 'uploading'
 
 export const STATUS_LABEL: Record<Status, string> = {
   approved: 'Approved',
@@ -25,6 +28,9 @@ export const STATUS_LABEL: Record<Status, string> = {
   added: 'Added',
   removed: 'Removed',
   flaky: 'Flaky',
+  expired: 'Expired',
+  'no-baseline': 'No baseline',
+  uploading: 'Uploading',
 }
 
 /**
@@ -48,6 +54,9 @@ const PROCESSING_ARCS: readonly string[] = Array.from({ length: 8 }, (_, i) => {
  * (needs review), dashed ring (processing), a check on a dashed ring in grey (auto-approved: nobody decided), filled cross in crimson (failed: the build or
  * screenshot broke), filled disc with one diagonal bar in rose (rejected: a person's decision) or
  * plain ring (unchanged), and a ring with a plus (added), minus (removed) or tilde (flaky).
+ * An hourglass in a ring is expired (retention deleted the screenshots: an end state, not a problem); a dashed
+ * ring around a dot is no baseline (nothing to compare with yet, review once).
+ * An upward arrow in a ring is uploading (the processing color, the arrow rises when motion is allowed).
  * The shape differs per state, so it never relies on colour alone.
  */
 export function StatusIcon(props: StatusIcon.Props) {
@@ -174,6 +183,47 @@ export function StatusIcon(props: StatusIcon.Props) {
             stroke="currentColor"
             strokeWidth="1.4"
             strokeLinecap="round"
+          />
+        </>
+      )}
+      {status === 'expired' && (
+        <>
+          <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M5 4h4M5 10h4M5.6 4v.9L7 7 5.6 9.1V10M8.4 4v.9L7 7l1.4 2.1V10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      )}
+      {status === 'no-baseline' && (
+        <>
+          <circle
+            cx="7"
+            cy="7"
+            r="6.25"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeDasharray="2.6 2.1"
+          />
+          <circle cx="7" cy="7" r="1.9" fill="currentColor" />
+        </>
+      )}
+      {status === 'uploading' && (
+        <>
+          <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            className={styles.rise}
+            d="M7 10V4.4M4.6 6.7L7 4.3l2.4 2.4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </>
       )}

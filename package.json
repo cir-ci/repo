@@ -35,9 +35,14 @@
     "perf:fixtures": "node perf/src/fixtures.ts",
     "perf:stack": "node perf/src/stack.ts up",
     "perf:down": "node perf/src/stack.ts down",
-    "perf:bench": "node perf/bench/diff.ts"
+    "perf:bench": "node perf/bench/diff.ts",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm install --lockfile-only && pnpm format",
+    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@circi/testing": "workspace:*",
     "@circi/ui": "workspace:*",
     "@circi/vitest": "workspace:*",

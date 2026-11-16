@@ -218,6 +218,10 @@ describe('groupRequests', () => {
   it('gives each request its status', () => {
     expect(requestStatus(request())).toEqual({ status: 'needs-review', label: 'Needs review' })
     expect(requestStatus(processing).status).toBe('processing')
+    const uploading = request({ id: 'r3', build: { ...request().build, status: 'uploading' } })
+    expect(requestStatus(uploading)).toEqual({ status: 'uploading', label: 'Uploading' })
+    const expired = request({ id: 'r4', build: { ...request().build, status: 'expired' } })
+    expect(requestStatus(expired)).toEqual({ status: 'expired', label: 'Expired' })
     expect(
       requestStatus(request({ build: { ...request().build, reviewStatus: 'approved' } })).status,
     ).toBe('approved')

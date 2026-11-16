@@ -24,7 +24,7 @@ variable is empty. They share one `docker build` of `circi:e2e` through a lock (
 `e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs are never
 cached.
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
-`@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published, `dist`) and `apps/server`
+`@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published to npm, `dist`; the only non-private packages, versioned with Changesets: a change to either needs a `pnpm changeset`, checked in CI, released by `.github/workflows/release.yml`) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
 `pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from

@@ -2,6 +2,8 @@
 #
 #   gate  every push and pull request: `pnpm gate` (format check, lint, typecheck, the Node, UI and web
 #         browser tests, build). No Docker. Required status check: `gate`.
+#         The `changeset` job (branches other than main) fails when a published package changed without a
+#         changeset.
 #   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
 #         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
 #
@@ -136,6 +138,24 @@ jobs:
           no_output_timeout: 20m
       - save-turbo
 
+  # A change to a published package (@circi/cli, @circi/vitest) needs a changeset (`pnpm changeset`).
+  # Not run on main or on the release workflow's "Version Packages" branch, which consumes the changesets.
+  changeset:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Fetch main for the comparison
+          command: git fetch origin main:refs/remotes/origin/main
+      - setup-pnpm
+      - restore-pnpm-store
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+      - run:
+          name: Changeset status
+          command: pnpm exec changeset status --since=origin/main
+
   # The end-to-end groups of `pnpm gate:full` (//#e2e:api and //#e2e:browser): the real server, worker and
   # CLI image on Docker, with Chromium for the dashboard. The gate's own tasks run in the `gate` job.
   e2e:
@@ -226,6 +246,12 @@ workflows:
     unless: << pipeline.parameters.nightly >>
     jobs:
       - gate
+      - changeset:
+          filters:
+            branches:
+              ignore:
+                - main
+                - changeset-release/main
 
   e2e:
     when:

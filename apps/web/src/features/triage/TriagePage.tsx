@@ -590,8 +590,8 @@ const triageFields = (item: Triage.Item) => [
   item.assignee?.name,
 ]
 
-// No baseline is grey (nothing to compare yet, not a change); flaky and failed carry their state colour.
-const GLYPH = { flaky: 'flaky', no_baseline: 'neutral', failed: 'failed' } as const
+// No baseline has its own muted glyph (nothing to compare yet, not a change); flaky and failed carry their state colour.
+const GLYPH = { flaky: 'flaky', no_baseline: 'no-baseline', failed: 'failed' } as const
 
 /** "3 days", refreshed every minute. */
 function Waiting({ iso }: { iso: string }) {

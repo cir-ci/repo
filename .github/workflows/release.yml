@@ -1,0 +1,49 @@
+# Releases run on GitHub Actions, not CircleCI: npm provenance needs GitHub's OIDC identity token
+# (`id-token: write`), which CircleCI can't issue. Everything else (the gate, the end-to-end tests) stays on
+# CircleCI; see .circleci/config.yml.
+#
+# On every push to main, changesets/action either opens or updates the "Version Packages" pull request (when
+# unreleased changesets exist) or, when that pull request has just been merged, publishes @circi/cli and
+# @circi/vitest to npm. The repo ruleset requires pull requests into main, so the action only ever pushes the
+# `changeset-release/main` branch and opens a pull request; merging it is the release.
+#
+# Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
+# approve pull requests".
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write # push the changeset-release/main branch and tags, create releases
+  pull-requests: write # open and update the Version Packages pull request
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4 # reads the pnpm version from package.json's packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: pnpm release
+          title: Version Packages
+          commit: Version Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # what setup-node's registry-url .npmrc reads
+          NPM_CONFIG_PROVENANCE: 'true'

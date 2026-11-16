@@ -1,11 +1,27 @@
 {
   "name": "@circi/vitest",
   "version": "0.0.0",
-  "private": true,
   "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
+  "keywords": [
+    "screenshots",
+    "visual-regression",
+    "visual-testing",
+    "vitest",
+    "vitest-plugin"
+  ],
+  "homepage": "https://circi.dev/ci/vitest/",
+  "bugs": {
+    "url": "https://github.com/cir-ci/repo/issues"
+  },
   "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cir-ci/repo.git",
+    "directory": "packages/vitest"
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "type": "module",
   "imports": {
@@ -33,7 +49,9 @@
         "types": "./dist/browser.d.mts",
         "default": "./dist/browser.mjs"
       }
-    }
+    },
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsdown"
@@ -49,5 +67,8 @@
   },
   "peerDependencies": {
     "vitest": ">=4"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

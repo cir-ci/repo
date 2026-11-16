@@ -20,11 +20,30 @@ describe('StatusChip', () => {
   })
 
   it('does not read the glyph name before custom text ("Expired", not "Unchanged Expired")', async () => {
-    await render(<StatusChip status="neutral">Expired</StatusChip>)
+    await render(<StatusChip status="expired">Expired</StatusChip>)
     const chip = page.getByText('Expired').element()
     expect(chip.textContent).toBe('Expired')
     expect(chip.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    expect(page.getByRole('img', { name: 'Unchanged' }).elements()).toHaveLength(0)
+    expect(page.getByRole('img', { name: 'Expired' }).elements()).toHaveLength(0)
+  })
+
+  it('has a chip for uploading', async () => {
+    await render(<StatusChip status="uploading" />)
+    await expect.element(page.getByText('Uploading')).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Uploading' })).toBeVisible()
+  })
+
+  it('has chips for expired and no baseline', async () => {
+    await render(
+      <>
+        <StatusChip status="expired" />
+        <StatusChip status="no-baseline" />
+      </>,
+    )
+    await expect.element(page.getByText('Expired')).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Expired' })).toBeVisible()
+    await expect.element(page.getByText('No baseline')).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'No baseline' })).toBeVisible()
   })
 })
 

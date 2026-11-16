@@ -18,6 +18,7 @@ Closes #
 - [ ] `pnpm format` and `pnpm gate` pass. I ran `pnpm gate:full` if I changed the server, worker, storage or the dashboard's reach into them.
 - [ ] Tests cover the change, in the smallest kind that fits (see CLAUDE.md, Tests).
 - [ ] The documentation is updated (https://github.com/cir-ci/documentation) if behavior, a flag, an exit code, an environment variable or a screen changed.
+- [ ] If I changed `packages/cli` or `packages/vitest`, I added a changeset (`pnpm changeset`).
 - [ ] I follow the conventions in CLAUDE.md (layers, `#` imports, namespaces, copy rules).
 - [ ] I license this contribution under GPL-3.0, like the rest of CirCI.
 

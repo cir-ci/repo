@@ -265,6 +265,7 @@ describe('BuildPage states', () => {
     fakeBuildApi(detail({}, { baseline: null, diffs: [shot('home', 'added')] }))
     await renderBuild()
     await expect.element(page.getByText('No baseline', { exact: true }).first()).toBeVisible()
+    expect(document.querySelector('svg[data-status="no-baseline"]')).not.toBeNull()
     await expect
       .element(
         page.getByText(
@@ -322,6 +323,8 @@ describe('BuildPage states', () => {
       body: "Its screenshots were deleted under the project's retention policy.",
     })
     await expect.element(page.getByText('Expired', { exact: true })).toBeVisible()
+    expect(document.querySelector('svg[data-status="expired"]')).not.toBeNull()
+    expect(document.querySelector('svg[data-status="neutral"]')).toBeNull()
     expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
     expect(page.getByRole('navigation', { name: 'Screenshots' }).elements()).toHaveLength(0)
   })

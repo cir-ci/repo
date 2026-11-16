@@ -178,6 +178,8 @@ describe('TriagePage', () => {
     await expect.element(page.getByRole('list', { name: 'No baseline, 1 item' })).toBeVisible()
     await expect.element(page.getByRole('list', { name: 'Failed, 1 item' })).toBeVisible()
     await expect.element(page.getByText('Flaky, home, build #12, main.')).toBeInTheDocument()
+    expect(document.querySelector('svg[data-status="no-baseline"]')).not.toBeNull()
+    expect(document.querySelector('svg[data-status="neutral"]')).toBeNull()
     await expect.element(page.getByRole('status').getByText('3', { exact: true })).toBeVisible()
   })
 
