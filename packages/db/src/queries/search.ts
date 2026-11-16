@@ -1,4 +1,18 @@
-import { aliasedTable, and, desc, eq, ilike, isNull, max, ne, or, sql, type SQL } from 'drizzle-orm'
+import {
+  aliasedTable,
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  max,
+  ne,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import {
@@ -279,6 +293,7 @@ export async function searchWorkspace(
   const numberOf = (number: AnyPgColumn, pr?: AnyPgColumn): SQL | undefined =>
     n === undefined ? undefined : pr ? or(eq(number, n), eq(pr, n)) : eq(number, n)
   const actor = aliasedTable(user, 'actor')
+  const noticeMember = aliasedTable(member, 'notice_member')
   const reviewerName = nameOf(reviewRequests.reviewerId)
   const requesterName = nameOf(reviewRequests.requestedById)
 
@@ -417,14 +432,32 @@ export async function searchWorkspace(
           projectName: projects.name,
         })
         .from(notifications)
-        .innerJoin(builds, eq(builds.id, notifications.buildId))
-        .innerJoin(projects, eq(projects.id, builds.projectId))
+        // As the inbox reads them: a notice may have no build (a flaky screenshot after a
+        // threshold change) or no project either (a connection that needs attention).
+        .leftJoin(builds, eq(builds.id, notifications.buildId))
+        .leftJoin(
+          projects,
+          eq(projects.id, sql`coalesce(${builds.projectId}, ${notifications.projectId})`),
+        )
         .leftJoin(actor, eq(actor.id, notifications.actorId))
+        .leftJoin(
+          noticeMember,
+          and(eq(noticeMember.workspaceId, found.id), eq(noticeMember.userId, input.userId)),
+        )
         .where(
           and(
             eq(notifications.userId, input.userId),
             isNull(notifications.deletedAt),
-            inWorkspace,
+            eq(sql`coalesce(${projects.workspaceId}, ${notifications.workspaceId})`, found.id),
+            isNotNull(noticeMember.userId),
+            // A notice about a project is for those who can see it (and a project search narrows to it).
+            or(isNull(projects.id), projectVisibleTo(input.userId, projects)),
+            input.project === undefined ? undefined : eq(projects.slug, input.project),
+            // A connection's trouble is for those who manage the workspace, now.
+            or(
+              ne(notifications.kind, 'connection_needs_attention'),
+              inArray(noticeMember.role, ['owner', 'admin']),
+            ),
             or(
               numberOf(builds.number),
               ilike(actor.name, like),
@@ -600,8 +633,14 @@ export async function searchWorkspace(
         read: r.readAt !== null,
         createdAt: r.createdAt,
         actor: r.actorName === null ? null : { name: r.actorName },
-        build: { number: r.buildNumber, name: r.buildName },
-        project: { slug: r.projectSlug, name: r.projectName },
+        build:
+          r.buildNumber === null || r.buildName === null
+            ? null
+            : { number: r.buildNumber, name: r.buildName },
+        project:
+          r.projectSlug === null || r.projectName === null
+            ? null
+            : { slug: r.projectSlug, name: r.projectName },
         payload: {
           ...(snippet ? { snippet } : {}),
           ...(reason ? { reason } : {}),

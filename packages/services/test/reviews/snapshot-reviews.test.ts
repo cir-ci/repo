@@ -6,6 +6,7 @@ import {
   createTestDb,
   seedChangedSnapshots,
   seedGitLink,
+  seedNotification,
   seedReviewRequest,
   seedProject,
   seedUser,
@@ -51,6 +52,32 @@ const statusOf = async (id: string) =>
   (await t.db.select().from(schema.builds).where(eq(schema.builds.id, id)))[0]?.reviewStatus
 
 describe('reviewSnapshots', () => {
+  it("settles the reviewer's review notices for the build, not a flaky notice or a mention", async () => {
+    const { owner, build } = await setup()
+    const notice = (kind: schema.NotificationKind) =>
+      seedNotification(t.db, {
+        userId: owner.id,
+        buildId: build.id,
+        kind,
+        projectId: build.projectId,
+      })
+    const asked = await notice('review_requested')
+    const flaky = await notice('flaky_detected')
+    const mention = await notice('mentioned')
+    await reviewSnapshots(t.db, {
+      buildId: build.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: ['a', 'b', 'c'],
+    })
+    const readAt = async (id: string) =>
+      (await t.db.select().from(schema.notifications).where(eq(schema.notifications.id, id)))[0]
+        ?.readAt
+    expect(await readAt(asked.id)).not.toBeNull()
+    expect(await readAt(flaky.id)).toBeNull()
+    expect(await readAt(mention.id)).toBeNull()
+  })
+
   it('announces only when the derived build status moves, exactly once', async () => {
     const { owner, ann, build } = await setup()
     const decide = (decision: 'approved' | 'rejected', snapshotNames: string[]) =>

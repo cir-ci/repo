@@ -207,6 +207,41 @@ describe('flaky screenshot found', () => {
     expect(await refreshTriageProblems(t.db, project.id)).toEqual([])
   })
 
+  it('does not announce a screenshot again after it left the flaky list and came back', async () => {
+    const { project, build } = await flakyProject()
+    await build('B', true, 'complete')
+    expect(await refreshTriageProblems(t.db, project.id)).toEqual(['home'])
+    // It drops out (a higher threshold, as a shorter history window would) and returns.
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 8 })
+    const stored = () =>
+      t.db
+        .select()
+        .from(schema.triageProblems)
+        .where(eq(schema.triageProblems.projectId, project.id))
+    expect(await stored()).toEqual([])
+    const back: string[] = []
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 2 }, back)
+    expect((await stored()).map((p) => p.key)).toEqual(['home'])
+    expect(back).toEqual([])
+  })
+
+  it("does not announce the new default branch's flaky screenshots", async () => {
+    const { project, owner, teammate, build } = await flakyProject()
+    await build('B', true, 'complete')
+    // `main` is flaky but nobody was told yet (no refresh ran); the branch moves away and back.
+    await changeProjectSettings(t.db, project.id, { defaultBranch: 'release' })
+    await changeProjectSettings(t.db, project.id, { defaultBranch: 'main' })
+    const flaky = await t.db
+      .select()
+      .from(schema.triageProblems)
+      .where(eq(schema.triageProblems.projectId, project.id))
+    expect(flaky.map((p) => `${p.kind}:${p.key}`)).toEqual(['flaky:home'])
+    for (const person of [owner, teammate]) {
+      // oxlint-disable-next-line no-await-in-loop -- two people
+      expect(await noticesOf(person.id, 'flaky_detected')).toEqual([])
+    }
+  })
+
   it('says nothing for an empty list', async () => {
     const { project, build } = await flakyProject()
     const b = await build('B', true, 'complete')

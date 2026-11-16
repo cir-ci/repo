@@ -134,11 +134,20 @@ export async function jobIsForDeletedWorkspace(db: Database, job: Job): Promise<
     return row !== undefined
   }
   if (notificationId) {
+    // A notice names a build, or a project, or only a workspace (a connection needing attention).
     const [row] = await deleted
-      .innerJoin(projects, eq(projects.workspaceId, workspaceDeletions.workspaceId))
-      .innerJoin(builds, eq(builds.projectId, projects.id))
-      .innerJoin(notifications, eq(notifications.buildId, builds.id))
-      .where(eq(notifications.id, notificationId))
+      .innerJoin(notifications, eq(notifications.id, notificationId))
+      .leftJoin(builds, eq(builds.id, notifications.buildId))
+      .leftJoin(
+        projects,
+        eq(projects.id, sql`coalesce(${builds.projectId}, ${notifications.projectId})`),
+      )
+      .where(
+        eq(
+          workspaceDeletions.workspaceId,
+          sql`coalesce(${projects.workspaceId}, ${notifications.workspaceId})`,
+        ),
+      )
     return row !== undefined
   }
   return false

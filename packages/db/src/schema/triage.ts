@@ -88,6 +88,23 @@ export const triageProblems = pgTable(
   ],
 )
 
+/**
+ * The flaky screenshots a project has already been told about, by name. `triage_problems` rows come
+ * and go with the bounded history window, so a name that leaves and returns would be announced
+ * again; this row stays, and is what decides "new" (see `refreshTriageProblems`).
+ */
+export const flakyAnnounced = pgTable(
+  'flaky_announced',
+  {
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.key] })],
+)
+
 /** The people who take turns being on triage, in order (see `rotationFor` in `@circi/core`). */
 export const triageRotationMembers = pgTable(
   'triage_rotation_members',

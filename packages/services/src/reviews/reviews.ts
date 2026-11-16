@@ -93,9 +93,10 @@ async function decideSnapshots(
   if (build.reviewStatus !== 'pending') {
     const closed = await closeReviewRequestsForBuild(tx, build.id)
     closedRequestIds.push(...closed.map((r) => r.id))
-    // Deciding settles the build for its reviewer; the others' "please review" notices end
-    // with their requests.
-    await markBuildNotificationsRead(tx, { userId, buildId: build.id })
+    // Deciding settles the review side of the build for its reviewer (not a flaky notice the
+    // decision itself just raised, nor mentions); the others' "please review" notices end with
+    // their requests.
+    await markBuildNotificationsRead(tx, { userId, buildId: build.id, kinds: REVIEW_KINDS })
     for (const request of closed) {
       if (request.reviewerId === userId) continue
       // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
@@ -217,6 +218,9 @@ export namespace reviewBuild {
 
 /** The notification kinds that ask someone to review; they end when the request does. */
 const REQUEST_KINDS = ['review_requested', 'review_re_requested', 'review_overdue'] as const
+
+/** What a decision settles for the person who made it: the review asks and the review outcomes. */
+const REVIEW_KINDS = [...REQUEST_KINDS, 'build_approved', 'build_rejected'] as const
 
 /**
  * Asks `reviewerId` to review a build; asking yourself is refused. The request is due when the project's review target runs

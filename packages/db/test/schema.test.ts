@@ -44,6 +44,7 @@ describe('migrations', () => {
       'email_code_requests',
       'expired_site_hostnames',
       'files',
+      'flaky_announced',
       'ignore_regions',
       'instance_settings',
       'integration_links',

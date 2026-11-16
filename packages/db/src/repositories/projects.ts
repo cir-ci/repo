@@ -225,7 +225,10 @@ export async function updateProjectSettings(
     assertFound(row, 'Project not found')
     // The queue's problems follow the default branch and the flaky threshold.
     if (set.defaultBranch !== undefined || set.flakyAfterChanges !== undefined) {
-      const added = await refreshTriageProblems(db, projectId)
+      // A new default branch's flaky set is not news: remembered, not announced.
+      const added = await refreshTriageProblems(db, projectId, {
+        announce: set.defaultBranch === undefined,
+      })
       addedFlaky?.push(...added)
     }
     return projectSettings(row)

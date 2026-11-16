@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import { findTriageProblems } from '#queries/triage.ts'
-import { projects, triageProblems } from '#schema/index.ts'
+import { flakyAnnounced, projects, triageProblems } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 const id = (p: { kind: string; key: string }) => `${p.kind}\u0000${p.key}`
@@ -19,14 +19,17 @@ const CHUNK = 5000
  * and runs one project at a time (an advisory lock held to the end of the
  * transaction), so two writers can't leave an older answer behind a newer one.
  *
- * Returns the names of the screenshots that entered the flaky list in this call, decided under
- * that lock, so each is reported exactly once even when two builds finish together. Data only:
- * telling people is the calling service's job (`notifyFlakyDetected`).
+ * Returns the names of the screenshots that entered the flaky list in this call and were never
+ * announced for this project before, decided under that lock (`flaky_announced` remembers each
+ * name for good, so one that leaves the history window and returns is not told again, and two
+ * builds finishing together report it once). With `announce: false` (the default branch changed:
+ * the new branch's whole flaky set is not news) the names are remembered and none is returned.
+ * Data only: telling people is the calling service's job (`notifyFlakyDetected`).
  */
 export async function refreshTriageProblems(
   db: Database,
   projectId: string,
-  options: { branch?: string | null } = {},
+  options: { branch?: string | null; announce?: boolean } = {},
 ): Promise<string[]> {
   return db.transaction(async (tx) => {
     // A build on another branch can't change the queue.
@@ -80,6 +83,18 @@ export async function refreshTriageProblems(
         .values(toAdd.slice(i, i + CHUNK).map((p) => ({ projectId, kind: p.kind, key: p.key })))
         .onConflictDoNothing()
     }
-    return toAdd.filter((p) => p.kind === 'flaky').map((p) => p.key)
+    // Flaky names stay flagged as seen; only the ones never seen before are news.
+    const flakyKeys = toAdd.filter((p) => p.kind === 'flaky').map((p) => p.key)
+    const fresh: string[] = []
+    for (let i = 0; i < flakyKeys.length; i += CHUNK) {
+      // oxlint-disable-next-line no-await-in-loop -- one transaction, one connection
+      const rows = await tx
+        .insert(flakyAnnounced)
+        .values(flakyKeys.slice(i, i + CHUNK).map((key) => ({ projectId, key })))
+        .onConflictDoNothing()
+        .returning({ key: flakyAnnounced.key })
+      fresh.push(...rows.map((r) => r.key))
+    }
+    return options.announce === false ? [] : fresh
   })
 }

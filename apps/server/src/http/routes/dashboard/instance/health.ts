@@ -12,10 +12,19 @@ import { addressChecklist, withEffectiveSmtp } from '#composition/instance-setti
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import type { Deps } from '#http/lib/deps.ts'
 
-/** The real path of a folder, or undefined when it can't be resolved (it doesn't exist yet). */
+const realPaths = new Map<string, string>()
+
+/**
+ * The real path of a folder, or undefined when it can't be resolved (it doesn't exist yet). A
+ * resolved path is kept: the storage folder is one per process, and this runs on every request.
+ */
 function realPathOf(path: string): string | undefined {
+  const known = realPaths.get(path)
+  if (known !== undefined) return known
   try {
-    return realpathSync(path)
+    const real = realpathSync(path)
+    realPaths.set(path, real)
+    return real
   } catch {
     return undefined
   }
@@ -42,8 +51,10 @@ export function hidePath(text: string | null, path: string | undefined): string 
   let result = text
   for (const r of roots) {
     const escaped = r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    // Not inside a longer name before it, and ending at a segment boundary after it.
-    result = result.replace(new RegExp(`(?<![\\w.\\-/])${escaped}(?![\\w.\\-])`, 'g'), label)
+    // Not inside a longer name before it, and ending at a segment boundary after it: a name
+    // character, or a dot or dash that goes on into one (`-old`, `.d`), continues the name; a
+    // sentence's own "." or a trailing "-" does not.
+    result = result.replace(new RegExp(`(?<![\\w.\\-/])${escaped}(?!\\w|[.\\-]\\w)`, 'g'), label)
   }
   return result
 }

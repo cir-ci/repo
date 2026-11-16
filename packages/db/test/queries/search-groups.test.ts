@@ -118,7 +118,7 @@ async function setup() {
   })
   const search = (userId: string, query: string) =>
     searchWorkspace(t.db, { userId, workspaceSlug: workspace.slug, query, now })
-  return { owner, outsider, shipped, broken, request, view, search }
+  return { owner, outsider, workspace, secret, first, shipped, broken, request, view, search }
 }
 
 describe('searchWorkspace groups', () => {
@@ -234,6 +234,50 @@ describe('searchWorkspace groups', () => {
     expect((await s.search(s.owner.id, 'totals'))?.notifications).toMatchObject([
       { id: snoozed.id, tab: 'snoozed' },
     ])
+  })
+
+  it('finds notices with no build, by the inbox rules: project access, and managers for a connection', async () => {
+    const s = await setup()
+    const flakyOpen = await seedNotification(t.db, {
+      userId: s.outsider.id,
+      kind: 'flaky_detected',
+      projectId: s.first.project.id,
+      payload: { name: 'checkout/summary', count: 1 },
+    })
+    await seedNotification(t.db, {
+      userId: s.outsider.id,
+      kind: 'flaky_detected',
+      projectId: s.secret.id,
+    })
+    const connectionPayload = { reason: 'Token revoked by Slack' }
+    const connection = (userId: string) =>
+      seedNotification(t.db, {
+        userId,
+        kind: 'connection_needs_attention',
+        workspaceId: s.workspace.id,
+        payload: connectionPayload,
+      })
+    const ownersConnection = await connection(s.owner.id)
+    await connection(s.outsider.id)
+
+    const flaky = (await s.search(s.outsider.id, 'flaky'))?.notifications
+    expect(flaky).toMatchObject([
+      { id: flakyOpen.id, kind: 'flaky_detected', build: null, project: { slug: 'open' } },
+    ])
+    // The owner manages the workspace; a plain member is not told about the connection.
+    expect((await s.search(s.owner.id, 'revoked'))?.notifications).toMatchObject([
+      { id: ownersConnection.id, build: null, project: null },
+    ])
+    expect((await s.search(s.outsider.id, 'revoked'))?.notifications).toEqual([])
+    // A project search narrows to that project's notices.
+    const inSecret = await searchWorkspace(t.db, {
+      userId: s.owner.id,
+      workspaceSlug: s.workspace.slug,
+      query: 'revoked',
+      project: 'secret',
+      now,
+    })
+    expect(inSecret?.notifications).toEqual([])
   })
 
   it('finds open review requests asked of you or by you, with their Reviews tab', async () => {

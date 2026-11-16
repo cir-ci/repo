@@ -385,6 +385,17 @@ describe('hidePath', () => {
     ).toBe('/srv/data-old and …/data/x and /srv/data2 and /a/srv/data')
   })
 
+  it("hides the path at the end of a sentence, or before a lone dash (not a name's own dot or dash)", () => {
+    expect(hidePath('Cannot write to /srv/data.', '/srv/data')).toBe('Cannot write to …/data.')
+    expect(hidePath('Cannot write to /srv/data. Check it', '/srv/data')).toBe(
+      'Cannot write to …/data. Check it',
+    )
+    expect(hidePath('/srv/data- is full', '/srv/data')).toBe('…/data- is full')
+    expect(hidePath('/srv/data.bak and /srv/data-old', '/srv/data')).toBe(
+      '/srv/data.bak and /srv/data-old',
+    )
+  })
+
   it('also hides the resolved real path, which disk errors name', async () => {
     const real = await mkdtemp(join(tmpdir(), 'circi-real-'))
     const link = `${real}-link`
