@@ -28,3 +28,4 @@ coverage/
 !/perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation
 /perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation/*
 !/perf/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-validation/summary.md
+test-results/

@@ -159,6 +159,23 @@ export default defineConfig({
             },
           }))
         : []),
+      // The shipped Compose files (deploy/), brought up for real: `pnpm test:compose`, the CircleCI
+      // job `compose-smoke`. Own project and switch because it needs no end-to-end stack pool.
+      ...(process.env['COMPOSE_SMOKE']
+        ? [
+            {
+              extends: true,
+              test: {
+                name: 'compose',
+                include: ['e2e/test/deploy/**/*.deploy.test.ts'],
+                // `compose up --build` builds the image the first time; `down -v` runs in afterAll.
+                testTimeout: 120_000,
+                hookTimeout: 20 * 60_000,
+                fileParallelism: false,
+              },
+            },
+          ]
+        : []),
       // The design system's own visual tests (`pnpm test:visual`): every @circi/ui component in
       // both colour schemes, screenshotted by @circi/vitest. Registered only with VISUAL=1, so
       // `pnpm test` never takes screenshots that nobody compares.

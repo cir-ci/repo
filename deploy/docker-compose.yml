@@ -5,7 +5,7 @@
 #   docker compose exec circi circi admin workspace create --name "Acme"
 #   docker compose exec circi circi admin project create --org acme --name "Web app"
 #
-# For S3-compatible storage (local MinIO for development), add the overlay:
+# For S3-compatible storage (a local SeaweedFS for development), add the overlay:
 #   docker compose -f docker-compose.yml -f docker-compose.s3.yml up -d --build
 
 name: circi

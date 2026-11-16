@@ -145,57 +145,22 @@ jobs:
           path: e2e/.artifacts
           destination: e2e-artifacts
 
-  # What the old GitHub Actions workflow checked and the end-to-end tests don't: the shipped Compose files
-  # (deploy/docker-compose.yml + the S3 overlay) start, the admin commands run inside the image, sign-in
-  # works, and the storage driver passes its live tests against MinIO.
+  # The shipped Compose files (deploy/docker-compose.yml + the S3 overlay) brought up for real. The checks
+  # are a typed test, e2e/test/deploy/compose.deploy.test.ts (`pnpm test:compose`): healthy stack, the admin
+  # commands inside the image, sign-in, and the storage driver's live tests against the overlay's S3 server.
+  # It picks its own compose project name and free ports, prints the logs when a test fails and always
+  # runs `down -v`. Orbs considered and left out: circleci/docker (login and Hadolint, nothing used here:
+  # the images are public) and circleci/node's test helpers (the junit file below is one flag).
   compose-smoke:
     executor: docker-vm
-    environment:
-      POSTGRES_PASSWORD: ci-only-password
-      BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
-      COMPOSE: docker compose -f docker-compose.yml -f docker-compose.s3.yml
     steps:
       - checkout
-      - run:
-          name: Start the stack (Postgres, MinIO, CirCI)
-          working_directory: deploy
-          command: $COMPOSE up -d --build --wait --wait-timeout 300
-      - run:
-          name: Ready and healthy
-          command: curl -fsS http://localhost:3000/readyz
-      - run:
-          name: Admin commands work inside the image
-          working_directory: deploy
-          command: |
-            $COMPOSE exec -T circi circi admin user create --email ci@example.com --name CI \
-              --password ci-only-password-123
-            $COMPOSE exec -T circi circi admin workspace create --name "CI Workspace" --owner ci@example.com
-            $COMPOSE exec -T circi circi admin project create --org ci-workspace --name "Web" --json \
-              | grep -q '"token": "circi_'
-            $COMPOSE exec -T circi circi admin project list --org ci-workspace
-      - run:
-          name: Sign-in works, and the dashboard API needs it
-          command: |
-            test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/projects)" = 401
-            curl -fsS -c cookies.txt -H 'content-type: application/json' -H 'origin: http://localhost:3000' \
-              -d '{"email":"ci@example.com","password":"ci-only-password-123"}' \
-              http://localhost:3000/api/auth/sign-in/email
-            curl -fsS -b cookies.txt http://localhost:3000/api/projects | grep -q '"ci-workspace"'
       - setup
       - run:
-          name: Live S3 storage tests against MinIO
-          command: |
-            CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 pnpm exec vitest run packages/storage
-      - run:
-          name: Logs on failure
-          working_directory: deploy
-          command: $COMPOSE logs --no-color
-          when: on_fail
-      - run:
-          name: Tear down
-          working_directory: deploy
-          command: $COMPOSE down -v
-          when: always
+          name: Compose smoke test
+          command: pnpm test:compose --reporter=default --reporter=junit --outputFile.junit=test-results/compose/junit.xml
+      - store_test_results:
+          path: test-results
 
 workflows:
   gate:

@@ -48,7 +48,7 @@ describe('S3Storage.presignPut (offline)', () => {
 })
 
 // Runs against a real S3-compatible server when configured, e.g.
-// CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 (MinIO from docker-compose.s3.yml).
+// CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 (SeaweedFS from deploy/docker-compose.s3.yml).
 const endpoint = process.env.CIRCI_TEST_S3_ENDPOINT
 describe.skipIf(!endpoint)('S3Storage (live)', () => {
   const storage = new S3Storage({

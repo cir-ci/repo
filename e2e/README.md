@@ -144,6 +144,9 @@ e2e/
     reporting/         timing-reporter.ts
   test/
     fakes/*.test.ts    tests of the fakes themselves: plain Node, no Docker (run by `pnpm test`)
+    deploy/*.deploy.test.ts
+                       the shipped deploy/ Compose files (with the S3 overlay) brought up for real, own project name and free
+                       ports, no stack pool: `pnpm test:compose`, the CircleCI job `compose-smoke`
     {auth,github,sites,storage,webhooks,platform}/*.e2e.test.ts
                        the end-to-end tests by feature (run only by `pnpm test:e2e`)
 ```
