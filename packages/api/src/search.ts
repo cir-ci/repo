@@ -73,6 +73,8 @@ export namespace Search {
     buildNumber: number
     branch: string | null
     assignee: { name: string } | null
+    /** Asleep right now: its row offers Unsnooze, not Snooze. */
+    snoozed: boolean
   }
 
   /** One of the signed-in person's notifications (deleted ones never match). */

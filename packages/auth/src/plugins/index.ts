@@ -1,4 +1,5 @@
 import { apiKey } from '@better-auth/api-key'
+import { emitLive } from '@circi/db/queue'
 import { removeUserFromWorkspaceProjects } from '@circi/db/repositories'
 import { admin, organization } from 'better-auth/plugins'
 
@@ -38,12 +39,22 @@ export function authPlugins(options: PluginOptions = {}) {
         afterRemoveMember: async ({ member, organization: workspace }) => {
           const db = options.db
           if (!db) return
-          await db.transaction((tx) =>
-            removeUserFromWorkspaceProjects(tx, {
+          await db.transaction(async (tx) => {
+            await removeUserFromWorkspaceProjects(tx, {
               workspaceId: workspace.id,
               userId: member.userId,
-            }),
-          )
+            })
+            // Their open dashboards stop hearing about the workspace at once, not at the next heartbeat.
+            await emitLive(tx, { type: 'access.changed', userId: member.userId })
+          })
+        },
+        afterAddMember: async ({ member }) => {
+          if (options.db)
+            await emitLive(options.db, { type: 'access.changed', userId: member.userId })
+        },
+        afterUpdateMemberRole: async ({ member }) => {
+          if (options.db)
+            await emitLive(options.db, { type: 'access.changed', userId: member.userId })
         },
       },
       sendInvitationEmail: async ({ email, organization: workspace, inviter, role, id }) => {

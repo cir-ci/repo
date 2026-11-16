@@ -1,4 +1,5 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
+import { emitLive } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { betterAuth } from 'better-auth'
 
@@ -95,7 +96,19 @@ export function createAuth(given: AuthOptions) {
     },
     hooks: { before: requestGuard(options), after: afterOrganizationRequest() },
     databaseHooks: {
-      session: { create: { after: onSessionCreated(options) } },
+      session: {
+        create: { after: onSessionCreated(options) },
+        // Signed out or revoked (one session or many): that session's open live stream ends at once.
+        delete: {
+          after: async (session) => {
+            await emitLive(options.db, {
+              type: 'session.ended',
+              userId: session.userId,
+              sessionId: session.id,
+            })
+          },
+        },
+      },
       account: { create: { before: beforeAccountCreate(options) } },
       user: {
         create: { before: beforeUserCreate(options) },

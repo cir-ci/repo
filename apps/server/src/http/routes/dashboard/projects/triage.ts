@@ -6,6 +6,7 @@ import {
   dismissTriageUndoable,
   rerunFailedBuild,
   snoozeTriageUndoable,
+  unsnoozeTriageUndoable,
 } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -51,7 +52,7 @@ function state(
 }
 
 /**
- * A project's triage queue and what members do with it: assign, snooze, dismiss and, for a failed build, re-run its comparison. Any member of
+ * A project's triage queue and what members do with it: assign, snooze, unsnooze, dismiss and, for a failed build, re-run its comparison. Any member of
  * the workspace may; everyone else gets "not found".
  */
 export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
@@ -92,6 +93,18 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
       userId: found.user.id,
       ...body,
       ...(date ? { date: new Date(date) } : {}),
+    })
+    return state(item, presentUndo(undo))
+  })
+
+  /** Wakes a snoozed item early; an item that isn't snoozed comes back unchanged, with no undo. */
+  app.post('/projects/:workspace/:project/triage/unsnooze', async (req) => {
+    const found = await loadProject(deps, req)
+    const body = parse(dismissBody, req.body)
+    const { item, undo } = await unsnoozeTriageUndoable(deps.db, {
+      projectId: found.project.id,
+      userId: found.user.id,
+      ...body,
     })
     return state(item, presentUndo(undo))
   })

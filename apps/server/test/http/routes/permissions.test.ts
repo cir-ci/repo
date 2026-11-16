@@ -39,6 +39,7 @@ const MEMBER_WRITABLE = new Set([
   `POST ${PROJECT}/undo/:id`,
   `POST ${PROJECT}/triage/assign`,
   `POST ${PROJECT}/triage/snooze`,
+  `POST ${PROJECT}/triage/unsnooze`,
   `POST ${PROJECT}/triage/dismiss`,
   `POST ${PROJECT}/triage/rerun`,
   `POST ${PROJECT}/review-requests/:id/dismiss`,

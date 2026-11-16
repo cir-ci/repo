@@ -39,7 +39,16 @@ export async function png(color: string): Promise<Buffer> {
  * two builds, `rival` is someone else), both signed in, over a real PGlite database and local
  * file storage.
  */
-export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
+export async function startDashboard(
+  extra: Partial<Deps.Dashboard> = {},
+  liveOptions: {
+    liveHeartbeatMs?: number
+    /** More of the live options (caps, a slower `listen`, `onStats`). */
+    live?: Partial<NonNullable<Deps.Dashboard['live']>>
+    /** Held before the database feed starts listening (a slow LISTEN). */
+    beforeListen?: () => Promise<void>
+  } = {},
+) {
   const t = await createTestDb()
   const betterAuth = createTestAuth(t.db)
   const dir = await mkdtemp(join(tmpdir(), 'circi-dash-'))
@@ -53,7 +62,22 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   const app = buildServer({
     logger,
     checks: [],
-    dashboard: { db: t.db, auth: betterAuth, storage, publicOrigin: ORIGIN, webDist, ...extra },
+    dashboard: {
+      db: t.db,
+      auth: betterAuth,
+      storage,
+      publicOrigin: ORIGIN,
+      webDist,
+      live: {
+        listen: async (...args) => {
+          await liveOptions.beforeListen?.()
+          return t.listen(...args)
+        },
+        ...(liveOptions.liveHeartbeatMs ? { heartbeatMs: liveOptions.liveHeartbeatMs } : {}),
+        ...liveOptions.live,
+      },
+      ...extra,
+    },
   })
   await app.ready()
 

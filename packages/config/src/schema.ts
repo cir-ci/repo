@@ -92,6 +92,11 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().min(0.01).max(86_400).default(300),
   ),
+  /** The most dashboard live streams (`GET /api/live`) one server process keeps open; more get a 503 with Retry-After. */
+  LIVE_MAX_STREAMS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(100_000).default(2000),
+  ),
   /** How long a webhook receiver may take to answer a delivery. */
   WEBHOOK_TIMEOUT_SECONDS: z.preprocess(
     emptyToUndefined,

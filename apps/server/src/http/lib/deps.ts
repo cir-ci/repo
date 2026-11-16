@@ -1,6 +1,6 @@
 import type { Auth, Mailer } from '@circi/auth'
 import type { Config } from '@circi/config'
-import type { Database } from '@circi/db'
+import type { Database, ListenFn } from '@circi/db'
 import type { getProjectContext } from '@circi/db/queries'
 import type { SessionMethod } from '@circi/db/repositories'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
@@ -112,6 +112,22 @@ export namespace Deps {
     vapid?: { publicKey: string; privateKey: string }
     /** The configuration behind Instance › Settings and Health; without it those routes answer 501. */
     instance?: Deps.Instance
+    /**
+     * Live updates (`GET /api/live`): LISTEN on Postgres, one connection per server process.
+     * Absent: the route does not exist (tests that don't need it). `heartbeatMs`, `maxStreams` and `maxPerUser` are for tests and the operator.
+     */
+    live?: {
+      listen: ListenFn
+      heartbeatMs?: number
+      /** Open streams allowed in this process (default 2000). */
+      maxStreams?: number
+      /** Open streams allowed per person; the oldest is ended for a new one (default 5). */
+      maxPerUser?: number
+      /** How soon an unknown project may reload a person's scope again (default 5 s; tests use 0). */
+      scopeReloadMinMs?: number
+      /** Test seam: gets the counts of what the live routes hold open. */
+      onStats?: (stats: { streams(): number; subscribers(): number }) => void
+    }
     /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
     webDist?: string
   }

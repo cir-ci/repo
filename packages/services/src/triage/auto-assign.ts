@@ -7,6 +7,7 @@ import {
   listProjectsAssigningToOnCall,
 } from '@circi/db/repositories'
 
+import { emitProjectLive } from '#src/live/index.ts'
 import { notify } from '#src/notifications/notifications.ts'
 
 /**
@@ -48,6 +49,7 @@ export async function autoAssignTriage(
       assigneeId: onTriage,
       items: candidates.map((i) => ({ kind: i.kind, key: i.key })),
     })
+    if (changed.length > 0) await emitProjectLive(tx, 'triage.changed', input.projectId)
     const first = candidates.find((i) => changed.some((c) => c.kind === i.kind && c.key === i.key))
     if (!first) return 0
     const build = await getBuildByNumber(tx, input.projectId, first.build.number)

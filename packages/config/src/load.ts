@@ -241,6 +241,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       baseMs: Math.round(e.JOB_RETRY_BASE_SECONDS * 1000),
       maxMs: Math.round(e.JOB_RETRY_MAX_SECONDS * 1000),
     },
+    liveMaxStreams: e.LIVE_MAX_STREAMS,
     webhookTimeoutMs: Math.round(e.WEBHOOK_TIMEOUT_SECONDS * 1000),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,

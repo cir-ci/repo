@@ -22,6 +22,7 @@ import {
 import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
+import { emitBuildLive } from '#src/live/index.ts'
 import { notifyFlakyDetected } from '#src/notifications/system-notices.ts'
 import { notifyReviewRequested } from '#src/reviews/reviews.ts'
 import { autoAssignAfterBuild } from '#src/triage/auto-assign.ts'
@@ -52,6 +53,7 @@ export async function finalizeBuild(
         dedupeKey: result.build.id,
       })
       await queueGitNotify(tx, result.build, integrationRegistry.gitKinds())
+      await emitBuildLive(tx, 'build.finalized', result.build)
       const project = await getProjectById(tx, result.build.projectId)
       let superseded: ReviewRequest[] = []
       // A newer build on the branch replaces the older builds' review requests (unless the project
@@ -182,6 +184,7 @@ export async function completeBuild(
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueIntegrationEvent(tx, { type: 'build.completed', buildId: done.id })
     await queueGitNotify(tx, done, integrationRegistry.gitKinds())
+    await emitBuildLive(tx, 'build.updated', done)
     await autoAssignAfterBuild(tx, done)
   })
 }
@@ -202,6 +205,7 @@ export async function failBuild(db: Database, buildId: string, message: string):
         names: addedFlaky,
       })
       await queueGitNotify(tx, failed, integrationRegistry.gitKinds())
+      await emitBuildLive(tx, 'build.updated', failed)
       await autoAssignAfterBuild(tx, failed)
     }
   })
@@ -219,6 +223,7 @@ export async function requeueBuild(db: Database, buildId: string): Promise<void>
     })
     await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
     await queueGitNotify(tx, build, integrationRegistry.gitKinds())
+    await emitBuildLive(tx, 'build.updated', build)
   })
 }
 

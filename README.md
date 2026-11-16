@@ -120,6 +120,7 @@ Most of the instance can be set in the dashboard (Instance › Settings), saved 
 | `JOB_RETENTION_DAYS` | `14` | Initial value, locks the setting when set. Finished background jobs (done or failed) are deleted after this many days; `0` keeps them |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Initial value, locks the setting when set. Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `JOB_RETRY_BASE_SECONDS`, `JOB_RETRY_MAX_SECONDS` | `2`, `300` | Wait before a failed job (webhook, git check, email) is retried, doubling each time up to the maximum; mostly for tests |
+| `LIVE_MAX_STREAMS` | `2000` | The most dashboard live streams one server process keeps open (each person may have 5; more get a 503 with Retry-After) |
 | `WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS` | `10`, `15` | Initial value, locks the setting when set. How long a webhook receiver, and one GitHub API request, may take to answer |
 | `AUTH_SSO_ENABLED` | `true` | Initial value, locks the setting when set. Set `false` to hide single sign-on even with providers configured |
 | `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Initial value, locks the setting when set. Single sign-on providers, see above |

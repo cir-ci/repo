@@ -14,6 +14,7 @@ import {
   snoozeNotification as snoozeRow,
 } from '@circi/db/repositories'
 
+import { emitUserLive } from '#src/live/index.ts'
 import { type UndoToken } from '#src/undo/record.ts'
 
 import { withNoticeUndo } from './undo.ts'
@@ -35,6 +36,7 @@ import { withNoticeUndo } from './undo.ts'
 export async function notify(db: Database, input: notify.Input): Promise<Notification | undefined> {
   if (input.actorId && input.actorId === input.userId) return undefined
   const notification = await createNotification(db, input)
+  await emitUserLive(db, 'notification.created', input.userId)
   const emailPreference = emailPreferenceFor(input.kind)
   const pushPreference = pushPreferenceFor(input.kind)
   if (emailPreference || pushPreference) {
@@ -64,9 +66,12 @@ export async function markNotificationRead(
   db: Database,
   input: { userId: string; id: string; read: boolean },
 ): Promise<Notification> {
-  const row = await setNotificationRead(db, input)
-  assertFound(row, 'Notification not found')
-  return row
+  return db.transaction(async (tx) => {
+    const row = await setNotificationRead(tx, input)
+    assertFound(row, 'Notification not found')
+    await emitUserLive(tx, 'notification.read', input.userId)
+    return row
+  })
 }
 
 /**
@@ -84,9 +89,12 @@ export async function snoozeNotification(
   },
 ): Promise<Notification> {
   const until = snoozeUntil(input.choice, input.now ?? new Date(), input.date)
-  const row = await snoozeRow(db, { userId: input.userId, id: input.id, until })
-  assertFound(row, 'Notification not found')
-  return row
+  return db.transaction(async (tx) => {
+    const row = await snoozeRow(tx, { userId: input.userId, id: input.id, until })
+    assertFound(row, 'Notification not found')
+    await emitUserLive(tx, 'notification.read', input.userId)
+    return row
+  })
 }
 
 /** The inbox actions below, for a person at the dashboard: the same change, with a token that takes it back. */
@@ -137,9 +145,27 @@ export async function unsnoozeNotification(
   db: Database,
   input: { userId: string; id: string },
 ): Promise<Notification> {
-  const row = await snoozeRow(db, { ...input, until: null })
-  assertFound(row, 'Notification not found')
-  return row
+  return db.transaction(async (tx) => {
+    const row = await snoozeRow(tx, { ...input, until: null })
+    assertFound(row, 'Notification not found')
+    await emitUserLive(tx, 'notification.read', input.userId)
+    return row
+  })
+}
+
+/** `unsnoozeNotification` with a token that snoozes it again to the same time; none when it wasn't snoozed. */
+export async function unsnoozeNotificationUndoable(
+  db: Database,
+  input: Parameters<typeof unsnoozeNotification>[1],
+): Promise<{ notification: Notification; undo: UndoToken | null }> {
+  const { result, undo } = await withNoticeUndo(db, {
+    userId: input.userId,
+    id: input.id,
+    kind: 'notice_snooze',
+    field: 'snoozedUntil',
+    change: (tx) => unsnoozeNotification(tx, input),
+  })
+  return { notification: result, undo }
 }
 
 /** Deletes a notification from the user's inbox. */
@@ -147,12 +173,19 @@ export async function removeNotification(
   db: Database,
   input: { userId: string; id: string },
 ): Promise<void> {
-  if (!(await deleteNotification(db, input))) throw new NotFoundError('Notification not found')
+  await db.transaction(async (tx) => {
+    if (!(await deleteNotification(tx, input))) throw new NotFoundError('Notification not found')
+    await emitUserLive(tx, 'notification.read', input.userId)
+  })
 }
 
 /** Marks the user's whole inbox read; returns how many it changed. */
 export async function markInboxRead(db: Database, userId: string): Promise<number> {
-  return markAllNotificationsRead(db, { userId })
+  return db.transaction(async (tx) => {
+    const changed = await markAllNotificationsRead(tx, { userId })
+    if (changed > 0) await emitUserLive(tx, 'notification.read', userId)
+    return changed
+  })
 }
 
 /** Turns the email for a kind of notification on or off for the user. */

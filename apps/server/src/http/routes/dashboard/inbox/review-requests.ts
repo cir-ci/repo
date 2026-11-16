@@ -4,7 +4,7 @@ import {
   dismissReviewRequest,
   nudgeReviewRequest,
   snoozeReviewRequestUndoable,
-  unsnoozeReviewRequest,
+  unsnoozeReviewRequestUndoable,
   requestReview,
 } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
@@ -125,7 +125,7 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   app.post('/projects/:workspace/:project/review-requests/:id/unsnooze', async (req) => {
     const p = parse(dismissParams, req.params)
     const { project, user } = await loadProject(deps, req, { notFound: 'Review request not found' })
-    const row = await unsnoozeReviewRequest(deps.db, {
+    const { request: row, undo } = await unsnoozeReviewRequestUndoable(deps.db, {
       projectId: project.id,
       requestId: p.id,
       userId: user.id,
@@ -134,7 +134,7 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
       id: row.id,
       snoozeKind: row.snoozeKind,
       snoozedUntil: null,
-      undo: null,
+      undo: presentUndo(undo),
     }
     return payload
   })

@@ -138,6 +138,8 @@ export namespace searchWorkspace {
     buildNumber: number
     branch: string | null
     assignee: { name: string } | null
+    /** Asleep right now (so the item isn't in the queue until it wakes). */
+    snoozed: boolean
   }
 
   export interface Notification {
@@ -689,7 +691,7 @@ const KIND_WORDS: Record<TriageKind, string> = {
 
 /**
  * Triage items are derived per project (nothing is stored until someone acts), so this looks
- * through the queues of up to `TRIAGE_PROJECTS` visible projects and keeps the awake items whose
+ * through the queues of up to `TRIAGE_PROJECTS` visible projects and keeps the items (snoozed ones marked, after the awake ones) whose
  * screenshot, kind, branch, project, commit or build number matches.
  */
 async function searchTriage(
@@ -729,20 +731,21 @@ async function searchTriage(
     })),
   )
   const matches = queues.flatMap(({ project, queue }) =>
-    queue.items
-      .filter((i) => !i.snoozed)
-      .flatMap((i) => {
-        const texts = [i.snapshotName ?? '', KIND_WORDS[i.kind], i.build.branch ?? '', project.name]
-        const best = Math.min(
-          ...texts.map((t) => textRank(t, q)),
-          n !== undefined && i.build.number === n ? 0 : 4,
-        )
-        if (best > 3 && !i.build.commitSha.toLowerCase().startsWith(needle)) return []
-        return [{ best, item: i, project }]
-      }),
+    queue.items.flatMap((i) => {
+      const texts = [i.snapshotName ?? '', KIND_WORDS[i.kind], i.build.branch ?? '', project.name]
+      const best = Math.min(
+        ...texts.map((t) => textRank(t, q)),
+        n !== undefined && i.build.number === n ? 0 : 4,
+      )
+      if (best > 3 && !i.build.commitSha.toLowerCase().startsWith(needle)) return []
+      return [{ best, item: i, project }]
+    }),
   )
   const sorted = matches.toSorted(
-    (a, b) => a.best - b.best || b.item.build.number - a.item.build.number,
+    (a, b) =>
+      a.best - b.best ||
+      Number(a.item.snoozed) - Number(b.item.snoozed) ||
+      b.item.build.number - a.item.build.number,
   )
   const items = sorted.slice(0, input.limit).map(({ item, project }) => ({
     projectSlug: project.slug,
@@ -753,6 +756,7 @@ async function searchTriage(
     buildNumber: item.build.number,
     branch: item.build.branch,
     assignee: item.assignee ? { name: item.assignee.name } : null,
+    snoozed: item.snoozed,
   }))
   return { items, total: sorted.length }
 }

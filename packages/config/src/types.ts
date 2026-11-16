@@ -147,6 +147,8 @@ export interface Config {
   webhookAllowPrivate: boolean
   /** Waits between attempts of a failed job: `baseMs` doubling each time, never above `maxMs`. */
   jobRetry: { baseMs: number; maxMs: number }
+  /** The most live streams one server process keeps open (`LIVE_MAX_STREAMS`). */
+  liveMaxStreams: number
   /** A webhook receiver that takes longer than this to answer has failed (`WEBHOOK_TIMEOUT_SECONDS`). */
   webhookTimeoutMs: number
   /** Who may create workspaces in the dashboard (`WORKSPACE_CREATION`): instance admins only, or any member. */

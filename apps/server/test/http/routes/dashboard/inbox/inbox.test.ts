@@ -66,7 +66,15 @@ describe('inbox routes', () => {
         .statusCode,
     ).toBe(400)
 
-    expect((await send('POST', `/api/inbox/${n.id}/unsnooze`)).json().snoozedUntil).toBeNull()
+    const woken = (await send('POST', `/api/inbox/${n.id}/unsnooze`)).json()
+    expect(woken.snoozedUntil).toBeNull()
+    expect(woken.undo.id).toEqual(expect.any(String))
+    // Undo snoozes it again to the same time; waking one that is awake gives no token.
+    const undone = await send('POST', `/api/inbox/undo/${woken.undo.id}`)
+    expect(undone.statusCode).toBe(200)
+    expect((await inbox('snoozed')).items.map((i: { id: string }) => i.id)).toEqual([n.id])
+    await send('POST', `/api/inbox/${n.id}/unsnooze`)
+    expect((await send('POST', `/api/inbox/${n.id}/unsnooze`)).json().undo).toBeNull()
     const removed = await send('DELETE', `/api/inbox/${n.id}`)
     expect(removed.statusCode).toBe(200)
     expect(removed.json().undo.id).toEqual(expect.any(String))

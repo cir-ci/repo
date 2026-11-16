@@ -11,7 +11,7 @@ import {
   markNotificationReadUndoable,
   removeNotificationUndoable,
   snoozeNotificationUndoable,
-  unsnoozeNotification,
+  unsnoozeNotificationUndoable,
   updateNotificationPreferences,
 } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
@@ -139,7 +139,11 @@ export const dashboardInboxRoutes: FastifyPluginAsync<Deps.Dashboard> = async (a
 
   app.post('/inbox/:id/unsnooze', async (req) => {
     const { id } = parse(idParams, req.params)
-    return state(await unsnoozeNotification(deps.db, { userId: currentUser(req).id, id }), null)
+    const { notification, undo } = await unsnoozeNotificationUndoable(deps.db, {
+      userId: currentUser(req).id,
+      id,
+    })
+    return state(notification, presentUndo(undo))
   })
 
   app.delete('/inbox/:id', async (req) => {

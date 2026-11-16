@@ -56,6 +56,40 @@ describe('triage', () => {
     expect(dismissed.json()).toMatchObject({ dismissed: true })
   })
 
+  it('wakes a snoozed item early, with an undo that snoozes it again', async () => {
+    const item = { kind: 'flaky', key: 'unsnooze-me' }
+    await send('POST', `${base()}/triage/snooze`, { payload: { ...item, choice: 'tomorrow' } })
+    const woken = await send('POST', `${base()}/triage/unsnooze`, {
+      cookie: louCookie,
+      payload: item,
+    })
+    expect(woken.statusCode).toBe(200)
+    expect(woken.json()).toMatchObject({
+      ...item,
+      snoozeKind: null,
+      snoozedUntil: null,
+      undo: { id: expect.any(String) },
+    })
+    const again = await send('POST', `${base()}/triage/unsnooze`, { payload: item })
+    expect(again.json()).toMatchObject({ snoozeKind: null, undo: null })
+    const undone = await send('POST', `${base()}/undo/${woken.json().undo.id}`, {
+      cookie: louCookie,
+    })
+    expect(undone.statusCode).toBe(200)
+    expect(
+      (await send('POST', `${base()}/triage/unsnooze`, { payload: item })).json().undo,
+    ).not.toBeNull()
+    const stranger = await send('POST', `${base()}/triage/unsnooze`, {
+      cookie: rivalCookie,
+      payload: item,
+    })
+    expect(stranger.statusCode).toBe(404)
+    const unknown = await send('POST', `${base()}/triage/unsnooze`, {
+      payload: { kind: 'weird', key: 'x' },
+    })
+    expect(unknown.statusCode).toBe(400)
+  })
+
   it('rejects assignees outside the workspace and unknown kinds', async () => {
     const outsider = await send('POST', `${base()}/triage/assign`, {
       payload: { kind: 'flaky', key: 'home', assigneeId: rival.owner.id },

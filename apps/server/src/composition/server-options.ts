@@ -1,6 +1,6 @@
 import type { Auth, Mailer } from '@circi/auth'
 import type { Config } from '@circi/config'
-import type { Database } from '@circi/db'
+import type { Database, ListenFn } from '@circi/db'
 import type { InstanceConfigStore } from '@circi/services'
 import { siteOrigin } from '@circi/sites'
 import type { StorageDriver } from '@circi/storage'
@@ -16,7 +16,7 @@ import { integrationConfig } from './integration-config.ts'
 export interface ServerRuntime {
   config: Config
   logger: Logger
-  db: { db: Database; ping(): Promise<void> }
+  db: { db: Database; ping(): Promise<void>; listen?: ListenFn }
   auth: Auth
   storage: StorageDriver
   /** Sends mail through the current settings; `configured()` says whether a mail server is set up. */
@@ -95,6 +95,9 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       authSecret: config.authSecret,
       ...(config.vapid ? { vapid: config.vapid } : {}),
       instance: { config, ...(rt.mailer ? { mailer: rt.mailer } : {}) },
+      ...(rt.db.listen
+        ? { live: { listen: rt.db.listen, maxStreams: config.liveMaxStreams } }
+        : {}),
       webDist,
     },
     checks: [

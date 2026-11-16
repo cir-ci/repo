@@ -8,6 +8,7 @@ export {
   snoozeNotification,
   snoozeNotificationUndoable,
   unsnoozeNotification,
+  unsnoozeNotificationUndoable,
   updateNotificationPreferences,
 } from './notifications.ts'
 export {

@@ -10,6 +10,8 @@ import {
   purgeWorkspaceRows,
 } from '@circi/db/repositories'
 
+import { emitWorkspaceAccessChanged } from '#src/live/index.ts'
+
 /**
  * Deleting a workspace. Soft first: `deleteWorkspace` hides it at once (every member-facing
  * lookup treats it as missing, uploads and CI tokens stop working, the worker drops its jobs),
@@ -38,6 +40,7 @@ export async function deleteWorkspace(
   const now = input.now ?? new Date()
   return db.transaction(async (tx) => {
     await markWorkspaceDeleted(tx, { workspaceId: input.workspaceId, deletedBy: input.userId, now })
+    await emitWorkspaceAccessChanged(tx, input.workspaceId)
     const deletedAt = await getWorkspaceDeletedAt(tx, input.workspaceId)
     return { deletedAt: deletedAt ?? now }
   })
@@ -45,9 +48,12 @@ export async function deleteWorkspace(
 
 /** Brings a deleted workspace back, with everything in it. */
 export async function restoreWorkspace(db: Database, workspaceId: string): Promise<void> {
-  if (!(await db.transaction((tx) => clearWorkspaceDeletion(tx, workspaceId)))) {
-    throw new ConflictError("This workspace isn't deleted")
-  }
+  const restored = await db.transaction(async (tx) => {
+    const done = await clearWorkspaceDeletion(tx, workspaceId)
+    if (done) await emitWorkspaceAccessChanged(tx, workspaceId)
+    return done
+  })
+  if (!restored) throw new ConflictError("This workspace isn't deleted")
 }
 
 /**

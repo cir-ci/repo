@@ -23,6 +23,9 @@ import type { Database } from '#src/client.ts'
 export namespace TriageItem {
   export type Row = typeof triageItems.$inferSelect
 
+  /** What a person sees of an item nobody has touched (no row): its reference and the empty state. */
+  export type Untouched = Pick<Row, 'kind' | 'key'> & TriageState
+
   export interface Ref {
     projectId: string
     kind: string
@@ -81,6 +84,30 @@ export async function snoozeTriageItem(
     snoozedAfterBuild: input.snoozedAfterBuild,
     dismissedAt: null,
   })
+}
+
+/**
+ * Wakes a snoozed item early: only the snooze fields are cleared (a dismissal stays). Update
+ * only: an item nobody has touched has no row, and none is made for it (any kind and key would
+ * otherwise create one). Returns undefined then.
+ */
+export async function unsnoozeTriageItem(
+  db: Database,
+  ref: TriageItem.Ref,
+): Promise<TriageItem.Row | undefined> {
+  const kind = checkRef(ref)
+  const [row] = await db
+    .update(triageItems)
+    .set({ snoozeKind: null, snoozedUntil: null, snoozedAfterBuild: null })
+    .where(
+      and(
+        eq(triageItems.projectId, ref.projectId),
+        eq(triageItems.kind, kind),
+        eq(triageItems.key, ref.key),
+      ),
+    )
+    .returning()
+  return row
 }
 
 /** Dismisses an item: it leaves the queue and stays out. */

@@ -2,6 +2,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from '@circi/core'
 import type { Database } from '@circi/db'
 import { lockUndoAction, markUndoUsed, type UndoAction } from '@circi/db/repositories'
 
+import { emitProjectLive, emitUserLive } from '#src/live/index.ts'
 import { type NoticeUndo, undoNotice } from '#src/notifications/undo.ts'
 import {
   type BuildReviewUndo,
@@ -55,25 +56,30 @@ export async function undoAction(
     switch (row.kind) {
       case 'build_review':
         await undoBuildReview(tx, recorded<BuildReviewUndo>(data))
+        await emitProjectLive(tx, 'review.changed', projectId)
         break
       case 'request_snooze':
         await undoRequestSnooze(tx, recorded<RequestSnoozeUndo>(data))
+        await emitProjectLive(tx, 'review.changed', projectId)
         break
       case 'request_review':
         await undoRequestReview(tx, recorded<RequestReviewUndo>(data), {
           projectId,
           userId: row.userId,
         })
+        await emitProjectLive(tx, 'review.changed', projectId)
         break
       case 'triage_assign':
       case 'triage_snooze':
       case 'triage_dismiss':
         await undoTriage(tx, recorded<TriageUndo>(data), projectId)
+        await emitProjectLive(tx, 'triage.changed', projectId)
         break
       case 'notice_read':
       case 'notice_snooze':
       case 'notice_remove':
         await undoNotice(tx, recorded<NoticeUndo>(data), row.userId)
+        await emitUserLive(tx, 'notification.read', row.userId)
         break
     }
     await markUndoUsed(tx, row.id, now)

@@ -69,7 +69,7 @@ export namespace Triage {
     build: { number: number; status: BuildStatus }
   }
 
-  /** `POST …/triage/snooze` and `…/assign` return the item's new state. */
+  /** `POST …/triage/snooze`, `…/unsnooze`, `…/assign` and `…/dismiss` return the item's new state. */
   export interface ItemState extends Undo.Field {
     kind: TriageKind
     key: string

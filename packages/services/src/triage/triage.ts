@@ -11,13 +11,16 @@ import {
   changeIgnoreRegion,
   assignTriageItem,
   dismissTriageItem,
+  checkRef,
   getTriageState,
   removeIgnoreRegion,
   snoozeTriageItem,
+  unsnoozeTriageItem,
   type TriageItem,
 } from '@circi/db/repositories'
 
 import { requeueBuild } from '#src/builds/lifecycle.ts'
+import { emitProjectLive } from '#src/live/index.ts'
 import { type UndoToken, recordUndo } from '#src/undo/record.ts'
 
 import { type TriageUndo, triageFields } from './undo.ts'
@@ -33,7 +36,11 @@ export async function assignTriage(
   db: Database,
   input: TriageItem.Ref & { assigneeId: string | null },
 ): Promise<TriageItem.Row> {
-  return db.transaction((tx) => assignTriageItem(tx, input))
+  return db.transaction(async (tx) => {
+    const item = await assignTriageItem(tx, input)
+    await emitProjectLive(tx, 'triage.changed', input.projectId)
+    return item
+  })
 }
 
 /**
@@ -65,13 +72,18 @@ export async function snoozeTriage(
       snoozedAfterBuild:
         choice === 'next_push' ? await latestDefaultBranchBuildNumber(tx, input.projectId) : null,
     })
+    await emitProjectLive(tx, 'triage.changed', input.projectId)
     return { item, until }
   })
 }
 
 /** Takes an item out of the queue for good. */
 export async function dismissTriage(db: Database, ref: TriageItem.Ref): Promise<TriageItem.Row> {
-  return db.transaction((tx) => dismissTriageItem(tx, ref))
+  return db.transaction(async (tx) => {
+    const item = await dismissTriageItem(tx, ref)
+    await emitProjectLive(tx, 'triage.changed', ref.projectId)
+    return item
+  })
 }
 
 type Undoable<T> = T & { undo: UndoToken | null }
@@ -115,6 +127,34 @@ export async function snoozeTriageUndoable(
   })
 }
 
+/**
+ * Wakes a snoozed item before its time. Undo snoozes it again as it was (same end, or the same
+ * "until the next push" mark). Nothing changes, and there is no token, for an item that isn't
+ * snoozed.
+ */
+export async function unsnoozeTriageUndoable(
+  db: Database,
+  input: TriageItem.Ref & { userId: string },
+): Promise<Undoable<{ item: TriageItem.Row | TriageItem.Untouched }>> {
+  const { userId, ...ref } = input
+  return db.transaction((tx) =>
+    undoable(
+      tx,
+      'triage_snooze',
+      'snooze',
+      userId,
+      ref,
+      async () =>
+        // No row: the item was never touched, so nothing to wake and nothing is created.
+        (await unsnoozeTriageItem(tx, ref)) ?? {
+          ...(await getTriageState(tx, ref)),
+          kind: checkRef(ref),
+          key: ref.key,
+        },
+    ),
+  )
+}
+
 export async function dismissTriageUndoable(
   db: Database,
   input: TriageItem.Ref & { userId: string },
@@ -125,16 +165,17 @@ export async function dismissTriageUndoable(
   )
 }
 
-async function undoable(
+async function undoable<R extends TriageItem.Row | TriageItem.Untouched>(
   tx: Database,
   kind: 'triage_assign' | 'triage_snooze' | 'triage_dismiss',
   action: Parameters<typeof triageFields>[1],
   userId: string,
   ref: TriageItem.Ref,
-  change: () => Promise<TriageItem.Row>,
-): Promise<Undoable<{ item: TriageItem.Row }>> {
+  change: () => Promise<R>,
+): Promise<Undoable<{ item: R }>> {
   const before = await getTriageState(tx, ref)
   const item = await change()
+  await emitProjectLive(tx, 'triage.changed', ref.projectId)
   const previous = triageFields(before, action)
   const after = triageFields(item, action)
   if (JSON.stringify(previous) === JSON.stringify(after)) return { item, undo: null }
@@ -181,6 +222,7 @@ export async function createIgnoreRegion(
     const { projectId, resolves, ...region } = input
     const added = await addIgnoreRegion(tx, projectId, region)
     if (resolves) await dismissTriageItem(tx, { projectId, ...resolves })
+    await emitProjectLive(tx, 'triage.changed', projectId)
     return added
   })
 }
@@ -192,7 +234,11 @@ export async function editIgnoreRegion(
   id: string,
   patch: Parameters<typeof changeIgnoreRegion>[3],
 ): Promise<IgnoreRegionRow> {
-  return db.transaction((tx) => changeIgnoreRegion(tx, projectId, id, patch))
+  return db.transaction(async (tx) => {
+    const changed = await changeIgnoreRegion(tx, projectId, id, patch)
+    await emitProjectLive(tx, 'triage.changed', projectId)
+    return changed
+  })
 }
 
 /** Stops ignoring a region (throws `NotFoundError` when the project has no such region). */
@@ -201,5 +247,8 @@ export async function deleteIgnoreRegion(
   projectId: string,
   id: string,
 ): Promise<void> {
-  await db.transaction((tx) => removeIgnoreRegion(tx, projectId, id))
+  await db.transaction(async (tx) => {
+    await removeIgnoreRegion(tx, projectId, id)
+    await emitProjectLive(tx, 'triage.changed', projectId)
+  })
 }

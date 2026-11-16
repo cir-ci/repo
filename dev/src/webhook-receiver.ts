@@ -34,22 +34,34 @@ const server = createServer((req, res) => {
   req.on('end', () => {
     if (tooBig) return
     void (async () => {
-      if (req.method !== 'POST') {
-        res.writeHead(405, { allow: 'POST' }).end()
-        return
+      try {
+        if (req.method !== 'POST') {
+          res.writeHead(405, { allow: 'POST' }).end()
+          return
+        }
+        const path = (req.url ?? '/').split('?')[0] ?? '/'
+        const secrets = parseSecrets(await readFile(WEBHOOK_SECRETS_FILE, 'utf8').catch(() => '{}'))
+        const { line } = describeDelivery({
+          headers: req.headers,
+          body: Buffer.concat(chunks).toString('utf8'),
+          secret: secrets[path],
+        })
+        const status = path === FAILING_HOOK_PATH ? 500 : 204
+        console.log(`${path} ${line} -> ${status}`)
+        res.writeHead(status).end()
+      } catch (error) {
+        // One bad request must not take the receiver down.
+        console.log(
+          `${req.url ?? '/'} failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        if (!res.headersSent) res.writeHead(500)
+        res.end()
       }
-      const path = (req.url ?? '/').split('?')[0] ?? '/'
-      const secrets = parseSecrets(await readFile(WEBHOOK_SECRETS_FILE, 'utf8').catch(() => '{}'))
-      const { line } = describeDelivery({
-        headers: req.headers,
-        body: Buffer.concat(chunks).toString('utf8'),
-        secret: secrets[path],
-      })
-      const status = path === FAILING_HOOK_PATH ? 500 : 204
-      console.log(`${path} ${line} -> ${status}`)
-      res.writeHead(status).end()
     })()
   })
 })
 
-server.listen(PORTS.hooks, () => console.log(`Listening on http://localhost:${PORTS.hooks}`))
+// Loopback only: nothing else on the network may post to the dev receiver.
+server.listen(PORTS.hooks, '127.0.0.1', () =>
+  console.log(`Listening on http://127.0.0.1:${PORTS.hooks}`),
+)

@@ -33,6 +33,7 @@ import {
 import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
+import { emitBuildLive, emitProjectLive } from '#src/live/index.ts'
 import { notify } from '#src/notifications/notifications.ts'
 import { notifyFlakyDetected } from '#src/notifications/system-notices.ts'
 import { type UndoToken, recordUndo } from '#src/undo/record.ts'
@@ -140,6 +141,7 @@ async function decideSnapshots(
     // pull request still shows the per-snapshot counts, so it follows too.
     await queueGitNotify(tx, build, integrationRegistry.gitKinds(), `snapshots:${Date.now()}`)
   }
+  if (changed || decided.length > 0) await emitBuildLive(tx, 'review.changed', build)
   const worthUndoing = changed || decided.length > 0 || recorded.reviewId !== null
   if (!undo || !worthUndoing) return { build, undo: null }
   const data: BuildReviewUndo = {
@@ -243,6 +245,7 @@ export async function requestReview(
       dueAt: reviewDueAt(input.now ?? new Date(), project.reviewTargetHours),
     })
     if (!result.created) return result
+    await emitBuildLive(tx, 'review.changed', build)
     const notice = await notifyReviewRequested(tx, result.request, input.requestedById)
     return notice ? { ...result, noticeId: notice.id } : result
   })
@@ -373,6 +376,7 @@ export async function dismissReviewRequest(
         buildId: dismissed.buildId,
         kinds: REQUEST_KINDS,
       })
+      await emitProjectLive(tx, 'review.changed', input.projectId)
     }
     return dismissed
   })
@@ -531,15 +535,18 @@ export async function snoozeReviewRequest(
   },
 ): Promise<ReviewRequest> {
   const until = snoozeUntil(input.kind, input.now ?? new Date(), input.date)
-  const row = await setReviewRequestSnooze(db, {
-    projectId: input.projectId,
-    requestId: input.requestId,
-    userId: input.userId,
-    kind: input.kind,
-    until,
+  return db.transaction(async (tx) => {
+    const row = await setReviewRequestSnooze(tx, {
+      projectId: input.projectId,
+      requestId: input.requestId,
+      userId: input.userId,
+      kind: input.kind,
+      until,
+    })
+    assertFound(row, 'Review request not found')
+    await emitProjectLive(tx, 'review.changed', input.projectId)
+    return row
   })
-  assertFound(row, 'Review request not found')
-  return row
 }
 
 /**
@@ -576,9 +583,42 @@ export async function unsnoozeReviewRequest(
   db: Database,
   input: { projectId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest> {
-  const row = await setReviewRequestSnooze(db, { ...input, kind: null, until: null })
-  assertFound(row, 'Review request not found')
-  return row
+  return db.transaction(async (tx) => {
+    const row = await setReviewRequestSnooze(tx, { ...input, kind: null, until: null })
+    assertFound(row, 'Review request not found')
+    await emitProjectLive(tx, 'review.changed', input.projectId)
+    return row
+  })
+}
+
+/**
+ * `unsnoozeReviewRequest` with a token that snoozes it again as it was (same kind and end). No
+ * token for a request that wasn't snoozed.
+ */
+export async function unsnoozeReviewRequestUndoable(
+  db: Database,
+  input: Parameters<typeof unsnoozeReviewRequest>[1],
+): Promise<{ request: ReviewRequest; undo: UndoToken | null }> {
+  return db.transaction(async (tx) => {
+    const before = await findOpenReviewRequest(tx, input)
+    const request = await unsnoozeReviewRequest(tx, input)
+    if (!before?.snoozeKind && !before?.snoozedUntil) return { request, undo: null }
+    const data: RequestSnoozeUndo = {
+      requestId: request.id,
+      previous: {
+        kind: before.snoozeKind,
+        until: before.snoozedUntil?.toISOString() ?? null,
+      },
+      after: { kind: request.snoozeKind, until: request.snoozedUntil?.toISOString() ?? null },
+    }
+    const undo = await recordUndo(tx, {
+      userId: input.userId,
+      projectId: input.projectId,
+      kind: 'request_snooze',
+      data,
+    })
+    return { request, undo }
+  })
 }
 
 /**

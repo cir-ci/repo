@@ -27,6 +27,9 @@ import {
   snoozeNotificationUndoable,
   snoozeReviewRequestUndoable,
   snoozeTriageUndoable,
+  unsnoozeNotificationUndoable,
+  unsnoozeReviewRequestUndoable,
+  unsnoozeTriageUndoable,
   UNDO_WINDOW_MS,
   undoAction,
 } from '#src/index.ts'
@@ -305,6 +308,29 @@ describe('undo of triage actions', () => {
     expect((await row())?.snoozedUntil).toBeNull()
   })
 
+  it('unsnoozes early, undo snoozes again as it was, and an item not snoozed gives no token', async () => {
+    const { project, owner, ref, row } = await triage()
+    // Nobody has touched the item: nothing is woken and no row is made for it.
+    const untouched = await unsnoozeTriageUndoable(t.db, { ...ref, userId: owner.id })
+    expect(untouched.undo).toBeNull()
+    expect(untouched.item).toMatchObject({ kind: 'failed', key: ref.key, snoozeKind: null })
+    expect(await row()).toBeUndefined()
+    // Any kind and key used to create a row; now an unknown key makes none, and a bad kind is refused.
+    await unsnoozeTriageUndoable(t.db, { ...ref, key: 'build:9999', userId: owner.id })
+    expect(await row()).toBeUndefined()
+    await expect(
+      unsnoozeTriageUndoable(t.db, { ...ref, kind: 'nonsense', userId: owner.id }),
+    ).rejects.toMatchObject({ name: 'ValidationError' })
+    await snoozeTriageUndoable(t.db, { ...ref, choice: 'next_week', userId: owner.id })
+    const before = await row()
+    const { undo, item } = await unsnoozeTriageUndoable(t.db, { ...ref, userId: owner.id })
+    expect(item).toMatchObject({ snoozeKind: null, snoozedUntil: null })
+    expect(undo).not.toBeNull()
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: project.id })
+    expect((await row())?.snoozeKind).toBe('next_week')
+    expect((await row())?.snoozedUntil).toEqual(before?.snoozedUntil)
+  })
+
   it('un-dismisses, and refuses another person', async () => {
     const { project, owner, mate, ref, row } = await triage()
     const { undo } = await dismissTriageUndoable(t.db, { ...ref, userId: owner.id })
@@ -350,6 +376,26 @@ describe('undo of inbox actions', () => {
     ).rejects.toMatchObject({ name: 'ForbiddenError' })
     await undoAction(t.db, { id: removed.undo?.id ?? '', userId: owner.id, projectId: null })
     expect((await row())?.deletedAt).toBeNull()
+  })
+
+  it('unsnoozes a notice, undo snoozes it again to the same time, and an awake one gives no token', async () => {
+    const { owner } = await seedProject(t.db)
+    const n = await seedNotification(t.db, { userId: owner.id })
+    const row = async () =>
+      (await t.db.select().from(schema.notifications).where(eq(schema.notifications.id, n.id)))[0]
+    expect(
+      (await unsnoozeNotificationUndoable(t.db, { userId: owner.id, id: n.id })).undo,
+    ).toBeNull()
+    await snoozeNotificationUndoable(t.db, { userId: owner.id, id: n.id, choice: 'next_week' })
+    const until = (await row())?.snoozedUntil
+    expect(until).not.toBeNull()
+    const { notification, undo } = await unsnoozeNotificationUndoable(t.db, {
+      userId: owner.id,
+      id: n.id,
+    })
+    expect(notification.snoozedUntil).toBeNull()
+    await undoAction(t.db, { id: undo?.id ?? '', userId: owner.id, projectId: null })
+    expect((await row())?.snoozedUntil).toEqual(until)
   })
 
   it('has no token when reading what was already read, and refuses a stale undo', async () => {
@@ -456,5 +502,33 @@ describe('undo of review requests', () => {
     await expect(
       undoAction(t.db, { id: second.undo.id, userId: lou.id, projectId: project.id }),
     ).rejects.toMatchObject({ name: 'ConflictError' })
+  })
+
+  it('unsnoozes a request, undo snoozes it again as it was, and an awake one gives no token', async () => {
+    const { project, owner, build, lou } = await setup()
+    const { requests } = await requestReviewsUndoable(t.db, {
+      projectId: project.id,
+      buildIds: [build.id],
+      reviewerIds: [lou.id],
+      requestedById: owner.id,
+    })
+    const requestId = requests[0]?.request.id ?? ''
+    const row = async () =>
+      (
+        await t.db
+          .select()
+          .from(schema.reviewRequests)
+          .where(eq(schema.reviewRequests.id, requestId))
+      )[0]
+    const input = { projectId: project.id, requestId, userId: lou.id }
+    expect((await unsnoozeReviewRequestUndoable(t.db, input)).undo).toBeNull()
+    await snoozeReviewRequestUndoable(t.db, { ...input, kind: 'next_week' })
+    const before = await row()
+    const { request, undo } = await unsnoozeReviewRequestUndoable(t.db, input)
+    expect(request).toMatchObject({ snoozeKind: null, snoozedUntil: null })
+    expect(undo).not.toBeNull()
+    await undoAction(t.db, { id: undo?.id ?? '', userId: lou.id, projectId: project.id })
+    expect((await row())?.snoozeKind).toBe('next_week')
+    expect((await row())?.snoozedUntil).toEqual(before?.snoozedUntil)
   })
 })

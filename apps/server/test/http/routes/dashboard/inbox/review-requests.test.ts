@@ -214,8 +214,24 @@ describe('review requests', () => {
     expect((await post(`${base}/unsnooze`)).statusCode).toBe(404)
     expect((await post(`${base}/unsnooze`, { cookie: rivalCookie })).statusCode).toBe(404)
     const back = await post(`${base}/unsnooze`, { cookie: louCookie })
-    expect(back.json()).toEqual({ id, snoozeKind: null, snoozedUntil: null, undo: null })
+    expect(back.json()).toEqual({
+      id,
+      snoozeKind: null,
+      snoozedUntil: null,
+      undo: { id: expect.any(String), expiresAt: expect.any(String) },
+    })
     expect(ids(await list('for-you', louCookie))).toEqual([id])
+    // Undo snoozes it again as it was; unsnoozing an awake request gives no token.
+    const undone = await post(
+      `/api/projects/${acme.workspaceSlug}/web/undo/${back.json().undo.id}`,
+      {
+        cookie: louCookie,
+      },
+    )
+    expect(undone.statusCode).toBe(200)
+    expect(ids(await list('snoozed', louCookie))).toEqual([id])
+    await post(`${base}/unsnooze`, { cookie: louCookie })
+    expect((await post(`${base}/unsnooze`, { cookie: louCookie })).json().undo).toBeNull()
   })
 
   it('lets only whoever asked nudge, and only once a day', async () => {

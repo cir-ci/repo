@@ -15,4 +15,5 @@ export {
   rerunFailedBuild,
   snoozeTriage,
   snoozeTriageUndoable,
+  unsnoozeTriageUndoable,
 } from './triage.ts'

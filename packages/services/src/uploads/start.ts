@@ -2,6 +2,7 @@ import { type Build, type Database } from '@circi/db'
 import { planUploads } from '@circi/db/repositories'
 
 import { startBuild } from '#src/builds/lifecycle.ts'
+import { emitBuildLive } from '#src/live/index.ts'
 
 /**
  * Creates a build (or joins a parallel one) and records the files it asks for, in one
@@ -20,6 +21,7 @@ export async function startBuildUpload(
       files: input.files,
       storageKeyFor: input.storageKeyFor,
     })
+    await emitBuildLive(tx, 'build.created', build)
     return { build, planned }
   })
 }

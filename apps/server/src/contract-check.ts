@@ -5,6 +5,7 @@ import type {
   Comment,
   IgnoreRegion,
   InstanceAdmin,
+  Live,
   Inbox,
   Integration,
   Storage,
@@ -20,7 +21,7 @@ import type {
   Workspace,
   WorkspaceBuilds,
 } from '@circi/api'
-import type { BuildFilterValues } from '@circi/core'
+import type { BuildFilterValues, LiveNoticeType } from '@circi/core'
 import type {
   ActivityEvent,
   BaselineItem,
@@ -77,6 +78,9 @@ type Fits<Actual, Wire> = [Actual] extends [Wire] ? true : never
 
 export type ContractChecks = [
   Fits<Json<listAccounts.Item>, InstanceAdmin.Account>,
+  // Every notice the services write has a wire event of the same name, and the wire has nothing else but `resync`.
+  Fits<LiveNoticeType, Live.EventType>,
+  Fits<Exclude<Live.EventType, 'resync'>, LiveNoticeType>,
   Fits<Json<listInstanceWorkspaces.Item>, Omit<InstanceAdmin.Workspace, 'daysLeft'>>,
   Fits<Json<getQueueDepth.Item>, InstanceAdmin.QueueDepth>,
   Fits<Json<listBuildsForProject.Item>, Build.ListItem>,
@@ -127,6 +131,8 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
   true,
   true,
   true,

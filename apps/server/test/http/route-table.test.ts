@@ -53,7 +53,7 @@ beforeAll(async () => {
       publicOrigin: ORIGIN,
       logger: pino({ level: 'silent' }),
     },
-    dashboard: base,
+    dashboard: { ...base, live: { listen: t.listen } },
   })
   await app.ready()
   tree = app.printRoutes({ commonPrefix: false })

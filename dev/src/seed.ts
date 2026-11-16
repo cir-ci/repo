@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { upload } from '@circi/cli'
@@ -654,7 +654,10 @@ async function seedActivity(world: World): Promise<void> {
   await writeFile(
     WEBHOOK_SECRETS_FILE,
     JSON.stringify(Object.fromEntries(made.map((m) => [m.hookPath, m.secret]))),
+    { mode: 0o600 },
   )
+  // `mode` applies only to a new file: an older one keeps its permissions otherwise.
+  await chmod(WEBHOOK_SECRETS_FILE, 0o600)
   await Promise.all(made.map((m) => call(m.owner, 'POST', m.path)))
 
   // Invitations that stay pending (better-auth's own endpoint, which also sends the email).

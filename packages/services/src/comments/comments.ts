@@ -11,6 +11,7 @@ import {
 } from '@circi/db/repositories'
 
 import { assertAllowed, canAdjustCommentRegion } from '#src/access/index.ts'
+import { emitBuildLiveById } from '#src/live/index.ts'
 import { notify } from '#src/notifications/notifications.ts'
 
 /**
@@ -112,6 +113,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
     })
     const members = await listBuildProjectMembers(tx, input.buildId)
     await notifyMentions(tx, comment, mentioned(body, members))
+    await emitBuildLiveById(tx, 'comment.changed', input.buildId)
     return comment
   })
 }
@@ -146,6 +148,7 @@ export async function editComment(db: Database, input: editComment.Input): Promi
       updated,
       mentioned(body, members).filter((id) => !already.has(id)),
     )
+    await emitBuildLiveById(tx, 'comment.changed', input.buildId)
     return updated
   })
 }
@@ -166,6 +169,7 @@ export async function deleteComment(db: Database, input: deleteComment.Input): P
       throw new ForbiddenError('You can only delete your own comments')
     }
     await softDeleteComment(tx, comment.id)
+    await emitBuildLiveById(tx, 'comment.changed', input.buildId)
   })
 }
 export namespace deleteComment {
@@ -209,6 +213,7 @@ export async function setCommentRegion(
     }
     const updated = await updateCommentRegion(tx, comment.id, input.region)
     assertFound(updated, 'Comment not found')
+    await emitBuildLiveById(tx, 'comment.changed', input.buildId)
     return updated
   })
 }

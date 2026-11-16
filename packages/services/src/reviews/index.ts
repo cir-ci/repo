@@ -16,4 +16,5 @@ export {
   snoozeReviewRequest,
   snoozeReviewRequestUndoable,
   unsnoozeReviewRequest,
+  unsnoozeReviewRequestUndoable,
 } from './reviews.ts'

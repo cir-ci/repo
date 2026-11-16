@@ -40,6 +40,7 @@ GET /api/instance/settings
 GET /api/instance/workspaces
 GET /api/integrations/:kind/callback
 GET /api/integrations/:kind/setup
+GET /api/live
 GET /api/projects
 GET /api/projects/:workspace/:project
 GET /api/projects/:workspace/:project/baselines
@@ -108,6 +109,7 @@ HEAD /api/instance/settings
 HEAD /api/instance/workspaces
 HEAD /api/integrations/:kind/callback
 HEAD /api/integrations/:kind/setup
+HEAD /api/live
 HEAD /api/projects
 HEAD /api/projects/:workspace/:project
 HEAD /api/projects/:workspace/:project/baselines
@@ -207,6 +209,7 @@ POST /api/projects/:workspace/:project/triage/assign
 POST /api/projects/:workspace/:project/triage/dismiss
 POST /api/projects/:workspace/:project/triage/rerun
 POST /api/projects/:workspace/:project/triage/snooze
+POST /api/projects/:workspace/:project/triage/unsnooze
 POST /api/projects/:workspace/:project/undo/:id
 POST /api/projects/:workspace/:project/webhooks
 POST /api/projects/:workspace/:project/webhooks/:id/secret

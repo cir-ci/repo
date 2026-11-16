@@ -207,6 +207,24 @@ describe('searchWorkspace groups', () => {
     })
   })
 
+  it('marks a snoozed triage item and lists it after the awake ones', async () => {
+    const s = await setup()
+    const awake = await s.search(s.owner.id, 'failed')
+    expect(awake?.triage.map((i) => i.snoozed)).toEqual([false, false])
+    await t.db.insert(schema.triageItems).values({
+      projectId: s.broken.projectId,
+      kind: 'failed',
+      key: `build:${s.broken.number}`,
+      snoozeKind: 'tomorrow',
+      snoozedUntil: new Date('2026-03-11T09:00:00Z'),
+    })
+    const found = await s.search(s.owner.id, 'failed')
+    expect(found?.triage.map((i) => [i.projectSlug, i.snoozed])).toEqual([
+      ['secret', false],
+      ['open', true],
+    ])
+  })
+
   it('finds your notifications by reason, build number and kind, with their Inbox tab', async () => {
     const s = await setup()
     for (const q of ['spacing', 'rejected', `#${s.shipped.number}`, 'mobile']) {
