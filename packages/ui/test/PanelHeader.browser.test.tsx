@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { AppFrame, PanelHeader } from '#src/index.ts'
+import { AppFrame, Breadcrumbs, PanelHeader } from '#src/index.ts'
 
 /** The tops of the four action buttons: all equal when they share a line. */
 const tops = () =>
@@ -93,5 +93,33 @@ describe('PanelHeader', () => {
       </PanelHeader>,
     )
     await expect.element(page.getByText('Alone')).toBeVisible()
+  })
+
+  it('keeps the current crumb whole on a phone: wide actions go to a line of their own', async () => {
+    await page.viewport(320, 700)
+    await render(
+      <PanelHeader
+        actions={
+          <button type="button" style={{ width: 260 }}>
+            Add integration
+          </button>
+        }
+      >
+        <Breadcrumbs
+          items={[
+            { label: 'Acme', href: '/' },
+            { label: 'Settings', href: '/s' },
+            { label: 'Integrations' },
+          ]}
+        />
+      </PanelHeader>,
+    )
+    const current = page.getByText('Integrations').element()
+    try {
+      await expect.poll(() => current.scrollWidth <= current.clientWidth).toBe(true)
+      expect(current.clientWidth).toBeGreaterThan(60)
+    } finally {
+      await page.viewport(1280, 720)
+    }
   })
 })

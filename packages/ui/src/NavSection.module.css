@@ -24,3 +24,61 @@
   font-size: 13px;
   font-weight: 500;
 }
+
+/* A foldable section's label: a button that looks like the plain label, with a chevron. */
+.toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 10px 6px 6px;
+  border: 0;
+  border-radius: var(--circi-radius-control);
+  background: transparent;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--circi-action-hover);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: -2px;
+}
+
+.name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chevron {
+  flex: none;
+  transition: rotate 120ms ease-out;
+}
+
+.toggle[data-panel-open] .chevron {
+  rotate: 90deg;
+}
+
+/* The items keep the same 1px rhythm inside the panel. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

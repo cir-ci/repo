@@ -237,7 +237,7 @@ export function TriagePage() {
         }
         actions={
           data && chip && data.rotation.onTriage ? (
-            <Badge shape="tag" tone="accent" aria-label={chip}>
+            <Badge shape="tag" aria-label={chip}>
               <span className={styles.chip}>
                 <Avatar type="user" {...data.rotation.onTriage} size={16} />
                 <span className={styles.chipLabel}>{chip}</span>
@@ -570,7 +570,7 @@ function Preview({
       className={styles.preview}
       href={link.href}
       onClick={link.onClick}
-      aria-label={`Open ${name} in build #${number}`}
+      aria-label={`Open in build #${number}: ${name}`}
     >
       <span className={styles.previewImage}>
         <img src={fileUrl(sha256)} alt="" />

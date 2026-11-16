@@ -160,9 +160,13 @@ describe('MembersPage', () => {
     // Yourself and the owner have no controls; another member has a role picker and a row menu.
     await expect.element(page.getByText('Owner')).toBeVisible()
     await expect
-      .element(page.getByRole('combobox', { name: 'Role of Grace Hopper' }))
+      .element(page.getByRole('combobox', { name: 'Member, role of Grace Hopper' }))
       .toHaveTextContent('Member')
-    expect(page.getByRole('combobox', { name: 'Role of Ada Lovelace' }).elements()).toHaveLength(0)
+    expect(page.getByRole('combobox', { name: /role of Ada Lovelace/ }).elements()).toHaveLength(0)
+    // The name starts with the visible value (WCAG 2.5.3).
+    await expect
+      .element(page.getByRole('combobox', { name: 'Member, role of Grace Hopper', exact: true }))
+      .toBeVisible()
     expect(page.getByRole('button', { name: 'Actions for Ada Lovelace' }).elements()).toHaveLength(
       0,
     )
@@ -242,7 +246,7 @@ describe('MembersPage', () => {
     await page.viewport(1000, 800)
     auth.updateMemberRole.mockResolvedValue({ data: {}, error: null })
     await show()
-    await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
+    await page.getByRole('combobox', { name: 'Member, role of Grace Hopper' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
     // A role decides what the person can change: nothing happens until it is confirmed.
     const dialog = page.getByRole('alertdialog', { name: 'Make Grace Hopper an admin?' })
@@ -267,7 +271,7 @@ describe('MembersPage', () => {
       error: { message: 'Only owners can do that' },
     })
     await show()
-    await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
+    await page.getByRole('combobox', { name: 'Member, role of Grace Hopper' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Only owners can do that')
@@ -276,7 +280,7 @@ describe('MembersPage', () => {
   it('does not change a role when the confirmation is cancelled', async () => {
     await page.viewport(1000, 800)
     await show()
-    await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
+    await page.getByRole('combobox', { name: 'Member, role of Grace Hopper' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click()
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
@@ -459,7 +463,7 @@ async function graceRow() {
     name: page.getByText('Grace Hopper').element(),
     email: page.getByText('grace@example.test').element(),
     tags: page.getByRole('list', { name: 'How Grace Hopper signs in' }).element(),
-    role: page.getByRole('combobox', { name: 'Role of Grace Hopper' }).element(),
+    role: page.getByRole('combobox', { name: 'Member, role of Grace Hopper' }).element(),
     menu: page.getByRole('button', { name: 'Actions for Grace Hopper' }).element(),
   }
 }

@@ -413,15 +413,15 @@ describe('requesting a review, the picker', () => {
 })
 
 describe('compare modes', () => {
-  it('offers four modes, and key 5 does nothing until the Design mode is enabled', async () => {
+  it('offers three modes, and key 4 does nothing until the Design mode is enabled', async () => {
     fakeBuildApi(detail())
     const { router } = await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     const view = page.getByRole('group', { name: 'View' })
-    expect(view.getByRole('button').elements()).toHaveLength(4)
-    await userEvent.keyboard('5')
+    expect(view.getByRole('button').elements()).toHaveLength(3)
+    await userEvent.keyboard('4')
     expect(router.state.location.search).not.toHaveProperty('mode')
     await userEvent.keyboard('2')
-    await vi.waitFor(() => expect(router.state.location.search).toHaveProperty('mode', 'overlay'))
+    await vi.waitFor(() => expect(router.state.location.search).toHaveProperty('mode', 'diff'))
   })
 })

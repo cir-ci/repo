@@ -48,14 +48,3 @@
 .note {
   min-height: 1lh;
 }
-
-/* The default branch's field, wrapped for the link anchor: it takes the width a sibling field does. */
-.anchor {
-  display: flex;
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.anchor > * {
-  flex: 1 1 auto;
-}

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   branchProblem,
-  buildSettingsPatch,
+  comparisonPatch,
+  detailsPatch,
+  mergeGatePatch,
   settingsProblems,
   slugProblem,
 } from '#features/project-settings/settings-patch.ts'
@@ -70,26 +72,29 @@ describe('project appearance', () => {
   })
 })
 
-describe('General settings patch', () => {
-  const fields = {
-    diffThresholdPercent: '2.5',
-    retentionDays: '90',
-    autoApprove: true,
-    blockMerge: false,
-    flaky: 'inherit' as const,
-    hosting: true,
-  }
-  it('converts the percentage and inherits the flaky setting', () => {
-    expect(buildSettingsPatch(fields, false)).toEqual({
+describe('General settings patches, one per section', () => {
+  it('converts the threshold percentage to a share, in the Comparison patch', () => {
+    expect(comparisonPatch({ diffThresholdPercent: '2.5', retentionDays: '90' })).toEqual({
       diffThreshold: 0.025,
       retentionDays: 90,
+    })
+  })
+  it('sends the Merge gate fields only, inheriting the flaky setting as null', () => {
+    expect(mergeGatePatch({ autoApprove: true, blockMerge: false, flaky: 'inherit' })).toEqual({
       autoApproveDefaultBranch: true,
       blockMergeOnChanges: false,
       flakyBlocksMerge: null,
     })
   })
-  it('includes hosting only when the instance can host sites', () => {
-    expect(buildSettingsPatch(fields, true)).toMatchObject({ staticHostingEnabled: true })
+  it('sends only the changed Details fields, trimmed', () => {
+    const saved = { slug: 'web', defaultBranch: 'main' }
+    expect(detailsPatch({ slug: ' web-app ', defaultBranch: 'main' }, saved)).toEqual({
+      slug: 'web-app',
+    })
+    expect(detailsPatch({ slug: 'web', defaultBranch: 'trunk' }, saved)).toEqual({
+      defaultBranch: 'trunk',
+    })
+    expect(detailsPatch(saved, saved)).toEqual({})
   })
 })
 

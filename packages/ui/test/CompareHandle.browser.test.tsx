@@ -23,6 +23,25 @@ describe('CompareHandle', () => {
     await expect.element(slider).toHaveAttribute('max', '100')
   })
 
+  it('says its position in words: the percentage by default, or what the caller words', async () => {
+    await render(<Stage />)
+    await expect
+      .element(page.getByRole('slider', { name: 'Slider position' }))
+      .toHaveAttribute('aria-valuetext', '50%')
+    await render(
+      <div style={{ position: 'relative', width: 400, height: 200 }}>
+        <CompareHandle
+          label="Worded"
+          getValueText={(v) => `${v}% baseline, ${100 - v}% new`}
+          value={30}
+        />
+      </div>,
+    )
+    await expect
+      .element(page.getByRole('slider', { name: 'Worded' }))
+      .toHaveAttribute('aria-valuetext', '30% baseline, 70% new')
+  })
+
   it('moves with the arrow keys and Home / End', async () => {
     await render(<Stage />)
     const slider = page.getByRole('slider', { name: 'Slider position' })

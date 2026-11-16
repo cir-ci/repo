@@ -26,6 +26,7 @@ import {
   START_REGION,
 } from './geometry.ts'
 import type { Size } from './ignore-regions.ts'
+import { restoreKeyboardRegionFocus } from './KeyboardRegionToggle.tsx'
 import { type Adjust, RegionHandles, useAdjustable } from './RegionAdjust.tsx'
 import { RegionBoxes } from './RegionBoxes.tsx'
 import { useAutoScroll } from './use-auto-scroll.ts'
@@ -370,6 +371,7 @@ function RegionComposer({
           if (!empty) return
         }
         onCancel()
+        if (details.reason === 'escape-key') restoreKeyboardRegionFocus()
       }}
       popupProps={{
         // The layer under the box starts a drag on a pointer press: not one inside the box.
@@ -469,9 +471,11 @@ function RegionTool({ onConfirm, onCancel }: RegionTool.Props) {
       e.stopPropagation()
       announce('Region canceled')
       onCancel()
+      // Back to where focus was (the toggle, which the tool's end may have remounted).
       if (before.current instanceof HTMLElement && before.current.isConnected) {
         before.current.focus()
       }
+      restoreKeyboardRegionFocus()
       return
     }
     const next = nudgeRegion(region, e.key, e.shiftKey)

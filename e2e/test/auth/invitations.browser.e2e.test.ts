@@ -324,7 +324,7 @@ describe('invitations and members', () => {
 
     const page = await browser.as(setup.session)
     await page.goto(membersUrl())
-    const select = page.getByRole('combobox', { name: `Role of ${mia.name}` })
+    const select = page.getByRole('combobox', { name: new RegExp(`role of ${mia.name}`) })
     await select.click()
     await page.getByRole('option', { name: 'Admin' }).click()
     // A role decides what someone can change, so the page asks first.
@@ -350,7 +350,9 @@ describe('invitations and members', () => {
     // The owner has no role picker and no actions menu for themselves; for the last owner the API
     // refuses both demotion and removal.
     expect(
-      await page.getByRole('combobox', { name: `Role of ${setup.account.name}` }).count(),
+      await page
+        .getByRole('combobox', { name: new RegExp(`role of ${setup.account.name}`) })
+        .count(),
     ).toBe(0)
     const demote = await setup.session.request(
       'POST',

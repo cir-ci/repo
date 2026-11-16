@@ -16,7 +16,7 @@
   background: color-mix(in srgb, var(--circi-surface-raised) 88%, transparent);
   color: var(--circi-text-primary);
   line-height: normal;
-  opacity: 0.45;
+  opacity: 0.92;
   transition: opacity 120ms ease;
   touch-action: none;
   cursor: default;
@@ -50,6 +50,10 @@
 .slider {
   width: 96px;
   min-width: 96px;
+}
+
+.name {
+  white-space: nowrap;
 }
 
 .value {

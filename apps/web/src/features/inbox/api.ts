@@ -151,9 +151,13 @@ export function notificationName(item: Inbox.Item): string {
   return [item.readAt ? undefined : 'Unread', title, item.project?.name].filter(Boolean).join(', ')
 }
 
-/** "3 unread of 12", "12 notifications", "No notifications": what the list announces. */
-export function inboxCount(items: readonly Inbox.Item[]): string {
-  const unread = items.filter((i) => !i.readAt).length
+/**
+ * "12 notifications, 3 unread": what the list announces. `unread` is the server's count (the
+ * sidebar badge's, which also covers rows past the page the list loaded); without it the unread
+ * rows shown are counted.
+ */
+export function inboxCount(items: readonly Inbox.Item[], serverUnread?: number): string {
+  const unread = serverUnread ?? items.filter((i) => !i.readAt).length
   const all = `${items.length} ${items.length === 1 ? 'notification' : 'notifications'}`
   return unread > 0 ? `${all}, ${unread} unread` : all
 }

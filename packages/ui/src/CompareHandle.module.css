@@ -33,6 +33,13 @@
   touch-action: pan-y;
 }
 
+/* A finger needs 44px: the column widens (the line stays in its middle). */
+@media (pointer: coarse) {
+  .thumb {
+    width: 44px;
+  }
+}
+
 .thumb::before {
   content: '';
   position: absolute;

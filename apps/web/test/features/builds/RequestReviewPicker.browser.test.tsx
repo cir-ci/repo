@@ -89,6 +89,24 @@ describe('RequestReviewPicker', () => {
     await expect.element(page.getByRole('button', { name: 'Request review' })).toBeVisible()
   })
 
+  it('keeps the menu to items: no image roles inside it and no row that is neither an item nor presentation', async () => {
+    await show(undefined, true, [
+      {
+        type: 'review_requested',
+        at: new Date().toISOString(),
+        reviewer: { id: 'u3', name: 'Alan Turing', image: null },
+        by: null,
+      },
+    ]).ready
+    await expect.element(person('Grace Hopper')).toBeVisible()
+    const menu = picker().element()
+    expect(menu.querySelectorAll('[role="img"]:not([aria-hidden="true"])')).toHaveLength(0)
+    for (const child of menu.children) {
+      const role = child.getAttribute('role')
+      expect(role === 'menuitem' || role === 'presentation' || role === 'group').toBe(true)
+    }
+  })
+
   it('leaves the signed-in user out and says why', async () => {
     await show().ready
     await expect.element(person('Grace Hopper')).toBeVisible()

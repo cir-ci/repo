@@ -3,6 +3,10 @@
 /* Hidden from sight, still read by assistive technology. */
 .visuallyHidden {
   position: absolute;
+
+  /* Pinned to the containing block's corner, as the JS `visuallyHidden` in theme.ts is. */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;

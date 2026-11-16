@@ -700,6 +700,21 @@ describe('ViewPage', () => {
   })
 })
 
+describe('on a phone', () => {
+  it('keeps each row, and its meta line (branch, commit, author, date), inside the screen', async () => {
+    api([
+      build(3, { branch: 'ui/restyle-the-tabs-with-a-very-long-branch-name-39', prNumber: 139 }),
+    ])
+    await page.viewport(390, 844)
+    await show()
+    const list = page.getByRole('list', { name: 'Builds' })
+    await expect.element(list).toBeVisible()
+    const rowEl = list.element().querySelector('a')!
+    expect(rowEl.getBoundingClientRect().right).toBeLessThanOrEqual(390)
+    expect(list.element().getBoundingClientRect().right).toBeLessThanOrEqual(390)
+  })
+})
+
 describe('the find field', () => {
   it('is in the page header on a desktop and in a row under it on a phone', async () => {
     api([build(3)])

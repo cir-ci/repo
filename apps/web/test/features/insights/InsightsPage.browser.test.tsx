@@ -49,6 +49,20 @@ const quiet = (over: Partial<Insights.Report> = {}) =>
   })
 
 describe('InsightsPage', () => {
+  it('ends in "Project not found" for a project that does not exist, not "Workspace not found"', async () => {
+    fakeFetch({
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ projects: [] }),
+    })
+    await renderPage(<InsightsPage />, {
+      route: '/workspaces/$workspace/insights',
+      url: '/workspaces/acme/insights?range=30&project=nope',
+      announcer: true,
+      validateSearch: validateInsightsSearch,
+    })
+    await expect.element(page.getByText('Project not found')).toBeVisible()
+    expect(document.body.textContent).not.toContain('Workspace not found')
+  })
+
   it.each([1280, 900, 700, 420])(
     'keeps every tile chip inside its tile at %ipx, at most three tiles a row',
     async (width) => {
@@ -68,6 +82,24 @@ describe('InsightsPage', () => {
       expect(rows).toBeGreaterThanOrEqual(2)
     },
   )
+
+  it('has no landmark named like the sidebar\'s "Projects" region, and no aria-label on a role-less element', async () => {
+    await show(fullReport())
+    await expect.element(card('Activity by project')).toBeVisible()
+    const names = page
+      .getByRole('region')
+      .elements()
+      .map((el) => el.getAttribute('aria-label') ?? el.querySelector('h2,h3')?.textContent)
+    expect(names).not.toContain('Projects')
+    expect(new Set(names).size).toBe(names.length)
+    // aria-label on a bare div or span is prohibited (axe aria-prohibited-attr): chips are images.
+    for (const el of document.querySelectorAll('div[aria-label]:not([role])')) {
+      expect.unreachable(`unexpected aria-label on a div: ${el.getAttribute('aria-label')}`)
+    }
+    for (const el of document.querySelectorAll('span[aria-label]:not([role])')) {
+      expect.unreachable(`unexpected aria-label on a span: ${el.getAttribute('aria-label')}`)
+    }
+  })
 
   it('shows the six tiles with their chips, and the sections in order', async () => {
     const calls = await show(fullReport(), '/workspaces/acme/insights?range=7')
@@ -94,7 +126,7 @@ describe('InsightsPage', () => {
         'Failed builds per week',
         'Processing time',
         'Breakdowns',
-        'Projects',
+        'Activity by project',
         'Why builds failed',
         'Rejection reasons',
         'Ignore regions',
@@ -310,7 +342,7 @@ describe('InsightsPage', () => {
   describe('Projects', () => {
     it('compares the projects, in red past the target', async () => {
       await show(fullReport())
-      const c = card('Projects')
+      const c = card('Activity by project')
       await expect.element(c.getByText('last 90 days')).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '182 (26%)' })).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '5.0h' })).toHaveAttribute('data-over')
@@ -326,12 +358,12 @@ describe('InsightsPage', () => {
         fullReport({ project: 'web', projectsComparison: [] }),
         '/workspaces/acme/insights?project=web',
       )
-      expect(card('Projects').elements()).toHaveLength(0)
+      expect(card('Activity by project').elements()).toHaveLength(0)
     })
 
     it('is left out when the workspace has a single project', async () => {
       await show(fullReport({ projectsComparison: fullReport().projectsComparison.slice(0, 1) }))
-      expect(card('Projects').elements()).toHaveLength(0)
+      expect(card('Activity by project').elements()).toHaveLength(0)
     })
   })
 

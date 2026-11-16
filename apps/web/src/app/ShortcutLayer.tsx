@@ -53,8 +53,9 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
 
   // Settings' way back: the last page of the app, remembered while the person is on one.
   useEffect(() => {
-    if (isAppPage(address.pathname)) noteAppPage(address.pathname + address.search)
-  }, [address.pathname, address.search, noteAppPage])
+    if (isAppPage(address.pathname, sidebar?.projects))
+      noteAppPage(address.pathname + address.search)
+  }, [address.pathname, address.search, noteAppPage, sidebar?.projects])
 
   // Recent: what was visited, per workspace, in this browser only.
   useEffect(() => {

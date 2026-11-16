@@ -232,7 +232,10 @@ describe('TriagePage', () => {
       [`GET ${BASE}/triage`]: { body: queue([item('home')], { id: 'u2', name: 'Grace Hopper' }) },
     })
     await show()
-    await expect.element(page.getByLabelText('On triage until Mon: Grace Hopper')).toBeVisible()
+    const chip = page.getByLabelText('On triage until Mon: Grace Hopper')
+    await expect.element(chip).toBeVisible()
+    // Neutral information: the neutral badge, not the accent (red) tint.
+    expect(chip.element().closest('[data-tone]')?.getAttribute('data-tone')).toBe('neutral')
     // Settings is a closed area: no link from the triage page into the project's settings.
     expect(page.getByRole('link', { name: 'Rules' }).elements()).toHaveLength(0)
   })
@@ -400,7 +403,7 @@ describe('TriagePage', () => {
   it('shows the screenshot as a preview linking to its build, with an Open in build pill', async () => {
     server()
     await show()
-    const preview = page.getByRole('link', { name: 'Open home in build #12' }).first()
+    const preview = page.getByRole('link', { name: 'Open in build #12: home' }).first()
     await expect.element(preview).toBeVisible()
     await expect.element(preview).toHaveAttribute('href', '/acme/web/builds/12?shot=home')
     expect(preview.element().textContent).toContain('Open in build')

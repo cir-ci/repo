@@ -67,7 +67,7 @@ const isViewMode = (value: string): value is ViewMode =>
 /**
  * The screenshot viewer: a 36px toolbar (name, view modes, zoom, previous and next) over a
  * checkerboard ground that holds the images, so transparent pixels show and nothing else
- * competes with them. At "fit" an image is never scaled up past its real size.
+ * competes with them. "Fit" fills the viewer's width: a small screenshot is scaled up, a large one down.
  */
 export function Viewer({
   diff: given,
@@ -81,8 +81,9 @@ export function Viewer({
 }: Viewer.Props) {
   // A screenshot the server couldn't read shows no images (the file may not be one), only why.
   const diff = given.status === 'failed' ? { ...given, base: null, head: null, diff: null } : given
-  const [opacity, setOpacity] = useState(70)
-  // Holding Alt shows the layer at 0% (the baseline's pixels as they are), without touching `opacity`.
+  // How much of this build shows under the changed pixels: none at first, as Diff always was.
+  const [opacity, setOpacity] = useState(0)
+  // Holding Alt shows this build in full (the layer at 100%), without touching `opacity`.
   const [at, setAt] = useState(50)
   const [zoom, setZoom] = useState<Zoom>('fit')
   // The keyboard way to place a region on this build's image; dragging needs no switch.
@@ -90,7 +91,7 @@ export function Viewer({
   const [enlarged, setEnlarged] = useState<string | null>(null)
   const [checkerboard, setCheckerboard] = useState(false)
   // A phone (canvas: Phone, the build page): New and Baseline show one image, Diff and Slider as
-  // everywhere, Overlay and Side by side come from the options menu. One finger draws a comment
+  // everywhere, Side by side comes from the options menu. One finger draws a comment
   // region only in draw mode; ignore regions are shown, never edited.
   const phone = usePhone()
   const [single, setSingle] = useState<'new' | 'baseline' | null>('new')
@@ -104,7 +105,7 @@ export function Viewer({
     : comparable && (props.mode !== DESIGN_MODE || designEnabled)
       ? props.mode
       : 'side'
-  const peeking = useDiffLayerKeys(mode === 'overlay' && comparable, (update) => setOpacity(update))
+  const peeking = useDiffLayerKeys(mode === 'diff' && comparable, opacity, setOpacity)
   const modeOptions = designEnabled
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
@@ -198,16 +199,6 @@ export function Viewer({
       : []),
     ...(diff.head
       ? [{ key: 'build', image: diff.head, caption: buildCaption, label: 'This build' }]
-      : []),
-    ...(mode === 'diff' && diff.diff
-      ? [
-          {
-            key: 'diff',
-            image: diff.diff,
-            caption: 'Changed pixels in red',
-            label: 'Changed pixels',
-          },
-        ]
       : []),
   ]
   const enlargedAt = enlargeable.findIndex((e) => e.key === enlarged)
@@ -329,6 +320,7 @@ export function Viewer({
         rootClassName={styles.area}
         className={styles.ground}
         data-checkerboard={checkerboard ? '' : undefined}
+        data-fit={zoom === 'fit' ? '' : undefined}
       >
         {diff.status === 'failed' ? (
           // Nothing to compare and nothing to decide: the reason and what to do, instead of images.
@@ -398,10 +390,10 @@ export function Viewer({
           </div>
         ) : null}
 
-        {mode === 'overlay' && diff.head && diff.diff ? (
+        {mode === 'diff' && diff.head && diff.diff ? (
           <figure className={styles.figure}>
             <Text as="small" variant="small" tone="secondary" className={styles.caption}>
-              This build, with changed pixels highlighted
+              Changed pixels in red, with this build under them
             </Text>
             <div className={styles.frame}>
               <img
@@ -414,7 +406,7 @@ export function Viewer({
                 src={fileUrl(diff.diff.sha256)}
                 alt={`Changed pixels: ${diff.name}`}
                 className={styles.cover}
-                style={{ opacity: (peeking ? 0 : opacity) / 100 }}
+                style={{ opacity: (peeking ? 0 : 100 - opacity) / 100 }}
               />
               {layer ? <RegionLayer annotations={layer} /> : null}
               <DiffLayerPill value={opacity} onValueChange={setOpacity} touch={phone} />
@@ -443,21 +435,14 @@ export function Viewer({
               {/* The layer draws and clicks as in the other modes; the handle sits above it and
                   takes only the presses on the divider itself. */}
               {layer ? <RegionLayer annotations={layer} /> : null}
-              <CompareHandle label="Slider position" value={at} onValueChange={setAt} />
+              <CompareHandle
+                label="Slider position"
+                getValueText={(value) => `${value}% baseline, ${100 - value}% this build`}
+                value={at}
+                onValueChange={setAt}
+              />
             </div>
           </figure>
-        ) : null}
-
-        {mode === 'diff' && diff.diff ? (
-          <Figure
-            name={diff.name}
-            label="Changed pixels in red"
-            image={diff.diff}
-            size={differentSizes ? sizeLabel(diff.diff) : undefined}
-            zoom={zoom}
-            annotations={withClick(annotationsFor('build'), () => setEnlarged('diff'))}
-            onEnlarge={() => setEnlarged('diff')}
-          />
         ) : null}
 
         {ignoring && ignore ? ignore.panel : null}

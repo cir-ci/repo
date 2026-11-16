@@ -61,6 +61,10 @@ export function InsightsPage() {
     { value: ALL, label: 'All projects' },
     ...projects.map((p) => ({ value: p.slug, label: p.name })),
   ]
+  // The server answers 404 for a project it doesn't know ("/acme/nope/insights"): say which is missing.
+  const unknownProject = Boolean(
+    search.project && sidebar && !projects.some((p) => p.slug === search.project),
+  )
   if (search.project && !projects.some((p) => p.slug === search.project)) {
     projectItems.push({ value: search.project, label: search.project })
   }
@@ -98,7 +102,7 @@ export function InsightsPage() {
         <QueryBoundary
           query={query}
           announce="Loading insights"
-          notFound="Workspace not found"
+          notFound={unknownProject ? 'Project not found' : 'Workspace not found'}
           rows={4}
         >
           {(data) =>

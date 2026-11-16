@@ -41,6 +41,26 @@ describe('PageHeading', () => {
     await expect.element(page.getByText('Project: opens its Builds page')).toBeVisible()
   })
 
+  it.each([false, true])(
+    'with statusOwnRow, the chips take their own line below the title at a wide width (%s)',
+    async (own) => {
+      await renderPage(
+        <PageHeading
+          title="Build #1"
+          statusOwnRow={own}
+          status={<span>Needs review</span>}
+          actions={<button type="button">Approve</button>}
+        />,
+        { viewport: [1440, 800] },
+      )
+      const status = document.querySelector('[data-header-status]')
+      expect(status?.hasAttribute('data-row')).toBe(own)
+      const title = page.getByRole('heading', { level: 1 }).element().getBoundingClientRect()
+      const top = status?.getBoundingClientRect().top ?? 0
+      expect(top >= title.bottom - 1).toBe(own)
+    },
+  )
+
   it("shows the page's actions on the right", async () => {
     await renderPage(
       <PageHeading title="Projects" actions={<button type="button">New project</button>} />,

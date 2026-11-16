@@ -58,8 +58,8 @@ const dark = {
     flaky: '#f9b5fe',
     /** Badge and chip words: in light the glyph colours are too pale to read as words. */
     approvedText: '#5cb8a8',
-    failedText: '#ff3b4c',
-    rejectedText: '#ff5fa8',
+    failedText: '#ff6a75',
+    rejectedText: '#ff72b2',
   },
   /** Project identity colours (never state): a project's tile background, with `tile-text` on top. */
   project: {

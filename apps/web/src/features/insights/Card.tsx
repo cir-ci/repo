@@ -175,7 +175,7 @@ export function Pill(props: { tone: 'good' | 'bad' | 'neutral'; text: string; la
   const glyph = GLYPHS.get(props.text.charAt(0))
   const text = glyph ? props.text.slice(1).trimStart() : props.text
   return (
-    <span className={styles.pill} data-tone={props.tone} aria-label={props.label}>
+    <span className={styles.pill} data-tone={props.tone} role="img" aria-label={props.label}>
       {glyph ? <i className={styles.glyph} data-glyph={glyph} aria-hidden="true" /> : null}
       {text}
     </span>

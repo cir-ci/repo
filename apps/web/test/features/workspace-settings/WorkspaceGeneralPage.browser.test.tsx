@@ -76,21 +76,15 @@ const openAs = (instanceAdmin: boolean) => {
 }
 
 describe('WorkspaceGeneralPage, the way up', () => {
-  it("goes back to the workspace's hub, named for it, for an instance admin", async () => {
-    await page.viewport(1000, 900)
-    const { router } = await openAs(true)
-    const back = page.getByRole('link', { name: 'Acme Inc' })
-    await expect.element(back).toHaveAttribute('href', '/workspaces/acme/settings')
-    await back.click()
-    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
-  })
-
-  it('has no way up for an owner or admin who is not an instance admin', async () => {
-    await page.viewport(1000, 900)
-    await openAs(false)
-    await expect.element(page.getByRole('textbox', { name: 'Display name' })).toBeVisible()
-    expect(page.getByRole('link', { name: 'Acme Inc' }).elements()).toHaveLength(0)
-  })
+  it.each([true, false])(
+    'has no in-page way up, whoever opens it (instance admin: %s)',
+    async (admin) => {
+      await page.viewport(1000, 900)
+      await openAs(admin)
+      await expect.element(page.getByRole('textbox', { name: 'Display name' })).toBeVisible()
+      expect(page.getByRole('link', { name: 'Acme Inc' }).elements()).toHaveLength(0)
+    },
+  )
 })
 
 describe('WorkspaceGeneralPage', () => {

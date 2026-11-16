@@ -3,6 +3,7 @@
   display: inline-flex;
   gap: 4px;
   align-items: center;
+  min-height: 24px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -11,6 +12,17 @@
   color: var(--circi-text-secondary);
   font: inherit;
   cursor: default;
+}
+
+.root {
+  min-width: 24px;
+}
+
+@media (pointer: coarse) {
+  .root {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 .root:focus-visible {

@@ -4,7 +4,6 @@ import { useParams } from '@tanstack/react-router'
 
 import { capabilitiesQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { MemberStack } from '#features/projects/AvatarStack.tsx'
-import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
@@ -56,12 +55,6 @@ export function ProjectsSettingsPage() {
       loading={query.isPending}
       error={query.error}
       onRetry={() => void query.refetch()}
-      back={
-        <WorkspaceBackLink
-          workspace={workspace}
-          name={inWorkspace[0]?.workspace.name ?? workspace}
-        />
-      }
       empty={
         <EmptyState icon={<LayersIcon />} size="section" title="No projects yet">
           {canManage

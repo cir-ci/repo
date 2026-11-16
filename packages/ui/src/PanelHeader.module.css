@@ -73,6 +73,11 @@
 
   .root > .actions {
     margin-left: auto;
+
+    /* When the title (never narrower than its own text and a "…", see `Breadcrumbs`) leaves too
+       little room, the group gives way instead: its buttons wrap inside it. */
+    flex: 0 1 auto;
+    min-width: 0;
   }
 
   .root > :not(.actions, .spacer) {

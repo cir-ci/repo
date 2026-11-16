@@ -37,3 +37,25 @@
     flex: 1 1 0;
   }
 }
+
+/* The Details section's two fields, side by side while there is room. */
+.fields {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+}
+
+.fields > * {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.anchor {
+  display: flex;
+}
+
+.anchor > * {
+  flex: 1 1 auto;
+}

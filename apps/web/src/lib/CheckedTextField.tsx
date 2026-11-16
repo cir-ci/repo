@@ -7,7 +7,8 @@ import styles from './CheckedTextField.module.css'
  * A text field for a setting you confirm with a small ✓ beside it (a display name, a URL slug): the
  * ✓ appears only while the text differs from what is saved, and saves it; Enter does the same and
  * Escape puts the saved text back. Nothing is sent while typing or on leaving the field, so a half
- * edit is never saved by accident. `validate` runs before anything is sent; its message shows on
+ * edit is never saved by accident. With `saveOn="blur"` there is no ✓: a setting that is cosmetic
+ * (a display name) saves when the field is left or Enter is pressed. `validate` runs before anything is sent; its message shows on
  * the field, and so does a failed save.
  */
 export function CheckedTextField({
@@ -18,6 +19,7 @@ export function CheckedTextField({
   label,
   description,
   dirtyDescription,
+  saveOn = 'check',
   className,
   ...field
 }: CheckedTextField.Props) {
@@ -32,6 +34,8 @@ export function CheckedTextField({
   const dirty = draft.trim() !== saved
 
   function commit() {
+    // A save in flight (Enter, then the field is left): the second one would send the same text again.
+    if (mutation.isPending) return
     const next = draft.trim()
     if (next === saved) {
       setDraft(saved)
@@ -70,19 +74,22 @@ export function CheckedTextField({
           if (mutation.error) mutation.reset()
         }}
         onKeyDown={onKeyDown}
+        {...(saveOn === 'blur' ? { onBlur: commit } : {})}
       />
-      <span className={styles.slot}>
-        {dirty && !field.disabled ? (
-          <IconButton
-            label={`Save ${label}`}
-            title={`Save ${label}`}
-            disabled={mutation.isPending}
-            onClick={commit}
-          >
-            <CheckIcon size={16} />
-          </IconButton>
-        ) : null}
-      </span>
+      {saveOn === 'check' ? (
+        <span className={styles.slot}>
+          {dirty && !field.disabled ? (
+            <IconButton
+              label={`Save ${label}`}
+              title={`Save ${label}`}
+              disabled={mutation.isPending}
+              onClick={commit}
+            >
+              <CheckIcon size={16} />
+            </IconButton>
+          ) : null}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -101,6 +108,8 @@ export namespace CheckedTextField {
     | 'stacked'
     | 'description'
   > {
+    /** `check` (the default): the ✓ saves. `blur`: leaving the field or Enter saves, with no ✓. */
+    saveOn?: 'check' | 'blur'
     /** Shown above the field, and in the ✓ button's name. */
     label: string
     /** The value that is saved now. */

@@ -115,6 +115,9 @@ describe('notification rows', () => {
     expect(inboxCount([])).toBe('0 notifications')
     expect(inboxCount([item({ readAt: 'x' })])).toBe('1 notification')
     expect(inboxCount([item(), item({ readAt: 'x' }), item()])).toBe('3 notifications, 2 unread')
+    // The server's count (the badge's) wins over the rows loaded.
+    expect(inboxCount([item(), item({ readAt: 'x' })], 94)).toBe('2 notifications, 94 unread')
+    expect(inboxCount([item()], 0)).toBe('1 notification')
   })
 
   it('opens the build, else the project, else nothing', () => {

@@ -1,4 +1,4 @@
-import { IconButton, Menu, RowMenuIcon } from '@circi/ui'
+import { IconButton, Menu, SlidersIcon } from '@circi/ui'
 
 /**
  * The viewer's "View options" menu, one on the desktop toolbar and on a phone: what a drag draws
@@ -18,7 +18,7 @@ export function ViewOptionsMenu({
       size="md"
       trigger={
         <IconButton label="View options">
-          <RowMenuIcon />
+          <SlidersIcon />
         </IconButton>
       }
       items={[

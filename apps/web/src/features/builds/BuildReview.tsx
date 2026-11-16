@@ -287,7 +287,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         <div key={g.kind} data-group-id={g.kind} className={styles.group}>
           <ListGroup
             id={`shots-${g.kind}`}
-            level={3}
             label={g.title}
             count={g.items.length}
             glyph={<StatusIcon status={screenshotStatus(g.kind, 'pending')} decorative />}
@@ -399,6 +398,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             </>
           )
         }
+        statusOwnRow
         status={
           // On a phone too: a line of its own under the branch.
           <>

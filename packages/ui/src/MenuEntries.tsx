@@ -46,6 +46,9 @@ export function MenuEntries({ items }: { items: ReadonlyArray<Menu.Entry> }) {
     ) : entry.type === 'content' ? (
       <div
         key={key}
+        // Not an item: it takes no menu role of its own (a menu's children are items), and what is
+        // inside (a heading, a note, a control) keeps its own.
+        role="presentation"
         className={styles.content}
         // The control keeps its own arrow keys instead of the menu moving between items.
         onKeyDown={(event) => {

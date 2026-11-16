@@ -21,7 +21,7 @@ const HOUR = 3_600_000
 const inHours = (h: number) => new Date(Date.now() + h * HOUR - 60_000).toISOString()
 
 const ground = () => document.querySelector('[class*="ground"]')
-const viewerTitle = () => page.getByRole('heading', { level: 2 })
+const viewerTitle = () => page.getByRole('heading', { level: 2 }).last()
 const facts = () => page.getByRole('tabpanel')
 
 describe('the build header', () => {
@@ -146,11 +146,11 @@ describe('the Details tab', () => {
     expect(build.element().textContent).not.toContain('where this branch started')
   })
 
-  it('says "Nothing yet" for the baseline of a first build', async () => {
+  it('says "None" and why for the baseline of a first build', async () => {
     fakeBuildApi(detail({ baselineSource: 'none' }, { baseline: null }))
     await renderBuild()
     const build = facts().getByRole('region', { name: 'Build', exact: true })
-    await expect.element(build.getByText('Nothing yet')).toBeVisible()
+    await expect.element(build.getByText(/^None/)).toBeVisible()
   })
 
   it('lists the build, then the people, then the screenshot history', async () => {
@@ -424,5 +424,104 @@ describe('the screenshot list', () => {
     const list = page.getByRole('navigation', { name: 'Screenshots' })
     await expect.element(list.getByRole('img', { name: '2 comment threads' })).toBeVisible()
     expect(list.getByRole('img', { name: /comment thread/ }).elements()).toHaveLength(1)
+  })
+})
+
+const approvedBy = (name: string) => ({
+  decision: 'approved' as const,
+  reviewer: { id: 'u9', name },
+  at: new Date().toISOString(),
+  reason: null,
+})
+
+describe('the Details tab: repeated decisions', () => {
+  it('says one decision on several screenshots once: "Approved 3 of 3 by Olivia Owner"', async () => {
+    const diffs = [shot('a', 'changed'), shot('b', 'changed'), shot('c', 'changed')]
+    for (const d of diffs) d.review = approvedBy('Olivia Owner')
+    const api = fakeBuildApi(detail({}, { diffs }))
+    api.build.reviews = diffs.map((_, i) => ({
+      state: 'approved',
+      source: 'ui',
+      reason: null,
+      userName: 'Olivia Owner',
+      createdAt: new Date(Date.now() - i * 1000).toISOString(),
+    }))
+    await renderBuild()
+    await expect.element(facts().getByText(/Approved 3 of 3 by Olivia Owner/)).toBeVisible()
+    await expect.element(facts().getByText(/Approved by Olivia Owner, 3 times/)).toBeVisible()
+    // One line in each list, not three.
+    expect(
+      facts()
+        .getByText(/Olivia Owner/)
+        .elements(),
+    ).toHaveLength(2)
+  })
+
+  it('keeps a lone decision on its screenshot, named', async () => {
+    const diffs = [shot('a', 'changed'), shot('b', 'changed')]
+    diffs[0]!.review = approvedBy('Olivia Owner')
+    fakeBuildApi(detail({}, { diffs }))
+    await renderBuild()
+    await expect
+      .element(
+        facts()
+          .getByText(/Approved by Olivia Owner/)
+          .first(),
+      )
+      .toBeVisible()
+    await expect.element(facts().getByText('a', { exact: true }).first()).toBeVisible()
+  })
+
+  it('says "Assigned automatically" once for everyone it applies to', async () => {
+    const api = fakeBuildApi(detail())
+    api.activity = [asked('u2', 'Grace Hopper', null, null), asked('u3', 'Alan Turing', null, null)]
+    await renderBuild()
+    const people = facts().getByRole('region', { name: 'People' })
+    await expect.element(people.getByText('Grace Hopper')).toBeVisible()
+    await expect.element(people.getByText('Alan Turing')).toBeVisible()
+    expect(people.getByText(/Assigned automatically/).elements()).toHaveLength(1)
+  })
+})
+
+describe('the Details tab: a build with no baseline', () => {
+  it('says what "None" means instead of "Nothing yet"', async () => {
+    fakeBuildApi(detail({ baselineSource: 'none' }, { baseline: null }))
+    await renderBuild()
+    const build = facts().getByRole('region', { name: 'Build' })
+    await expect.element(build.getByText(/No earlier build was approved/)).toBeVisible()
+    expect(build.getByText('Nothing yet').elements()).toHaveLength(0)
+  })
+})
+
+describe('the header chips', () => {
+  it.each([
+    ['no watchers', []],
+    ['a watcher', [{ id: 'u2', name: 'Grace Hopper', image: null }]],
+  ])('keeps the state chip on its own line under the title, with %s', async (_, watchers) => {
+    fakeBuildApi(detail({}, { watchers }))
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const row = document.querySelector('[data-panel-header] [data-header-status]')
+    expect(row?.hasAttribute('data-row')).toBe(true)
+    const title = page.getByRole('heading', { level: 1 }).element().getBoundingClientRect()
+    expect(row?.getBoundingClientRect().top).toBeGreaterThanOrEqual(title.bottom - 1)
+  })
+
+  it('makes the watchers button at least 24px tall', async () => {
+    fakeBuildApi(detail({}, { watchers: [{ id: 'u2', name: 'Grace Hopper', image: null }] }))
+    await renderBuild()
+    const button = page.getByRole('button', { name: '1 watching' })
+    await expect.element(button).toBeVisible()
+    expect(button.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(24)
+  })
+
+  it('names Approve all by its visible text and says how many it approves', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    // Two changed and one added screenshot have no decision yet.
+    const button = page.getByRole('button', { name: /^Approve all 3/ })
+    await expect.element(button).toBeVisible()
+    expect(button.element().textContent).toMatch(/^Approve all 3/)
+    expect(button.element().getAttribute('aria-label')).toMatch(/^Approve all 3 screenshots/)
   })
 })

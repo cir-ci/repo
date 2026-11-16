@@ -38,6 +38,14 @@
   cursor: pointer;
 }
 
+/* A touch screen: a 44px target. */
+@media (pointer: coarse) {
+  .more {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .more:hover,
 .more[data-popup-open] {
   color: var(--circi-text-primary);

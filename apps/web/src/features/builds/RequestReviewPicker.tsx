@@ -74,7 +74,16 @@ export function RequestReviewPicker({
       : people.length === 0
         ? [{ label: 'No one else is in this project.', disabled: true }]
         : people.map((m): Menu.Entry => {
-            const avatar = <Avatar type="user" id={m.id} name={m.name} image={m.image} size={20} />
+            const avatar = (
+              <Avatar
+                type="user"
+                id={m.id}
+                name={m.name}
+                image={m.image}
+                size={20}
+                aria-hidden="true"
+              />
+            )
             // Base UI keeps a disabled menu item focusable, so someone already asked is not an item
             // at all: a plain row the arrow keys pass over and a click does nothing on.
             return requested.has(m.id)

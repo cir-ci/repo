@@ -1,13 +1,13 @@
 /** The build page's route id and search params, kept render-free so components and tests can share them. */
 export const ROUTE = '/$workspace/$project/builds/$number'
 
-/** The compare modes that need nothing but the build (keys 1 to 4). */
-export type ImageMode = 'side' | 'overlay' | 'diff' | 'slider'
+/** The compare modes that need nothing but the build (keys 1 to 3). */
+export type ImageMode = 'side' | 'diff' | 'slider'
 
 /** `design` (key 5) compares with a Figma frame; it is only offered once the integration is on (Phase D). */
 export type ViewMode = ImageMode | 'design'
 
-export const VIEW_MODES: readonly ImageMode[] = ['side', 'overlay', 'diff', 'slider']
+export const VIEW_MODES: readonly ImageMode[] = ['side', 'diff', 'slider']
 
 export const DESIGN_MODE: ViewMode = 'design'
 
@@ -26,7 +26,9 @@ const isViewMode = (value: unknown): value is ViewMode =>
 
 export function validateBuildSearch(search: Record<string, unknown>): BuildSearch {
   // Links made while the mode was called "swipe" keep working.
+  // Links made while the mode was called "swipe", or before Overlay became part of Diff, keep working.
   if (search.mode === 'swipe') search = { ...search, mode: 'slider' }
+  if (search.mode === 'overlay') search = { ...search, mode: 'diff' }
   return {
     ...(typeof search.shot === 'string' && search.shot ? { shot: search.shot } : {}),
     ...(isViewMode(search.mode) ? { mode: search.mode } : {}),

@@ -145,6 +145,10 @@ describe('ReviewsPage', () => {
     await expect.element(list.getByText('feature-12')).toBeVisible()
     await expect.element(list.getByRole('img', { name: 'Ada Lovelace' }).first()).toBeVisible()
     await expect.element(list.getByText('Overdue 3h')).toBeVisible()
+    // Calm, not the red failed tone: nearly every old request is overdue.
+    expect(
+      list.getByText('Overdue 3h').element().closest('[data-tone]')?.getAttribute('data-tone'),
+    ).toBe('neutral')
     await expect
       .element(page.getByRole('status', { name: '2 reviews waiting on you' }))
       .toBeVisible()
@@ -594,7 +598,9 @@ describe('ReviewsPage', () => {
     await show('/workspaces/acme/reviews?review=r1')
     const panel = page.getByRole('region', { name: 'Selected review' })
     await expect.element(panel.getByText('Review target')).toBeVisible()
-    await expect.element(panel.getByText('Overdue 3h', { exact: true })).toBeVisible()
+    // The due date only: "Overdue 3h" is on the row's chip, not repeated here.
+    await expect.element(panel.getByText(/^Due /)).toBeVisible()
+    expect(panel.getByText(/Overdue/).elements()).toHaveLength(0)
   })
 
   it("keeps each Details value on its label's line in the half-width Details", async () => {
@@ -613,7 +619,7 @@ describe('ReviewsPage', () => {
     const panel = page.getByRole('region', { name: 'Selected review' })
     const label = panel.getByText('Review target')
     await expect.element(label).toBeVisible()
-    const value = panel.getByText('Overdue 8d', { exact: true })
+    const value = panel.getByText(/^Due /)
     await expect.element(value).toBeVisible()
     // One line: the value's middle is level with the label's (it wrapped under it before).
     expect(

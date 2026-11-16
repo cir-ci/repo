@@ -24,7 +24,6 @@ import {
   changeSizeGroups,
   changeSummary,
   decisionLabel,
-  overdueLabel,
   requestRef,
   requestStatus,
   scoreLabel,
@@ -43,7 +42,6 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
   const clientLink = useClientLink()
   const projectMark = useProjectMark(r.workspace.slug)
   const { status, label } = requestStatus(r)
-  const overdue = overdueLabel(r.overdueByMs)
   const counts = changeSummary(r.changes)
   // The live person when they still resolve (so renames show), else the name kept on the request.
   const asker =
@@ -128,11 +126,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
               <SettingsRow className={styles.fact} label="Review target">
                 {/* One inline span: the control is a flex row, which would add a gap after the text. */}
                 <span>
-                  {overdue ?? (
-                    <>
-                      Due <RelativeTime iso={r.dueAt} />
-                    </>
-                  )}
+                  Due <RelativeTime iso={r.dueAt} />
                 </span>
               </SettingsRow>
             ) : null}

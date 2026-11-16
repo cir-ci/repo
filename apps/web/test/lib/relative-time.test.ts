@@ -31,6 +31,8 @@ describe('formatAge', () => {
     expect(formatAge(ago(3 * 3600), NOW)).toBe('3h')
     expect(formatAge(ago(2 * 86400 + 5), NOW)).toBe('2d')
     expect(formatAge(ago(15 * 86400), NOW)).toBe('2w')
+    expect(formatAge(ago(95 * 86400), NOW)).toBe('3mo')
+    expect(formatAge(ago(800 * 86400), NOW)).toBe('2y')
     expect(formatAge(ago(-60), NOW)).toBe('now')
   })
 })

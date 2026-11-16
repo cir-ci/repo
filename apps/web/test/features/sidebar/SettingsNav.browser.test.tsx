@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
@@ -7,8 +7,21 @@ import { workspace as instanceWorkspace } from '#test/features/instance/fixtures
 import { overview, sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-function show(
+/** Opens every folded section, so a test can look at all the entries (the ones that test folding opt out). */
+async function unfoldAll(names: ReadonlyArray<string | RegExp>) {
+  // One click at a time: the pointer is shared, so clicks sent together can be lost.
+  await names.reduce(async (done, name) => {
+    await done
+    const toggle = page.getByRole('button', { name })
+    await expect.element(toggle).toBeVisible()
+    if (toggle.element().getAttribute('aria-expanded') === 'false') await userEvent.click(toggle)
+  }, Promise.resolve())
+}
+
+async function show(
   options: {
+    /** Leave the sections as the nav folds them. */
+    folded?: boolean
     url?: string
     route?: string
     instanceAdmin?: boolean
@@ -17,7 +30,7 @@ function show(
     from?: string
   } = {},
 ) {
-  return renderPage(<SettingsNav />, {
+  const shown = await renderPage(<SettingsNav />, {
     beforeRender: () => {
       if (options.from) useSettingsReturnStore.getState().noteAppPage(options.from)
     },
@@ -58,7 +71,23 @@ function show(
       },
     },
   })
+  if (!options.folded)
+    await unfoldAll([
+      'Account',
+      'Projects',
+      options.instanceAdmin ? 'Instance' : /^Workspace/,
+      ...(options.instanceAdmin ? ['Workspaces'] : []),
+    ])
+  return shown
 }
+
+/** The sections' names, top to bottom. */
+const order = () =>
+  page
+    .getByRole('region')
+    .elements()
+    .map((el) => el.querySelector('button[aria-expanded]')?.textContent)
+    .filter((name) => name !== undefined)
 
 /** The names of the entries the nav marks as the current page. */
 const selected = () =>
@@ -114,6 +143,52 @@ describe('SettingsNav', () => {
       .toHaveAttribute('href', '/workspaces/acme/settings/projects')
   })
 
+  describe('current section first', () => {
+    it("lists the open project's section first and open, the others after it and folded", async () => {
+      await show({ instanceAdmin: true, folded: true })
+      const projects = page.getByRole('region', { name: 'Projects' })
+      await expect.element(projects.getByRole('link', { name: 'Reviews and triage' })).toBeVisible()
+      await expect
+        .element(page.getByRole('button', { name: 'Projects' }))
+        .toHaveAttribute('aria-expanded', 'true')
+      await expect
+        .element(page.getByRole('button', { name: 'Account' }))
+        .toHaveAttribute('aria-expanded', 'false')
+      await expect
+        .element(page.getByRole('button', { name: 'Instance' }))
+        .toHaveAttribute('aria-expanded', 'false')
+      await expect
+        .element(page.getByRole('button', { name: 'Workspaces' }))
+        .toHaveAttribute('aria-expanded', 'false')
+      expect(order()).toEqual(['Projects', 'Account', 'Instance', 'Workspaces'])
+      // A folded section keeps its label and hides its entries.
+      expect(page.getByRole('link', { name: 'Profile' }).elements()).toHaveLength(0)
+    })
+
+    it('puts the workspace first on a workspace page, and a folded section opens with its label', async () => {
+      await show({
+        folded: true,
+        route: '/workspaces/$workspace/settings/members',
+        url: '/workspaces/acme/settings/members',
+      })
+      await expect.element(page.getByRole('link', { name: 'Members' })).toBeVisible()
+      expect(order()[0]).toMatch(/^Workspace/)
+      expect(page.getByRole('link', { name: 'All projects' }).elements()).toHaveLength(0)
+      await page.getByRole('button', { name: 'Projects' }).click()
+      await expect.element(page.getByRole('link', { name: 'All projects' })).toBeVisible()
+      // The one that was open stays open.
+      await expect.element(page.getByRole('link', { name: 'Members' })).toBeVisible()
+    })
+
+    it('keeps the way back above every section', async () => {
+      await show({ folded: true })
+      await expect.element(page.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
+      const back = page.getByRole('link', { name: 'Back to Inbox' }).element()
+      const first = page.getByRole('region').first().element()
+      expect(back.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+  })
+
   it('follows the sidebar numbers: 32px rows, 14px text, 18px icons at stroke 2, 13px secondary labels', async () => {
     await show()
     const link = page.getByRole('link', { name: 'Back to Inbox' })
@@ -133,7 +208,6 @@ describe('SettingsNav', () => {
     await expect.element(page.getByRole('region', { name: /^Workspace/ })).toBeVisible()
     expect(page.getByRole('region', { name: /^Project · / }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /Switch project/ }).elements()).toHaveLength(0)
-    expect(page.getByRole('link', { name: 'CI token' }).elements()).toHaveLength(0)
   })
 
   it('leaves out what members cannot use: they keep Members, and the projects they can see', async () => {
@@ -168,12 +242,9 @@ describe('SettingsNav', () => {
     await expect.element(page.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
     const account = page.getByRole('region', { name: 'Account' })
     await expect.element(account).toBeVisible()
-    expect(names(account.getByRole('link'))).toEqual([
-      'Profile',
-      'Notifications',
-      'Appearance',
-      'Keyboard shortcuts',
-    ])
+    await expect
+      .poll(() => names(account.getByRole('link')))
+      .toEqual(['Profile', 'Notifications', 'Appearance', 'Keyboard shortcuts'])
   })
 
   it('marks the project while any page of its settings is open, and not the others or All projects', async () => {
@@ -267,7 +338,7 @@ describe('SettingsNav', () => {
     await expect.element(instance).toBeVisible()
     // One entry, like a workspace's or a project's: it opens the hub, which lists the pages. The
     // workspaces are their own section.
-    expect(names(instance.getByRole('link'))).toEqual(['Instance'])
+    await expect.poll(() => names(instance.getByRole('link'))).toEqual(['Instance'])
     await expect
       .element(instance.getByRole('link', { name: 'Instance' }))
       .toHaveAttribute('href', '/instance/overview')
@@ -329,17 +400,17 @@ describe('SettingsNav', () => {
       expect(getComputedStyle(acme.element()).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
     })
 
-    it('orders the sections by the hierarchy: Account, Instance, Workspaces, Projects', async () => {
-      await show({ instanceAdmin: true })
+    it('orders the sections by the hierarchy when the current one is the first: Account, Instance, Workspaces, Projects', async () => {
+      await show({ instanceAdmin: true, route: '/account/profile', url: '/account/profile' })
       await expect.element(page.getByRole('region', { name: 'Projects' })).toBeVisible()
       await expect.element(page.getByRole('region', { name: 'Instance' })).toBeVisible()
       await expect.element(page.getByRole('region', { name: 'Workspaces' })).toBeVisible()
-      const order = ['Account', 'Instance', 'Workspaces', 'Projects'].map((name) =>
+      const sections = ['Account', 'Instance', 'Workspaces', 'Projects'].map((name) =>
         page.getByRole('region', { name }).element(),
       )
-      order.slice(1).forEach((el, i) => {
+      sections.slice(1).forEach((el, i) => {
         expect(
-          order[i]!.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
+          sections[i]!.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy()
       })
     })

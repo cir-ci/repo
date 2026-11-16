@@ -20,7 +20,7 @@ import {
 import type { MouseEventHandler, ReactNode } from 'react'
 
 import { useProjectMark } from '#features/integrations/ProjectMark.tsx'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { Age } from '#lib/RelativeTime.tsx'
 
 import {
   decisionLabel,
@@ -153,7 +153,7 @@ export function ReviewList({
                           trailing={
                             <span className={styles.itemSide}>
                               {who ? <Avatar type="user" {...who} size={20} /> : null}
-                              <RelativeTime iso={r.createdAt} />
+                              <Age iso={r.createdAt} />
                             </span>
                           }
                           title={<span title={requestName(r)}>{requestTitle(r)}</span>}
@@ -179,11 +179,7 @@ export function ReviewList({
                                   </Badge>
                                 ) : null}
                                 {why ? <Badge shape="tag">{why}</Badge> : null}
-                                {overdue ? (
-                                  <Badge tone="state" state="failed" shape="tag">
-                                    {overdue}
-                                  </Badge>
-                                ) : null}
+                                {overdue ? <Badge shape="tag">{overdue}</Badge> : null}
                                 {r.snoozedUntil ? (
                                   <Badge shape="tag">
                                     <time

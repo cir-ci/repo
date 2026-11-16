@@ -19,6 +19,8 @@ export interface ReviewControls {
   canReject: boolean
   /** Some changed snapshot has no decision yet. */
   canApproveAll: boolean
+  /** How many changed screenshots have no decision yet: what Approve all decides. */
+  undecidedCount: number
   pending: boolean
   error: Error | null
   rejecting: boolean
@@ -108,6 +110,7 @@ export function useReviewControls(
     canApprove,
     canReject,
     canApproveAll,
+    undecidedCount: undecided.length,
     canApproveFor,
     canRejectFor,
     rejectName,
@@ -205,16 +208,22 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         </Tooltip>
       ) : null}
       {review.canApproveAll ? (
-        <Tooltip content="Approve all screenshots in this build that have no decision yet">
+        <Tooltip content="Approve every screenshot in this build that has no decision yet">
           <Button
             variant="primary"
-            aria-label="Approve all screenshots in this build"
+            // The name starts with the visible text (WCAG 2.5.3): "Approve all 3" or "Approve all".
+            aria-label={
+              review.undecidedCount > 1
+                ? `Approve all ${review.undecidedCount} screenshots without a decision`
+                : 'Approve all screenshots without a decision'
+            }
             leading={<TaskDoneIcon />}
             loading={review.pending && !review.rejecting}
             disabled={review.pending}
             onClick={review.approveAll}
           >
-            Approve all <Kbd>⇧A</Kbd>
+            {review.undecidedCount > 1 ? `Approve all ${review.undecidedCount}` : 'Approve all'}{' '}
+            <Kbd>⇧A</Kbd>
           </Button>
         </Tooltip>
       ) : null}

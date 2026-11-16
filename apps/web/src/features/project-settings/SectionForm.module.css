@@ -1,0 +1,29 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* In the form, so it sticks to the bottom of the panel's scroller for as long as any of the section is
+   in view, and rests under the section once there is room. */
+.footer {
+  position: sticky;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-control);
+  background: var(--circi-surface-chrome);
+}
+
+/* A phone: Discard and Save share the bar's width. */
+@media (max-width: 819.98px) {
+  .footer > * {
+    flex: 1 1 0;
+  }
+}

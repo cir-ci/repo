@@ -225,3 +225,62 @@ export function reviewTargetStatus(
     long: target.hours === null ? late : `${late}, past the ${target.hours}h target`,
   }
 }
+
+/** A run of identical decisions, collapsed: who decided, how, how many and the latest time. */
+export interface DecisionGroup {
+  decision: 'approved' | 'rejected'
+  /** The reviewer's name; null for an automatic decision (or an account that is gone). */
+  by: string | null
+  automatic: boolean
+  reason: string | null
+  count: number
+  /** ISO time of the newest. */
+  at: string
+  /** The screenshots it covers (empty for the build's own decisions). */
+  names: string[]
+}
+
+/**
+ * Identical decisions (same outcome, same reviewer, same reason) as one entry with a count, in the
+ * order of their first appearance: "Approved by Olivia Owner" six times is one line, not six.
+ */
+export function groupDecisions(
+  items: readonly {
+    decision: 'approved' | 'rejected'
+    by: string | null
+    automatic: boolean
+    reason: string | null
+    at: string
+    name?: string
+  }[],
+): DecisionGroup[] {
+  const groups = new Map<string, DecisionGroup>()
+  for (const item of items) {
+    const key = JSON.stringify([item.decision, item.by, item.automatic, item.reason])
+    const group = groups.get(key)
+    if (group) {
+      group.count += 1
+      if (item.at > group.at) group.at = item.at
+      if (item.name !== undefined) group.names.push(item.name)
+    } else {
+      groups.set(key, {
+        decision: item.decision,
+        by: item.by,
+        automatic: item.automatic,
+        reason: item.reason,
+        count: 1,
+        at: item.at,
+        names: item.name === undefined ? [] : [item.name],
+      })
+    }
+  }
+  return [...groups.values()]
+}
+
+/** "Approved by Olivia Owner", "Rejected", "Approved automatically": who did what, without a count. */
+export function decisionText(g: Pick<DecisionGroup, 'decision' | 'by' | 'automatic'>): string {
+  const verb = g.decision === 'approved' ? 'Approved' : 'Rejected'
+  if (g.automatic) return `${verb} automatically`
+  if (g.by) return `${verb} by ${g.by}`
+  return g.decision === 'approved' ? `${verb} automatically` : verb
+}

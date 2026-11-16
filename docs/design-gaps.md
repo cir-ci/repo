@@ -140,10 +140,9 @@ The main screen, and the least designed. **Provisional:**
 - List: groups Changed / Added / Removed / Flaky / Failed / Unchanged (collapsed, with a count),
   each row 36 high: `StatusIcon`-like glyph, name (truncated, full name in a tooltip), diff % on
   the right in mono.
-- Viewer toolbar (36 high): `SegmentedControl` Side by side / Overlay / Diff / Slider, zoom
+- Viewer toolbar (36 high): `SegmentedControl` Side by side / Diff / Slider (Overlay merged into Diff, 2026-11-16: an on-image pill sets how much of the build shows under the changed pixels), zoom
   (fit, 100%, +/−), ignore-region toggle, prev/next with `Kbd` j/k.
-- Viewer ground: a checkerboard so transparent pixels show; images never scaled up past 100% at
-  "fit".
+- Viewer ground: a checkerboard so transparent pixels show; "fit" fills the viewer's width (scaling small screenshots up, since 2026-11-16).
 - `?` opens a shortcut help dialog.
 
 **Built, with deviations (2026-11-08):** the page has the list and viewer, the four modes

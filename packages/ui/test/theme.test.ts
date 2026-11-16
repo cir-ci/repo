@@ -105,6 +105,29 @@ describe('palettes', () => {
       }
     })
 
+    // Dark only: light's approved text on its `highest` surface is 4.09:1, a known gap.
+    it.runIf(scheme === 'dark')(
+      `${scheme}: badge text reads at 4.5:1 on the 16% tint over every surface (the Insights pills, selected rows)`,
+      () => {
+        const texts = {
+          approved: p.state.approvedText,
+          review: p.state.reviewText,
+          processing: p.state.processing,
+          failed: p.state.failedText,
+          rejected: p.state.rejectedText,
+        }
+        for (const surface of surfaces) {
+          for (const [name, ink] of Object.entries(texts)) {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `name` is a key of `texts`, which are state names
+            const tint = blend(p.state[name as keyof typeof texts], surface, 0.16)
+            expect(contrast(ink, tint), `${name} text ${ink} on ${tint}`).toBeGreaterThanOrEqual(
+              4.5,
+            )
+          }
+        }
+      },
+    )
+
     it(`${scheme}: the muted failed fill is crimson mixed 60% into the raised surface, and still reads against it`, () => {
       expect(p.state.failedFill.toLowerCase()).toBe(
         blend(p.state.failed, p.surface.raised, 0.6).toLowerCase(),

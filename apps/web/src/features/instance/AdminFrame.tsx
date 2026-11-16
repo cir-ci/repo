@@ -6,7 +6,6 @@ import { PageFrame } from '#lib/PageFrame.tsx'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { isForbidden } from './api/admin.ts'
-import { InstanceBackLink } from './InstanceBackLink.tsx'
 
 /**
  * The frame every Instance page shares: the header (Instance, then the page's name as the `<h1>`,
@@ -41,7 +40,6 @@ export function AdminFrame({
       forbidden={isForbidden(error) ? <InstanceAdminsOnly /> : null}
       {...rest}
     >
-      <InstanceBackLink />
       {phone ? status : null}
       {children}
     </PageFrame>

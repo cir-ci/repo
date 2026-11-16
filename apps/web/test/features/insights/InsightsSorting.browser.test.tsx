@@ -37,19 +37,19 @@ describe('sortable tables on Insights', () => {
   it('sorts Projects by a column, and keeps the sort in the address', async () => {
     const { router } = await show(fullReport())
     const sortParam = () => router.state.location.search.sort
-    const projects = card('Projects')
+    const projects = card('Activity by project')
     await expect.element(projects.getByRole('columnheader', { name: 'Builds' })).toBeVisible()
-    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    expect(await firstColumn('Activity by project')).toEqual(['Web', 'Docs'])
 
     const builds = projects.getByRole('columnheader', { name: 'Builds' })
     await userEvent.click(builds.getByRole('button'))
     await expect.element(builds).toHaveAttribute('aria-sort', 'ascending')
-    expect(await firstColumn('Projects')).toEqual(['Docs', 'Web'])
+    expect(await firstColumn('Activity by project')).toEqual(['Docs', 'Web'])
     await expect.poll(sortParam).toBe('projects:builds')
 
     await userEvent.click(builds.getByRole('button'))
     await expect.element(builds).toHaveAttribute('aria-sort', 'descending')
-    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    expect(await firstColumn('Activity by project')).toEqual(['Web', 'Docs'])
     await expect.poll(sortParam).toBe('projects:-builds')
 
     await userEvent.click(builds.getByRole('button'))
@@ -59,12 +59,12 @@ describe('sortable tables on Insights', () => {
 
   it('sorts by text, and puts a missing value last either way', async () => {
     await show(fullReport())
-    const projects = card('Projects')
+    const projects = card('Activity by project')
     const project = projects.getByRole('columnheader', { name: 'Project' })
     await userEvent.click(project.getByRole('button'))
-    await expect.poll(() => firstColumn('Projects')).toEqual(['Docs', 'Web'])
+    await expect.poll(() => firstColumn('Activity by project')).toEqual(['Docs', 'Web'])
     await userEvent.click(project.getByRole('button'))
-    await expect.poll(() => firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    await expect.poll(() => firstColumn('Activity by project')).toEqual(['Web', 'Docs'])
 
     // The oldest-waiting list: the second build has no author.
     const waiting = card('Oldest waiting builds')
@@ -84,7 +84,7 @@ describe('sortable tables on Insights', () => {
     )
     expect(await firstColumn('Rejected most often')).toEqual(['home/hero', 'checkout/summary'])
     // The Projects table keeps its own order.
-    expect(await firstColumn('Projects')).toEqual(['Web', 'Docs'])
+    expect(await firstColumn('Activity by project')).toEqual(['Web', 'Docs'])
   })
 
   it('sorts Reviewer load by a duration', async () => {

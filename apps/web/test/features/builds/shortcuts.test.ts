@@ -20,10 +20,9 @@ describe('shortcutFor', () => {
     expect(shortcutFor('?')?.action).toEqual({ type: 'help' })
   })
 
-  it('maps 1 to 4 to the view modes in order', () => {
-    expect(['1', '2', '3', '4'].map((k) => shortcutFor(k)?.action)).toEqual([
+  it('maps 1 to 3 to the view modes in order', () => {
+    expect(['1', '2', '3'].map((k) => shortcutFor(k)?.action)).toEqual([
       { type: 'mode', mode: 'side' },
-      { type: 'mode', mode: 'overlay' },
       { type: 'mode', mode: 'diff' },
       { type: 'mode', mode: 'slider' },
     ])
@@ -48,15 +47,15 @@ describe('build review keys', () => {
     ).toEqual({
       type: 'submit',
     })
-    expect(shortcutFor('5')?.action).toEqual({ type: 'mode', mode: 'design' })
+    expect(shortcutFor('4')?.action).toEqual({ type: 'mode', mode: 'design' })
   })
 
   it('offers the Design mode only when it is enabled', () => {
-    const design = shortcutFor('5')
+    const design = shortcutFor('4')
     expect(design && isAvailable(design, false)).toBe(false)
     expect(design && isAvailable(design, true)).toBe(true)
-    expect(keys(false)).not.toContain('5')
-    expect(keys(true)).toContain('5')
+    expect(keys(false)).not.toContain('4')
+    expect(keys(true)).toContain('4')
     expect(keys(false)).toEqual(expect.arrayContaining(['c', 'shift+r', 'mod+Enter']))
   })
 
@@ -86,6 +85,10 @@ describe('validateBuildSearch', () => {
 
   it('reads the old "swipe" mode as the slider', () => {
     expect(validateBuildSearch({ mode: 'slider' })).toEqual({ mode: 'slider' })
+  })
+
+  it('reads a stored or linked "overlay" mode as Diff', () => {
+    expect(validateBuildSearch({ mode: 'overlay' })).toEqual({ mode: 'diff' })
   })
 
   it('drops anything else', () => {

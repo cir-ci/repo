@@ -1,4 +1,4 @@
-/** The viewer's zoom: fit the width (never scaled up past 100%) or a percentage of the real size. */
+/** The viewer's zoom: fit the width (scaled up or down to fill it) or a percentage of the real size. */
 export type Zoom = 'fit' | number
 
 export const ZOOM_STEPS: readonly number[] = [25, 50, 75, 100, 150, 200, 300, 400]

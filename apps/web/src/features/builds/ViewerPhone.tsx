@@ -16,7 +16,7 @@ import type { Zoom } from './zoom.ts'
 
 import styles from './ViewerPhone.module.css'
 
-/** The four views a phone offers (canvas: Phone, the build page); Overlay and Side by side are in the options menu. */
+/** The four views a phone offers (canvas: Phone, the build page); Side by side is in the options menu. */
 export type PhoneView = 'new' | 'baseline' | 'diff' | 'slider'
 
 const PHONE_VIEWS: readonly { value: PhoneView; label: string }[] = [
@@ -29,7 +29,7 @@ const PHONE_VIEWS: readonly { value: PhoneView; label: string }[] = [
 /**
  * The viewer's controls on a phone, in place of the desktop toolbar's: the four views as a 40px
  * segmented control, Previous and Next screenshot, the Draw button (comment regions, see
- * `Viewer`) and an options menu with Overlay, Side by side, the checkerboard, the zoom and the
+ * `Viewer`) and an options menu with Side by side, the checkerboard, the zoom and the
  * ignore regions (view only here). Every target is 44px. While drawing, a strip says how and Done
  * leaves draw mode.
  */
@@ -96,9 +96,6 @@ export function PhoneControls({
           onCheckerboard={onCheckerboard}
           before={[
             { label: 'Side by side', current: view === null, onSelect: () => onView('side') },
-            ...(comparable
-              ? [{ label: 'Overlay', current: false, onSelect: () => onView('overlay') }]
-              : []),
             { type: 'separator' as const },
           ]}
           after={[
@@ -146,13 +143,13 @@ export function PhoneControls({
 
 export namespace PhoneControls {
   export interface Props {
-    /** Which of the four views is on; null for Overlay or Side by side (from the menu). */
+    /** Which of the four views is on; null for Side by side (from the menu). */
     view: PhoneView | null
     hasBase: boolean
     hasHead: boolean
     comparable: boolean
-    /** A view of the four, or `side` / `overlay` from the menu. */
-    onView: (view: PhoneView | Extract<ViewMode, 'side' | 'overlay'>) => void
+    /** A view of the four, or `side` from the menu. */
+    onView: (view: PhoneView | Extract<ViewMode, 'side'>) => void
     onPrevious: (() => void) | undefined
     onNext: (() => void) | undefined
     /** Comment regions can be drawn on this screenshot. */

@@ -100,10 +100,13 @@ describe('ProjectSettingsPage', () => {
       .element(crumbs.getByRole('link', { name: 'Web App' }))
       .toHaveAttribute('href', '/acme/web/settings')
     await expect.element(heading('General')).toBeVisible()
-    // A way back to the hub at the top of the column, and no tabs.
-    await expect
-      .element(page.getByRole('link', { name: 'Web App' }).last())
-      .toHaveAttribute('href', '/acme/web/settings')
+    // No in-page way back (the sidebar has settings' only one), and no tabs.
+    expect(
+      page
+        .getByRole('link', { name: 'Web App' })
+        .elements()
+        .filter((el) => !el.closest('nav')),
+    ).toHaveLength(0)
     expect(page.getByRole('navigation', { name: 'Web App settings' }).elements()).toHaveLength(0)
     expect(document.title).toBe('General · web · CirCI')
   })
@@ -138,7 +141,7 @@ describe('ProjectSettingsPage', () => {
     await expect.element(page.getByText('Keep builds for', { exact: true })).toBeVisible()
   })
 
-  it('renames the slug with the ✓ and moves to the new address, warning while editing', async () => {
+  it('renames the slug with Save and moves to the new address, warning while editing', async () => {
     const fake = api(
       {},
       { [`PATCH ${API}/settings`]: { body: { settings: { ...settings, slug: 'web-app' } } } },
@@ -148,9 +151,10 @@ describe('ProjectSettingsPage', () => {
     expect(page.getByText(/stop working/).elements()).toHaveLength(0)
     await page.getByRole('textbox', { name: 'URL slug' }).fill('web-app')
     await expect.element(page.getByText(/stop working/)).toBeVisible()
-    await page.getByRole('button', { name: 'Save URL slug' }).click()
+    expect(fake.of('PATCH')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Save details' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    // Only the address: the rest of the form is untouched.
+    // Only the address: the other sections are untouched.
     expect(fake.of('PATCH')[0]?.body).toEqual({ slug: 'web-app' })
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings/general')
   })
@@ -159,7 +163,7 @@ describe('ProjectSettingsPage', () => {
     const fake = api()
     await show()
     await page.getByRole('textbox', { name: 'URL slug' }).fill('Not An Address')
-    await userEvent.keyboard('{Enter}')
+    await page.getByRole('button', { name: 'Save details' }).click()
     await expect.element(page.getByText(/lowercase letters, digits/)).toBeVisible()
     expect(fake.of('PATCH')).toHaveLength(0)
   })
@@ -181,7 +185,7 @@ describe('ProjectSettingsPage', () => {
     expect(queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated).toBe(false)
     await expect.element(page.getByRole('textbox', { name: 'URL slug' })).toHaveValue('web')
     await page.getByRole('textbox', { name: 'URL slug' }).fill('web-app')
-    await userEvent.keyboard('{Enter}')
+    await page.getByRole('button', { name: 'Save details' }).click()
     await expect
       .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
       .toBe(true)
@@ -199,8 +203,8 @@ describe('ProjectSettingsPage', () => {
     )
     const { router } = await show()
     await page.getByRole('textbox', { name: 'URL slug' }).fill('taken')
-    await page.getByRole('button', { name: 'Save URL slug' }).click()
-    // The failure toasts too; the field's own error is the alert (the toast isn't one).
+    await page.getByRole('button', { name: 'Save details' }).click()
+    // The failure toasts too; the section's banner is the alert (the toast isn't one).
     const alert = page.getByRole('alert')
     await expect.element(alert).toMatchTextContent(/is already taken/)
     await expect.poll(() => page.getByText(/is already taken/).elements()).toHaveLength(2)
@@ -208,11 +212,11 @@ describe('ProjectSettingsPage', () => {
     expect(router.state.location.pathname).toBe('/acme/web/settings/general')
   })
 
-  it('saves what was edited, announces it and shows a confirmation', async () => {
+  it('saves each section by itself, with only its own fields', async () => {
     const fake = api({ sitesConfigured: true })
     await show()
-    // Edit only once the form shows the saved values: the form is keyed by them and remounts
-    // (dropping what was typed, and the per-save callbacks) if they arrive after the first edit.
+    // Edit only once the sections show the saved values: each is keyed by them and remounts
+    // (dropping what was typed) if they arrive after the first edit.
     await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
       .element(page.getByRole('checkbox', { name: /Host static sites/ }))
@@ -223,37 +227,91 @@ describe('ProjectSettingsPage', () => {
       .getByRole('checkbox', { name: /^Approve default-branch builds automatically/ })
       .click()
     await page.getByRole('checkbox', { name: /Host static sites/ }).click()
-    // Nothing is sent until Save.
+    // Nothing is sent until a section's Save.
     expect(fake.of('PATCH')).toHaveLength(0)
-    await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect.element(page.getByText('Settings saved.')).toBeVisible()
+    await page.getByRole('button', { name: 'Save comparison' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    expect(fake.of('PATCH')).toEqual([
-      {
-        method: 'PATCH',
-        path: `${API}/settings`,
-        body: {
-          diffThreshold: 0.025,
-          retentionDays: 90,
-          autoApproveDefaultBranch: true,
-          blockMergeOnChanges: true,
-          flakyBlocksMerge: null,
-          staticHostingEnabled: true,
-        },
-      },
-    ])
-    await expect.element(toastNamed('Settings saved')).toBeVisible()
+    expect(fake.of('PATCH')[0]?.body).toEqual({ diffThreshold: 0.025, retentionDays: 90 })
+    await expect.element(toastNamed('Comparison settings saved')).toBeVisible()
+    // The other sections keep what was typed, and their own Save.
+    await expect
+      .element(page.getByRole('checkbox', { name: /^Approve default-branch builds automatically/ }))
+      .toBeChecked()
+    await page.getByRole('button', { name: 'Save merge gate' }).click()
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+    expect(fake.of('PATCH')[1]?.body).toEqual({
+      autoApproveDefaultBranch: true,
+      blockMergeOnChanges: true,
+      flakyBlocksMerge: null,
+    })
+    await page.getByRole('button', { name: 'Save hosted sites' }).click()
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
+    expect(fake.of('PATCH')[2]?.body).toEqual({ staticHostingEnabled: true })
   })
 
-  it('discards what was edited, back to the saved values', async () => {
+  it("shows a section's Save and Discard only while it has changes, one primary at a time", async () => {
+    api()
+    await show()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: /^Save / }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Discard' }).elements()).toHaveLength(0)
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('60')
+    await page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }).click()
+    await expect.element(page.getByRole('button', { name: 'Save comparison' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Save merge gate' })).toBeVisible()
+    // The section edited last has the primary Save.
+    await expect
+      .element(page.getByRole('button', { name: 'Save merge gate' }))
+      .toHaveAttribute('data-variant', 'primary')
+    await expect
+      .element(page.getByRole('button', { name: 'Save comparison' }))
+      .toHaveAttribute('data-variant', 'secondary')
+    expect(
+      page
+        .getByRole('button')
+        .elements()
+        .filter((el) => el.getAttribute('data-variant') === 'primary'),
+    ).toHaveLength(1)
+  })
+
+  it("keeps a section's Save at the bottom of the scrolling panel while the section is in view", async () => {
+    api()
+    await page.viewport(1000, 500)
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Diff threshold' }).fill('5')
+    const save = page.getByRole('button', { name: 'Save comparison' })
+    await expect.element(save).toBeVisible()
+    // Scroll to the top of the section: the bar rests under the section if it is off-screen, or sticks in view.
+    page
+      .getByRole('textbox', { name: 'Diff threshold' })
+      .element()
+      .scrollIntoView({ block: 'start' })
+    await expect
+      .poll(() => {
+        const rect = save.element().getBoundingClientRect()
+        return rect.top >= 0 && rect.bottom <= window.innerHeight
+      })
+      .toBe(true)
+  })
+
+  it('discards what was edited in a section, back to its saved values', async () => {
     const fake = api()
     await show()
     await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
     await page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }).click()
-    await page.getByRole('button', { name: 'Discard' }).click()
+    // Discard in one section leaves the other's edit.
+    const comparison = page.getByRole('form', { name: 'Comparison' })
+    await comparison.getByRole('button', { name: 'Discard' }).click()
     await expect
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('30')
+    await expect
+      .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
+      .not.toBeChecked()
+    await page.getByRole('button', { name: 'Discard' }).click()
     await expect
       .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
@@ -261,46 +319,41 @@ describe('ProjectSettingsPage', () => {
   })
 
   describe('display settings', () => {
-    it('shows the picture and the three fields on one row, under one section', async () => {
+    it('shows the picture and the name on one row, under Identity', async () => {
       api()
       await show()
-      await expect.element(heading('Details')).toBeVisible()
+      await expect.element(heading('Identity')).toBeVisible()
       expect(page.getByText('Name and picture').elements()).toHaveLength(0)
-      expect(heading('Address and branch').elements()).toHaveLength(0)
       const avatar = page.getByRole('button', { name: 'Change icon and color' }).element()
-      const top = (name: string) => field(name).element().getBoundingClientRect().top
       await page.viewport(1200, 800)
       await expect.element(field('Display name')).toBeVisible()
-      for (const name of ['Display name', 'URL slug', 'Default branch']) {
-        expect(Math.abs(top(name) - top('Display name'))).toBeLessThan(8)
-        expect(field(name).element().getBoundingClientRect().left).toBeGreaterThan(
-          avatar.getBoundingClientRect().right - 1,
-        )
-      }
+      const box = field('Display name').element().getBoundingClientRect()
+      expect(box.left).toBeGreaterThan(avatar.getBoundingClientRect().right - 1)
     })
 
-    it('shows the ✓ only while a field differs from what is saved', async () => {
+    it('has no ✓ for the name: it saves when left, with no Save form around it', async () => {
       api()
       await show()
-      const check = page.getByRole('button', { name: 'Save Display name' })
       await expect.element(field('Display name')).toHaveValue('Web App')
-      expect(check.elements()).toHaveLength(0)
       await field('Display name').fill('Web')
-      await expect.element(check).toBeVisible()
-      await field('Display name').fill('Web App')
-      await expect.element(check).not.toBeInTheDocument()
+      expect(page.getByRole('button', { name: 'Save Display name' }).elements()).toHaveLength(0)
+      expect(field('Display name').element().closest('form')).toBeNull()
     })
 
-    it('saves the name with the ✓, only the name, and the form stays untouched', async () => {
+    it('saves the name when the field is left, only the name, with Undo in the toast', async () => {
       const fake = api()
       await show()
       await expect.element(field('Display name')).toHaveValue('Web App')
       await field('Display name').fill('Web')
-      await page.getByRole('button', { name: 'Save Display name' }).click()
+      await field('Diff threshold').click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-      expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
       expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
-      await expect.element(toastNamed('Project name saved')).toBeInTheDocument()
+      const toast = toastNamed('Renamed the project to Web')
+      await expect.element(toast).toBeInTheDocument()
+      await expect.element(toast.getByRole('button', { name: 'Undo' })).toBeVisible()
+      await toast.getByRole('button', { name: 'Undo' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      expect(fake.of('PATCH')[1]?.body).toEqual({ name: 'Web App' })
     })
 
     it('saves on Enter, and shows why it could not be saved', async () => {
@@ -314,27 +367,26 @@ describe('ProjectSettingsPage', () => {
       await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
     })
 
-    it('puts the saved text back on Escape and sends nothing', async () => {
+    it('puts the saved text back on Escape and sends nothing, even when the field is then left', async () => {
       const fake = api()
       await show()
       await field('Display name').fill('Web')
       await userEvent.keyboard('{Escape}')
+      await field('Diff threshold').click()
       await expect.element(field('Display name')).toHaveValue('Web App')
-      expect(page.getByRole('button', { name: 'Save Display name' }).elements()).toHaveLength(0)
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
-    it('does nothing when a field is left half edited', async () => {
+    it('refuses an empty name on the field, and sends nothing', async () => {
       const fake = api()
       await show()
-      await field('Display name').fill('Web')
+      await field('Display name').fill('  ')
       await field('Diff threshold').click()
-      await expect.element(field('Display name')).toHaveValue('Web')
-      await expect.element(page.getByRole('button', { name: 'Save Display name' })).toBeVisible()
+      await expect.element(page.getByText('Enter a name')).toBeVisible()
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
-    it('does not reset what is typed in the form when a field is saved', async () => {
+    it('does not reset what is typed in another section when the name is saved', async () => {
       let saved = settings
       fakeApi({
         [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
@@ -346,42 +398,40 @@ describe('ProjectSettingsPage', () => {
       })
       await show()
       await field('Keep builds for (days)').fill('90')
-      await field('Default branch').fill('develop')
+      await field('Display name').fill('Web')
       await userEvent.keyboard('{Enter}')
-      await expect.element(field('Default branch')).toHaveValue('develop')
-      await expect.element(toastNamed('Default branch saved')).toBeInTheDocument()
+      await expect.element(toastNamed('Renamed the project to Web')).toBeInTheDocument()
       await expect.element(field('Keep builds for (days)')).toHaveValue('90')
     })
 
-    it('saves the default branch by itself, with its own PATCH', async () => {
+    it('saves the default branch with Save in Details, with its own PATCH and no other field', async () => {
       const fake = api()
       await show()
       await expect.element(page.getByText('Its approved builds are the baselines.')).toBeVisible()
       await field('Default branch').fill('develop')
-      await page.getByRole('button', { name: 'Save Default branch' }).click()
+      await page.getByRole('button', { name: 'Save details' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toEqual({ defaultBranch: 'develop' })
-      // The big form is still clean.
-      await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+      await expect.element(toastNamed('Details saved')).toBeVisible()
     })
 
     it('refuses an empty branch on the field, and sends nothing', async () => {
       const fake = api()
       await show()
       await field('Default branch').fill('  ')
-      await userEvent.keyboard('{Enter}')
+      await page.getByRole('button', { name: 'Save details' }).click()
       await expect.element(page.getByText('Enter a branch name')).toBeVisible()
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
-    it('leaves the Save form with no address or branch of its own', async () => {
+    it('keeps the address and branch in the Details section, not in Identity', async () => {
       api()
       await show()
       await expect.element(field('Keep builds for (days)')).toBeVisible()
-      const form = document.querySelector('form')
-      expect(form?.querySelector('input[name="slug"]')).toBeNull()
-      expect(form?.querySelector('input[name="defaultBranch"]')).toBeNull()
-      expect(form?.querySelector('input[name="name"]')).toBeNull()
+      const details = page.getByRole('region', { name: 'Details' }).element()
+      expect(details.querySelector('input[name="slug"]')).not.toBeNull()
+      expect(details.querySelector('input[name="defaultBranch"]')).not.toBeNull()
+      expect(details.querySelector('input[name="name"]')).toBeNull()
     })
   })
 
@@ -390,7 +440,7 @@ describe('ProjectSettingsPage', () => {
       const fake = api()
       await show()
       await page.getByRole('textbox', { name: 'Diff threshold' }).fill('150')
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save comparison' }).click()
       await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
       await page.getByRole('textbox', { name: 'Diff threshold' }).fill('-1')
       await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
@@ -410,7 +460,7 @@ describe('ProjectSettingsPage', () => {
         .element(page.getByText('Enter a whole number of days from 1 to 3650'))
         .toBeVisible()
       await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('0')
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save comparison' }).click()
       await expect
         .element(page.getByText('Enter a whole number of days from 1 to 3650'))
         .toBeVisible()
@@ -428,7 +478,7 @@ describe('ProjectSettingsPage', () => {
       })
       await show()
       await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save comparison' }).click()
       await expect.element(page.getByText('Retention is capped at 3650')).toBeVisible()
       expect(page.getByText('Invalid settings').elements()).toHaveLength(0)
     })
@@ -438,28 +488,14 @@ describe('ProjectSettingsPage', () => {
       fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Something is off' } })
       await show()
       await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save comparison' }).click()
       await expect.element(page.getByRole('alert')).toHaveTextContent('Something is off')
     })
   })
 
-  it('keeps Save and Discard disabled until something changes', async () => {
-    fakeApi({ [`GET ${API}/settings`]: { body: response() } })
-    await show()
-    const days = page.getByRole('textbox', { name: 'Keep builds for (days)' })
-    await expect.element(days).toHaveValue('30')
-    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
-    await expect.element(page.getByRole('button', { name: 'Discard' })).toBeDisabled()
-    await days.fill('60')
-    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeEnabled()
-    await expect.element(page.getByRole('button', { name: 'Discard' })).toBeEnabled()
-    await page.getByRole('button', { name: 'Discard' }).click()
-    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
-  })
-
   it('still confirms the save when the server answers with the new values', async () => {
-    // A real server returns what was saved, so the refetch changes the form's key and remounts
-    // it: the confirmation must survive that.
+    // A real server returns what was saved, so the refetch changes the section's key and remounts
+    // it: the confirmation is a toast, which survives that.
     let saved = settings
     fakeApi({
       [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
@@ -480,12 +516,15 @@ describe('ProjectSettingsPage', () => {
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('30')
     await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('60')
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('button', { name: 'Save comparison' }).click()
     await expect
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('60')
-    await expect.element(page.getByText('Settings saved.')).toBeVisible()
-    await expect.element(toastNamed('Settings saved')).toBeVisible()
+    await expect.element(toastNamed('Comparison settings saved')).toBeVisible()
+    // Saved: the section is clean again, so its Save is gone.
+    await expect
+      .element(page.getByRole('button', { name: 'Save comparison' }))
+      .not.toBeInTheDocument()
   })
 
   describe('flaky screenshots block merges', () => {
@@ -512,13 +551,13 @@ describe('ProjectSettingsPage', () => {
       await show()
       await control().click()
       await page.getByRole('option', { name: 'Off' }).click()
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save merge gate' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: false })
 
       await control().click()
       await page.getByRole('option', { name: 'On', exact: true }).click()
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save merge gate' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
       expect(fake.of('PATCH')[1]?.body).toMatchObject({ flakyBlocksMerge: true })
     })
@@ -528,7 +567,7 @@ describe('ProjectSettingsPage', () => {
       await show()
       await control().click()
       await page.getByRole('option', { name: /^Inherit from workspace/ }).click()
-      await page.getByRole('button', { name: 'Save changes' }).click()
+      await page.getByRole('button', { name: 'Save merge gate' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: null })
     })
@@ -542,14 +581,12 @@ describe('ProjectSettingsPage', () => {
     })
     await show()
     await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
-    await page.getByRole('button', { name: 'Save changes' }).click()
+    await page.getByRole('button', { name: 'Save comparison' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
     // The field keeps its own message; the toast names the action as a whole.
     await expect
       .element(toastNamed("Couldn't save settings: Default branch is required"))
       .toBeVisible()
-    expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
-    expect(page.getByRole('dialog', { name: 'Settings saved' }).elements()).toHaveLength(0)
   })
 
   it("sends members to the project's settings hub, inside settings, instead of showing the settings", async () => {
@@ -718,7 +755,6 @@ describe('ProjectSettingsPage', () => {
       expect(radios().filter((el) => el.tabIndex === 0)).toHaveLength(1)
       group.getByRole('radio', { name: 'No icon' }).element().focus()
       await userEvent.keyboard('{ArrowRight}')
-      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(document.activeElement).toBe(radios()[1])
       // Down goes to the cell below, the one at the same x a row further.
       const here = radios()[1]!.getBoundingClientRect()
@@ -727,7 +763,11 @@ describe('ProjectSettingsPage', () => {
         .poll(() => Math.round(document.activeElement?.getBoundingClientRect().left ?? 0))
         .toBe(Math.round(here.left))
       expect(document.activeElement?.getBoundingClientRect().top).toBeGreaterThan(here.top)
-      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      // Each step chooses a cell, but the save waits for the arrowing to pause: one PATCH, not two.
+      expect(fake.of('PATCH')).toHaveLength(0)
+      await expect.poll(() => fake.of('PATCH'), { timeout: 3000 }).toHaveLength(1)
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      expect(fake.of('PATCH')).toHaveLength(1)
     })
 
     it('loads the next icons as the grid scrolls, drawing only the rows in view', async () => {

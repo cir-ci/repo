@@ -111,7 +111,6 @@ describe('settings is a closed area', () => {
     const navFiles = [
       'features/sidebar/SettingsNav.tsx',
       'features/workspace-settings/WorkspaceSettingsHubPage.tsx',
-      'features/workspace-settings/WorkspaceBackLink.tsx',
       'features/workspace-settings/WorkspaceSettingsEntry.tsx',
       'features/instance/WorkspacesPage.tsx',
     ]

@@ -84,13 +84,6 @@ const rows = (group: string) =>
     .elements()
     .map((el) => el.querySelector('span span')?.textContent)
 
-/** The "‹ Workspaces" button in the page's column (the breadcrumb has a link of the same name). */
-const backLink = () =>
-  page
-    .getByRole('link', { name: 'Workspaces' })
-    .elements()
-    .find((el) => !el.closest('nav'))
-
 const rowOf = (name: string) => page.getByRole('link', { name: new RegExp(`^${name}`) })
 
 describe('WorkspaceSettingsHubPage', () => {
@@ -101,15 +94,18 @@ describe('WorkspaceSettingsHubPage', () => {
     await expect.element(page.getByText('6 members · 3 projects')).toBeVisible()
   })
 
-  it('goes back to the All workspaces list with "‹ Workspaces", and names it in its breadcrumb', async () => {
+  it('names the All workspaces list in its breadcrumb and has no in-page way back', async () => {
     api()
-    const { router } = await show()
+    await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
     await expect.element(crumbs.getByText('Instance')).toBeVisible()
     await expect.element(crumbs.getByRole('link', { name: 'Workspaces' })).toBeVisible()
-    await expect.poll(backLink).not.toBeUndefined()
-    await userEvent.click(backLink()!)
-    await expect.poll(() => router.state.location.pathname).toBe('/instance/workspaces')
+    expect(
+      page
+        .getByRole('link', { name: 'Workspaces' })
+        .elements()
+        .filter((el) => !el.closest('nav')),
+    ).toHaveLength(0)
   })
 
   it('groups one row for each page: Workspace, Access, Connections and Data', async () => {
@@ -191,13 +187,13 @@ describe('WorkspaceSettingsHubPage', () => {
     api({ member: false })
     await show()
     await expect.element(page.getByText("You're not a member of this workspace")).toBeVisible()
-    // Only the way back and the breadcrumb (Instance, Workspaces): no page rows.
+    // Only the breadcrumb (Instance, Workspaces): no page rows, no in-page way back.
     expect(
       page
         .getByRole('link')
         .elements()
         .map((el) => el.textContent),
-    ).toEqual(['Instance', 'Workspaces', 'Workspaces'])
+    ).toEqual(['Instance', 'Workspaces'])
   })
 
   it('offers Join workspace to an instance admin who is not in it; joining toasts and shows the rows', async () => {

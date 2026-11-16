@@ -84,7 +84,6 @@ export namespace Shortcut {
 
 const MODE_NAME: Record<ViewMode, string> = {
   side: 'Side by side',
-  overlay: 'Overlay',
   diff: 'Diff',
   slider: 'Slider',
   design: 'Design',
@@ -372,14 +371,15 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: '[',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Overlay: step the diff layer down or up by 10%, with [ and ]',
+    description:
+      'Diff: show less or more of this build under the changed pixels, by 10% (with [ and ])',
     action: { type: 'diffLayer', delta: -10 },
   },
   {
     key: ']',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Overlay: more of the diff layer',
+    description: 'Diff: show more of this build',
     action: { type: 'diffLayer', delta: 10 },
     listed: false,
   },
@@ -388,7 +388,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'alt',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Overlay: hold to peek at the baseline',
+    description: 'Diff: hold to peek at this build',
     action: { type: 'peekBaseline' },
   },
 ]
@@ -464,6 +464,10 @@ function altToken(
 ): string | undefined {
   if (event.metaKey || event.ctrlKey) return undefined
   const code = event.code ?? ''
+  // `[` and `]` are the keys that type them, with or without Option (some layouts need it), or the
+  // physical bracket keys (Option changes the character they type).
+  if (event.key === '[' || code === 'BracketLeft') return '['
+  if (event.key === ']' || code === 'BracketRight') return ']'
   const key = /^Key[A-Z]$/.test(code)
     ? code.slice(3).toLowerCase()
     : /^Digit[0-9]$/.test(code)
@@ -488,9 +492,12 @@ export function keyToken(
   return [mod ? 'mod' : '', shift ? 'shift' : '', key].filter(Boolean).join('+')
 }
 
-/** Anything a person types into: fields, selects, any contenteditable and the text-entry roles. */
+/**
+ * Anything a person types into: fields, selects, any contenteditable and the text-entry roles. A
+ * range input (a slider's thumb) takes arrow keys only, so the shortcuts stay live while it has focus.
+ */
 const EDITABLE =
-  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
+  'input:not([type="range"]), textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
 
 /** Whether typing here edits text, so every plain key (and every letter) is the writer's. */
 export function isEditable(el: Element): boolean {
@@ -504,8 +511,9 @@ export function isEditable(el: Element): boolean {
 export function isHandledElsewhere(
   target: EventTarget | null,
   event: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey' | 'altKey'>,
+  isBracket = false,
 ): boolean {
-  if (event.metaKey || event.ctrlKey || event.altKey) return true
+  if (event.metaKey || event.ctrlKey || (event.altKey && !isBracket)) return true
   const where =
     typeof Element !== 'undefined' && target instanceof Element
       ? target
@@ -549,7 +557,11 @@ export function handleKeydown(event: KeyboardEvent, now = Date.now()): void {
     if (!installed || event.isComposing || (where && isEditable(where))) return
   } else if (!token.startsWith('mod+')) {
     // A shortcut with ⌘/Ctrl is meant to work anywhere; the rest leave typing and dialogs alone.
-    if (isHandledElsewhere(event.target, event) || event.isComposing) return
+    if (
+      isHandledElsewhere(event.target, event, token === '[' || token === ']') ||
+      event.isComposing
+    )
+      return
     // An open comment or reply box with unsent text keeps every plain key, wherever focus is.
     if (useShortcutStore.getState().drafting.size > 0) return
   }

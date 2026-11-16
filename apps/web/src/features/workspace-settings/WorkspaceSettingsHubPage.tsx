@@ -19,7 +19,6 @@ import type { ReactNode } from 'react'
 import { useJoinWorkspace, workspacesQuery } from '#features/instance/api/admin.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { workspaceAuthQuery } from '#features/members/api.ts'
-import { SettingsBackLink } from '#features/project-settings/SettingsBackLink.tsx'
 import { instanceCrumb, workspacesCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
@@ -116,7 +115,6 @@ export function WorkspaceSettingsHubPage({ workspace }: WorkspaceSettingsHubPage
       {found ? (
         <>
           <div className={styles.head}>
-            <SettingsBackLink label="Workspaces" link={{ to: '/instance/workspaces' }} />
             <div className={styles.identity}>
               <Avatar
                 type="workspace"

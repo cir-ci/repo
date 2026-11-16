@@ -18,7 +18,6 @@ import {
   linePath,
   outcomeSentence,
   outcomeStacks,
-  OUTCOME_LABEL,
   processingLines,
   reviewBars,
   reviewSummary,
@@ -263,7 +262,6 @@ export function OutcomesCard({ data }: { data: Insights.Report }) {
                     className={styles.segment}
                     data-key={s.key}
                     style={{ height: `${s.height}%` }}
-                    aria-label={`${s.value} ${OUTCOME_LABEL[s.key].toLowerCase()}`}
                   />
                 ))}
               </div>

@@ -11,6 +11,8 @@ import {
   needsDecision,
   neighbour,
   nextToReview,
+  decisionText,
+  groupDecisions,
   openReviewRequests,
   orderShots,
   reviewProgress,
@@ -287,5 +289,49 @@ describe('baselineHow', () => {
     expect(baselineHow({ baselineSource: 'cli', ancestryStatus: 'truncated' }, 'main')).toBe(
       'where this branch started, as far as its git history reaches',
     )
+  })
+})
+
+const approved = (name: string, at: string, by: string | null = 'Olivia Owner') => ({
+  decision: 'approved' as const,
+  by,
+  automatic: by === null,
+  reason: null,
+  at,
+  name,
+})
+
+describe('groupDecisions', () => {
+  it('collapses identical decisions into one with a count, the newest time and the names', () => {
+    const groups = groupDecisions([
+      approved('a', '2026-01-01T10:00:00Z'),
+      approved('b', '2026-01-01T12:00:00Z'),
+      approved('c', '2026-01-01T11:00:00Z'),
+    ])
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({
+      count: 3,
+      at: '2026-01-01T12:00:00Z',
+      names: ['a', 'b', 'c'],
+    })
+  })
+
+  it('keeps apart different reviewers, outcomes and reasons', () => {
+    const groups = groupDecisions([
+      approved('a', '2026-01-01T10:00:00Z'),
+      approved('b', '2026-01-01T10:00:00Z', 'Maya Levi'),
+      { ...approved('c', '2026-01-01T10:00:00Z'), decision: 'rejected', reason: 'Off by 2px' },
+    ])
+    expect(groups.map((g) => g.count)).toEqual([1, 1, 1])
+  })
+
+  it('words a decision without a count', () => {
+    expect(decisionText({ decision: 'approved', by: 'Olivia Owner', automatic: false })).toBe(
+      'Approved by Olivia Owner',
+    )
+    expect(decisionText({ decision: 'approved', by: null, automatic: true })).toBe(
+      'Approved automatically',
+    )
+    expect(decisionText({ decision: 'rejected', by: null, automatic: false })).toBe('Rejected')
   })
 })

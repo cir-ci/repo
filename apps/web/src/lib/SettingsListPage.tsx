@@ -20,7 +20,6 @@ export function SettingsListPage({
   onSearch,
   count,
   empty,
-  back,
   children,
   ...frame
 }: SettingsListPage.Props) {
@@ -36,7 +35,6 @@ export function SettingsListPage({
         />
       }
     >
-      {back}
       {count === 0 && search.trim() ? (
         <NoResults noun={singular} query={search} onClear={() => onSearch('')} size="section" />
       ) : count === 0 ? (
@@ -63,8 +61,6 @@ export namespace SettingsListPage {
     count: number
     /** Shown when there are no rows and nothing was typed. */
     empty: ReactNode
-    /** The way up, above the list. */
-    back?: ReactNode
     children: ReactNode
   }
 }

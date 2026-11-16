@@ -12,6 +12,10 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+
+  /* On a phone the rows' meta line (branch, commit, author, date) would size the column past the
+   * screen; capped, the line truncates with an ellipsis instead. */
+  max-width: 100%;
 }
 
 .list {

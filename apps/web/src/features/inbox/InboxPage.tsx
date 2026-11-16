@@ -26,7 +26,7 @@ import { FindField } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { Age } from '#lib/RelativeTime.tsx'
 import {
   copyLinkItem,
   menuEntries,
@@ -280,7 +280,10 @@ export function InboxPage() {
                   ) : (
                     <>
                       <span role="status" className={styles.count}>
-                        {inboxCount(items)}
+                        {inboxCount(
+                          items,
+                          tab !== 'snoozed' && !find.trim() ? data?.unread : undefined,
+                        )}
                       </span>
                       {failed ? (
                         <Text tone="failed" role="alert">
@@ -411,7 +414,7 @@ function Row({
       trailing={
         <span className={styles.trailing}>
           <Text variant="small" tone="secondary">
-            <RelativeTime iso={item.createdAt} />
+            <Age iso={item.createdAt} />
           </Text>
         </span>
       }

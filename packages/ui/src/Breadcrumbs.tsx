@@ -139,12 +139,34 @@ function useCollapse(items: ReadonlyArray<Breadcrumbs.Item>): {
     }
   }, [])
 
+  // The nav never gets narrower than the current page's name and the "…" before it (a header that
+  // is short of room squeezes its neighbours, not the title down to "B…").
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    const current = nav?.querySelector<HTMLElement>('[data-current] > [aria-current]')
+    if (!nav || !current) return
+    // The "…" button, a chevron and its margins.
+    const more = items.length > 1 ? 24 + 12 + 16 : 0
+    nav.style.minWidth = `${Math.ceil(current.scrollWidth) + more}px`
+  })
+
   useLayoutEffect(() => {
     const list = listRef.current
-    if (!list || hidden >= order.length) return
-    const current = list.querySelector<HTMLElement>('[data-current] > [aria-current]')
-    const cut = current ? current.scrollWidth > current.clientWidth : false
-    if (list.scrollWidth > list.clientWidth || cut) setState({ signature, hidden: hidden + 1 })
+    if (!list || hidden >= order.length) return undefined
+    const check = () => {
+      const current = list.querySelector<HTMLElement>('[data-current] > [aria-current]')
+      const cut = current ? current.scrollWidth > current.clientWidth : false
+      if (list.scrollWidth > list.clientWidth || cut) setState({ signature, hidden: hidden + 1 })
+    }
+    check()
+    // Neighbours that settle later (a header's buttons wrapping) change the nav's width after this ran.
+    const nav = navRef.current
+    if (!nav || typeof ResizeObserver === 'undefined') return undefined
+    const resize = new ResizeObserver(check)
+    resize.observe(nav)
+    return () => {
+      resize.disconnect()
+    }
   }, [hidden, signature, order.length])
 
   return { navRef, listRef, collapsed: order.slice(0, hidden) }

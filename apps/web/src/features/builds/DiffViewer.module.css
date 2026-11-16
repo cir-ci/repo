@@ -206,6 +206,18 @@
   line-height: 0;
 }
 
+/* Fit fills the viewer's width, so a small screenshot is scaled up (it was held at its real size
+   before: a 400px screenshot sat in a 1100px viewer). Zoomed images keep their set width. */
+.ground[data-fit] .frame,
+.ground[data-fit] .stage {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ground[data-fit] .image {
+  width: 100%;
+}
+
 /* Over the image itself, inside the frame's 1px border. */
 .inset {
   position: absolute;

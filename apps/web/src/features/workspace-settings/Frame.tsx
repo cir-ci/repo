@@ -3,8 +3,6 @@ import type { ReactNode } from 'react'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 
-import { WorkspaceBackLink } from './WorkspaceBackLink.tsx'
-
 /**
  * The header and the one centred column every settings page here shares, with its loading and
  * error states. A workspace page passes `workspace` (display name and slug) and gets `Workspace /
@@ -22,7 +20,6 @@ export function Frame({ crumbs, workspace, page, children, ...rest }: Frame.Prop
       title={page ?? crumbs?.at(-1) ?? ''}
       {...rest}
     >
-      {workspace ? <WorkspaceBackLink workspace={workspace.slug} name={workspace.name} /> : null}
       {children}
     </PageFrame>
   )

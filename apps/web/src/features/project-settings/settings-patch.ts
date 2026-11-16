@@ -33,9 +33,10 @@ export function branchProblem(value: string): string | null {
  * What is wrong with the form before it is sent, by field: the diff threshold is a percentage from
  * 0 to 100, retention a whole number of days from 1 to 3650.
  */
-export function settingsProblems(
-  fields: Pick<SettingsFields, 'diffThresholdPercent' | 'retentionDays'>,
-): Partial<Record<SettingsField, string>> {
+export function settingsProblems(fields: {
+  diffThresholdPercent: string
+  retentionDays: string
+}): Partial<Record<SettingsField, string>> {
   const problems: Partial<Record<SettingsField, string>> = {}
   const threshold = fields.diffThresholdPercent.trim()
   if (
@@ -53,25 +54,36 @@ export function settingsProblems(
   return problems
 }
 
-/** What the General form holds when it is sent (the name, address and default branch save by themselves, elsewhere). */
-export interface SettingsFields {
-  /** As typed, in percent. */
-  diffThresholdPercent: string
-  retentionDays: string
-  autoApprove: boolean
-  blockMerge: boolean
-  flaky: FlakyChoice
-  hosting: boolean
-}
-
-/** The body of `PATCH …/settings`; the hosting setting is left out when the instance can't host. */
-export function buildSettingsPatch(fields: SettingsFields, sitesConfigured: boolean) {
+/** The Comparison section's PATCH body: the threshold as a share, retention in days. */
+export function comparisonPatch(fields: { diffThresholdPercent: string; retentionDays: string }) {
   return {
     diffThreshold: Number(fields.diffThresholdPercent) / 100,
     retentionDays: Number(fields.retentionDays),
+  }
+}
+
+/** The Merge gate section's PATCH body; the flaky choice "inherit" is null. */
+export function mergeGatePatch(fields: {
+  autoApprove: boolean
+  blockMerge: boolean
+  flaky: FlakyChoice
+}) {
+  return {
     autoApproveDefaultBranch: fields.autoApprove,
     blockMergeOnChanges: fields.blockMerge,
     flakyBlocksMerge: valueOf(fields.flaky),
-    ...(sitesConfigured ? { staticHostingEnabled: fields.hosting } : {}),
+  }
+}
+
+/** The Details section's PATCH body: only what changed, the address trimmed. */
+export function detailsPatch(
+  fields: { slug: string; defaultBranch: string },
+  saved: { slug: string; defaultBranch: string },
+) {
+  const slug = fields.slug.trim()
+  const defaultBranch = fields.defaultBranch.trim()
+  return {
+    ...(slug !== saved.slug ? { slug } : {}),
+    ...(defaultBranch !== saved.defaultBranch ? { defaultBranch } : {}),
   }
 }

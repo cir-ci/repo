@@ -125,7 +125,6 @@ export function InboxPane({
         {item.alsoInReviews ? (
           <div className={styles.also}>
             <Badge shape="tag">Also in Reviews</Badge>
-            <span>Approving or rejecting here clears it there too.</span>
           </div>
         ) : null}
         {note ? (

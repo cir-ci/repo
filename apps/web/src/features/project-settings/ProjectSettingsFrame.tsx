@@ -22,8 +22,8 @@ import styles from './ProjectSettingsHub.module.css'
 
 /**
  * What every project settings page shares: the breadcrumb (Workspace, Settings, Projects, the project, the
- * page: see `lib/crumbs.ts`), one column that starts with a way back ("Projects" on the hub, the
- * project's name on a page), the project's settings loaded once (the other pages read the same cache),
+ * page: see `lib/crumbs.ts`), one column (settings has one way back, the sidebar's; a page below
+ * another settings page, `back`, is the one in-page link), the project's settings loaded once (the other pages read the same cache),
  * its loading and error states, and, for the pages only owners and admins may use, a redirect to
  * the project's settings hub for everyone else (settings is a closed area: never out to the app)
  * (`managersOnly={false}` keeps a page that members may read).
@@ -77,23 +77,10 @@ export function ProjectSettingsFrame({
     >
       {data ? (
         <>
-          <div className={styles.head}>
-            {page ? (
-              <SettingsBackLink
-                label={back?.label ?? projectName}
-                link={
-                  back?.link ?? {
-                    to: '/$workspace/$project/settings',
-                    params: { workspace, project },
-                  }
-                }
-              />
-            ) : (
-              <>
-                <SettingsBackLink
-                  label="Projects"
-                  link={{ to: '/workspaces/$workspace/settings/projects', params: { workspace } }}
-                />
+          {back || !page ? (
+            <div className={styles.head}>
+              {back ? <SettingsBackLink label={back.label} link={back.link} /> : null}
+              {page ? null : (
                 <div className={styles.identity}>
                   <Avatar
                     type="project"
@@ -113,9 +100,9 @@ export function ProjectSettingsFrame({
                     ) : null}
                   </div>
                 </div>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          ) : null}
           {children(data, projectName)}
         </>
       ) : null}
@@ -133,7 +120,7 @@ export namespace ProjectSettingsFrame {
     width?: 'default' | 'wide'
     /** Default: people who can't change the project's settings are sent to its settings hub. `false` for a page members may read. */
     managersOnly?: boolean
-    /** A page one level below another settings page (an ignore region's screenshot) goes back to that page instead of the hub. */
+    /** A page one level below another settings page (an ignore region's screenshot) links up to that page; other pages have no in-page link. */
     back?: { label: string; link: NavigateOptions }
     /** The page's find field and main button, in the header bar. */
     find?: ReactNode

@@ -42,6 +42,25 @@ describe('returnTarget', () => {
   })
 })
 
+describe('a Sites page with no sites', () => {
+  const sized = [
+    { slug: 'web', name: 'Web app', siteCount: 0 },
+    { slug: 'docs', name: 'Docs', siteCount: 2 },
+  ]
+
+  it('is not a page to remember: Sites is not in the sidebar then', () => {
+    expect(isAppPage('/acme/web/sites', sized)).toBe(false)
+    expect(isAppPage('/acme/docs/sites', sized)).toBe(true)
+    // Until the projects are known there is nothing to say against it.
+    expect(isAppPage('/acme/web/sites')).toBe(true)
+  })
+
+  it('goes back to the project instead when it was remembered before its sites went', () => {
+    expect(returnTarget('/acme/web/sites', sized)).toEqual({ path: '/acme/web', label: 'Web app' })
+    expect(returnTarget('/acme/docs/sites', sized).label).toBe('Sites')
+  })
+})
+
 describe('isAppPage', () => {
   it('is false for settings and the pages outside the frame', () => {
     expect(isAppPage('/acme/web')).toBe(true)

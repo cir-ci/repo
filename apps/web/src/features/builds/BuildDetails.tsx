@@ -107,7 +107,12 @@ export function BuildSection({ data }: BuildSection.Props) {
               </Text>
             </>
           ) : (
-            'Nothing yet'
+            <>
+              None
+              <Text variant="small" tone="secondary" as="p">
+                No earlier build was approved, so there was nothing to compare with
+              </Text>
+            </>
           )}
         </Text>
       </dl>
@@ -123,6 +128,9 @@ export namespace BuildSection {
 
 /** Who has an open review request, with who asked and when; "Assigned automatically" when no one did. */
 export function PeopleSection({ requests }: PeopleSection.Props) {
+  const asked = requests.filter((r) => r.by)
+  const automatic = requests.filter((r) => !r.by)
+  const first = automatic[0]
   return (
     <section aria-label="People">
       <Text variant="micro" tone="tertiary">
@@ -134,25 +142,31 @@ export function PeopleSection({ requests }: PeopleSection.Props) {
         </Text>
       ) : (
         <ul className={styles.list}>
-          {requests.map((r) => (
+          {asked.map((r) => (
             <li key={r.person.id} className={styles.event}>
               <Avatar type="user" {...r.person} size={20} />
               <div className={styles.eventBody}>
                 <Text>{r.person.name}</Text>
                 <Text variant="small" tone="secondary">
-                  {r.by ? (
-                    <>
-                      Asked by {r.by.name} <RelativeTime iso={r.at} />
-                    </>
-                  ) : (
-                    <>
-                      Assigned automatically <RelativeTime iso={r.at} />
-                    </>
-                  )}
+                  Asked by {r.by?.name} <RelativeTime iso={r.at} />
                 </Text>
               </div>
             </li>
           ))}
+          {automatic.map((r) => (
+            <li key={r.person.id} className={styles.event}>
+              <Avatar type="user" {...r.person} size={20} />
+              <div className={styles.eventBody}>
+                <Text>{r.person.name}</Text>
+              </div>
+            </li>
+          ))}
+          {first ? (
+            // Said once for everyone it applies to, not under each name.
+            <Text variant="small" tone="secondary" as="li">
+              Assigned automatically <RelativeTime iso={first.at} />
+            </Text>
+          ) : null}
         </ul>
       )}
     </section>

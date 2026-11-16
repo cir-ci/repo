@@ -32,7 +32,7 @@ async function hasText(locator: Locator, pattern: RegExp) {
 
 // The first: a toast's title is a level-2 heading too, after the viewer's in the page. Without
 // .first() an open toast makes this match two, and each check waits for the toast to close (6s).
-const viewerTitle = () => page.getByRole('heading', { level: 2 }).first()
+const viewerTitle = () => page.getByRole('heading', { level: 2 }).last()
 
 const filed = (snapshotName: string | null) => ({
   id: `i-${snapshotName}`,
@@ -460,15 +460,17 @@ describe('view modes', () => {
   it('switches mode through the search params', async () => {
     fakeBuildApi(detail())
     const { router } = await renderBuild()
-    await page.getByRole('button', { name: 'Overlay' }).click()
-    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'overlay' })
+    expect(page.getByRole('button', { name: 'Overlay' }).elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Diff', exact: true }).click()
+    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'diff' })
+    // The changed pixels with this build under them, and the pill that fades one into the other.
     await expect
       .element(page.getByRole('img', { name: 'This build: checkout / payment' }))
       .toBeVisible()
-    await expect.element(page.getByRole('slider', { name: 'Diff layer' })).toBeVisible()
-    await page.getByRole('button', { name: 'Diff', exact: true }).click()
-    await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'diff' })
-    await expect.element(page.getByRole('img', { name: /^Changed pixels in red/ })).toBeVisible()
+    await expect
+      .element(page.getByRole('img', { name: 'Changed pixels: checkout / payment' }))
+      .toBeVisible()
+    await expect.element(page.getByRole('slider', { name: 'This build' })).toBeVisible()
     await page.getByRole('button', { name: 'Slider' }).click()
     await expect.poll(() => router.state.location.search).toMatchObject({ mode: 'slider' })
     await expect
@@ -580,56 +582,89 @@ const layerOf = () => page.getByRole('img', { name: 'Changed pixels: checkout / 
 
 async function opened() {
   fakeBuildApi(detail())
-  await renderBuild('/acme/web-app/builds/7?mode=overlay')
+  await renderBuild('/acme/web-app/builds/7?mode=diff')
   await expect.element(layerOf()).toBeVisible()
 }
 
-describe('overlay diff layer', () => {
-  it('keeps the opacity slider on the image, not in the toolbar', async () => {
+describe('diff mode: this build under the changed pixels', () => {
+  it('keeps the slider on the image, named, not in the toolbar', async () => {
     await opened()
-    const slider = page.getByRole('slider', { name: 'Diff layer' })
-    await expect.element(slider).toHaveAttribute('aria-valuenow', '70')
+    const slider = page.getByRole('slider', { name: 'This build' })
+    // Diff starts as it always was: the changed pixels alone.
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '0')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '1' })
     expect(slider.element().closest('figure')).not.toBeNull()
+    // The pill says what it controls in words, not only to assistive technology.
+    await expect.element(page.getByText('This build', { exact: true })).toBeVisible()
     expect(page.getByRole('slider').elements()).toHaveLength(1)
-    // Nothing in the viewer's toolbar (the row with the title and the view modes) is a slider.
     const toolbar = page.getByRole('group', { name: 'View' }).element().parentElement
     expect(toolbar?.querySelector('[role="slider"]')).toBeNull()
   })
 
-  it('changes the layer opacity from the slider', async () => {
+  it('keeps the pill readable at rest: not faded below 0.9', async () => {
     await opened()
-    await expect.element(layerOf()).toHaveStyle({ opacity: '0.7' })
-    page.getByRole('slider', { name: 'Diff layer' }).element().focus()
-    await userEvent.keyboard('{ArrowRight}')
-    await expect.element(layerOf()).toHaveStyle({ opacity: '0.75' })
-    await expect.element(page.getByText('75%')).toBeVisible()
+    const pill = page
+      .getByRole('slider', { name: 'This build' })
+      .element()
+      .closest('div[class*="pill"]')
+    if (!pill) throw new Error('no pill')
+    expect(Number(getComputedStyle(pill).opacity)).toBeGreaterThanOrEqual(0.9)
   })
 
-  it('steps by 10% with [ and ], within 0 and 100', async () => {
+  it('shows more of the build as the slider moves', async () => {
+    await opened()
+    page.getByRole('slider', { name: 'This build' }).element().focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.95' })
+    await expect.element(page.getByText('5%')).toBeVisible()
+  })
+
+  it('steps by 10% with [ and ], within 0 and 100, and says so', async () => {
     await opened()
     await userEvent.keyboard(']')
-    await expect.element(layerOf()).toHaveStyle({ opacity: '0.8' })
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.9' })
+    await expect.element(page.getByText('This build 10%')).toBeInTheDocument()
     // (`[[` is how the keyboard syntax types one `[`.)
     await userEvent.keyboard('[[')
     await userEvent.keyboard('[[')
-    await expect.element(layerOf()).toHaveStyle({ opacity: '0.6' })
-    await userEvent.keyboard(']]]]]]]]')
     await expect.element(layerOf()).toHaveStyle({ opacity: '1' })
+    await userEvent.keyboard(']]]]]]]]]]]]')
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0' })
     await expect
-      .element(page.getByRole('slider', { name: 'Diff layer' }))
+      .element(page.getByRole('slider', { name: 'This build' }))
       .toHaveAttribute('aria-valuenow', '100')
   })
 
-  it('shows the layer at 0% while Alt is held, then restores it', async () => {
+  it('steps with [ and ] while the pill slider has focus', async () => {
+    await opened()
+    page.getByRole('slider', { name: 'This build' }).element().focus()
+    await userEvent.keyboard(']')
+    await expect
+      .element(page.getByRole('slider', { name: 'This build' }))
+      .toHaveAttribute('aria-valuenow', '10')
+  })
+
+  it('treats ] typed with Alt held (a layout that needs Option) as the key, not a peek', async () => {
+    await opened()
+    await userEvent.keyboard('{Alt>}]')
+    await expect
+      .element(page.getByRole('slider', { name: 'This build' }))
+      .toHaveAttribute('aria-valuenow', '10')
+    // Not a peek: the layer follows the value (0.9), not the build in full (0).
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await expect.element(layerOf()).toHaveStyle({ opacity: '0.9' })
+    await userEvent.keyboard('{/Alt}')
+  })
+
+  it('shows the build in full while Alt is held on its own, then restores it', async () => {
     await opened()
     await userEvent.keyboard('{Alt>}')
     await expect.element(layerOf()).toHaveStyle({ opacity: '0' })
     await userEvent.keyboard('{/Alt}')
-    await expect.element(layerOf()).toHaveStyle({ opacity: '0.7' })
-    // The slider kept its value throughout.
+    await expect.element(layerOf()).toHaveStyle({ opacity: '1' })
     await expect
-      .element(page.getByRole('slider', { name: 'Diff layer' }))
-      .toHaveAttribute('aria-valuenow', '70')
+      .element(page.getByRole('slider', { name: 'This build' }))
+      .toHaveAttribute('aria-valuenow', '0')
   })
 
   it('does not draw a region from a press on the pill, but does elsewhere on the image', async () => {
@@ -637,7 +672,7 @@ describe('overlay diff layer', () => {
     const head = page.getByRole('img', { name: 'This build: checkout / payment' }).element()
     head.style.width = '400px'
     head.style.height = '300px'
-    const slider = page.getByRole('slider', { name: 'Diff layer' })
+    const slider = page.getByRole('slider', { name: 'This build' })
     const pill = slider.element().closest('div[class*="pill"]')
     expect(pill).not.toBeNull()
     const box = pill?.getBoundingClientRect()
@@ -728,13 +763,13 @@ describe('keyboard shortcuts', () => {
       .toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('switches the view with 1 to 4', async () => {
+  it('switches the view with 1 to 3', async () => {
     fakeBuildApi(detail())
     const { router } = await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('2')
-    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'overlay' }))
-    await userEvent.keyboard('4')
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'diff' }))
+    await userEvent.keyboard('3')
     await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'slider' }))
     await userEvent.keyboard('1')
     await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'side' }))
@@ -1193,5 +1228,69 @@ describe('build page panes in a narrow window', () => {
         'aria-valuemax',
         String(paneLimits('build-discussion', Math.floor(width(grid()))).max),
       )
+  })
+})
+
+const toggle = () => page.getByRole('button', { name: 'Mark a region with the keyboard' })
+
+describe('keyboard region tool focus', () => {
+  it('returns focus to the toggle on Escape from the region tool', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    toggle().element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => document.activeElement).toBe(toggle().element())
+  })
+
+  it('returns focus to the toggle on Escape from the region comment box', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    toggle().element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByRole('dialog', { name: 'Comment on this region' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect
+      .element(page.getByRole('dialog', { name: 'Comment on this region' }))
+      .not.toBeInTheDocument()
+    await expect.poll(() => document.activeElement).toBe(toggle().element())
+  })
+})
+
+describe('Fit', () => {
+  it('scales a small screenshot up to the viewer width, and Actual size keeps its real size', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?mode=diff')
+    const head = page.getByRole('img', { name: 'This build: checkout / payment' })
+    await expect.element(head).toBeVisible()
+    const frame = head.element().closest('[class*="frame"]')
+    const img = head.element()
+    const natural = img instanceof HTMLImageElement ? img.naturalWidth : 0
+    expect(head.element().getBoundingClientRect().width).toBeGreaterThan(natural + 1)
+    expect(head.element().getBoundingClientRect().width).toBeGreaterThan(
+      (frame?.getBoundingClientRect().width ?? 0) - 4,
+    )
+    await page.getByRole('button', { name: 'Fit', exact: true }).click()
+    await expect.element(head).toHaveStyle({ width: '400px' })
+  })
+})
+
+describe('headings', () => {
+  it('goes from the page title straight to the screenshot groups, never skipping a level', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const levels = page
+      .getByRole('heading')
+      .elements()
+      .map((h) => Number(h.tagName.slice(1)))
+    for (const [i, level] of levels.entries()) {
+      expect(level - (levels[i - 1] ?? 0)).toBeLessThanOrEqual(1)
+    }
   })
 })

@@ -12,7 +12,7 @@ import { ActivityTab } from './ActivityTab.tsx'
 import { BuildSection, PeopleSection, PhoneFacts } from './BuildDetails.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { LinkedIssues } from './LinkedIssues.tsx'
-import { openReviewRequests } from './review-model.ts'
+import { decisionText, groupDecisions, needsDecision, openReviewRequests } from './review-model.ts'
 import { ScreenshotHistory } from './ScreenshotHistory.tsx'
 import { commentCount } from './timeline.ts'
 
@@ -112,9 +112,33 @@ function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
   const requests = openReviewRequests(activity?.events ?? [])
   const watching = data.watchers.some((w) => w.id === session?.user.id)
   // The decision on each snapshot, when it has one (the build's own decisions are listed above).
-  const decided = data.diffs.flatMap((d) =>
-    d.review ? [{ id: d.id, name: d.name, review: d.review }] : [],
+  const reviewGroups = groupDecisions(
+    reviews.map((r) => ({
+      decision: r.state,
+      by: r.userName,
+      automatic: r.source === 'auto' || r.source === 'rerun',
+      reason: r.reason,
+      at: r.createdAt,
+    })),
   )
+  // Several screenshots with one decision by one person read as one line ("Approved 6 of 6 by …").
+  const shotGroups = groupDecisions(
+    data.diffs.flatMap((d) =>
+      d.review
+        ? [
+            {
+              decision: d.review.decision,
+              by: d.review.reviewer?.name ?? null,
+              automatic: d.review.reviewer === null && d.review.decision === 'approved',
+              reason: d.review.reason,
+              at: d.review.at,
+              name: d.name,
+            },
+          ]
+        : [],
+    ),
+  )
+  const needing = data.diffs.filter(needsDecision).length
   return (
     <>
       {phone ? (
@@ -142,22 +166,20 @@ function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
           </Text>
         ) : (
           <ul className={styles.list}>
-            {reviews.map((r) => (
-              <li key={`${r.createdAt}-${r.state}-${r.userName}`} className={styles.event}>
-                <StatusIcon status={r.state} size={14} decorative />
+            {reviewGroups.map((g) => (
+              <li key={g.at + g.decision + g.by} className={styles.event}>
+                <StatusIcon status={g.decision} size={14} decorative />
                 <div className={styles.eventBody}>
                   <Text>
-                    {r.state === 'approved' ? 'Approved' : 'Rejected'}
-                    {r.source === 'auto' || r.source === 'rerun'
-                      ? ' automatically'
-                      : ` by ${r.userName ?? 'someone who has left'}`}{' '}
+                    {decisionText(g)}
+                    {g.count > 1 ? `, ${g.count} times` : ''}{' '}
                     <Text variant="small" tone="tertiary">
-                      <RelativeTime iso={r.createdAt} />
+                      <RelativeTime iso={g.at} />
                     </Text>
                   </Text>
-                  {r.reason ? (
+                  {g.reason ? (
                     <Text variant="small" tone="secondary" as="p" className={styles.quote}>
-                      {r.reason}
+                      {g.reason}
                     </Text>
                   ) : null}
                 </div>
@@ -166,35 +188,43 @@ function DetailsTab({ data, snapshotName }: DetailsTab.Props) {
           </ul>
         )}
       </div>
-      {decided.length > 0 ? (
+      {shotGroups.length > 0 ? (
         <div>
           <Text variant="micro" tone="tertiary">
             By screenshot
           </Text>
           <ul className={styles.list}>
-            {decided.map((d) => (
+            {shotGroups.map((g) => (
               <li
-                key={d.id}
+                key={g.at + g.decision + g.by + g.names[0]}
                 className={styles.event}
-                aria-current={d.name === snapshotName ? 'true' : undefined}
+                aria-current={snapshotName && g.names.includes(snapshotName) ? 'true' : undefined}
               >
-                <StatusIcon status={d.review.decision} size={14} decorative />
+                <StatusIcon status={g.decision} size={14} decorative />
                 <div className={styles.eventBody}>
-                  <Text className={styles.snapshotName}>{d.name}</Text>
-                  <Text>
-                    {d.review.decision === 'approved' ? 'Approved' : 'Rejected'}
-                    {d.review.reviewer
-                      ? ` by ${d.review.reviewer.name}`
-                      : d.review.decision === 'approved'
-                        ? ' automatically'
-                        : ''}{' '}
-                    <Text variant="small" tone="tertiary">
-                      <RelativeTime iso={d.review.at} />
+                  {g.count > 1 ? (
+                    // The same decision on several screenshots (and no reason to read) is one line.
+                    <Text>
+                      {g.decision === 'approved' ? 'Approved' : 'Rejected'} {g.count} of {needing}
+                      {g.automatic || !g.by ? ' automatically' : ` by ${g.by}`}{' '}
+                      <Text variant="small" tone="tertiary">
+                        <RelativeTime iso={g.at} />
+                      </Text>
                     </Text>
-                  </Text>
-                  {d.review.reason ? (
+                  ) : (
+                    <>
+                      <Text className={styles.snapshotName}>{g.names[0]}</Text>
+                      <Text>
+                        {decisionText(g)}{' '}
+                        <Text variant="small" tone="tertiary">
+                          <RelativeTime iso={g.at} />
+                        </Text>
+                      </Text>
+                    </>
+                  )}
+                  {g.reason ? (
                     <Text variant="small" tone="secondary" as="p" className={styles.quote}>
-                      {d.review.reason}
+                      {g.reason}
                     </Text>
                   ) : null}
                 </div>

@@ -43,6 +43,7 @@ export function PageHeading({
   headingInPage,
   find,
   status,
+  statusOwnRow = false,
 }: PageHeading.Props) {
   const clientLink = useClientLink()
   const phone = usePhone()
@@ -88,7 +89,7 @@ export function PageHeading({
           ref={statusRef}
           className={styles.status}
           data-header-status=""
-          data-row={statusRow || phone ? '' : undefined}
+          data-row={statusRow || statusOwnRow || phone ? '' : undefined}
         >
           {status}
         </div>
@@ -212,6 +213,11 @@ export namespace PageHeading {
      * buttons (and wrap among themselves there), so the buttons keep the title's line.
      */
     status?: ReactNode
+    /**
+     * The chips always take their own line, whatever the width, so a page whose chips vary (a
+     * build's) has one header height from page to page. False: beside the buttons while they fit.
+     */
+    statusOwnRow?: boolean
     /** The page shows its own visible `<h1>` in the body (Integrations): the crumb is then plain text. */
     headingInPage?: boolean
   }

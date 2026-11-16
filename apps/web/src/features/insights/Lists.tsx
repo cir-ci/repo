@@ -139,7 +139,7 @@ export function ProjectsCard({ data, days }: { data: Insights.Report; days: numb
   if (all.length < 2 || all.every((r) => r.builds === 0)) return null
   const bars = new Map(all.map((r, i) => [r, shares(all, (x) => x.builds)[i] ?? 0]))
   return (
-    <Card title="Projects" subtitle={rangeLabel(days)} wide>
+    <Card title="Activity by project" subtitle={rangeLabel(days)} wide>
       <TableWrap>
         <table className={`${styles.table} ${styles.spread}`}>
           <thead>

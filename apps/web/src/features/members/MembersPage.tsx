@@ -23,7 +23,6 @@ import { useState } from 'react'
 
 import { memberProjectsQuery } from '#features/projects/api/members.ts'
 import { ProjectStack } from '#features/projects/AvatarStack.tsx'
-import { WorkspaceBackLink } from '#features/workspace-settings/WorkspaceBackLink.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -159,7 +158,6 @@ export function MembersPage() {
         >
           {(loaded) => (
             <>
-              <WorkspaceBackLink workspace={workspace} name={loaded.name} />
               {canManage ? (
                 <InviteForm
                   workspaceId={loaded.id}
@@ -232,7 +230,8 @@ export function MembersPage() {
                               {editable && m.role !== 'owner' ? (
                                 <Select
                                   className={styles.role}
-                                  label={`Role of ${m.user.name}`}
+                                  // Starts with the visible value (WCAG 2.5.3, label in name).
+                                  label={`${ROLE_LABEL[m.role] ?? m.role}, role of ${m.user.name}`}
                                   hideLabel
                                   items={ROLES}
                                   value={m.role}

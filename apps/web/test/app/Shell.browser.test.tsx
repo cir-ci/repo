@@ -698,6 +698,8 @@ describe('Shell, settings', () => {
     const nav = page.getByRole('navigation', { name: 'Settings' })
     const section = nav.getByRole('region', { name: 'Workspaces' })
     await expect.element(section).toBeVisible()
+    // On the Instance's pages the Instance section is the open one; the Workspaces section is folded.
+    await nav.getByRole('button', { name: 'Workspaces' }).click()
     await expect
       .poll(() =>
         section
@@ -970,6 +972,11 @@ describe('Shell, narrow', () => {
     headerButton('Settings sections')!.click()
     const sheet = page.getByRole('dialog', { name: 'Settings sections' })
     await expect.element(sheet).toBeVisible()
+    // The current section (Workspaces) is first and open; the others are folded until opened.
+    await expect.element(sheet.getByRole('link', { name: 'All workspaces' })).toBeVisible()
+    await sheet.getByRole('button', { name: 'Account' }).click()
+    await sheet.getByRole('button', { name: 'Instance' }).click()
+    await sheet.getByRole('button', { name: 'Projects' }).click()
     await expect
       .poll(() =>
         sheet
@@ -978,15 +985,15 @@ describe('Shell, narrow', () => {
           .map((el) => el.textContent),
       )
       .toEqual([
-        'Profile',
-        'Notifications',
-        'Appearance',
-        // The hierarchy: Account, then Instance, Workspaces (every workspace of the instance, each
-        // its hub, then All workspaces, in place of one's pages) and Projects.
-        'Instance',
+        // Workspaces (every workspace of the instance, each its hub, then All workspaces, in place
+        // of one's pages) first, being the section the page is in, then the others as usual.
         'Acme',
         'Globex',
         'All workspaces',
+        'Profile',
+        'Notifications',
+        'Appearance',
+        'Instance',
         'web-app',
         'storybook',
         'api',
@@ -1006,25 +1013,31 @@ describe('Shell, narrow', () => {
     headerButton('Settings sections')!.click()
     const sheet = page.getByRole('dialog', { name: 'Settings sections' })
     await expect.element(sheet).toBeVisible()
-    expect(
-      sheet
-        .getByRole('link')
-        .elements()
-        .map((el) => el.textContent),
-    ).toEqual([
-      'Profile',
-      'Notifications',
-      'Appearance',
-      'General',
-      'Members',
-      'Sign-in and domains',
-      'Integrations',
-      'Storage and retention',
-      'web-app',
-      'storybook',
-      'api',
-      'All projects',
-    ])
+    // The workspace's pages are first and open; Account and Projects are folded until opened.
+    await expect.element(sheet.getByRole('link', { name: 'Members' })).toBeVisible()
+    await sheet.getByRole('button', { name: 'Account' }).click()
+    await sheet.getByRole('button', { name: 'Projects' }).click()
+    await expect
+      .poll(() =>
+        sheet
+          .getByRole('link')
+          .elements()
+          .map((el) => el.textContent),
+      )
+      .toEqual([
+        'General',
+        'Members',
+        'Sign-in and domains',
+        'Integrations',
+        'Storage and retention',
+        'Profile',
+        'Notifications',
+        'Appearance',
+        'web-app',
+        'storybook',
+        'api',
+        'All projects',
+      ])
     await expect
       .element(sheet.getByRole('link', { name: 'General' }))
       .toHaveAttribute('href', '/workspaces/acme/settings/general')
@@ -1623,8 +1636,11 @@ describe('Shell, phone', () => {
     expect(tabs().elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Settings sections' }).click()
     const sections = page.getByRole('dialog', { name: 'Settings sections' })
-    await expect.element(sections.getByRole('link', { name: 'Profile' })).toBeVisible()
+    // The current section is open; the others are folded until their heading is pressed.
     await expect.element(sections.getByRole('link', { name: 'General' }).first()).toBeVisible()
+    expect(sections.getByRole('link', { name: 'Profile' }).elements()).toHaveLength(0)
+    await sections.getByRole('button', { name: 'Account' }).click()
+    await expect.element(sections.getByRole('link', { name: 'Profile' })).toBeVisible()
     expect(sections.getByRole('link', { name: /^Back to/ }).elements()).toHaveLength(0)
     await userEvent.keyboard('{Escape}')
     await page.getByRole('button', { name: /^Close settings/ }).click()

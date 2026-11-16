@@ -40,8 +40,12 @@ const item = (id: string, over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-const list = (items: unknown[], tab = 'for-you') => ({
-  body: { tab, unread: items.length, items },
+const list = (items: { readAt?: string | null }[], tab = 'for-you') => ({
+  body: {
+    tab,
+    unread: items.filter((i) => !i.readAt).length,
+    items,
+  },
 })
 
 const show = (url = '/inbox') =>
@@ -85,6 +89,18 @@ describe('InboxPage', () => {
       .element(page.getByRole('status').getByText('2 notifications, 1 unread'))
       .toBeVisible()
     await expect.element(page.getByRole('tablist', { name: 'Inbox' })).toBeVisible()
+  })
+
+  it('keeps the Also in Reviews chip in the pane without the sentence explaining it, and rows with a compact age', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1', { alsoInReviews: true })]) })
+    await show('/inbox?item=n1')
+    await expect
+      .element(page.getByRole('heading', { name: /requested your review/ }).first())
+      .toBeVisible()
+    await expect.element(page.getByText('Also in Reviews')).toBeVisible()
+    expect(document.body.textContent).not.toContain('clears it there')
+    const rows = page.getByRole('list', { name: 'For you' })
+    await expect.element(rows.getByText(/^\d+(m|h|d|w|mo|y)$|^now$/)).toBeVisible()
   })
 
   it('fits a long mention beside the open notification: the list gives way, nothing runs past the panel', async () => {

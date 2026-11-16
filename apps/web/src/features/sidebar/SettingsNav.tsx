@@ -17,7 +17,7 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
-import { Fragment } from 'react'
+import { Fragment, type ReactNode, useState } from 'react'
 
 import { NavLink } from '#app/NavLink.tsx'
 import { returnTarget } from '#app/settings-return.ts'
@@ -30,13 +30,21 @@ import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
+import {
+  currentSettingsGroup,
+  orderedSettingsGroups,
+  SETTINGS_GROUPS,
+  type SettingsGroup,
+} from './settings-nav-model.ts'
 import { useWorkspaces } from './use-workspaces.ts'
 
 import styles from './SettingsNav.module.css'
 
 /**
  * The left column of every settings page (the canvas's SettingsNav board), in place of the
- * sidebar: the way back to the page you came from, then Account, Workspace (General, Members, ...), Projects
+ * sidebar: the way back to the page you came from (settings' only one), then the section the page
+ * belongs to, listed first and open (a project's tabs, or the workspace's pages), and the other
+ * sections after it, folded: Account, Workspace (General, Members, ...), Projects
  * (each project the person may see, opening its settings hub, then All projects) and, for the people
  * who run the instance, Instance, above Workspaces and Projects (the hierarchy: Account, Instance,
  * Workspaces, Projects): one entry (a tile and its name) that opens the Instance hub and
@@ -66,8 +74,204 @@ export function SettingsNav() {
     useSettingsReturnStore((s) => s.app),
     model?.projects,
   )
+  // The section of the page being viewed is open and first; the others are folded until opened.
+  const current = currentSettingsGroup(pathname)
+  const [folds, setFolds] = useState<{
+    current: SettingsGroup
+    open: Partial<Record<SettingsGroup, boolean>>
+  }>({
+    current,
+    open: {},
+  })
+  // Going to another group (a link in the page, a project's pages) starts over with that one open.
+  if (folds.current !== current) setFolds({ current, open: {} })
+  const fold = (group: SettingsGroup) => ({
+    open: folds.open[group] ?? group === current,
+    onOpenChange: (open: boolean) =>
+      setFolds((f) => ({ ...f, open: { ...f.open, [group]: open } })),
+  })
   // Settings only owners and admins can change are left out for everyone else (their pages send them away).
   const canManage = model?.canManage === true
+
+  const account = (
+    <NavSection label="Account" {...fold('account')}>
+      <NavLink to="/account/profile" icon={<UserIcon />}>
+        Profile
+      </NavLink>
+      <NavLink to="/account/notifications" icon={<BellIcon />}>
+        Notifications
+      </NavLink>
+      <NavLink to="/account/appearance" icon={<SunIcon />}>
+        Appearance
+      </NavLink>
+      {phone ? null : (
+        <NavLink to="/account/shortcuts" icon={<KeyboardIcon />}>
+          Keyboard shortcuts
+        </NavLink>
+      )}
+    </NavSection>
+  )
+  const instance = caps?.instanceAdmin ? (
+    <NavSection label="Instance" {...fold('instance')}>
+      <NavLink
+        to="/instance/overview"
+        icon={
+          <Avatar
+            type="instance"
+            aria-hidden
+            seed={window.location.host}
+            name="Instance"
+            size={18}
+          />
+        }
+        // Every Instance page belongs to this entry (the hub, Accounts, Instance settings, Health,
+        // ...) except All workspaces, which belongs to the Workspaces section.
+        selected={onInstancePage(pathname)}
+      >
+        Instance
+      </NavLink>
+    </NavSection>
+  ) : null
+  const workspaceGroup = caps?.instanceAdmin ? (
+    <>
+      <NavSection label="Workspaces" {...fold('workspace')}>
+        {instanceWorkspaces.map((w) => (
+          <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
+        ))}
+        <NavLink
+          to="/instance/workspaces"
+          icon={<BuildingIcon />}
+          selected={pathname === '/instance/workspaces'}
+        >
+          All workspaces
+        </NavLink>
+      </NavSection>
+    </>
+  ) : workspace ? (
+    <NavSection
+      {...fold('workspace')}
+      label={
+        <>
+          <Avatar
+            type="workspace"
+            aria-hidden
+            slug={workspace.slug}
+            name={workspace.name}
+            picture={workspace.picture ?? null}
+            size={20}
+          />
+          {`Workspace · ${workspace.name}`}
+        </>
+      }
+    >
+      {canManage ? (
+        <NavLink
+          to="/workspaces/$workspace/settings/general"
+          params={{ workspace: workspace.slug }}
+          icon={<BuildingIcon />}
+        >
+          General
+        </NavLink>
+      ) : null}
+      <NavLink
+        to="/workspaces/$workspace/settings/members"
+        params={{ workspace: workspace.slug }}
+        icon={<UsersIcon />}
+      >
+        Members
+      </NavLink>
+      {canManage ? (
+        <NavLink
+          to="/workspaces/$workspace/settings/sign-in"
+          params={{ workspace: workspace.slug }}
+          icon={<ShieldCheckIcon />}
+        >
+          Sign-in and domains
+        </NavLink>
+      ) : null}
+      {canManage ? (
+        <NavLink
+          to="/workspaces/$workspace/settings/integrations"
+          params={{ workspace: workspace.slug }}
+          icon={<BlocksIcon />}
+          selected={pathname.startsWith(
+            `/workspaces/${encodeURIComponent(workspace.slug)}/settings/integrations`,
+          )}
+        >
+          Integrations
+        </NavLink>
+      ) : null}
+      {canManage ? (
+        <NavLink
+          to="/workspaces/$workspace/settings/storage"
+          params={{ workspace: workspace.slug }}
+          icon={<DatabaseIcon />}
+        >
+          Storage and retention
+        </NavLink>
+      ) : null}
+    </NavSection>
+  ) : null
+  const projectsGroup = workspace ? (
+    <NavSection label="Projects" {...fold('projects')}>
+      {(model?.projects ?? []).map((project) => {
+        const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(project.slug)}/settings`
+        const inside = pathname === base || pathname.startsWith(`${base}/`)
+        return (
+          <Fragment key={project.slug}>
+            <NavLink
+              to="/$workspace/$project/settings"
+              params={{ workspace: workspace.slug, project: project.slug }}
+              icon={
+                <Avatar
+                  type="project"
+                  aria-hidden
+                  slug={project.slug}
+                  name={project.name}
+                  color={project.color}
+                  icon={project.icon}
+                  size={18}
+                />
+              }
+              // The project's entry is the current page on its hub; on a page below it the page's own
+              // entry (under the project) is, and the project keeps the quieter highlight.
+              selected={pathname === base}
+              within={inside}
+            >
+              {project.name}
+            </NavLink>
+            {inside ? (
+              <ProjectSections
+                workspace={workspace.slug}
+                project={project.slug}
+                base={base}
+                pathname={pathname}
+                canManage={canManage}
+              />
+            ) : null}
+          </Fragment>
+        )
+      })}
+      <NavLink
+        to="/workspaces/$workspace/settings/projects"
+        params={{ workspace: workspace.slug }}
+        icon={<LayersIcon />}
+        selected={
+          pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/projects`
+        }
+      >
+        All projects
+      </NavLink>
+    </NavSection>
+  ) : null
+
+  const groups: Record<SettingsGroup, ReactNode> = {
+    account,
+    instance,
+    workspace: workspaceGroup,
+    projects: projectsGroup,
+  }
+  const present = new Set(SETTINGS_GROUPS.filter((g) => groups[g] !== null))
 
   return (
     <>
@@ -89,174 +293,9 @@ export function SettingsNav() {
           </div>
         </div>
       )}
-      <NavSection label="Account">
-        <NavLink to="/account/profile" icon={<UserIcon />}>
-          Profile
-        </NavLink>
-        <NavLink to="/account/notifications" icon={<BellIcon />}>
-          Notifications
-        </NavLink>
-        <NavLink to="/account/appearance" icon={<SunIcon />}>
-          Appearance
-        </NavLink>
-        {phone ? null : (
-          <NavLink to="/account/shortcuts" icon={<KeyboardIcon />}>
-            Keyboard shortcuts
-          </NavLink>
-        )}
-      </NavSection>
-      {caps?.instanceAdmin ? (
-        <NavSection label="Instance">
-          <NavLink
-            to="/instance/overview"
-            icon={
-              <Avatar
-                type="instance"
-                aria-hidden
-                seed={window.location.host}
-                name="Instance"
-                size={18}
-              />
-            }
-            // Every Instance page belongs to this entry (the hub, Accounts, Instance settings, Health,
-            // ...) except All workspaces, which belongs to the Workspaces section.
-            selected={onInstancePage(pathname)}
-          >
-            Instance
-          </NavLink>
-        </NavSection>
-      ) : null}
-      {caps?.instanceAdmin ? (
-        <>
-          <NavSection label="Workspaces">
-            {instanceWorkspaces.map((w) => (
-              <WorkspaceEntry key={w.slug} workspace={w} pathname={pathname} />
-            ))}
-            <NavLink
-              to="/instance/workspaces"
-              icon={<BuildingIcon />}
-              selected={pathname === '/instance/workspaces'}
-            >
-              All workspaces
-            </NavLink>
-          </NavSection>
-        </>
-      ) : workspace ? (
-        <NavSection
-          label={
-            <>
-              <Avatar
-                type="workspace"
-                aria-hidden
-                slug={workspace.slug}
-                name={workspace.name}
-                picture={workspace.picture ?? null}
-                size={20}
-              />
-              {`Workspace · ${workspace.name}`}
-            </>
-          }
-        >
-          {canManage ? (
-            <NavLink
-              to="/workspaces/$workspace/settings/general"
-              params={{ workspace: workspace.slug }}
-              icon={<BuildingIcon />}
-            >
-              General
-            </NavLink>
-          ) : null}
-          <NavLink
-            to="/workspaces/$workspace/settings/members"
-            params={{ workspace: workspace.slug }}
-            icon={<UsersIcon />}
-          >
-            Members
-          </NavLink>
-          {canManage ? (
-            <NavLink
-              to="/workspaces/$workspace/settings/sign-in"
-              params={{ workspace: workspace.slug }}
-              icon={<ShieldCheckIcon />}
-            >
-              Sign-in and domains
-            </NavLink>
-          ) : null}
-          {canManage ? (
-            <NavLink
-              to="/workspaces/$workspace/settings/integrations"
-              params={{ workspace: workspace.slug }}
-              icon={<BlocksIcon />}
-              selected={pathname.startsWith(
-                `/workspaces/${encodeURIComponent(workspace.slug)}/settings/integrations`,
-              )}
-            >
-              Integrations
-            </NavLink>
-          ) : null}
-          {canManage ? (
-            <NavLink
-              to="/workspaces/$workspace/settings/storage"
-              params={{ workspace: workspace.slug }}
-              icon={<DatabaseIcon />}
-            >
-              Storage and retention
-            </NavLink>
-          ) : null}
-        </NavSection>
-      ) : null}
-      {workspace ? (
-        <NavSection label="Projects">
-          {(model?.projects ?? []).map((project) => {
-            const base = `/${encodeURIComponent(workspace.slug)}/${encodeURIComponent(project.slug)}/settings`
-            const inside = pathname === base || pathname.startsWith(`${base}/`)
-            return (
-              <Fragment key={project.slug}>
-                <NavLink
-                  to="/$workspace/$project/settings"
-                  params={{ workspace: workspace.slug, project: project.slug }}
-                  icon={
-                    <Avatar
-                      type="project"
-                      aria-hidden
-                      slug={project.slug}
-                      name={project.name}
-                      color={project.color}
-                      icon={project.icon}
-                      size={18}
-                    />
-                  }
-                  // The project's entry is the current page on its hub; on a page below it the page's own
-                  // entry (under the project) is, and the project keeps the quieter highlight.
-                  selected={pathname === base}
-                  within={inside}
-                >
-                  {project.name}
-                </NavLink>
-                {inside ? (
-                  <ProjectSections
-                    workspace={workspace.slug}
-                    project={project.slug}
-                    base={base}
-                    pathname={pathname}
-                    canManage={canManage}
-                  />
-                ) : null}
-              </Fragment>
-            )
-          })}
-          <NavLink
-            to="/workspaces/$workspace/settings/projects"
-            params={{ workspace: workspace.slug }}
-            icon={<LayersIcon />}
-            selected={
-              pathname === `/workspaces/${encodeURIComponent(workspace.slug)}/settings/projects`
-            }
-          >
-            All projects
-          </NavLink>
-        </NavSection>
-      ) : null}
+      {orderedSettingsGroups(current, present).map((group) => (
+        <Fragment key={group}>{groups[group]}</Fragment>
+      ))}
     </>
   )
 }

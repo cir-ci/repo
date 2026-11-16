@@ -258,7 +258,7 @@ describe('the build page on a phone', () => {
     expect(Number(slider.element().getAttribute('aria-valuenow'))).toBeGreaterThan(70)
   })
 
-  it('offers the four views, with Overlay and Side by side in the options menu', async () => {
+  it('offers the four views, with Side by side in the options menu', async () => {
     await ready()
     const views = page.getByRole('group', { name: 'View' })
     const names = views
@@ -282,7 +282,7 @@ describe('the build page on a phone', () => {
     await expect.element(page.getByRole('img', { name: /^Baseline/ })).toBeVisible()
     expect(page.getByRole('img', { name: /^This build/ }).elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'View options' }).click()
-    await expect.element(page.getByRole('menuitem', { name: 'Overlay' })).toBeVisible()
+    expect(page.getByRole('menuitem', { name: 'Overlay' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('menuitem', { name: 'Side by side' })).toBeVisible()
   })
 
@@ -384,7 +384,7 @@ const mid = (el: Element) => {
 }
 
 describe('the build page header on a desktop', () => {
-  it('keeps the buttons on the title line; the status chips sit beside them, or on a line of their own on the left', async () => {
+  it('keeps the buttons on the title line; the status chips always take a line of their own on the left, at any width', async () => {
     fakeBuildApi(detail())
     await page.viewport(1700, 900)
     await renderBuild()
@@ -392,14 +392,15 @@ describe('the build page header on a desktop', () => {
     const approve = page.getByRole('button', { name: 'Approve this screenshot' })
     await expect.element(approve).toBeVisible()
     const chip = page.getByText('Needs review', { exact: true }).first()
-    // Room enough: one line, the chips just left of the buttons.
-    expect(Math.abs(mid(chip.element()) - mid(approve.element()))).toBeLessThan(4)
-    expect(chip.element().getBoundingClientRect().right).toBeLessThan(
-      approve.element().getBoundingClientRect().left,
+    // Room enough still gives the chips their own line (the header is one height on every build).
+    expect(chip.element().getBoundingClientRect().top).toBeGreaterThan(
+      approve.element().getBoundingClientRect().bottom - 1,
     )
-    // Short of room: the buttons keep the title's line (the crumbs give way); the chips take a
-    // line of their own under it, starting on the left.
-    await page.viewport(900, 900)
+    expect(Math.abs(mid(approve.element()) - mid(title.element()))).toBeLessThan(4)
+    // Short of room: the buttons keep the title's line (the crumbs give way, down to the "…" and
+    // the title, which `Breadcrumbs` never squeezes: at 900 even those and the buttons don't fit);
+    // the chips take a line of their own under it, starting on the left.
+    await page.viewport(980, 900)
     await expect
       .poll(() => chip.element().getBoundingClientRect().top)
       .toBeGreaterThan(approve.element().getBoundingClientRect().bottom - 1)

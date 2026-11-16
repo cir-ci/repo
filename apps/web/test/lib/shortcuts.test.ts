@@ -80,6 +80,16 @@ describe('keyToken', () => {
     expect(press('t', { altKey: true, metaKey: true, code: 'KeyT' })).toBeUndefined()
   })
 
+  it('names [ and ] with or without Option, by the character or the physical bracket key', () => {
+    expect(press('[')).toBe('[')
+    // A layout that types [ with Option (German: Option+5).
+    expect(press('[', { altKey: true, code: 'Digit5' })).toBe('[')
+    expect(press(']', { altKey: true, code: 'Digit6' })).toBe(']')
+    // Option changes what the bracket keys type (US layout): still the bracket.
+    expect(press('\u201c', { altKey: true, code: 'BracketLeft' })).toBe('[')
+    expect(press('\u2018', { altKey: true, code: 'BracketRight' })).toBe(']')
+  })
+
   it('draws the tab keys', () => {
     expect(keyCaps('alt+shift+ArrowLeft')).toEqual(['⌥', '⇧', '←'])
   })

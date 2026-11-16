@@ -5,6 +5,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from './icons.ts'
 
 import styles from './CompareHandle.module.css'
 
+const defaultValueText = (value: number) => `${value}%`
+
 /**
  * The divider of a before / after compare, laid over the images it splits: a line the full height
  * with a grip, a Base UI `Slider`. Only the divider takes the pointer (the line and the grip, a
@@ -15,6 +17,7 @@ import styles from './CompareHandle.module.css'
  */
 export function CompareHandle({
   label,
+  getValueText = defaultValueText,
   onValueChange,
   min = 0,
   max = 100,
@@ -37,7 +40,11 @@ export function CompareHandle({
     >
       <BaseSlider.Control className={styles.control}>
         <BaseSlider.Track className={styles.track}>
-          <BaseSlider.Thumb aria-label={label} className={styles.thumb}>
+          <BaseSlider.Thumb
+            aria-label={label}
+            getAriaValueText={(_formatted, value) => getValueText(value)}
+            className={styles.thumb}
+          >
             <span className={styles.grip} aria-hidden="true">
               <ChevronLeftIcon size={12} strokeWidth={2.25} />
               <ChevronRightIcon size={12} strokeWidth={2.25} />
@@ -63,6 +70,8 @@ export namespace CompareHandle {
   > {
     /** The accessible name of the grip ("Slider position"). */
     label: string
+    /** What the position means in words, for assistive tech ("40% baseline, 60% new"); the percentage by default. */
+    getValueText?: (value: number) => string
     onValueChange?: (value: number) => void
     className?: string
   }
