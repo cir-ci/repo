@@ -32,11 +32,11 @@ import {
   type RegionComposer,
   useRegionGesture,
 } from '#features/regions/RegionLayer.tsx'
-import { MODE_OPTIONS } from '#lib/shortcuts.ts'
+import { COMPARE_CONTROL_ATTRIBUTE, MODE_OPTIONS } from '#lib/shortcuts.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
-import { DiffLayerPill, useDiffLayerKeys } from './DiffLayerPill.tsx'
+import { DiffLayerPill, useCompareKeys } from './DiffLayerPill.tsx'
 import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
 import { changeSummary, unreadableReason } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
@@ -105,7 +105,13 @@ export function Viewer({
     : comparable && (props.mode !== DESIGN_MODE || designEnabled)
       ? props.mode
       : 'side'
-  const peeking = useDiffLayerKeys(mode === 'diff' && comparable, opacity, setOpacity)
+  // Diff and Slider share [ ] and the Alt peek; the divider's `at` is where this build starts, so
+  // the share of this build is 100 - at.
+  const peeking = useCompareKeys(
+    (mode === 'diff' || mode === 'slider') && comparable,
+    mode === 'slider' ? 100 - at : opacity,
+    mode === 'slider' ? (share) => setAt(100 - share) : setOpacity,
+  )
   const modeOptions = designEnabled
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
@@ -359,7 +365,7 @@ export function Viewer({
           <div
             className={styles.side}
             data-zoomed={zoomed ? '' : undefined}
-            data-single={phoneSingle ? '' : undefined}
+            data-single={phoneSingle || !diff.base || !diff.head ? '' : undefined}
           >
             {diff.base && phoneSingle !== 'new' ? (
               <Figure
@@ -445,7 +451,7 @@ export function Viewer({
                 src={fileUrl(diff.head.sha256)}
                 alt={`This build: ${diff.name}`}
                 className={styles.cover}
-                style={{ clipPath: `inset(0 0 0 ${at}%)` }}
+                style={{ clipPath: `inset(0 0 0 ${peeking ? 0 : at}%)` }}
               />
               {/* The layer draws and clicks as in the other modes; the handle sits above it and
                   takes only the presses on the divider itself. */}
@@ -455,6 +461,7 @@ export function Viewer({
                 getValueText={(value) => `${value}% baseline, ${100 - value}% this build`}
                 value={at}
                 onValueChange={setAt}
+                {...{ [COMPARE_CONTROL_ATTRIBUTE]: '' }}
               />
             </div>
           </figure>

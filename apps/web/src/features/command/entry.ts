@@ -97,6 +97,8 @@ export type Subject =
       number: number
       id: string
       label: string
+      /** Asleep for the person asking: its actions offer Unsnooze instead of the snoozes. */
+      snoozed: boolean
     }
   | {
       type: 'triage'
@@ -105,8 +107,10 @@ export type Subject =
       kind: Search.Triage['kind']
       key: string
       label: string
+      /** Asleep right now: its actions offer Unsnooze instead of the two snoozes. */
+      snoozed: boolean
     }
-  | { type: 'notice'; id: string; read: boolean; label: string }
+  | { type: 'notice'; id: string; read: boolean; snoozed: boolean; label: string }
   | { type: 'link'; label: string }
 
 export type ReviewSubject = Extract<Subject, { type: 'build' | 'review' }>
@@ -136,11 +140,14 @@ export type RowAction =
     }
   | { type: 'requestReview'; subject: ReviewSubject; reviewers: Reviewer[] }
   | { type: 'snoozeRequest'; subject: RequestSubject; choice: SnoozeUntil }
+  | { type: 'unsnoozeRequest'; subject: RequestSubject }
   | { type: 'assignMe'; subject: TriageSubject }
   | { type: 'snoozeTriage'; subject: TriageSubject; choice: SnoozeUntil }
+  | { type: 'unsnoozeTriage'; subject: TriageSubject }
   | { type: 'dismissTriage'; subject: TriageSubject }
   | { type: 'read'; subject: NoticeSubject; read: boolean }
   | { type: 'snoozeNotice'; subject: NoticeSubject; choice: SnoozeUntil }
+  | { type: 'unsnoozeNotice'; subject: NoticeSubject }
   | { type: 'removeNotice'; subject: NoticeSubject }
   | { type: 'copyLink'; path: string }
   | { type: 'newTab'; path: string }

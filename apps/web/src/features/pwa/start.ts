@@ -58,6 +58,20 @@ export function startPwa(): void {
 function registerWorker(): Promise<void> {
   return navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
-    .then(() => refreshPushState())
+    .then(() => {
+      void askForPrecache()
+      return refreshPushState()
+    })
     .catch(() => undefined)
+}
+
+/**
+ * Once the page is idle after the first load, the worker fetches this build's other files in the
+ * background (`src/sw/precache.ts`), so the next pages open without waiting on the network.
+ */
+async function askForPrecache(): Promise<void> {
+  const registration = await navigator.serviceWorker.ready
+  const ask = () => registration.active?.postMessage({ type: 'precache' })
+  if ('requestIdleCallback' in window) window.requestIdleCallback(ask, { timeout: 10_000 })
+  else setTimeout(ask, 3000)
 }

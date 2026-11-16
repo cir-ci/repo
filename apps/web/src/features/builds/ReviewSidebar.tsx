@@ -70,7 +70,6 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
             workspace={project.workspaceSlug}
             project={project.slug}
             number={build.number}
-            snapshotName={props.snapshotName}
             focusedId={props.focusedId}
             composerRef={props.composerRef}
             onShowSnapshot={props.onShowSnapshot}

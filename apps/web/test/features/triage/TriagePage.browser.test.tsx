@@ -154,6 +154,21 @@ function flakyServer(reason: unknown) {
 /** The pane beside the list. */
 const pane = () => page.getByRole('region', { name: 'Details' })
 
+const at = (search: string) =>
+  renderPage(<TriagePage />, {
+    route: '/$workspace/$project/triage',
+    url: `/acme/web/triage${search}`,
+    otherRoutes: ['/$workspace/$project/builds/$number'],
+    announcer: true,
+  })
+const snoozedGroup = () => page.getByRole('button', { name: /^Snoozed/ })
+/** Opens the Snoozed group and selects its `billing` item. */
+const selectBilling = async () => {
+  await snoozedGroup().click()
+  await page.getByRole('button', { name: /^Flaky, billing/ }).click()
+  await expect.element(pane().getByRole('heading', { level: 3, name: 'billing' })).toBeVisible()
+}
+
 describe('TriagePage', () => {
   it('groups the queue under labelled lists with counts and names rows by kind and snapshot', async () => {
     server()
@@ -291,6 +306,176 @@ describe('TriagePage', () => {
       announcer: true,
     })
     await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
+  })
+
+  describe('snoozed items', () => {
+    const SNOOZED_UNTIL = new Date(Date.now() + 2 * 24 * 3600_000).toISOString()
+    const withSnoozedItem = () =>
+      fakeApi({
+        [`GET ${BASE}/triage`]: {
+          body: queue([
+            ...items(),
+            item('billing', {
+              snoozed: true,
+              snoozeKind: 'next_week',
+              snoozedUntil: SNOOZED_UNTIL,
+            }),
+          ]),
+        },
+        [`GET ${BASE}/snapshots/home/history`]: { body: history },
+        [`GET ${BASE}/snapshots/billing/history`]: { body: history },
+      })
+
+    it('keeps them in a closed Snoozed group with its count, out of the queue count', async () => {
+      withSnoozedItem()
+      await show()
+      await expect.element(snoozedGroup()).toHaveAttribute('aria-expanded', 'false')
+      await expect.element(snoozedGroup()).toHaveTextContent('Snoozed1')
+      await expect
+        .element(page.getByText('Snoozed until', { exact: false }))
+        .not.toBeInTheDocument()
+      await expect.element(page.getByRole('status').getByText('3', { exact: true })).toBeVisible()
+      await userEvent.keyboard('j')
+      await userEvent.keyboard('j')
+      await userEvent.keyboard('j')
+      await expect
+        .element(pane().getByRole('heading', { level: 3 }))
+        .toHaveTextContent('Build #9 failed')
+    })
+
+    it('opens to rows saying when they wake, which can be selected, and J reaches them', async () => {
+      withSnoozedItem()
+      await show()
+      await snoozedGroup().click()
+      await expect.element(snoozedGroup()).toHaveAttribute('aria-expanded', 'true')
+      const wake = new Date(SNOOZED_UNTIL).toLocaleDateString('en', { weekday: 'short' })
+      await expect.element(page.getByText(`Snoozed until ${wake}`, { exact: false })).toBeVisible()
+      await userEvent.keyboard('j')
+      await userEvent.keyboard('j')
+      await userEvent.keyboard('j')
+      await expect.element(pane().getByRole('heading', { level: 3, name: 'billing' })).toBeVisible()
+      await expect.element(pane().getByText(`until ${wake}`)).toBeVisible()
+    })
+
+    it('opens the group and selects the item for a link to a snoozed item', async () => {
+      withSnoozedItem()
+      await at('?item=flaky%3Abilling')
+      await expect.element(pane().getByRole('heading', { level: 3, name: 'billing' })).toBeVisible()
+      await expect.element(snoozedGroup()).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('selects nothing, with a notice, for a link to an item that is gone', async () => {
+      withSnoozedItem()
+      await at('?item=flaky%3Anowhere')
+      await expect.element(page.getByText('That item is no longer in Triage.')).toBeVisible()
+      await expect.element(pane()).not.toBeInTheDocument()
+      // Choosing a row clears it.
+      await page.getByRole('button', { name: /^Flaky, home/ }).click()
+      await expect.element(pane().getByRole('heading', { level: 3, name: 'home' })).toBeVisible()
+      await expect
+        .element(page.getByText('That item is no longer in Triage.'))
+        .not.toBeInTheDocument()
+    })
+
+    const asleep = () =>
+      item('billing', { snoozed: true, snoozeKind: 'next_week', snoozedUntil: SNOOZED_UNTIL })
+    /** A server whose snoozed `billing` item wakes when asked, with an Undo token that puts it back. */
+    function unsnoozeServer(fail = false) {
+      let current = [...items(), asleep()]
+      return fakeApi({
+        [`GET ${BASE}/triage`]: () => ({ body: queue(current) }),
+        [`GET ${BASE}/snapshots/home/history`]: { body: history },
+        [`GET ${BASE}/snapshots/billing/history`]: { body: history },
+        [`POST ${BASE}/triage/unsnooze`]: () => {
+          if (fail) return { status: 500, body: { error: 'boom' } }
+          current = [...items(), item('billing')]
+          return { body: { undo: { id: 'u9', expiresAt: '2099-01-01T00:00:00.000Z' } } }
+        },
+        [`POST ${BASE}/undo/u9`]: () => {
+          current = [...items(), asleep()]
+          return { body: { undone: true } }
+        },
+      })
+    }
+    const unsnoozeCall = (api: ReturnType<typeof unsnoozeServer>) =>
+      api.of('POST').find((c) => c.path === `${BASE}/triage/unsnooze`)?.body
+
+    it('unsnoozes from the pane at once, with an Undo toast that snoozes it again', async () => {
+      const api = unsnoozeServer()
+      await show()
+      await selectBilling()
+      await expect.element(pane().getByRole('button', { name: 'Snooze' })).not.toBeInTheDocument()
+      await pane().getByRole('button', { name: 'Unsnooze' }).click()
+      await expect.element(toastNamed('Unsnoozed')).toBeVisible()
+      expect(unsnoozeCall(api)).toEqual({ kind: 'flaky', key: 'billing' })
+      await expect.element(page.getByRole('list', { name: 'Flaky, 2 items' })).toBeVisible()
+      await expect.element(snoozedGroup()).not.toBeInTheDocument()
+      // Still selected, now asleep no more: the pane offers Snooze again.
+      await expect.element(pane().getByRole('button', { name: 'Snooze' })).toBeVisible()
+      await toastNamed('Unsnoozed').getByRole('button', { name: 'Undo' }).click()
+      await expect.element(toastNamed('Undone')).toBeVisible()
+      await expect.element(snoozedGroup()).toHaveTextContent('Snoozed1')
+    })
+
+    it('unsnoozes with H on a snoozed item', async () => {
+      const api = unsnoozeServer()
+      await show()
+      await selectBilling()
+      await userEvent.keyboard('h')
+      await expect.element(toastNamed('Unsnoozed')).toBeVisible()
+      expect(unsnoozeCall(api)).toEqual({ kind: 'flaky', key: 'billing' })
+    })
+
+    it('offers Unsnooze, not the snooze choices, in a snoozed row menu', async () => {
+      const api = unsnoozeServer()
+      await show()
+      await snoozedGroup().click()
+      await page.getByRole('button', { name: /^Flaky, billing/ }).click({ button: 'right' })
+      await expect.element(page.getByRole('menuitem', { name: 'Unsnooze' })).toBeVisible()
+      await expect
+        .element(page.getByRole('menuitem', { name: /^Snooze until/ }))
+        .not.toBeInTheDocument()
+      await page.getByRole('menuitem', { name: 'Unsnooze' }).click()
+      await expect.element(toastNamed('Unsnoozed')).toBeVisible()
+      expect(unsnoozeCall(api)).toEqual({ kind: 'flaky', key: 'billing' })
+    })
+
+    it('puts the item back in the Snoozed group when the server says no', async () => {
+      unsnoozeServer(true)
+      await show()
+      await selectBilling()
+      await pane().getByRole('button', { name: 'Unsnooze' }).click()
+      await expect.element(toastNamed('Unsnoozed')).not.toBeInTheDocument()
+      await expect.element(snoozedGroup()).toHaveTextContent('Snoozed1')
+      await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
+    })
+
+    it('moves an item to the Snoozed group when it is snoozed', async () => {
+      let current: Record<string, unknown>[] = items()
+      fakeApi({
+        [`GET ${BASE}/triage`]: () => ({ body: queue(current) }),
+        [`GET ${BASE}/snapshots/home/history`]: { body: history },
+        [`POST ${BASE}/triage/snooze`]: () => {
+          current = current.map((i) =>
+            i['key'] === 'home'
+              ? Object.assign({}, i, {
+                  snoozed: true,
+                  snoozeKind: 'tomorrow',
+                  snoozedUntil: SNOOZED_UNTIL,
+                })
+              : i,
+          )
+          return { body: {} }
+        },
+      })
+      await show()
+      await userEvent.keyboard('h')
+      await page.getByRole('menuitem', { name: 'Tomorrow' }).click()
+      await expect.element(snoozedGroup()).toHaveTextContent('Snoozed1')
+      await expect
+        .element(page.getByRole('list', { name: 'Flaky, 1 item' }))
+        .not.toBeInTheDocument()
+    })
   })
 
   it('shows an error with a retry', async () => {

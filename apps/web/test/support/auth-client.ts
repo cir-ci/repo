@@ -6,7 +6,11 @@ type Fn = (arg: unknown) => Promise<unknown>
 
 /** The parts of better-auth's browser client the dashboard calls. */
 export interface AuthClientFake {
-  useSession: () => { data: { user: SessionUser } | null; isPending: boolean }
+  useSession: () => {
+    data: { user: SessionUser } | null
+    isPending: boolean
+    error: { status: number } | null
+  }
   signOut: ReturnType<typeof vi.fn<() => Promise<unknown>>>
   $store: { notify: (signal?: string) => void }
   organization: {
@@ -28,9 +32,15 @@ export const ADA: SessionUser = {
 }
 
 let user: SessionUser | null = ADA
+let pending = false
+let sessionError: { status: number } | null = null
 
 const defaults = {
-  useSession: () => ({ data: user ? { user } : null, isPending: false }),
+  useSession: () => ({
+    data: user ? { user } : null,
+    isPending: pending,
+    error: sessionError,
+  }),
   signOut: vi.fn<() => Promise<unknown>>(),
   $store: { notify: () => {} },
   organization: {
@@ -52,9 +62,20 @@ export function setSignedInUser(next: SessionUser | null): void {
   user = next
 }
 
+/** Whether the session check is still running (`isPending`), and the error it ended with, if any. Re-render to see a change. */
+export function setSessionCheck(next: {
+  pending?: boolean
+  error?: { status: number } | null
+}): void {
+  if (next.pending !== undefined) pending = next.pending
+  if (next.error !== undefined) sessionError = next.error
+}
+
 /** Forgets calls and answers, and signs Ada back in (`setup.ts` runs it after each test). */
 export function resetAuthClient(): void {
   user = ADA
+  pending = false
+  sessionError = null
   Object.assign(fake, defaults)
   for (const method of Object.values(fake.organization))
     if (vi.isMockFunction(method)) method.mockReset()

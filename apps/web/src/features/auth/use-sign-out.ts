@@ -1,15 +1,22 @@
 import { useQueryClient } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
-import { useTabStore } from '#lib/stores/tab-store.ts'
+import { purgePersisted } from '#lib/query-persist.ts'
 
-/** Signs out and forgets everything fetched as this person, so the next one never sees it. */
+/**
+ * Signs out and forgets everything fetched as this person (in memory and the stored cache), so
+ * the next one never sees it. The purge runs even when the sign-out request fails: the person
+ * asked to leave, and what is kept here is theirs.
+ */
 export function useSignOut(): () => Promise<void> {
   const queryClient = useQueryClient()
   return async () => {
-    await authClient.signOut()
-    queryClient.clear()
-    // The installed app's tabs are this person's: the next one starts with none.
-    useTabStore.getState().clear()
+    try {
+      await authClient.signOut()
+    } finally {
+      // Also the installed app's tabs and the recent visits and searches (purgePersisted).
+      await purgePersisted()
+      queryClient.clear()
+    }
   }
 }

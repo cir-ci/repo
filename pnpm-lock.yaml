@@ -200,6 +200,12 @@ catalogs:
     '@fontsource-variable/jetbrains-mono':
       specifier: 5.3.0
       version: 5.3.0
+    '@tanstack/query-async-storage-persister':
+      specifier: 5.105.3
+      version: 5.105.3
+    '@tanstack/query-persist-client-core':
+      specifier: 5.105.3
+      version: 5.105.3
     '@tanstack/react-query':
       specifier: 5.105.3
       version: 5.105.3
@@ -260,6 +266,9 @@ catalogs:
     fastify:
       specifier: 5.12.8
       version: 5.12.8
+    idb-keyval:
+      specifier: 6.3.0
+      version: 6.3.0
     lucide-react:
       specifier: 1.60.0
       version: 1.60.0
@@ -473,6 +482,12 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: 'catalog:'
         version: 5.3.0
+      '@tanstack/query-async-storage-persister':
+        specifier: 'catalog:'
+        version: 5.105.3
+      '@tanstack/query-persist-client-core':
+        specifier: 'catalog:'
+        version: 5.105.3
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.105.3(@types/react@19.3.0)(react@19.3.1)
@@ -485,6 +500,9 @@ importers:
       better-auth:
         specifier: 'catalog:'
         version: 1.7.15(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0)
+      idb-keyval:
+        specifier: 'catalog:'
+        version: 6.3.0
       react:
         specifier: 'catalog:'
         version: 19.3.1
@@ -2435,8 +2453,14 @@ packages:
     resolution: {integrity: sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA==}
     engines: {node: '>=20.19'}
 
+  '@tanstack/query-async-storage-persister@5.105.3':
+    resolution: {integrity: sha512-7GwtrKMOlstLV9D9UeAEEQa1tydlHvYgpJ1iaVnWZSsEl4nNZjGc+wij455csAsYk60McFU7ujaEI2+lkawzdw==}
+
   '@tanstack/query-core@5.105.3':
     resolution: {integrity: sha512-v1rbNy7MB/4Akth7CQH+CerV13K7Ok9hAusEsfz4sCjDdu3/kOSJPoWfoB+YjdEX1eBFBWKNAGE5nqZCgdlHDw==}
+
+  '@tanstack/query-persist-client-core@5.105.3':
+    resolution: {integrity: sha512-VcK3dfkvYkEb1AsX/VK/LJAa9nGN0OE5x2SnFHKY5Rwzixg9zqXdcr7fCpyolEWj/cygOd8Nt1ZRTPzfB0lEaw==}
 
   '@tanstack/react-query@5.105.3':
     resolution: {integrity: sha512-dj5hGWZmwoc9NG4enoXuYbiYwb5FxgJYPVv06eUgicMTfEMTRXn08Xv9D/r1V8TfjAv+BpxdvZFzJ1h3hSWZcQ==}
@@ -3313,6 +3337,9 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
+  idb-keyval@6.3.0:
+    resolution: {integrity: sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==}
+
   import-without-cache@0.4.1:
     resolution: {integrity: sha512-vXoV9PjKHEednCUu01e98TkImxy67e3BJXbTIOmIq4Hyzw3IAwYRcuPkfeTzJzwyyts4kjuA73x+pWJLc4f86A==}
     engines: {node: ^22.18.0 || >=24.0.0}
@@ -3974,6 +4001,7 @@ packages:
 
   tldts-core@7.4.20:
     resolution: {integrity: sha512-C630TWXZCZmLq0F2bW4QqwnaaxCQ/svpAqvJwnC4JvgEM5ohhBnGsEzTLSOXcN+xjz+kEaHS5uoWIw2klnqd0A==}
+    deprecated: Partial release, see https://github.com/remusao/tldts/issues/2735. Use >=7.4.22.
 
   tldts@7.4.19:
     resolution: {integrity: sha512-48dH6aSpQnpbzDUc4vIQZ1VjB8tkK+e8c1yx05/SZK+rkssgjEOlxDd/yU8/a4vGYQ9vRgJr9dwMq9TJ0b3X2Q==}
@@ -5515,7 +5543,16 @@ snapshots:
 
   '@tanstack/history@1.162.5': {}
 
+  '@tanstack/query-async-storage-persister@5.105.3':
+    dependencies:
+      '@tanstack/query-core': 5.105.3
+      '@tanstack/query-persist-client-core': 5.105.3
+
   '@tanstack/query-core@5.105.3': {}
+
+  '@tanstack/query-persist-client-core@5.105.3':
+    dependencies:
+      '@tanstack/query-core': 5.105.3
 
   '@tanstack/react-query@5.105.3(@types/react@19.3.0)(react@19.3.1)':
     dependencies:
@@ -6288,6 +6325,8 @@ snapshots:
     dependencies:
       postcss: 8.5.32
     optional: true
+
+  idb-keyval@6.3.0: {}
 
   import-without-cache@0.4.1: {}
 

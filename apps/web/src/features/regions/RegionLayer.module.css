@@ -18,20 +18,45 @@
   cursor: crosshair;
 }
 
-/* Regions: an outlined box in the annotation colour with a numbered teardrop pin at its top-right. */
+/*
+ * Regions: a box in its own hue (--region, by the region's number; the annotation color for a
+ * draft) with a numbered teardrop pin at its top-right. The stroke is a double one: the hue, with
+ * a thin dark line outside it and a thin light one inside, so it reads on a white, a black, a mid
+ * grey and a busy screenshot alike (a blend mode could not: `difference` vanishes on mid grey and
+ * loses the hue, `color-burn` vanishes on light and dark images). The pin and numbers stay
+ * unblended, so they stay readable.
+ */
 .marker {
   position: absolute;
   box-sizing: border-box;
   padding: 0;
-  border: 1.5px solid var(--circi-annotation);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--circi-annotation) 16%, transparent);
+  border: 2px solid var(--region, var(--circi-annotation));
+  border-radius: var(--circi-radius-inline);
+  background: color-mix(in srgb, var(--region, var(--circi-annotation)) 14%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, black 70%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, white 80%, transparent);
   cursor: pointer;
 }
 
+/* Selected: a stronger fill, and a white ring with a dark line under it (visible on any image). */
 .marker[data-focused] {
-  background: color-mix(in srgb, var(--circi-annotation) 30%, transparent);
+  background: color-mix(in srgb, var(--region, var(--circi-annotation)) 30%, transparent);
   outline: 2px solid var(--circi-annotation-text);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, black 70%, transparent),
+    0 0 0 5px color-mix(in srgb, black 55%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, white 80%, transparent);
+}
+
+.marker:hover:not([data-pending]) {
+  background: color-mix(in srgb, var(--region, var(--circi-annotation)) 24%, transparent);
+}
+
+.marker:focus-visible {
+  outline: 2px solid var(--circi-annotation-text);
+  outline-offset: 3px;
 }
 
 .marker[data-pending] {
@@ -63,10 +88,10 @@
   width: 22px;
   height: 22px;
   margin: -12px 0 0 -12px;
-  border: 1px solid var(--circi-line-strong);
+  border: 1px solid color-mix(in srgb, black 70%, transparent);
   border-radius: 50% 50% 50% 0;
-  background: var(--circi-surface-highest);
-  color: var(--circi-text-primary);
+  background: var(--region, var(--circi-annotation));
+  color: var(--circi-region-ink);
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
@@ -79,7 +104,33 @@
 
 .marker[data-focused] .pin {
   border-color: var(--circi-annotation-text);
-  box-shadow: 0 0 0 2px var(--circi-annotation);
+  box-shadow: 0 0 0 2px color-mix(in srgb, black 70%, transparent);
+}
+
+/* Forced colors drop our colors: plain system outlines, the number on the system's own fill. */
+@media (forced-colors: active) {
+  .marker,
+  .tool {
+    border-color: CanvasText;
+    background: transparent;
+    box-shadow: none;
+    forced-color-adjust: none;
+  }
+
+  .marker[data-focused],
+  .marker:focus-visible,
+  .tool:focus {
+    outline: 3px solid Highlight;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .pin {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
 }
 
 .layer[data-drawing] .marker:not([data-pending]) {

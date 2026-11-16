@@ -1,9 +1,12 @@
 import type { Build, Flaky, Review, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { withBuildDecision, withSnapshotDecisions } from '#features/builds/api/optimistic.ts'
 import { projectPath } from '#lib/api-paths.ts'
 import { signedFileQuery } from '#lib/file-signatures.ts'
 import { getJson, post } from '#lib/http.ts'
+import { livePoll } from '#lib/live.ts'
+import { applyPatches, patchOf, rollback } from '#lib/optimistic.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** Builds still being uploaded or processed; their pages poll until they finish. */
@@ -14,7 +17,8 @@ export const buildQuery = (workspace: string, project: string, number: number) =
   queryOptions({
     queryKey: keys.build(workspace, project, number),
     queryFn: () => getJson<Build.Detail>(projectPath(workspace, project, 'builds', number)),
-    refetchInterval: (q) => (q.state.data && isActive(q.state.data.build.status) ? 2_000 : false),
+    refetchInterval: (q) =>
+      q.state.data && isActive(q.state.data.build.status) ? livePoll(2_000) : false,
   })
 
 /**
@@ -50,7 +54,13 @@ export interface SnapshotDecision {
  * Approve or reject snapshots of a build. The build's own status follows from the decisions, so
  * afterwards everything that shows it is refetched, as for `useReviewBuild`.
  */
-export function useReviewSnapshots(workspace: string, project: string, number: number) {
+export function useReviewSnapshots(
+  workspace: string,
+  project: string,
+  number: number,
+  /** Who decides, shown on the screenshots until the server answers. */
+  me: { id: string; name: string } | null = null,
+) {
   const queryClient = useQueryClient()
   return useMutation({
     meta: { what: 'review the screenshots' },
@@ -59,7 +69,15 @@ export function useReviewSnapshots(workspace: string, project: string, number: n
         projectPath(workspace, project, 'builds', number, 'snapshots', 'review'),
         reason ? { snapshotNames, decision, reason } : { snapshotNames, decision },
       ),
-    onSuccess: () =>
+    // The page shows the decision at once; a refusal puts the screenshots back.
+    onMutate: ({ snapshotNames, decision, reason }) =>
+      applyPatches(queryClient, [
+        patchOf<Build.Detail>(keys.build(workspace, project, number), (d) =>
+          withSnapshotDecisions(d, snapshotNames, decision, reason ?? null, me, new Date()),
+        ),
+      ]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: () =>
       invalidateAll(
         queryClient,
         keys.build(workspace, project, number),
@@ -83,7 +101,14 @@ export function useReviewBuild(workspace: string, project: string, number: numbe
         projectPath(workspace, project, 'builds', number, 'review'),
         reason ? { state, reason } : { state },
       ),
-    onSuccess: () =>
+    onMutate: ({ state }) =>
+      applyPatches(queryClient, [
+        patchOf<Build.Detail>(keys.build(workspace, project, number), (d) =>
+          withBuildDecision(d, state),
+        ),
+      ]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: () =>
       invalidateAll(
         queryClient,
         keys.build(workspace, project, number),

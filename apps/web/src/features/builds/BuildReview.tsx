@@ -53,6 +53,7 @@ import { Viewer } from './DiffViewer.tsx'
 import { useIgnoreMode } from './ignore-mode.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
+import { usePreloadShots } from './preload-shots.ts'
 import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
 import { RequestReviewPicker } from './RequestReviewPicker.tsx'
 import {
@@ -148,6 +149,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const next = neighbour(ordered, selected, 1)
   const hasPrevious = selected !== undefined && previous !== selected
   const hasNext = selected !== undefined && next !== selected
+  // The neighbors' images load in the background, so j and k show them at once.
+  usePreloadShots(ordered, selected)
 
   // J / K select the next or previous screenshot and move focus to its row with it.
   const { ref: listRef, rowProps } = useListNavigation({

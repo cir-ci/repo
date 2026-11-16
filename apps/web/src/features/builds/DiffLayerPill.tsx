@@ -2,8 +2,8 @@ import { Slider, Text, useAnnounce } from '@circi/ui'
 import { useEffect, useState } from 'react'
 
 import {
-  DIFF_LAYER_ATTRIBUTE,
-  isDiffLayerSlider,
+  COMPARE_CONTROL_ATTRIBUTE,
+  isCompareSlider,
   isEditable,
   useShortcutHandlers,
 } from '#lib/shortcuts.ts'
@@ -16,20 +16,18 @@ const clamp = (value: number) => Math.min(100, Math.max(0, value))
 const PEEK_DELAY_MS = 150
 
 /**
- * The Diff mode's keys, live while `active`: `[` and `]` step how much of this build shows under the
- * changed pixels by 10% (through `onChange`, announced as "This build 80%"), and holding Alt /
- * Option on its own shows the build in full to peek at it. Pressing another key with Alt (a layout that types `[` with
+ * The keys Diff and Slider share, live while `active`. `value` is how much of this build shows, in
+ * percent (Diff: its layer under the changed pixels; Slider: 100 minus the divider's position), so
+ * `]` is always "more of this build" and `[` "less". Each press steps it by 10% (through
+ * `onChange`, announced as "This build 80%"), and holding Alt / Option on its own shows the build in
+ * full to peek at it. Pressing another key with Alt (a layout that types `[` with
  * Option) is not a peek. Returns whether the peek is on; letting go (or leaving the window) ends it.
  */
-export function useDiffLayerKeys(
-  active: boolean,
-  value: number,
-  onChange: (value: number) => void,
-) {
+export function useCompareKeys(active: boolean, value: number, onChange: (value: number) => void) {
   const [held, setHeld] = useState(false)
   const announce = useAnnounce()
   useShortcutHandlers({
-    diffLayer: (action) => {
+    compareStep: (action) => {
       if (!active) return false
       const next = clamp(value + action.delta)
       onChange(next)
@@ -54,7 +52,7 @@ export function useDiffLayerKeys(
       if (
         e.repeat ||
         timer !== undefined ||
-        (e.target instanceof Element && isEditable(e.target) && !isDiffLayerSlider(e.target))
+        (e.target instanceof Element && isEditable(e.target) && !isCompareSlider(e.target))
       )
         return
       timer = setTimeout(() => setHeld(true), PEEK_DELAY_MS)
@@ -86,7 +84,7 @@ export function DiffLayerPill({ value, onValueChange, touch = false }: DiffLayer
     <div
       className={styles.pill}
       data-touch={touch ? '' : undefined}
-      {...{ [DIFF_LAYER_ATTRIBUTE]: '' }}
+      {...{ [COMPARE_CONTROL_ATTRIBUTE]: '' }}
       // A press here is the slider's: it never starts a region on the image under it.
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

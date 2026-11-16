@@ -147,7 +147,8 @@
   }
 }
 
-/* A phone's New or Baseline shows one image: it takes the whole width, however wide the phone. */
+/* One image (an added or removed screenshot, or a phone's New or Baseline) takes the whole width, not
+   half of two columns left half empty. */
 .side[data-single]:not([data-zoomed]) {
   grid-template-columns: minmax(0, 1fr);
 }

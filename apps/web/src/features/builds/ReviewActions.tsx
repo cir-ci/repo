@@ -5,6 +5,7 @@ import { useState } from 'react'
 
 import { useReviewSnapshots } from '#features/builds/api/index.ts'
 import { useRejectReasonRequired } from '#features/projects/api/index.ts'
+import { authClient } from '#lib/auth-client.ts'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, withUndo } from '#lib/undo.ts'
 
@@ -57,7 +58,13 @@ export function useReviewControls(
   onApproved?: (approved: Build.DiffItem) => void,
 ): ReviewControls {
   const { build, project } = data
-  const review = useReviewSnapshots(project.workspaceSlug, project.slug, build.number)
+  const { data: session } = authClient.useSession()
+  const review = useReviewSnapshots(
+    project.workspaceSlug,
+    project.slug,
+    build.number,
+    session ? { id: session.user.id, name: session.user.name } : null,
+  )
   const reasonRequired = useRejectReasonRequired(project.workspaceSlug, project.slug)
   const queryClient = useQueryClient()
   const [rejecting, setRejecting] = useState(false)

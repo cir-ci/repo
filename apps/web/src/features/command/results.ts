@@ -264,6 +264,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         kind: t.kind,
         key: t.key,
         label: title,
+        snoozed: t.snoozed,
       },
       peek: peek(
         'Triage',
@@ -291,7 +292,13 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
       unread: !n.read,
       target: { type: 'path', path },
       path,
-      subject: { type: 'notice', id: n.id, read: n.read, label: title },
+      subject: {
+        type: 'notice',
+        id: n.id,
+        read: n.read,
+        snoozed: n.tab === 'snoozed',
+        label: title,
+      },
       peek: peek(
         'Inbox',
         title,
@@ -327,6 +334,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         number: r.build.number,
         id: r.id,
         label: `build #${r.build.number}`,
+        snoozed: r.tab === 'snoozed',
       },
       peek: peek(
         'Review request',

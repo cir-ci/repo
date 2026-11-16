@@ -7,11 +7,13 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
+import { readSessionHint, writeSessionHint } from '#lib/session-hint.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { RECENT_CAP, RECENT_KEY, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
+import { authClientModule } from '#test/support/auth-client.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarProject } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -1344,5 +1346,29 @@ describe('the shortcuts help', () => {
     await openMenu()
     await page.getByRole('option', { name: /^Keyboard shortcuts/ }).click()
     await expect.element(dialog).toBeVisible()
+  })
+
+  it('Sign out purges everything kept for the person, as the sidebar sign-out does', async () => {
+    api()
+    authClientModule.authClient.signOut.mockResolvedValue({})
+    await renderPage(
+      <ShortcutLayer>
+        <Opener />
+      </ShortcutLayer>,
+      {
+        announcer: true,
+        viewport: [1200, 800],
+        beforeRender: () => {
+          writeSessionHint({ id: 'u1', name: 'Ada', email: 'ada@example.test', image: null })
+          useRecentSearchesStore.getState().record('acme', 'checkout')
+        },
+      },
+    )
+    await openMenu()
+    await page.getByRole('option', { name: 'Sign out' }).click()
+    await vi.waitFor(() => expect(authClientModule.authClient.signOut).toHaveBeenCalled())
+    await vi.waitFor(() => expect(readSessionHint()).toBeNull())
+    expect(useRecentSearchesStore.getState().byWorkspace).toEqual({})
+    expect(localStorage.getItem(RECENT_SEARCHES_KEY)).toBeNull()
   })
 })

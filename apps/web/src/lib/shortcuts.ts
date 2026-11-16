@@ -74,7 +74,7 @@ export namespace Shortcut {
     | { type: 'moveTab'; delta: -1 | 1 }
     | { type: 'go'; to: GoTarget }
     | { type: 'mode'; mode: ViewMode }
-    | { type: 'diffLayer'; delta: -10 | 10 }
+    | { type: 'compareStep'; delta: -10 | 10 }
     | { type: 'peekBaseline' }
 
   /** The handler for each action type; `useShortcutHandlers` binds them. */
@@ -281,7 +281,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'h',
     scope: 'list',
     group: 'Lists',
-    description: 'Snooze',
+    description: 'Snooze (or unsnooze a snoozed item)',
     action: { type: 'snooze' },
   },
   {
@@ -372,16 +372,15 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: '[',
     scope: 'build-review',
     group: 'Build review',
-    description:
-      'Diff: show less or more of this build under the changed pixels, by 10% (with [ and ])',
-    action: { type: 'diffLayer', delta: -10 },
+    description: 'Diff and Slider: show less or more of this build, by 10% (with [ and ])',
+    action: { type: 'compareStep', delta: -10 },
   },
   {
     key: ']',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Diff: show more of this build',
-    action: { type: 'diffLayer', delta: 10 },
+    description: 'Diff and Slider: show more of this build',
+    action: { type: 'compareStep', delta: 10 },
     listed: false,
   },
   {
@@ -389,7 +388,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'alt',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Diff: hold to peek at this build',
+    description: 'Diff and Slider: hold to peek at this build in full',
     action: { type: 'peekBaseline' },
   },
 ]
@@ -504,16 +503,19 @@ export function keyToken(
 /**
  * Anything a person types into or adjusts with keys: fields, selects, sliders, any contenteditable
  * and the text-entry roles. A single-key shortcut never fires from one of them, except `[` and `]`
- * on the Diff layer slider (`isDiffLayerSlider`).
+ * on the compare controls (`isCompareSlider`).
  */
 const EDITABLE =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
 
-/** The Diff layer pill's slider (`DiffLayerPill`): the one slider that lets `[` and `]` through. */
-export const DIFF_LAYER_ATTRIBUTE = 'data-diff-layer'
+/**
+ * Marks the two controls that share the `[` / `]` keys: the Diff layer pill (`DiffLayerPill`) and the
+ * Slider mode's divider (`CompareHandle`). Their sliders are the only ones that let `[` and `]` through.
+ */
+export const COMPARE_CONTROL_ATTRIBUTE = 'data-compare-control'
 
-export function isDiffLayerSlider(el: Element): boolean {
-  return el.matches('input[type="range"]') && el.closest(`[${DIFF_LAYER_ATTRIBUTE}]`) !== null
+export function isCompareSlider(el: Element): boolean {
+  return el.matches('input[type="range"]') && el.closest(`[${COMPARE_CONTROL_ATTRIBUTE}]`) !== null
 }
 
 /** Whether typing here edits text, so every plain key (and every letter) is the writer's. */
@@ -538,7 +540,7 @@ export function isHandledElsewhere(
         ? null
         : document.activeElement
   if (!where) return false
-  if (isEditable(where) && !(isBracket && isDiffLayerSlider(where))) return true
+  if (isEditable(where) && !(isBracket && isCompareSlider(where))) return true
   return where.closest('[role="dialog"], [role="alertdialog"]') !== null
 }
 

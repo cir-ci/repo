@@ -2,9 +2,18 @@ import type { Comment, Inbox, NotificationKind, Review } from '@circi/api'
 import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import {
+  withAllRead,
+  withBuildApproved,
+  withoutNotification,
+  withRead,
+  withSnoozedNotification,
+  withUnsnoozedNotification,
+} from '#features/inbox/optimistic.ts'
 import { inboxPath, projectPath } from '#lib/api-paths.ts'
 import { findParam } from '#lib/find.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
+import { applyPatches, patchOf, rollback } from '#lib/optimistic.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
@@ -210,30 +219,43 @@ export function reconnectTarget(item: Inbox.Item):
     : { to: '/workspaces/$workspace/settings/integrations', params: { workspace } }
 }
 
-/** Every list showing the unread count or the same entry: refetched after a change. */
-function useRefresh() {
+/**
+ * A change to the inbox: the cached lists show it at once (`patch`, applied to every tab) and go
+ * back if the server says no; whatever shows the same facts is refetched when it settles.
+ */
+function useInboxMutation<V, R>(
+  what: string,
+  mutationFn: (vars: V) => Promise<R>,
+  patch: (list: Inbox.List, vars: V) => Inbox.List,
+  alsoRefresh: readonly (readonly unknown[])[] = [],
+) {
   const queryClient = useQueryClient()
-  return () => invalidateAll(queryClient, keys.inbox(), keys.sidebar())
+  return useMutation({
+    meta: { what },
+    mutationFn,
+    onMutate: (vars: V) =>
+      applyPatches(queryClient, [patchOf<Inbox.List>(keys.inbox(), (list) => patch(list, vars))]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: () => invalidateAll(queryClient, keys.inbox(), keys.sidebar(), ...alsoRefresh),
+  })
 }
 
 export function useSetRead() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'change the notice' },
-    mutationFn: ({ id, read }: { id: string; read: boolean }) =>
+  return useInboxMutation(
+    'change the notice',
+    ({ id, read }: { id: string; read: boolean }) =>
       post<Inbox.State>(inboxPath(id, 'read'), { read }),
-    onSuccess: refresh,
-  })
+    (list, { id, read }) => withRead(list, id, read, new Date()),
+  )
 }
 
 export function useSnoozeNotification() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'snooze the notice' },
-    mutationFn: ({ id, choice }: { id: string; choice: SnoozeChoice }) =>
+  return useInboxMutation(
+    'snooze the notice',
+    ({ id, choice }: { id: string; choice: SnoozeChoice }) =>
       post<Inbox.State>(inboxPath(id, 'snooze'), snoozeBody(choice)),
-    onSuccess: refresh,
-  })
+    (list, { id }) => withSnoozedNotification(list, id),
+  )
 }
 
 /** The inbox's snooze body: a time only (`tomorrow`, `next_week` or a date), never "next push". */
@@ -246,30 +268,27 @@ export function snoozeBody(
 }
 
 export function useUnsnoozeNotification() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'unsnooze the notice' },
-    mutationFn: (id: string) => post<Inbox.State>(inboxPath(id, 'unsnooze'), {}),
-    onSuccess: refresh,
-  })
+  return useInboxMutation(
+    'unsnooze the notice',
+    (id: string) => post<Inbox.State>(inboxPath(id, 'unsnooze'), {}),
+    (list, id) => withUnsnoozedNotification(list, id),
+  )
 }
 
 export function useRemoveNotification() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'remove the notice' },
-    mutationFn: (id: string) => send<Inbox.Removed>('DELETE', inboxPath(id)),
-    onSuccess: refresh,
-  })
+  return useInboxMutation(
+    'remove the notice',
+    (id: string) => send<Inbox.Removed>('DELETE', inboxPath(id)),
+    (list, id) => withoutNotification(list, id),
+  )
 }
 
 export function useMarkAllRead() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'mark everything read' },
-    mutationFn: () => post<{ marked: number }>('/api/inbox/read-all', {}),
-    onSuccess: refresh,
-  })
+  return useInboxMutation(
+    'mark everything read',
+    () => post<{ marked: number }>('/api/inbox/read-all', {}),
+    (list) => withAllRead(list, new Date()),
+  )
 }
 
 /** The glyph on a row's avatar, for what the notification is about; none for a mention. */
@@ -326,19 +345,25 @@ export function replyTarget(item: Inbox.Item): string | undefined {
 
 /** Approves the build a notification is about; every list that shows the same facts is refetched. */
 export function useApproveBuild() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    meta: { what: 'approve the build' },
-    mutationFn: (item: Inbox.Item) => {
+  return useInboxMutation(
+    'approve the build',
+    (item: Inbox.Item) => {
       if (!item.workspace || !item.project || !item.build) throw new Error('Build not found')
       return post<Review.Decided>(
         projectPath(item.workspace.slug, item.project.slug, 'builds', item.build.number, 'review'),
         { state: 'approved' },
       )
     },
-    onSuccess: () =>
-      invalidateAll(queryClient, keys.inbox(), keys.reviews(), keys.sidebar(), keys.projects()),
-  })
+    (list, item) =>
+      item.workspace && item.project && item.build
+        ? withBuildApproved(list, {
+            workspace: item.workspace.slug,
+            project: item.project.slug,
+            number: item.build.number,
+          })
+        : list,
+    [keys.reviews(), keys.projects()],
+  )
 }
 
 /** Replies to the comment a mention is about, in its thread. */

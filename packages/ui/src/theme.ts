@@ -70,12 +70,29 @@ const dark = {
     mauve: '#a86b85',
     graphite: '#837c76',
   },
+  /**
+   * Comment regions, one hue each, handed out by a region's number (`regionHue`): the box on the
+   * screenshot, its pin and the comment's marker share it. Chosen apart from each other (ΔE 25+),
+   * from state colours and the annotation, and to read at 3:1 on every surface.
+   */
+  region: {
+    blue: '#4db0ff',
+    orange: '#ff9a3c',
+    green: '#4fd37a',
+    pink: '#ff6fb5',
+    teal: '#22d3c5',
+    red: '#ff6b5e',
+    violet: '#b08cff',
+    yellow: '#e8d94a',
+  },
   line: { subtle: 'rgba(255, 255, 255, 0.07)', strong: 'rgba(255, 255, 255, 0.12)' },
   action: { hover: 'rgba(255, 255, 255, 0.045)', selected: 'rgba(255, 255, 255, 0.075)' },
   /** Tokens with no group: emitted as `--circi-<key>` (the canvas names them this way). */
   other: {
     annotation: '#8b46ff',
     annotationText: '#ffffff',
+    /** The number on a region's colour (4.5:1 on every `region` hue). */
+    regionInk: '#0c0a09',
     avatarText: '#e4b1a7',
     /** Letter or icon on a project tile. */
     tileText: '#0c0a09',
@@ -128,11 +145,27 @@ const light: typeof dark = {
     mauve: '#a05e79',
     graphite: '#6c665f',
   },
+  /**
+   * Comment regions, one hue each, handed out by a region's number (`regionHue`): the box on the
+   * screenshot, its pin and the comment's marker share it. Chosen apart from each other (ΔE 25+),
+   * from state colours and the annotation, and to read at 3:1 on every surface.
+   */
+  region: {
+    blue: '#0b64c4',
+    orange: '#a85300',
+    green: '#1b7a3a',
+    pink: '#b3237a',
+    teal: '#007a7a',
+    red: '#c0322b',
+    violet: '#6b3fd0',
+    yellow: '#7a6a00',
+  },
   line: { subtle: 'rgba(28, 15, 12, 0.10)', strong: 'rgba(28, 15, 12, 0.18)' },
   action: { hover: 'rgba(28, 15, 12, 0.05)', selected: 'rgba(28, 15, 12, 0.085)' },
   other: {
     annotation: '#8b46ff',
     annotationText: '#ffffff',
+    regionInk: '#ffffff',
     avatarText: '#51463f',
     tileText: '#ffffff',
     glow: 'color-mix(in srgb, var(--circi-brand-maroon) 14%, transparent)',

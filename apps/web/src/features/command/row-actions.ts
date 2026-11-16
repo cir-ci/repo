@@ -94,6 +94,10 @@ function failedMessage(action: RowAction): string {
     case 'snoozeNotice':
     case 'snoozeRequest':
       return "Couldn't snooze it"
+    case 'unsnoozeTriage':
+    case 'unsnoozeRequest':
+    case 'unsnoozeNotice':
+      return "Couldn't unsnooze it"
     case 'dismissTriage':
       return "Couldn't dismiss it"
     case 'read':
@@ -177,6 +181,16 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
       await refresh()
       return withUndo(UNTIL[choice], answer.undo, subject, refresh)
     }
+    case 'unsnoozeRequest': {
+      const { subject } = action
+      const answer = await post<Review.Snoozed>(
+        projectPath(subject.workspace, subject.project, 'review-requests', subject.id, 'unsnooze'),
+        {},
+      )
+      const refresh = () => invalidateAll(queryClient, keys.reviews(), keys.sidebar())
+      await refresh()
+      return withUndo('Unsnoozed', answer.undo, subject, refresh)
+    }
     case 'assignMe': {
       const { subject } = action
       const me = ctx.me
@@ -200,6 +214,17 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
         invalidateAll(queryClient, keys.triage(subject.workspace, subject.project), keys.sidebar())
       await refresh()
       return withUndo(UNTIL[choice], answer.undo, subject, refresh)
+    }
+    case 'unsnoozeTriage': {
+      const { subject } = action
+      const answer = await post<Triage.ItemState>(
+        projectPath(subject.workspace, subject.project, 'triage', 'unsnooze'),
+        { kind: subject.kind, key: subject.key },
+      )
+      const refresh = () =>
+        invalidateAll(queryClient, keys.triage(subject.workspace, subject.project), keys.sidebar())
+      await refresh()
+      return withUndo('Unsnoozed', answer.undo, subject, refresh)
     }
     case 'dismissTriage': {
       const { subject } = action
@@ -229,6 +254,13 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
       const refresh = () => invalidateAll(queryClient, keys.inbox(), keys.sidebar())
       await refresh()
       return withUndo(UNTIL[choice], answer.undo, null, refresh)
+    }
+    case 'unsnoozeNotice': {
+      const { subject } = action
+      const answer = await post<Undo.Field>(inboxPath(subject.id, 'unsnooze'), {})
+      const refresh = () => invalidateAll(queryClient, keys.inbox(), keys.sidebar())
+      await refresh()
+      return withUndo('Unsnoozed', answer.undo, null, refresh)
     }
     default: {
       const { subject } = action

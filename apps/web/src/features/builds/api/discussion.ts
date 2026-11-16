@@ -7,11 +7,19 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 
+import {
+  pendingComment,
+  withComment,
+  withDeletedComment,
+  withEditedComment,
+} from '#features/builds/api/comments-optimistic.ts'
 import { buildQuery } from '#features/builds/api/index.ts'
 import { projectMembersQuery } from '#features/projects/api/members.ts'
 import { projectPath } from '#lib/api-paths.ts'
+import { authClient } from '#lib/auth-client.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import type { Mention } from '#lib/mentions.ts'
+import { applyPatches, patchOf, rollback } from '#lib/optimistic.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** The project's members as @mention candidates (empty while they load). */
@@ -50,30 +58,67 @@ function useRefreshDiscussion(workspace: string, project: string, number: number
     )
 }
 
-export function useAddComment(workspace: string, project: string, number: number) {
+/**
+ * The thread list and the activity are refetched when a comment change settles; until then the
+ * list shows the change (`patch`) and goes back if the server says no.
+ */
+function useCommentMutation<V, R>(
+  workspace: string,
+  project: string,
+  number: number,
+  what: string,
+  mutationFn: (vars: V) => Promise<R>,
+  patch: (list: Comment.List, vars: V) => Comment.List,
+) {
+  const queryClient = useQueryClient()
   const refresh = useRefreshDiscussion(workspace, project, number)
   return useMutation({
-    meta: { what: 'add the comment' },
-    mutationFn: (input: Comment.Create) =>
-      post<{ id: string }>(projectPath(workspace, project, 'builds', number, 'comments'), input),
-    onSuccess: refresh,
+    meta: { what },
+    mutationFn,
+    onMutate: (vars: V) =>
+      applyPatches(queryClient, [
+        patchOf<Comment.List>(keys.comments(workspace, project, number), (list) =>
+          patch(list, vars),
+        ),
+      ]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: refresh,
   })
 }
 
+let pendingCount = 0
+
+export function useAddComment(workspace: string, project: string, number: number) {
+  const { data: session } = authClient.useSession()
+  const author = session
+    ? { id: session.user.id, name: session.user.name, image: session.user.image ?? null }
+    : null
+  return useCommentMutation(
+    workspace,
+    project,
+    number,
+    'add the comment',
+    (input: Comment.Create) =>
+      post<{ id: string }>(projectPath(workspace, project, 'builds', number, 'comments'), input),
+    (list, input) =>
+      withComment(list, pendingComment(input, author, `pending-${++pendingCount}`, new Date())),
+  )
+}
+
 export function useEditComment(workspace: string, project: string, number: number) {
-  const refresh = useRefreshDiscussion(workspace, project, number)
-  return useMutation({
-    meta: { what: 'edit the comment' },
-    mutationFn: ({ id, body }: { id: string } & Comment.Edit) =>
+  return useCommentMutation(
+    workspace,
+    project,
+    number,
+    'edit the comment',
+    ({ id, body }: { id: string } & Comment.Edit) =>
       send<{ id: string }>(
         'PATCH',
         projectPath(workspace, project, 'builds', number, 'comments', id),
-        {
-          body,
-        },
+        { body },
       ),
-    onSuccess: refresh,
-  })
+    (list, { id, body }) => withEditedComment(list, id, body, new Date()),
+  )
 }
 
 /**
@@ -109,13 +154,15 @@ export function useSetCommentRegion(workspace: string, project: string, number: 
 }
 
 export function useDeleteComment(workspace: string, project: string, number: number) {
-  const refresh = useRefreshDiscussion(workspace, project, number)
-  return useMutation({
-    meta: { what: 'delete the comment' },
-    mutationFn: (id: string) =>
+  return useCommentMutation(
+    workspace,
+    project,
+    number,
+    'delete the comment',
+    (id: string) =>
       send<undefined>('DELETE', projectPath(workspace, project, 'builds', number, 'comments', id)),
-    onSuccess: refresh,
-  })
+    (list, id) => withDeletedComment(list, id, new Date()),
+  )
 }
 
 /**

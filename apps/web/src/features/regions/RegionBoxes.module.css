@@ -1,12 +1,21 @@
+/*
+ * Ignore regions mean "left out of the comparison", not "look here", so they have one style of
+ * their own and no hue: a hatched box in neutral ink (a dark and a light diagonal stripe, a
+ * dashed double stroke) that reads on any screenshot and cannot be taken for a comment region.
+ * The number sits on a neutral tag.
+ */
 .region {
   position: absolute;
   box-sizing: border-box;
-  border: 2px solid var(--circi-annotation);
+  border: 2px dashed var(--circi-text-primary);
   background: repeating-linear-gradient(
     45deg,
-    color-mix(in srgb, var(--circi-annotation) 22%, transparent) 0 6px,
-    transparent 6px 12px
+    color-mix(in srgb, black 38%, transparent) 0 5px,
+    color-mix(in srgb, white 30%, transparent) 5px 10px
   );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, black 70%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, black 70%, transparent);
   pointer-events: none;
 }
 
@@ -22,8 +31,23 @@
   left: -2px;
   min-width: 16px;
   padding: 0 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
+  border: 1px solid color-mix(in srgb, black 70%, transparent);
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
   font-size: 11px;
   line-height: 16px;
+}
+
+@media (forced-colors: active) {
+  .region {
+    border-color: CanvasText;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .tag {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
 }

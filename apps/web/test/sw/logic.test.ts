@@ -3,9 +3,17 @@ import { describe, expect, it } from 'vitest'
 import {
   clickAction,
   entriesToEvict,
+  IMAGE_MAX_BYTES,
+  IMAGE_MAX_COUNT,
+  IMAGE_MAX_AGE_MS,
+  imageKey,
+  imageServable,
+  imagesToEvict,
   isKeepable,
+  mayKeep,
   notificationOptions,
   parsePushPayload,
+  sameOriginPath,
   strategyFor,
 } from '../../src/sw/logic.ts'
 
@@ -96,6 +104,55 @@ describe('parsePushPayload', () => {
       expect(parsePushPayload(JSON.stringify({ title: 't', url })).url).toBe('/')
     }
   })
+
+  it('treats a backslash as the slash it is to the browser', () => {
+    for (const url of ['/\\evil.example', '/\\/evil.example', '\\\\evil.example', '/%5Cx/..']) {
+      const out = parsePushPayload(JSON.stringify({ title: 't', url })).url
+      expect(new URL(out, ORIGIN).origin).toBe(ORIGIN)
+    }
+    expect(parsePushPayload(JSON.stringify({ title: 't', url: '/\\evil.example' })).url).toBe('/')
+    expect(parsePushPayload(JSON.stringify({ title: 't', url: '/acme/web?x=1#c' })).url).toBe(
+      '/acme/web?x=1#c',
+    )
+  })
+})
+
+describe('sameOriginPath', () => {
+  it('returns path, search and hash for this origin only', () => {
+    expect(sameOriginPath('/a/b?x=1#h', ORIGIN)).toBe('/a/b?x=1#h')
+    expect(sameOriginPath(`${ORIGIN}/a?x=1`, ORIGIN)).toBe('/a?x=1')
+    expect(sameOriginPath('/\\evil.example', ORIGIN)).toBeNull()
+    expect(sameOriginPath('//evil.example', ORIGIN)).toBeNull()
+    expect(sameOriginPath('https://evil.example/a', ORIGIN)).toBeNull()
+  })
+})
+
+describe('kept screenshots belong to a person and expire', () => {
+  const now = 10_000_000_000
+  it('serves a fresh copy to the person it was kept for', () => {
+    expect(imageServable({ owner: 'u1', storedAt: now - 1000 }, 'u1', now)).toBe(true)
+    expect(imageServable({ owner: 'u1', storedAt: now - IMAGE_MAX_AGE_MS }, 'u1', now)).toBe(true)
+  })
+
+  it('misses once the link window has passed, and for anything it cannot vouch for', () => {
+    expect(imageServable({ owner: 'u1', storedAt: now - IMAGE_MAX_AGE_MS - 1 }, 'u1', now)).toBe(
+      false,
+    )
+    expect(imageServable({ owner: 'u1', storedAt: now + 5 }, 'u1', now)).toBe(false)
+    expect(imageServable({ owner: 'u1' }, 'u1', now)).toBe(false)
+    expect(imageServable({ owner: 'u1', storedAt: Number.NaN }, 'u1', now)).toBe(false)
+    expect(imageServable(null, 'u1', now)).toBe(false)
+  })
+
+  it("never serves another person's copy, nor any when nobody is known", () => {
+    expect(imageServable({ owner: 'u1', storedAt: now }, 'u2', now)).toBe(false)
+    expect(imageServable({ owner: 'u1', storedAt: now }, null, now)).toBe(false)
+  })
+
+  it('stores a result only if nothing was forgotten since the fetch began', () => {
+    expect(mayKeep(3, 3)).toBe(true)
+    expect(mayKeep(3, 4)).toBe(false)
+  })
 })
 
 describe('notificationOptions', () => {
@@ -141,5 +198,43 @@ describe('clickAction', () => {
     expect(clickAction([{ url: 'https://elsewhere.example/' }], '/acme', ORIGIN)).toEqual({
       kind: 'open',
     })
+  })
+})
+
+const files = (n: number, size: number) =>
+  Array.from({ length: n }, (_, i) => ({ key: `k${i}`, size }))
+
+describe('screenshots (/api/files/<sha256>)', () => {
+  const sha = 'a'.repeat(64)
+  const other = 'b'.repeat(64)
+
+  it('answers a screenshot from the cache first, and still never touches other /api paths', () => {
+    expect(strategyFor(get(`/api/files/${sha}?exp=1&sig=x`), ORIGIN)).toBe('image')
+    expect(strategyFor(get(`/api/files/${sha}`), ORIGIN)).toBe('image')
+    expect(strategyFor(get('/api/files/not-a-hash'), ORIGIN)).toBe('bypass')
+    expect(strategyFor(get(`/api/files/${sha}/extra`), ORIGIN)).toBe('bypass')
+    expect(strategyFor(get('/api/inbox'), ORIGIN)).toBe('bypass')
+  })
+
+  it('keys a screenshot by its path: the signature that changes every hour is not part of it', () => {
+    const key = `${ORIGIN}/api/files/${sha}`
+    expect(imageKey(`${ORIGIN}/api/files/${sha}?exp=100&sig=aaa`, ORIGIN)).toBe(key)
+    expect(imageKey(`${ORIGIN}/api/files/${sha}?exp=999&sig=zzz`, ORIGIN)).toBe(key)
+    expect(imageKey(`${ORIGIN}/api/files/${other}`, ORIGIN)).not.toBe(key)
+  })
+
+  it('keys nothing else', () => {
+    expect(imageKey(`${ORIGIN}/api/inbox`, ORIGIN)).toBeNull()
+    expect(imageKey(`https://evil.test/api/files/${sha}`, ORIGIN)).toBeNull()
+    expect(imageKey('not a url', ORIGIN)).toBeNull()
+  })
+
+  it('evicts the least recently used first, by count and by bytes', () => {
+    expect(imagesToEvict(files(IMAGE_MAX_COUNT, 1))).toEqual([])
+    expect(imagesToEvict(files(IMAGE_MAX_COUNT + 2, 1))).toEqual(['k0', 'k1'])
+    // Three files of 1/2 the byte cap: the first goes.
+    expect(imagesToEvict(files(3, IMAGE_MAX_BYTES / 2))).toEqual(['k0'])
+    expect(imagesToEvict(files(3, 10), 2, 1000)).toEqual(['k0'])
+    expect(imagesToEvict([])).toEqual([])
   })
 })

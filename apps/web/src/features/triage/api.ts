@@ -38,7 +38,7 @@ export interface TriageGroup {
 
 /**
  * The queue's groups in display order (Flaky, No baseline, Failed), empty groups left out.
- * Snoozed items are set aside: they come back when the snooze ends.
+ * Snoozed items are set aside (see `snoozedItems`): they come back when the snooze ends.
  */
 export function groupItems(items: readonly Triage.Item[]): TriageGroup[] {
   return KIND_ORDER.map((kind) => ({
@@ -46,6 +46,39 @@ export function groupItems(items: readonly Triage.Item[]): TriageGroup[] {
     label: KIND_LABEL[kind],
     items: items.filter((i) => i.kind === kind && !i.snoozed),
   })).filter((g) => g.items.length > 0)
+}
+
+const wakeAt = (i: Triage.Item) =>
+  i.snoozedUntil ? new Date(i.snoozedUntil).getTime() : Number.POSITIVE_INFINITY
+
+/** Snoozed items, soonest to wake first (those waiting for the next push last): the Snoozed group. */
+export function snoozedItems(items: readonly Triage.Item[]): Triage.Item[] {
+  return items.filter((i) => i.snoozed).toSorted((a, b) => wakeAt(a) - wakeAt(b))
+}
+
+/**
+ * When a snoozed item wakes: "until Mon" within the week, "until Nov 23" beyond it, "until next
+ * push" for a snooze with no date; undefined while the server hasn't said yet.
+ */
+export function wakesText(
+  item: Pick<Triage.Item, 'snoozedUntil' | 'snoozeKind'>,
+  now: number,
+): string | undefined {
+  if (item.snoozedUntil) {
+    const at = new Date(item.snoozedUntil)
+    const near = at.getTime() - now < 6 * 24 * 3600_000
+    const options: Intl.DateTimeFormatOptions = near
+      ? { weekday: 'short' }
+      : { month: 'short', day: 'numeric' }
+    return `until ${at.toLocaleDateString('en', options)}`
+  }
+  return item.snoozeKind === 'next_push' ? 'until next push' : undefined
+}
+
+/** "Snoozed until Mon": a snoozed row's second line. */
+export function snoozedText(item: Pick<Triage.Item, 'snoozedUntil' | 'snoozeKind'>, now: number) {
+  const wakes = wakesText(item, now)
+  return wakes ? `Snoozed ${wakes}` : 'Snoozed'
 }
 
 /** The queue as one list in on-screen order, for J / K. */
@@ -139,6 +172,33 @@ export function withAssignee(
   assignee: Triage.Item['assignee'],
 ): Triage.Queue {
   return { ...queue, items: queue.items.map((i) => (same(i, ref) ? { ...i, assignee } : i)) }
+}
+
+/** The item as asleep, until the server says when it wakes: it moves to the Snoozed group at once. */
+export function withSnoozed(queue: Triage.Queue, ref: Ref, choice: SnoozeChoice): Triage.Queue {
+  return {
+    ...queue,
+    items: queue.items.map((i) =>
+      same(i, ref)
+        ? {
+            ...i,
+            snoozed: true,
+            snoozeKind: choice.kind,
+            snoozedUntil: choice.kind === 'date' ? choice.date : null,
+          }
+        : i,
+    ),
+  }
+}
+
+/** The item as awake again: it moves from the Snoozed group back into the queue at once. */
+export function withUnsnoozed(queue: Triage.Queue, ref: Ref): Triage.Queue {
+  return {
+    ...queue,
+    items: queue.items.map((i) =>
+      same(i, ref) ? { ...i, snoozed: false, snoozeKind: null, snoozedUntil: null } : i,
+    ),
+  }
 }
 
 /** What the server is sent for a snooze: the menu's choice as the route's body. */
@@ -236,12 +296,22 @@ export function useSnoozeTriage(workspace: string, project: string) {
   return useOptimistic(
     workspace,
     project,
-    (queue, v: { ref: Ref; choice: SnoozeChoice }) => withoutItem(queue, v.ref),
+    (queue, v: { ref: Ref; choice: SnoozeChoice }) => withSnoozed(queue, v.ref, v.choice),
     (v) =>
       post<Triage.ItemState>(
         projectPath(workspace, project, 'triage', 'snooze'),
         snoozeBody(refOf(v.ref), v.choice),
       ),
+  )
+}
+
+export function useUnsnoozeTriage(workspace: string, project: string) {
+  return useOptimistic(
+    workspace,
+    project,
+    (queue, v: { ref: Ref }) => withUnsnoozed(queue, v.ref),
+    (v) =>
+      post<Triage.ItemState>(projectPath(workspace, project, 'triage', 'unsnooze'), refOf(v.ref)),
   )
 }
 

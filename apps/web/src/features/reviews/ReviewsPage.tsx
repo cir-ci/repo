@@ -180,10 +180,12 @@ export function ReviewsPage() {
         { onSuccess: (answer) => done(undoable(r, `Snoozed ${requestName(r)}`, answer.undo)) },
       ),
     )
-  // Bringing it back and dismissing have no Undo: the server keeps nothing to take them back with.
+  // Dismissing has no Undo: the server keeps nothing to take it back with.
   const doUnsnooze = (r: Review.Request) =>
     settle(r, (done) =>
-      unsnooze.mutate(r, { onSuccess: () => done({ message: `Brought back ${requestName(r)}` }) }),
+      unsnooze.mutate(r, {
+        onSuccess: (answer) => done(undoable(r, `Unsnoozed ${requestName(r)}`, answer.undo)),
+      }),
     )
   const doDismiss = (r: Review.Request) =>
     settle(r, (done) =>

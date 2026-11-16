@@ -58,6 +58,14 @@ export const useRecentSearchesStore = create<
     set({ byWorkspace })
   },
   reset: () => set({ byWorkspace: read() }),
+  forgetAll: () => {
+    try {
+      localStorage.removeItem(RECENT_SEARCHES_KEY)
+    } catch {
+      // No storage to clear.
+    }
+    set({ byWorkspace: {} })
+  },
 }))
 
 export namespace RecentSearchesStore {
@@ -70,5 +78,7 @@ export namespace RecentSearchesStore {
     clear: (workspace: string) => void
     /** Reads what the browser holds again (tests clear the storage first). */
     reset: () => void
+    /** Drops every workspace's searches, in memory and in the browser (sign-out, another person). */
+    forgetAll: () => void
   }
 }

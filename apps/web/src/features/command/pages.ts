@@ -294,20 +294,32 @@ export function rowActionEntries(entry: Entry): Entry[] {
     }
     if (subject.type === 'review') {
       rows.push(
-        action(
-          'snooze-request-tomorrow',
-          'Snooze until tomorrow',
-          'snooze',
-          { type: 'snoozeRequest', subject, choice: 'tomorrow' },
-          'Hides the request until tomorrow.',
-        ),
-        action(
-          'snooze-request-week',
-          'Snooze until next week',
-          'snooze',
-          { type: 'snoozeRequest', subject, choice: 'next_week' },
-          'Hides the request until next week.',
-        ),
+        ...(subject.snoozed
+          ? [
+              action(
+                'unsnooze-request',
+                'Unsnooze',
+                'snooze',
+                { type: 'unsnoozeRequest', subject },
+                'Brings the request back.',
+              ),
+            ]
+          : [
+              action(
+                'snooze-request-tomorrow',
+                'Snooze until tomorrow',
+                'snooze',
+                { type: 'snoozeRequest', subject, choice: 'tomorrow' },
+                'Hides the request until tomorrow.',
+              ),
+              action(
+                'snooze-request-week',
+                'Snooze until next week',
+                'snooze',
+                { type: 'snoozeRequest', subject, choice: 'next_week' },
+                'Hides the request until next week.',
+              ),
+            ]),
       )
     }
   }
@@ -320,20 +332,32 @@ export function rowActionEntries(entry: Entry): Entry[] {
         { type: 'assignMe', subject },
         'Assigns the item to you.',
       ),
-      action(
-        'snooze-tomorrow',
-        'Snooze until tomorrow',
-        'snooze',
-        { type: 'snoozeTriage', subject, choice: 'tomorrow' },
-        'Hides the item until tomorrow.',
-      ),
-      action(
-        'snooze-week',
-        'Snooze until next week',
-        'snooze',
-        { type: 'snoozeTriage', subject, choice: 'next_week' },
-        'Hides the item until next week.',
-      ),
+      ...(subject.snoozed
+        ? [
+            action(
+              'unsnooze',
+              'Unsnooze',
+              'snooze',
+              { type: 'unsnoozeTriage', subject },
+              'Puts the item back in the queue.',
+            ),
+          ]
+        : [
+            action(
+              'snooze-tomorrow',
+              'Snooze until tomorrow',
+              'snooze',
+              { type: 'snoozeTriage', subject, choice: 'tomorrow' },
+              'Hides the item until tomorrow.',
+            ),
+            action(
+              'snooze-week',
+              'Snooze until next week',
+              'snooze',
+              { type: 'snoozeTriage', subject, choice: 'next_week' },
+              'Hides the item until next week.',
+            ),
+          ]),
       action(
         'dismiss',
         'Dismiss',
@@ -352,13 +376,21 @@ export function rowActionEntries(entry: Entry): Entry[] {
         { type: 'read', subject, read: !subject.read },
         subject.read ? 'Makes the notice unread again.' : 'Marks the notice as read.',
       ),
-      action(
-        'snooze-tomorrow',
-        'Snooze until tomorrow',
-        'snooze',
-        { type: 'snoozeNotice', subject, choice: 'tomorrow' },
-        'Hides the notice until tomorrow.',
-      ),
+      subject.snoozed
+        ? action(
+            'unsnooze',
+            'Unsnooze',
+            'snooze',
+            { type: 'unsnoozeNotice', subject },
+            'Brings the notice back.',
+          )
+        : action(
+            'snooze-tomorrow',
+            'Snooze until tomorrow',
+            'snooze',
+            { type: 'snoozeNotice', subject, choice: 'tomorrow' },
+            'Hides the notice until tomorrow.',
+          ),
       action(
         'remove',
         'Remove',

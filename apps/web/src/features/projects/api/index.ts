@@ -12,6 +12,7 @@ import {
 import type { Order } from '#features/builds/list/display-options.ts'
 import { projectPath, workspacePath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
+import { livePoll } from '#lib/live.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
@@ -43,7 +44,8 @@ export const projectQuery = (
       getJson<Project.BuildsResponse>(
         `${projectPath(workspace, project)}${toQuery(filters, before, order)}`,
       ),
-    refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
+    refetchInterval: (q) =>
+      q.state.data?.builds.some((b) => isActive(b.status)) ? livePoll(3_000) : false,
   })
 
 export const capabilitiesQuery = () =>
@@ -334,7 +336,8 @@ export const workspaceBuildsQuery = (
       getJson<WorkspaceBuilds.List>(
         `${workspacePath(workspace, 'builds')}${toWorkspaceQuery(filters, before, order)}`,
       ),
-    refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
+    refetchInterval: (q) =>
+      q.state.data?.builds.some((b) => isActive(b.status)) ? livePoll(3_000) : false,
   })
 
 /** People to offer while typing an author or reviewer filter. */

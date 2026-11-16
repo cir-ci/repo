@@ -6,6 +6,7 @@ import {
   ConfirmDialog,
   EmptyState,
   MessageSquareIcon,
+  regionColor,
   Text,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -18,7 +19,7 @@ import {
   useEditComment,
   useMentionMembers,
 } from '#features/builds/api/discussion.ts'
-import { regionThreads } from '#features/regions/geometry.ts'
+import { regionHueStyle, regionThreads } from '#features/regions/geometry.ts'
 import { type Mention, splitMentions } from '#lib/mentions.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { toast } from '#lib/toast.ts'
@@ -33,16 +34,19 @@ import styles from './Discussion.module.css'
  * focuses it). A comment on a region is written in the popover on the image, not here.
  */
 export function CommentsTab(props: CommentsTab.Props) {
-  const { workspace, project, number, snapshotName, focusedId } = props
+  const { workspace, project, number, focusedId } = props
   const { data, error, isPending } = useQuery(commentsQuery(workspace, project, number))
   const members = useMentionMembers(workspace, project)
   const add = useAddComment(workspace, project, number)
 
   const comments = data?.comments ?? []
   const threads = groupThreads(comments)
-  // Pinned threads are numbered as their markers are on the snapshot.
+  // Pinned threads are numbered as their markers are on their snapshot, so a thread has the number
+  // (and the hue) of its marker whichever snapshot is on screen.
   const numbering = new Map(
-    snapshotName ? regionThreads(comments, snapshotName).map((c, i) => [c.id, i + 1]) : [],
+    [...new Set(comments.flatMap((c) => (c.snapshotName ? [c.snapshotName] : [])))].flatMap(
+      (name) => regionThreads(comments, name).map((c, i) => [c.id, i + 1] as const),
+    ),
   )
 
   return (
@@ -102,7 +106,6 @@ export namespace CommentsTab {
     project: string
     number: number
     /** The snapshot on screen: a region drawn on it is pinned to this name. */
-    snapshotName: string | null
     /** The thread to scroll to and focus (a marker or an activity line was chosen). */
     focusedId: string | null
     composerRef: Ref<HTMLTextAreaElement>
@@ -137,6 +140,8 @@ function ThreadView({
       role="listitem"
       className={styles.thread}
       data-thread-id={root.id}
+      data-region={number ? '' : undefined}
+      style={number ? regionHueStyle(regionColor(number)) : undefined}
       data-focused={focused ? '' : undefined}
       tabIndex={-1}
     >

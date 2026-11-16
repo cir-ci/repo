@@ -56,6 +56,7 @@ export {
   useAvatarScheme,
   workspacePalette,
 } from './avatar-palettes.js'
+export { REGION_HUES, type RegionHue, regionColor, regionHue } from './region-colors.js'
 export { Badge } from './Badge.js'
 export { Banner } from './Banner.js'
 export { Breadcrumbs } from './Breadcrumbs.js'

@@ -42,6 +42,7 @@ import {
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { useListStore } from '#lib/stores/list-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import type { ToastInput } from '#lib/stores/toast-store.ts'
 import { toast } from '#lib/toast.ts'
@@ -63,13 +64,17 @@ import {
   KIND_LABEL,
   refOf,
   rotationText,
+  snoozedItems,
+  snoozedText,
   triageQuery,
   useAssignTriage,
   useDismissTriage,
   useItemImage,
   useRerunTriage,
   useSnoozeTriage,
+  useUnsnoozeTriage,
   waitingFor,
+  wakesText,
 } from './api.ts'
 import { ROUTE } from './routes.ts'
 
@@ -110,6 +115,7 @@ export function TriagePage() {
 
   const assign = useAssignTriage(workspace, project)
   const snooze = useSnoozeTriage(workspace, project)
+  const unsnooze = useUnsnoozeTriage(workspace, project)
   const dismiss = useDismissTriage(workspace, project)
   const rerun = useRerunTriage(workspace, project)
 
@@ -117,13 +123,32 @@ export function TriagePage() {
   const awake = groupItems(data?.items ?? [])
   const total = flatten(awake)
   const groups = groupItems(findIn(total, find, triageFields))
-  const items = flatten(groups)
-  const { selected, select, setSelectedId, listRef, rowProps } = useSelectableList({
-    items,
-    getId: itemId,
-    peekable: false,
-  })
-  useSelectFromParam(setSelectedId)
+  const awakeRows = flatten(groups)
+  // Snoozed items sit in their own group after the queue, closed until opened. J / K walk the
+  // queue, and the snoozed rows too while the group is open (they are on screen then).
+  const snoozedAll = snoozedItems(data?.items ?? [])
+  const snoozedRows = findIn(snoozedAll, find, triageFields)
+  const [snoozedOpen, setSnoozedOpen] = useState(false)
+  const [now] = useState(() => Date.now())
+  const items = snoozedOpen ? [...awakeRows, ...snoozedRows] : awakeRows
+  const list = useSelectableList({ items, getId: itemId, peekable: false })
+  const { select, setSelectedId, listRef, rowProps } = list
+  const linked = useSelectFromParam(setSelectedId)
+  // A link (`?item=`) to a snoozed item opens the group; one to an item that is gone selects
+  // nothing, rather than whatever comes first, until another row is chosen.
+  const cursor = useListStore((s) => s.cursorId)
+  const linkedSnoozed = linked !== undefined && snoozedAll.some((i) => itemId(i) === linked)
+  const [openedFor, setOpenedFor] = useState<string>()
+  if (linkedSnoozed && openedFor !== linked) {
+    setOpenedFor(linked)
+    setSnoozedOpen(true)
+  }
+  const linkGone =
+    data !== undefined &&
+    linked !== undefined &&
+    cursor === linked &&
+    !data.items.some((i) => itemId(i) === linked)
+  const selected = linkGone ? undefined : list.selected
   const { image, loading: imageLoading } = useItemImage(workspace, project, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
@@ -143,6 +168,12 @@ export function TriagePage() {
     snooze.mutate(
       { ref: item, choice },
       { onSuccess: (answer) => leave(item, undoable('Snoozed', answer.undo)) },
+    )
+  // Waking an item keeps it selected: it moves from the Snoozed group into the queue.
+  const doUnsnooze = (item: Triage.Item) =>
+    unsnooze.mutate(
+      { ref: item },
+      { onSuccess: (answer) => toast.show(undoable('Unsnoozed', answer.undo)) },
     )
   const doDismiss = (item: Triage.Item) =>
     dismiss.mutate(
@@ -187,7 +218,9 @@ export function TriagePage() {
             onSelect: () => doAssign(item),
           }
         : null,
-      ...snoozeItems(true, (choice) => doSnooze(item, choice)),
+      ...(item.snoozed
+        ? [{ label: 'Unsnooze', onSelect: () => doUnsnooze(item) }]
+        : snoozeItems(true, (choice) => doSnooze(item, choice))),
       { label: 'Dismiss', onSelect: () => doDismiss(item) },
     ])
   }
@@ -204,14 +237,60 @@ export function TriagePage() {
       if (selected) doAssign(selected)
     },
     snooze: () => {
-      if (selected) setSnoozeOpen(true)
+      if (!selected) return
+      if (selected.snoozed) doUnsnooze(selected)
+      else setSnoozeOpen(true)
     },
     dismiss: () => {
       if (selected) doDismiss(selected)
     },
   })
 
-  const failed = [assign, snooze, dismiss, rerun].find((m) => m.error)?.error
+  const renderRow = (item: Triage.Item) => (
+    <li key={itemId(item)} {...rowProps(itemId(item))} onDoubleClick={() => open(item)}>
+      <ContextMenu items={rowMenu(item)}>
+        <ListRow
+          density="two-line"
+          selected={itemId(item) === (selected ? itemId(selected) : '')}
+          onClick={() => {
+            select(item)
+            setSheetFor(itemId(item))
+          }}
+          // Enter, a double click and the menu open the build; the preview in the pane says so once.
+          title={<span aria-hidden="true">{itemTitle(item)}</span>}
+          subtitle={
+            <span aria-hidden="true">
+              {item.snoozed
+                ? `${snoozedText(item, now)} · ${itemSubtitle(item)}`
+                : itemSubtitle(item)}
+            </span>
+          }
+          trailing={
+            <>
+              {item.assignee ? (
+                <Avatar
+                  type="user"
+                  id={item.assignee.id}
+                  name={item.assignee.name}
+                  image={item.assignee.image}
+                  size={20}
+                />
+              ) : (
+                <span className={styles.unassigned} role="img" aria-label="Unassigned" />
+              )}
+              <span className={styles.age} aria-hidden="true">
+                <Age iso={item.build.createdAt} />
+              </span>
+            </>
+          }
+        >
+          <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
+        </ListRow>
+      </ContextMenu>
+    </li>
+  )
+
+  const failed = [assign, snooze, unsnooze, dismiss, rerun].find((m) => m.error)?.error
   const chip = data ? rotationText(data.rotation, session?.user.id) : undefined
 
   return (
@@ -222,7 +301,7 @@ export function TriagePage() {
         after={
           data && total.length > 0 ? (
             <Text variant="small" tone="tertiary" role="status">
-              {items.length}
+              {awakeRows.length}
               {handled > 0 ? ` · ${handled} handled` : ''}
             </Text>
           ) : null
@@ -255,14 +334,14 @@ export function TriagePage() {
             rows={4}
           >
             {() =>
-              total.length === 0 ? (
+              total.length === 0 && snoozedAll.length === 0 ? (
                 <div className={styles.empty}>
                   <EmptyState tone="success" title="Triage is clear">
                     Flaky screenshots, missing baselines and failed builds on the default branch
                     appear here.
                   </EmptyState>
                 </div>
-              ) : items.length === 0 ? (
+              ) : awakeRows.length + snoozedRows.length === 0 ? (
                 <div className={styles.empty}>
                   <NoResults noun="triage item" query={find} onClear={() => setFind('')} />
                 </div>
@@ -271,6 +350,11 @@ export function TriagePage() {
                   {failed ? (
                     <Text tone="failed" role="alert">
                       {failed.message}
+                    </Text>
+                  ) : null}
+                  {linkGone ? (
+                    <Text role="status" tone="secondary">
+                      That item is no longer in Triage.
                     </Text>
                   ) : null}
                   <div
@@ -291,54 +375,29 @@ export function TriagePage() {
                             aria-label={`${group.label}, ${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
                             className={listStyles['list']}
                           >
-                            {group.items.map((item) => (
-                              <li
-                                key={itemId(item)}
-                                {...rowProps(itemId(item))}
-                                onDoubleClick={() => open(item)}
-                              >
-                                <ContextMenu items={rowMenu(item)}>
-                                  <ListRow
-                                    density="two-line"
-                                    selected={itemId(item) === (selected ? itemId(selected) : '')}
-                                    onClick={() => {
-                                      select(item)
-                                      setSheetFor(itemId(item))
-                                    }}
-                                    // Enter, a double click and the menu open the build; the preview in the pane says so once.
-                                    title={<span aria-hidden="true">{itemTitle(item)}</span>}
-                                    subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
-                                    trailing={
-                                      <>
-                                        {item.assignee ? (
-                                          <Avatar
-                                            type="user"
-                                            id={item.assignee.id}
-                                            name={item.assignee.name}
-                                            image={item.assignee.image}
-                                            size={20}
-                                          />
-                                        ) : (
-                                          <span
-                                            className={styles.unassigned}
-                                            role="img"
-                                            aria-label="Unassigned"
-                                          />
-                                        )}
-                                        <span className={styles.age} aria-hidden="true">
-                                          <Age iso={item.build.createdAt} />
-                                        </span>
-                                      </>
-                                    }
-                                  >
-                                    <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
-                                  </ListRow>
-                                </ContextMenu>
-                              </li>
-                            ))}
+                            {group.items.map((item) => renderRow(item))}
                           </ul>
                         </section>
                       ))}
+                      {snoozedAll.length > 0 ? (
+                        <section aria-labelledby="triage-snoozed">
+                          <ListGroup
+                            id="triage-snoozed"
+                            label="Snoozed"
+                            count={snoozedRows.length}
+                            countLabel={`${snoozedRows.length} ${snoozedRows.length === 1 ? 'item' : 'items'}`}
+                            expanded={snoozedOpen}
+                            onExpandedChange={setSnoozedOpen}
+                          >
+                            <ul
+                              aria-label={`Snoozed, ${snoozedRows.length} ${snoozedRows.length === 1 ? 'item' : 'items'}`}
+                              className={listStyles['list']}
+                            >
+                              {snoozedRows.map((item) => renderRow(item))}
+                            </ul>
+                          </ListGroup>
+                        </section>
+                      ) : null}
                     </div>
                     {selected ? (
                       <PaneSlot
@@ -376,17 +435,23 @@ export function TriagePage() {
                                   ? 'Unassign me'
                                   : 'Assign to me'}
                               </Button>
-                              <SnoozeMenu
-                                open={snoozeOpen}
-                                onOpenChange={setSnoozeOpen}
-                                onSnooze={(choice) => doSnooze(selected, choice)}
-                                trigger={
-                                  <Button variant="ghost" aria-keyshortcuts="h">
-                                    Snooze
-                                    <ExpandMoreIcon size={12} aria-hidden="true" />
-                                  </Button>
-                                }
-                              />
+                              {selected.snoozed ? (
+                                <Button aria-keyshortcuts="h" onClick={() => doUnsnooze(selected)}>
+                                  Unsnooze
+                                </Button>
+                              ) : (
+                                <SnoozeMenu
+                                  open={snoozeOpen}
+                                  onOpenChange={setSnoozeOpen}
+                                  onSnooze={(choice) => doSnooze(selected, choice)}
+                                  trigger={
+                                    <Button variant="ghost" aria-keyshortcuts="h">
+                                      Snooze
+                                      <ExpandMoreIcon size={12} aria-hidden="true" />
+                                    </Button>
+                                  }
+                                />
+                              )}
                               <Button
                                 variant="ghost"
                                 aria-keyshortcuts="d"
@@ -484,6 +549,12 @@ export function TriagePage() {
                                   </Text>
                                 )}
                               </dd>
+                              {selected.snoozed && wakesText(selected, now) ? (
+                                <>
+                                  <dt>Snoozed</dt>
+                                  <dd>{wakesText(selected, now)}</dd>
+                                </>
+                              ) : null}
                               <dt>In triage for</dt>
                               <dd>
                                 <Waiting iso={selected.build.createdAt} />

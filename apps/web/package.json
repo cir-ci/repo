@@ -21,10 +21,13 @@
     "@circi/ui": "workspace:*",
     "@fontsource-variable/inter": "catalog:",
     "@fontsource-variable/jetbrains-mono": "catalog:",
+    "@tanstack/query-async-storage-persister": "catalog:",
+    "@tanstack/query-persist-client-core": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-virtual": "catalog:",
     "better-auth": "catalog:",
+    "idb-keyval": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "zustand": "catalog:"

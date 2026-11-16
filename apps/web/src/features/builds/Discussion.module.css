@@ -126,9 +126,14 @@
   border-radius: 6px;
 }
 
+/* A thread pinned to a region has that region's hue (--region) on a left edge, and on its chip. */
+.thread[data-region] {
+  border-inline-start: 4px solid var(--region);
+}
+
 .thread:focus-visible,
 .thread[data-focused] {
-  border-color: var(--circi-annotation);
+  border-color: var(--region, var(--circi-annotation));
 }
 
 .thread:focus-visible {
@@ -173,8 +178,8 @@
   padding: 0 6px;
   border: 0;
   border-radius: 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
+  background: var(--region, var(--circi-annotation));
+  color: var(--circi-region-ink);
   font: inherit;
   font-size: 11px;
   cursor: pointer;

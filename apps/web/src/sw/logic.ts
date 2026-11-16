@@ -3,15 +3,34 @@
  * events), so they are tested in Node.
  *
  * The worker keeps the app shell available (built assets, the page itself when offline) and shows
- * pushes. It never keeps anything the server answers from `/api`: those hold people's data.
+ * pushes. It never keeps anything the server answers from `/api` except screenshots
+ * (`/api/files/<sha256>`, content-addressed, in their own capped cache that is emptied when the
+ * session ends); the rest holds people's data.
  */
 
 /** Bump to drop what older workers cached (their entries are deleted when this one activates). */
 export const SHELL_CACHE = 'circi-shell-v1'
 /** The page every client-side route is answered with, kept for when the network is down. */
 export const SHELL_KEY = '/'
-/** Most assets kept; the oldest go first. */
-export const MAX_ASSETS = 200
+/** Most assets kept (a build's whole precache list is ~350 files, an older build's go by name, see `staleEntries`); the oldest go first. */
+export const MAX_ASSETS = 700
+
+/** Kept screenshots, apart from the shell so each has its own cap and sign-out can empty it. */
+export const IMAGE_CACHE = 'circi-images-v1'
+/** At most this many screenshots, and this many bytes of them; the least recently used go first. */
+export const IMAGE_MAX_COUNT = 300
+export const IMAGE_MAX_BYTES = 200 * 1024 * 1024
+/**
+ * A kept screenshot is served for this long (the server's signed-link window,
+ * `FILE_URL_WINDOW_SECONDS` in `@circi/core/node`, which the worker can't import): the server
+ * checks access again when a link is issued, so a copy must not outlive losing access by longer.
+ * Older entries are a miss and are fetched again.
+ */
+export const IMAGE_MAX_AGE_MS = 3600 * 1000
+/** The cache holding the signed-in person's ID, apart from the screenshots (the worker may be restarted any time). */
+export const META_CACHE = 'circi-meta-v1'
+/** A single file bigger than this is not kept. */
+export const IMAGE_MAX_ENTRY_BYTES = 20 * 1024 * 1024
 
 /** Paths the server answers itself (JSON, files, webhooks, probes): the worker never touches them. */
 const SERVER_PREFIXES = ['/api/', '/v1/', '/v2/', '/webhooks/', '/internal/']
@@ -26,12 +45,97 @@ export type Strategy =
   | 'asset'
   /** Icons and the manifest: served from the cache while a fresh copy is fetched behind it. */
   | 'static'
+  /** A screenshot by its hash: kept by path (the signature in the query changes hourly), the cache first. */
+  | 'image'
 
 export interface RequestLike {
   method: string
   url: string
   /** `navigate` for a page load. */
   mode: string
+}
+
+const IMAGE_PATH = /^\/api\/files\/[0-9a-f]{64}$/
+
+/**
+ * The cache key of a screenshot request: its address without the query (the hourly signature
+ * is only proof of access; the hash in the path is the content, so a kept file is always the
+ * right one). Null for anything else.
+ */
+export function imageKey(requestUrl: string, origin: string): string | null {
+  let url: URL
+  try {
+    url = new URL(requestUrl)
+  } catch {
+    return null
+  }
+  return url.origin === origin && IMAGE_PATH.test(url.pathname) ? `${origin}${url.pathname}` : null
+}
+
+/** What a kept screenshot remembers about itself (headers on the stored response). */
+export interface ImageStamp {
+  /** When it was kept (ms since the epoch). */
+  storedAt: number
+  /** The person whose session fetched it. */
+  owner: string
+}
+
+/**
+ * Whether a kept screenshot may be served now: kept for this very person and within the link
+ * window. No known person (`current` null), another person's, a missing stamp or a clock gone
+ * backwards: a miss.
+ */
+export function imageServable(
+  stamp: Partial<ImageStamp> | null,
+  current: string | null,
+  now: number,
+): boolean {
+  if (current === null || !stamp) return false
+  if (stamp.owner !== current) return false
+  const at = stamp.storedAt
+  return typeof at === 'number' && at <= now && now - at <= IMAGE_MAX_AGE_MS
+}
+
+/** Whether a fetch that started under `started` may still store its result (`forget-private` or a new person bumps the generation). */
+export function mayKeep(started: number, current: number): boolean {
+  return started === current
+}
+
+/**
+ * The path, search and hash of an address if it is in this app (same origin), else null. A
+ * backslash is a slash to the browser (`/\evil.example` goes to another site), so the address is
+ * resolved the way the browser would, not matched by its first characters.
+ */
+export function sameOriginPath(address: string, origin: string): string | null {
+  try {
+    const url = new URL(address, origin)
+    return url.origin === origin ? url.pathname + url.search + url.hash : null
+  } catch {
+    return null
+  }
+}
+
+export interface KeptImage {
+  key: string
+  size: number
+}
+
+/** The keys to delete so at most `maxCount` files and `maxBytes` stay; `kept` runs least recently used first. */
+export function imagesToEvict(
+  kept: readonly KeptImage[],
+  maxCount = IMAGE_MAX_COUNT,
+  maxBytes = IMAGE_MAX_BYTES,
+): string[] {
+  let count = kept.length
+  let bytes = kept.reduce((sum, image) => sum + image.size, 0)
+  const out: string[] = []
+  for (const image of kept) {
+    if (count <= maxCount && bytes <= maxBytes) break
+    out.push(image.key)
+    count -= 1
+    bytes -= image.size
+  }
+  return out
 }
 
 /** How a request is answered. Only same-origin GETs outside the server's own paths are ever kept. */
@@ -45,6 +149,7 @@ export function strategyFor(request: RequestLike, origin: string): Strategy {
   }
   if (url.origin !== origin) return 'bypass'
   const path = url.pathname
+  if (IMAGE_PATH.test(path)) return 'image'
   if (SERVER_PATHS.has(path) || SERVER_PREFIXES.some((p) => path.startsWith(p))) return 'bypass'
   if (request.mode === 'navigate') return 'page'
   if (path.startsWith('/assets/')) return 'asset'
@@ -79,6 +184,9 @@ export interface PushPayload {
   project: string | null
 }
 
+/** A stand-in origin to resolve the pushed address against; only whether it stays on it matters. */
+const ORIGIN_FOR_PARSING = 'https://circi.invalid'
+
 /** Reads a push body; a body that is missing or not ours still shows something sensible. */
 export function parsePushPayload(text: string | null): PushPayload {
   const fallback: PushPayload = { title: 'CirCI', body: '', url: '/', tag: '', project: null }
@@ -96,7 +204,7 @@ export function parsePushPayload(text: string | null): PushPayload {
       title: str('title') || fallback.title,
       body: str('body') ?? '',
       // Only a path in this app: a push never sends a window to another site.
-      url: url?.startsWith('/') && !url.startsWith('//') ? url : '/',
+      url: (url !== undefined && sameOriginPath(url, ORIGIN_FOR_PARSING)) || '/',
       tag: str('tag') ?? '',
       project: str('project') ?? null,
     }

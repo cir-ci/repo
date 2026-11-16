@@ -622,6 +622,7 @@ describe('a typed query', () => {
             buildNumber: 150,
             branch: 'main',
             assignee: null,
+            snoozed: false,
           },
         ],
         notifications: [
@@ -959,6 +960,7 @@ describe('search results with peeks', () => {
             buildNumber: 9,
             branch: 'main',
             assignee: { name: 'Grace Hopper' },
+            snoozed: false,
           },
         ],
         reviews: [
@@ -1070,6 +1072,7 @@ describe('row actions', () => {
           kind: 'flaky',
           key: 'k',
           label: 'k',
+          snoozed: false,
         },
       }),
     )
@@ -1081,10 +1084,72 @@ describe('row actions', () => {
       'Copy link',
       'Open in new tab',
     ])
+    const asleep = rowActionEntries(
+      entryOf({
+        kind: 'triage',
+        subject: {
+          type: 'triage',
+          workspace: 'acme',
+          project: 'web',
+          kind: 'flaky',
+          key: 'k',
+          label: 'k',
+          snoozed: true,
+        },
+      }),
+    )
+    expect(asleep.map((e) => e.label)).toEqual([
+      'Assign to me',
+      'Unsnooze',
+      'Dismiss',
+      'Copy link',
+      'Open in new tab',
+    ])
+    expect(asleep.find((e) => e.label === 'Unsnooze')).toMatchObject({
+      icon: 'snooze',
+      target: { type: 'run', action: { type: 'unsnoozeTriage' } },
+    })
     const read = rowActionEntries(
-      entryOf({ kind: 'notice', subject: { type: 'notice', id: 'n', read: true, label: 'n' } }),
+      entryOf({
+        kind: 'notice',
+        subject: { type: 'notice', id: 'n', read: true, snoozed: false, label: 'n' },
+      }),
     )
     expect(read[0]?.label).toBe('Mark as unread')
+    expect(read.map((e) => e.label)).toContain('Snooze until tomorrow')
+    const asleepNotice = rowActionEntries(
+      entryOf({
+        kind: 'notice',
+        subject: { type: 'notice', id: 'n', read: true, snoozed: true, label: 'n' },
+      }),
+    )
+    expect(asleepNotice.slice(0, 3).map((e) => e.label)).toEqual([
+      'Mark as unread',
+      'Unsnooze',
+      'Remove',
+    ])
+    expect(asleepNotice[1]?.target).toMatchObject({
+      type: 'run',
+      action: { type: 'unsnoozeNotice' },
+    })
+    const request = (snoozed: boolean) =>
+      rowActionEntries(
+        entryOf({
+          kind: 'review',
+          subject: {
+            type: 'review',
+            workspace: 'acme',
+            project: 'web',
+            number: 3,
+            id: 'r1',
+            label: 'build #3',
+            snoozed,
+          },
+        }),
+      ).map((e) => e.label)
+    expect(request(false)).toContain('Snooze until next week')
+    expect(request(true)).toContain('Unsnooze')
+    expect(request(true)).not.toContain('Snooze until tomorrow')
   })
 
   it('offers a row with nothing of its own only the link actions', () => {

@@ -2,6 +2,7 @@ import { DISPLAY_KEY } from '#features/builds/list/display-options.ts'
 
 import { useDisplayStore } from './display-store.ts'
 import { useListStore } from './list-store.ts'
+import { useLiveStore } from './live-store.ts'
 import { useOverlayStore } from './overlay-store.ts'
 import { PANES_KEY, usePaneStore } from './pane-store.ts'
 import { PWA_KEY, usePwaStore } from './pwa-store.ts'
@@ -20,6 +21,7 @@ export function resetStores(): void {
   useShortcutStore.getState().reset()
   useOverlayStore.getState().reset()
   useListStore.getState().reset()
+  useLiveStore.getState().reset()
   useWorkspaceStore.getState().reset()
   useToastStore.getState().reset()
   useSetupStore.getState().reset()

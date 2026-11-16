@@ -35,6 +35,8 @@ export const keys = {
   // A build.
   build: (workspace: string, project: string, number: unknown) =>
     ['build', workspace, project, number] as const,
+  /** Every build page of a project (the prefix of `build`). */
+  projectBuildPages: (workspace: string, project: string) => ['build', workspace, project] as const,
   comments: (workspace: string, project: string, number: unknown) =>
     ['comments', workspace, project, number] as const,
   activity: (workspace: string, project: string, number: unknown) =>

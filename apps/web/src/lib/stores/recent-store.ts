@@ -78,6 +78,14 @@ export const useRecentStore = create<RecentStore.State & RecentStore.Actions>()(
     set({ byWorkspace })
   },
   reset: () => set({ byWorkspace: read() }),
+  forgetAll: () => {
+    try {
+      localStorage.removeItem(RECENT_KEY)
+    } catch {
+      // No storage to clear.
+    }
+    set({ byWorkspace: {} })
+  },
 }))
 
 export namespace RecentStore {
@@ -88,5 +96,7 @@ export namespace RecentStore {
     record: (workspace: string, entry: RecentEntry) => void
     /** Reads what the browser holds again (tests clear the storage first). */
     reset: () => void
+    /** Drops every workspace's visits, in memory and in the browser (sign-out, another person). */
+    forgetAll: () => void
   }
 }

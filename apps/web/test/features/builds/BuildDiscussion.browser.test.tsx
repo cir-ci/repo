@@ -366,6 +366,46 @@ describe('a link to a comment', () => {
   })
 })
 
+describe('region colors', () => {
+  const region = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }
+  const pinned = (id: string, snapshotName: string) =>
+    comment(id, { snapshotName, region, body: `Pinned ${id}` })
+
+  it('gives each region its own color, the same on its box, its pin number and its comment', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    api.comments = [
+      pinned('c1', 'checkout / payment'),
+      pinned('c2', 'checkout / payment'),
+      pinned('c3', 'checkout / payment'),
+      pinned('c4', 'checkout / address'),
+    ]
+    await renderBuild('/acme/web-app/builds/7?sidebar=comments')
+    await expect.element(page.getByText('Pinned c3')).toBeVisible()
+
+    const colors: string[] = []
+    for (const n of [1, 2, 3]) {
+      const marker = page.getByRole('button', { name: `Comment ${n}` }).element()
+      const chip = page.getByRole('button', { name: new RegExp(`^${n} · checkout / payment`) })
+      const thread = chip.element().closest<HTMLElement>('[data-thread-id]')
+      expect(thread).not.toBeNull()
+      const box = getComputedStyle(marker).borderTopColor
+      // The number is printed on the pin, so color is never the only cue.
+      expect(marker.textContent).toBe(String(n))
+      expect(getComputedStyle(chip.element()).backgroundColor).toBe(box)
+      expect(thread && getComputedStyle(thread).borderInlineStartColor).toBe(box)
+      expect(getComputedStyle(marker.querySelector('span') ?? marker).backgroundColor).toBe(box)
+      colors.push(box)
+    }
+    expect(new Set(colors).size).toBe(3)
+
+    // A thread on another screenshot has its own number there, and the hue of that number.
+    const other = page.getByRole('button', { name: /^1 · checkout \/ address/ })
+    await expect.element(other).toBeVisible()
+    expect(getComputedStyle(other.element()).backgroundColor).toBe(colors[0])
+  })
+})
+
 describe('requesting a review', () => {
   it('lists who was asked under People in Details once the request is made', async () => {
     const api = fakeBuildApi(detail())

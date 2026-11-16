@@ -61,8 +61,9 @@
   min-width: 24px;
   height: 24px;
   border-radius: 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
+  border: 1px solid var(--circi-line-strong);
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
   font-size: 12px;
 }
 

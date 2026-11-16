@@ -405,12 +405,23 @@ describe('InboxPage', () => {
   it('shows the Snoozed tab with Unsnooze and an empty state', async () => {
     const api = fakeApi({
       'GET /api/inbox': list([item('n1', { snoozedUntil: '2026-11-09T09:00:00.000Z' })], 'snoozed'),
-      'POST /api/inbox/n1/unsnooze': { body: { id: 'n1', readAt: null, snoozedUntil: null } },
+      'POST /api/inbox/n1/unsnooze': {
+        body: {
+          id: 'n1',
+          readAt: null,
+          snoozedUntil: null,
+          undo: { id: 'u1', expiresAt: '2026-11-09T09:00:30.000Z' },
+        },
+      },
+      'POST /api/inbox/undo/u1': { body: { undone: true } },
     })
     await show('/inbox?tab=snoozed')
     await expect.element(page.getByRole('button', { name: 'Snooze' })).not.toBeInTheDocument()
     await page.getByRole('button', { name: 'Unsnooze' }).click()
     await expect.poll(() => api.of('POST').length).toBe(1)
+    await toastNamed('Unsnoozed').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    await expect.poll(() => api.of('POST').length).toBe(2)
   })
 
   it('shows the empty state', async () => {

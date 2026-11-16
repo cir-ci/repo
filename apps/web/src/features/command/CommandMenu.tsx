@@ -6,6 +6,7 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
 import { returnTarget } from '#app/settings-return.ts'
 import { currentSection, isSettingsSection, type WorkspaceRef } from '#app/shell-model.ts'
+import { useSignOut } from '#features/auth/use-sign-out.ts'
 import { buildQuery } from '#features/builds/api/index.ts'
 import { capabilitiesQuery, projectsQuery } from '#features/projects/api/index.ts'
 import { projectMembersQuery } from '#features/projects/api/members.ts'
@@ -16,9 +17,9 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
-import { useTabStore } from '#lib/stores/tab-store.ts'
 import { useToastStore } from '#lib/stores/toast-store.ts'
 import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
+import { toast } from '#lib/toast.ts'
 import { clipboard } from '#lib/use-copy.ts'
 
 import { NARROWED_LIMIT, useDebounced, useSearchResults } from './api.ts'
@@ -93,6 +94,7 @@ export function CommandMenu({
 }: CommandMenu.Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const signOut = useSignOut()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const params = useParams({ strict: false })
   const { mode, setMode } = useColorScheme()
@@ -287,8 +289,8 @@ export function CommandMenu({
       },
       openTab: (url: string) => openInNewTab(url),
     }
-    void performAction(action, ctx).then((toast) => {
-      if (toast.message) useToastStore.getState().show(toast)
+    void performAction(action, ctx).then((result) => {
+      if (result.message) useToastStore.getState().show(result)
     })
     onOpenChange(false)
   }
@@ -391,10 +393,7 @@ export function CommandMenu({
       }
       case 'signOut':
         afterClose.current = () => {
-          void authClient.signOut().then(() => {
-            queryClient.clear()
-            useTabStore.getState().clear()
-          })
+          void signOut().catch((error: unknown) => toast.failed('sign out', error))
         }
         onOpenChange(false)
         return

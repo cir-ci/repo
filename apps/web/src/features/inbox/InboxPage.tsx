@@ -129,10 +129,11 @@ export function InboxPage() {
         { onSuccess: (answer) => done(undoable('Snoozed', answer.undo)) },
       ),
     )
-  // Bringing it back has no Undo: the server doesn't keep what the snooze was.
   const doUnsnooze = (item: Inbox.Item) =>
     settle(item, (done) =>
-      unsnooze.mutate(item.id, { onSuccess: () => done({ message: 'Brought back' }) }),
+      unsnooze.mutate(item.id, {
+        onSuccess: (answer) => done(undoable('Unsnoozed', answer.undo)),
+      }),
     )
   const doRemove = (item: Inbox.Item) =>
     settle(item, (done) =>

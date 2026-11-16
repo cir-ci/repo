@@ -162,6 +162,22 @@ describe('palettes', () => {
       expect(failures).toEqual([])
     })
 
+    it(`${scheme}: region hues read at 3:1 on every surface, carry their number at 4.5:1 and are told apart (ΔE 25)`, () => {
+      const hues = Object.entries(p.region)
+      for (const [name, hex] of hues) {
+        for (const surface of surfaces) {
+          expect(contrast(hex, surface), `${name} on ${surface}`).toBeGreaterThanOrEqual(3)
+        }
+        expect(contrast(p.other.regionInk, hex), `ink on ${name}`).toBeGreaterThanOrEqual(4.5)
+      }
+      for (const [i, [name, hex]] of hues.entries()) {
+        for (const [otherName, otherHex] of hues.slice(i + 1)) {
+          const d = deltaE(toLinear(hex), toLinear(otherHex))
+          expect(d, `${name} vs ${otherName}`).toBeGreaterThanOrEqual(25)
+        }
+      }
+    })
+
     it(`${scheme}: review text reads at 4.5:1 on the panel and raised surfaces`, () => {
       for (const surface of [p.surface.panel, p.surface.raised]) {
         expect(

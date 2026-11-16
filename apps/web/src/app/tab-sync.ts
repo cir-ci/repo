@@ -4,15 +4,13 @@ import { pageScrollTop, scrollPageTo } from '#lib/page-scroller.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf, activeTab } from '#lib/tabs.ts'
 
+import { sameOriginPath } from '../sw/logic.ts'
+
 /** An address as the tabs keep it: path, search and hash, with no origin. */
 export function hrefFrom(path: string, origin = window.location.origin): string {
-  if (path.startsWith('/') && !path.startsWith('//')) return path
-  try {
-    const url = new URL(path, origin)
-    return url.origin === origin ? url.pathname + url.search + url.hash : path
-  } catch {
-    return path
-  }
+  // Resolved as the browser would: `//host` and a backslash host leave the origin, so they
+  // become the home page rather than an address a tab could be sent to.
+  return sameOriginPath(path, origin) ?? '/'
 }
 
 /** Whether a link goes to a page of the app: same origin, not the API, not a file, not another window. */

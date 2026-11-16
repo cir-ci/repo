@@ -12,6 +12,10 @@ import {
   itemSubtitle,
   rotationText,
   snoozeBody,
+  snoozedItems,
+  snoozedText,
+  wakesText,
+  withSnoozed,
   waitingFor,
   withAssignee,
   withoutItem,
@@ -147,5 +151,32 @@ describe('snapshotHistoryQuery', () => {
     await new QueryClient().fetchQuery(snapshotHistoryQuery('acme', 'web', 'checkout/home', 12))
     expect(asked).toBe('/api/projects/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('snoozed items', () => {
+  const NOW = new Date('2026-11-16T10:00:00.000Z').getTime()
+  it('lists them soonest to wake first, next-push ones last, and says when they wake', () => {
+    const list = snoozedItems([
+      item({ key: 'awake' }),
+      item({ key: 'push', snoozed: true, snoozeKind: 'next_push' }),
+      item({ key: 'later', snoozed: true, snoozedUntil: '2026-11-30T09:00:00.000Z' }),
+      item({ key: 'soon', snoozed: true, snoozedUntil: '2026-11-17T09:00:00.000Z' }),
+    ])
+    expect(list.map((i) => i.key)).toEqual(['soon', 'later', 'push'])
+    expect(snoozedText(list[0]!, NOW)).toBe('Snoozed until Tue')
+    expect(snoozedText(list[1]!, NOW)).toBe('Snoozed until Nov 30')
+    expect(wakesText(list[2]!, NOW)).toBe('until next push')
+    expect(snoozedText(item({ snoozed: true }), NOW)).toBe('Snoozed')
+  })
+
+  it('moves an item to the snoozed set at once, leaving the rest', () => {
+    const queue: Triage.Queue = {
+      items: [item({ key: 'a' }), item({ key: 'b' })],
+      rotation: { members: [], onTriage: null, until: null },
+    }
+    const next = withSnoozed(queue, { kind: 'flaky', key: 'a' }, { kind: 'tomorrow' })
+    expect(groupItems(next.items).flatMap((g) => g.items.map((i) => i.key))).toEqual(['b'])
+    expect(snoozedItems(next.items).map((i) => i.key)).toEqual(['a'])
   })
 })

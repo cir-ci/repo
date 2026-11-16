@@ -18,6 +18,7 @@ import { useState } from 'react'
 import { fileUrl } from '#features/builds/api/index.ts'
 import { flakyQuery, ignoreRegionsQuery } from '#features/projects/api/index.ts'
 import { useCrumbNames } from '#features/projects/crumb-names.ts'
+import { triageQuery, wakesText } from '#features/triage/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
@@ -49,6 +50,14 @@ export function BaselinesPage() {
   const query = useQuery(baselinesQuery(workspace, project))
   const { data } = query
   const flaky = useQuery(flakyQuery(workspace, project))
+  // A flaky screenshot whose triage item is asleep says so on its chip.
+  const triage = useQuery(triageQuery(workspace, project))
+  const [now] = useState(() => Date.now())
+  const snoozedOf = new Map(
+    (triage.data?.items ?? [])
+      .filter((i) => i.kind === 'flaky' && i.snoozed && i.snapshotName !== null)
+      .map((i) => [i.snapshotName, wakesText(i, now) ?? 'for now']),
+  )
   const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.reason]))
   // Marks only for exceptions: flaky ones and ones with ignore regions.
   const regions = useQuery(ignoreRegionsQuery(workspace, project))
@@ -200,6 +209,7 @@ export function BaselinesPage() {
                                         {flakyOf.has(item.name) ? (
                                           <FlakyChip
                                             reason={flakyOf.get(item.name)!}
+                                            snoozed={snoozedOf.get(item.name)}
                                             onOpen={() =>
                                               void router.navigate({
                                                 href: triageItemHref(workspace, project, item.name),
@@ -240,12 +250,21 @@ const triageItemHref = (workspace: string, project: string, name: string) =>
  * in Triage. Inside the row's link it can't be a link of its own, so like the row's action chip it
  * takes the click (the item is also reachable from Triage itself).
  */
-function FlakyChip({ reason, onOpen }: { reason: Flaky.Reason; onOpen: () => void }) {
+function FlakyChip({
+  reason,
+  snoozed,
+  onOpen,
+}: {
+  reason: Flaky.Reason
+  /** When its triage item wakes ("until Mon"), if it is snoozed. */
+  snoozed: string | undefined
+  onOpen: () => void
+}) {
   const text = flakyReasonText(reason)
   return (
     <span
       className={styles.flakyChip}
-      title={`Flaky: ${text}. Open in Triage`}
+      title={`Flaky: ${text}${snoozed ? ` · snoozed ${snoozed}` : ''}. Open in Triage`}
       onClick={(event) => {
         event.preventDefault()
         event.stopPropagation()

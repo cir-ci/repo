@@ -5,3 +5,6 @@ interface ImportMeta {
     readonly PROD: boolean
   }
 }
+
+/** An identifier of this build (vite.config.ts `define`); the service worker's manifest carries the same. Not defined in tests. */
+declare const CIRCI_BUILD_ID: string

@@ -179,6 +179,47 @@ describe('BaselinesPage', () => {
     expect(router.state.location.search).toEqual({ item: 'flaky:checkout/payment' })
   })
 
+  it("says on a flaky screenshot's chip that its triage item is snoozed, and until when", async () => {
+    const until = new Date(Date.now() + 2 * 24 * 3600_000)
+    const reason = {
+      kind: 'reruns_disagree',
+      reruns: { build: 12, runs: 2, differing: 1, commits: 1 },
+    }
+    const triageItem = (name: string, snoozed: boolean) => ({
+      kind: 'flaky',
+      key: name,
+      snapshotName: name,
+      snoozed,
+      snoozeKind: snoozed ? 'next_week' : null,
+      snoozedUntil: snoozed ? until.toISOString() : null,
+    })
+    fakeFetch({
+      [`GET ${PATH}`]: list([
+        item('dashboard/overview', 'default', 12),
+        item('settings/billing', 'default', 11),
+      ]),
+      [`GET ${FLAKY}`]: json({
+        builds: 10,
+        flaky: [
+          { name: 'dashboard/overview', changedIn: 4, reason },
+          { name: 'settings/billing', changedIn: 4, reason },
+        ],
+      }),
+      [`GET /api/projects/acme/web/triage`]: json({
+        items: [triageItem('dashboard/overview', false), triageItem('settings/billing', true)],
+        rotation: { members: [], onTriage: null, until: null },
+      }),
+    })
+    await open()
+    const wake = until.toLocaleDateString('en', { weekday: 'short' })
+    const chips = page.getByText('Differed across 2 runs of one commit', { exact: true })
+    await expect.poll(() => chips.elements().length).toBe(2)
+    const titles = chips.elements().map((el) => el.parentElement?.getAttribute('title'))
+    expect(titles.filter((t) => t?.includes(`snoozed until ${wake}`))).toHaveLength(1)
+    expect(titles.filter((t) => t?.includes('snoozed'))).toHaveLength(1)
+    expect(titles.every((t) => t?.endsWith('Open in Triage'))).toBe(true)
+  })
+
   it('says so when there are none, centred in the content area, with no find field', async () => {
     await page.viewport(1200, 800)
     fakeFetch({ [`GET ${PATH}`]: list([]), [`GET ${FLAKY}`]: noFlaky })

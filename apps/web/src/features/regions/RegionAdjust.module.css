@@ -12,7 +12,8 @@
   position: absolute;
   inset: 3px;
   box-sizing: border-box;
-  border: 1.5px solid var(--circi-annotation);
+  border: 1.5px solid var(--region, var(--circi-annotation));
+  box-shadow: 0 0 0 1px color-mix(in srgb, black 70%, transparent);
   border-radius: var(--circi-radius-inline);
   background: var(--circi-surface-highest);
   opacity: 0;

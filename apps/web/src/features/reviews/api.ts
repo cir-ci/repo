@@ -1,11 +1,20 @@
-import type { Review } from '@circi/api'
+import type { Build, Inbox, Review } from '@circi/api'
 import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { askForReview } from '#features/builds/api/discussion.ts'
+import { withBuildDecision } from '#features/builds/api/optimistic.ts'
+import { withBuildApproved } from '#features/inbox/optimistic.ts'
+import {
+  withoutRequest,
+  withRequestAwake,
+  withRequestClosed,
+  withRequestSnoozed,
+} from '#features/reviews/optimistic.ts'
 import { projectPath } from '#lib/api-paths.ts'
 import { findParam } from '#lib/find.ts'
 import { getJson, post, seg } from '#lib/http.ts'
+import { applyPatches, type CachePatch, patchOf, rollback } from '#lib/optimistic.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
@@ -298,44 +307,84 @@ const requestPath = (r: Review.Request, ...rest: (string | number)[]) =>
 /** Every list that shows the same facts a review changes; refetched after each of them. */
 const AFFECTED = [keys.reviews(), keys.inbox(), keys.sidebar(), keys.projects()] as const
 
-function useRefresh() {
+/**
+ * A change to a review request: the cached lists show it at once (`patch`, applied to every tab)
+ * and go back if the server says no; everything that shows the same facts is refetched when it
+ * settles. `also` adds patches to other caches (the build's page).
+ */
+function useRequestMutation<V extends Review.Request, R>(
+  what: string,
+  mutationFn: (vars: V) => Promise<R>,
+  patch: (list: Review.List, vars: V) => Review.List,
+  also: (vars: V) => readonly CachePatch[] = () => [],
+) {
   const queryClient = useQueryClient()
-  return (extra: readonly (readonly unknown[])[] = []) =>
-    invalidateAll(queryClient, ...AFFECTED, ...extra)
+  return useMutation({
+    meta: { what },
+    mutationFn,
+    onMutate: (vars: V) =>
+      applyPatches(queryClient, [
+        patchOf<Review.List>(keys.reviews(), (list) => patch(list, vars)),
+        ...also(vars),
+      ]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: (_data, _error, r) =>
+      invalidateAll(
+        queryClient,
+        ...AFFECTED,
+        keys.build(r.workspace.slug, r.project.slug, r.build.number),
+      ),
+  })
 }
 
 /** Approves the request's build. The server also clears the Inbox entry, so both lists are refetched. */
 export function useApproveRequest() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'approve' },
-    mutationFn: (r: Review.Request) =>
+  return useRequestMutation(
+    'approve',
+    (r: Review.Request) =>
       post<Review.Decided>(requestPath(r, 'builds', r.build.number, 'review'), {
         state: 'approved',
       }),
-    onSuccess: (_data, r) =>
-      refresh([keys.build(r.workspace.slug, r.project.slug, r.build.number)]),
-  })
+    (list, r) => withRequestClosed(list, r.id),
+    (r) => [
+      patchOf<Build.Detail>(keys.build(r.workspace.slug, r.project.slug, r.build.number), (d) =>
+        withBuildDecision(d, 'approved'),
+      ),
+      patchOf<Inbox.List>(keys.inbox(), (list) =>
+        withBuildApproved(list, {
+          workspace: r.workspace.slug,
+          project: r.project.slug,
+          number: r.build.number,
+        }),
+      ),
+    ],
+  )
 }
 
 export function useSnoozeRequest() {
-  const refresh = useRefresh()
+  const queryClient = useQueryClient()
   return useMutation({
     meta: { what: 'snooze the request' },
     mutationFn: ({ request, choice }: { request: Review.Request; choice: SnoozeChoice }) =>
       post<Review.Snoozed>(requestPath(request, 'review-requests', request.id, 'snooze'), choice),
-    onSuccess: () => refresh(),
+    onMutate: ({ request, choice }) =>
+      applyPatches(queryClient, [
+        patchOf<Review.List>(keys.reviews(), (list) =>
+          withRequestSnoozed(list, request.id, choice),
+        ),
+      ]),
+    onError: (_error, _vars, snapshot) => rollback(queryClient, snapshot),
+    onSettled: () => invalidateAll(queryClient, ...AFFECTED),
   })
 }
 
 export function useUnsnoozeRequest() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'unsnooze the request' },
-    mutationFn: (r: Review.Request) =>
-      post(requestPath(r, 'review-requests', r.id, 'unsnooze'), {}),
-    onSuccess: () => refresh(),
-  })
+  return useRequestMutation(
+    'unsnooze the request',
+    (r: Review.Request) =>
+      post<Review.Snoozed>(requestPath(r, 'review-requests', r.id, 'unsnooze'), {}),
+    (list, r) => withRequestAwake(list, r.id),
+  )
 }
 
 /** Tells the reviewer again; the server allows it once per 24 hours, and only to whoever asked. */
@@ -347,17 +396,16 @@ export function useNudgeRequest() {
 }
 
 export function useDismissRequest() {
-  const refresh = useRefresh()
-  return useMutation({
-    meta: { what: 'dismiss the request' },
-    mutationFn: (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'dismiss'), {}),
-    onSuccess: () => refresh(),
-  })
+  return useRequestMutation(
+    'dismiss the request',
+    (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'dismiss'), {}),
+    (list, r) => withoutRequest(list, r.id),
+  )
 }
 
 export function useRequestReview() {
   const queryClient = useQueryClient()
-  const refresh = useRefresh()
+  const refresh = () => invalidateAll(queryClient, ...AFFECTED)
   return useMutation({
     meta: { what: 'ask for a review' },
     mutationFn: ({ request, reviewerId }: { request: Review.Request; reviewerId: string }) =>

@@ -89,6 +89,12 @@ exception in the test, with its reason):
   from the explicit subpaths (`@circi/integrations/{git,github,gitlab,bitbucket}`); the web app imports no server package.
 - **Better-auth's tables** (`schema/auth.ts`) are generated (`pnpm db:auth-schema`, then
   `pnpm db:generate`), never edited by hand. Writes to them go through better-auth's API.
+- **Live updates** (the dashboard changes in place, no polling): a service that changes something the dashboard shows calls
+  `emitBuildLive` / `emitProjectLive` / `emitUserLive` (`services/src/live`) in its transaction, a `pg_notify` on `circi_live`
+  that is delivered on commit and dropped on rollback, carrying IDs only (`LiveNotice` in `@circi/core`). Every server instance
+  LISTENs (`createLiveHub`), `GET /api/live` turns each notice into a `Live.Event` for the people who may see it
+  (`canSeeProject`), and the web app's `lib/live.ts` maps events to the query keys to invalidate (`lib/live-keys.ts`). A new kind
+  of change adds a `LiveNoticeType` (core), a wire type (api) and a case in `live-keys.ts`.
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a
   wrapper plugin (see `app.ts`) so the plugin's options never carry `prefix`.
 
@@ -131,6 +137,8 @@ A namespace must contain only types. Never put a value in one.
   not as separate top-level names.
 - **State:** state that changes or is needed across large areas, or is complex, goes in a global
   store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
+  The query cache is kept in IndexedDB between visits (`apps/web/src/lib/persist-policy.ts`: an allowlist of query keys, so a new
+  query is stored only once it is named there; dropped on sign-out, a 401, a new build and another user).
 - **One primary button per area:** at most one `variant="primary"` in the page (header and body), in each
   dialog and in each pane; the other actions are secondary, danger or ghost. A page test of a main
   page calls `expectOnePrimaryPerArea()` (`apps/web/test/support/primary-buttons.ts`).

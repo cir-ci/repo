@@ -3,6 +3,7 @@ import { type Locator, page, userEvent } from 'vitest/browser'
 
 import { PANES, paneLimits } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
+import { useSingleKeyStore } from '#lib/stores/single-key-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { expectLimitedToSpace, expectResize, parentOf, widthOf } from '#test/support/resize.ts'
@@ -705,6 +706,75 @@ describe('diff mode: this build under the changed pixels', () => {
   })
 })
 
+const headOf = () => page.getByRole('img', { name: 'This build: checkout / payment' })
+
+const handle = () => page.getByRole('slider', { name: 'Slider position' })
+
+async function openSlider() {
+  fakeBuildApi(detail())
+  await renderBuild('/acme/web-app/builds/7?mode=slider')
+  await expect.element(handle()).toHaveAttribute('aria-valuenow', '50')
+}
+
+describe('slider mode: the same keys as Diff', () => {
+  it('steps this build by 10% with [ and ] (] shows more of it) and says so', async () => {
+    await openSlider()
+    await userEvent.keyboard(']')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '40')
+    await expect.element(headOf()).toHaveStyle({ clipPath: 'inset(0px 0px 0px 40%)' })
+    await expect.element(page.getByText('This build 60%')).toBeInTheDocument()
+    await userEvent.keyboard('[[')
+    await userEvent.keyboard('[[')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '60')
+    await expect.element(page.getByText('This build 40%')).toBeInTheDocument()
+    await userEvent.keyboard(']]]]]]]]]]]]')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '0')
+  })
+
+  it('steps with [ and ] while the handle has focus, and arrow keys still move it', async () => {
+    await openSlider()
+    handle().element().focus()
+    await userEvent.keyboard(']')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '40')
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '41')
+  })
+
+  it('shows this build in full while Alt is held on its own, then restores the position', async () => {
+    await openSlider()
+    await userEvent.keyboard(']')
+    await userEvent.keyboard('{Alt>}')
+    await expect.element(headOf()).toHaveStyle({ clipPath: 'inset(0px 0px 0px 0%)' })
+    await userEvent.keyboard('{/Alt}')
+    await expect.element(headOf()).toHaveStyle({ clipPath: 'inset(0px 0px 0px 40%)' })
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '40')
+  })
+
+  it('leaves [ and ] alone when single-key shortcuts are off', async () => {
+    await openSlider()
+    useSingleKeyStore.getState().setEnabled(false)
+    try {
+      await userEvent.keyboard(']')
+      handle().element().focus()
+      await userEvent.keyboard(']')
+      await expect.element(handle()).toHaveAttribute('aria-valuenow', '50')
+    } finally {
+      useSingleKeyStore.getState().setEnabled(true)
+    }
+  })
+
+  it('does the same on a phone', async () => {
+    await page.viewport(390, 800)
+    fakeBuildApi(detail())
+    await renderBuild()
+    // The phone's view tabs: Slider is one of them, and its handle takes the same keys.
+    await page.getByRole('button', { name: 'Slider', exact: true }).click()
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '50')
+    await userEvent.keyboard(']')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '40')
+  })
+})
+
 describe('zoom and stepping', () => {
   it('fits by default, then shows the real size and steps', async () => {
     fakeBuildApi(detail())
@@ -1294,6 +1364,59 @@ describe('Fit', () => {
     )
     await page.getByRole('button', { name: 'Fit', exact: true }).click()
     await expect.element(head).toHaveStyle({ width: '400px' })
+  })
+})
+
+/** A real 200x100 PNG (a solid pixel scaled by the header), so layout has an intrinsic size. */
+function pngDataUrl() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 200
+  canvas.height = 100
+  canvas.getContext('2d')?.fillRect(0, 0, 200, 100)
+  return canvas.toDataURL('image/png')
+}
+
+/** Points every screenshot image at the real PNG and waits until it is decoded. */
+async function giveImagesSize(names: RegExp) {
+  const src = pngDataUrl()
+  const imgs = page
+    .getByRole('img', { name: names })
+    .elements()
+    .filter((el): el is HTMLImageElement => el instanceof HTMLImageElement)
+  await Promise.all(
+    imgs.map((img) => {
+      img.src = src
+      return img.decode()
+    }),
+  )
+}
+
+describe('Fit fills the viewer', () => {
+  it('scales an added screenshot (one image, no baseline) to the viewer width', async () => {
+    fakeBuildApi(detail({}, { diffs: [shot('home', 'added')] }))
+    await renderBuild('/acme/web-app/builds/7')
+    const head = page.getByRole('img', { name: /^New in this build: home/ })
+    await expect.element(head).toBeVisible()
+    await giveImagesSize(/^New in this build/)
+    const img = head.element()
+    const ground = img.closest('[data-fit]')!
+    const room = ground.getBoundingClientRect().width - 32
+    await expect.poll(() => img.getBoundingClientRect().width).toBeGreaterThan(room - 8)
+    expect(img.getBoundingClientRect().width).toBeGreaterThan(200)
+  })
+
+  it('scales each image of a side by side to its half of the viewer', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7')
+    const head = page.getByRole('img', { name: /^This build: checkout \/ payment/ })
+    await expect.element(head).toBeVisible()
+    await giveImagesSize(/checkout \/ payment/)
+    const img = head.element()
+    const figure = img.closest('figure')!
+    await expect
+      .poll(() => img.getBoundingClientRect().width)
+      .toBeGreaterThan(figure.getBoundingClientRect().width - 8)
+    expect(img.getBoundingClientRect().width).toBeGreaterThan(200)
   })
 })
 

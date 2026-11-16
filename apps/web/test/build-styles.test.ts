@@ -109,4 +109,32 @@ describe('the built dashboard', () => {
       expect(readFileSync(join(out, 'assets', glyph[0]!)).length).toBeLessThan(170 * 1024)
     })
   })
+
+  describe('the font preload and the service worker manifest', () => {
+    it("preloads Inter's Latin font by its hashed name, with crossorigin, and no other font", () => {
+      const links = [...html.matchAll(/<link rel="preload"[^>]*>/g)].map((m) => m[0])
+      const fonts = links.filter((l) => l.includes('as="font"'))
+      expect(fonts).toHaveLength(1)
+      const [font] = fonts
+      expect(font).toMatch(/href="\/assets\/inter-latin-wght-normal-[^"]+\.woff2"/)
+      expect(font).toContain('crossorigin')
+      expect(font).toContain('type="font/woff2"')
+      const file = /href="\/(assets\/[^"]+)"/.exec(font!)![1]!
+      expect(readdirSync(join(out, 'assets'))).toContain(file.replace('assets/', ''))
+    })
+
+    it("writes this build's files into sw.js, without the icon picker's icons or the other alphabets' fonts", () => {
+      const worker = readFileSync(join(out, 'sw.js'), 'utf8')
+      const built = readdirSync(join(out, 'assets'))
+      const entry = built.find((f) => /^index-.*\.js$/.test(f))!
+      expect(worker).toContain(`/assets/${entry}`)
+      const iconFiles = built.filter((f) => /^[a-z][a-z0-9-]+-[A-Za-z0-9_-]{8}\.js$/.test(f))
+      // About 1,700 icon files exist; the manifest names none of the picker's.
+      expect(iconFiles.length).toBeGreaterThan(1000)
+      const named = iconFiles.filter((f) => worker.includes(`/assets/${f}`))
+      expect(named.length).toBeLessThan(120)
+      expect(worker).toMatch(/inter-latin-wght-normal-[^,`]+\.woff2/)
+      expect(worker).not.toMatch(/inter-cyrillic/)
+    })
+  })
 })

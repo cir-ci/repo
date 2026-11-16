@@ -1,4 +1,5 @@
 import type { Comment } from '@circi/api'
+import type { CSSProperties } from 'react'
 
 /** A pointer position, in the same coordinate space as the `Box` (client pixels). */
 export interface Point {
@@ -88,9 +89,19 @@ export function describeRegion(region: Comment.Region): string {
   return `${percent(region.x)} from the left, ${percent(region.y)} from the top, ${percent(region.width)} wide, ${percent(region.height)} high`
 }
 
-/** The inline style that places a region over the image it is a fraction of. */
-export function regionStyle(region: Comment.Region) {
+/** A style that only sets `--region`, the hue a region's box, pin and comment draw from. */
+export function regionHueStyle(color: string): CSSProperties {
+  return Object.fromEntries([['--region', color]])
+}
+
+/**
+ * The inline style that places a region over the image it is a fraction of. With a `color` (a
+ * numbered comment region's hue) it also sets `--region`, which the box, its pin, its handles and
+ * the comment's marker draw from; without one they fall back to the annotation color.
+ */
+export function regionStyle(region: Comment.Region, color?: string) {
   return {
+    ...(color === undefined ? {} : { '--region': color }),
     left: `${region.x * 100}%`,
     top: `${region.y * 100}%`,
     width: `${region.width * 100}%`,

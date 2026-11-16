@@ -1,5 +1,14 @@
 import type { Comment, IgnoreRegion } from '@circi/api'
-import { Avatar, Button, Kbd, Popover, PopoverClose, useAnnounce, visuallyHidden } from '@circi/ui'
+import {
+  Avatar,
+  Button,
+  Kbd,
+  Popover,
+  PopoverClose,
+  regionColor,
+  useAnnounce,
+  visuallyHidden,
+} from '@circi/ui'
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -264,14 +273,14 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
   )
 }
 
-/** A saved thread's region: a button in the annotation colour with its pin, and corner handles for its author. */
+/** A saved thread's region: a button in its own hue (by its number) with its numbered pin, and corner handles for its author. */
 function ThreadMarker({ thread, focused, onMarker, adjust }: ThreadMarker.Props) {
   const box = useAdjustable(thread.region, adjust)
   return (
     <button
       type="button"
       className={styles.marker}
-      style={regionStyle(box.region)}
+      style={regionStyle(box.region, regionColor(thread.number))}
       data-focused={focused ? '' : undefined}
       aria-label={`Comment ${thread.number}`}
       onPointerDown={(e) => e.stopPropagation()}
