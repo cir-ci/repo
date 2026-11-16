@@ -158,7 +158,7 @@ export interface SeedProject {
    */
   settings?: Record<string, number | boolean | string | null>
   reviewOverdueNotify?: PersonKey
-  /** Webhooks, all at the dev receiver, so every delivery succeeds. */
+  /** Webhooks, all at the dev receiver; every delivery succeeds except those to FAILING_HOOK_PATH. */
   webhooks?: readonly { url: string; events: readonly string[] }[]
   /** Rectangles (pixels) ignored when comparing the screenshots with this name. */
   ignore?: readonly { name: string; x: number; y: number; width: number; height: number }[]
@@ -166,6 +166,9 @@ export interface SeedProject {
 
 /** The dev webhook receiver (webhook-receiver.ts). The dev server sets WEBHOOK_ALLOW_PRIVATE_ADDRESSES, so the address guard lets it through. */
 const HOOKS = URLS.hooks
+
+/** The receiver answers 500 on this path, so a webhook there has failed deliveries and retries to show. */
+export const FAILING_HOOK_PATH = '/fail/always'
 
 export const PROJECTS: readonly SeedProject[] = [
   {
@@ -196,6 +199,7 @@ export const PROJECTS: readonly SeedProject[] = [
     webhooks: [
       { url: `${HOOKS}/hooks/circi`, events: ['build.completed', 'build.reviewed'] },
       { url: `${HOOKS}/hooks/audit`, events: ['build.completed'] },
+      { url: `${HOOKS}${FAILING_HOOK_PATH}`, events: ['build.completed'] },
     ],
     ignore: [
       { name: 'home', x: 700, y: 10, width: 200, height: 36 },

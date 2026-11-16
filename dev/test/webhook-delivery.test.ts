@@ -12,38 +12,41 @@ const headersFor = (secret: string, extra: Record<string, string> = {}) => ({
 })
 
 describe('describeDelivery', () => {
-  it('says valid when one of the secrets signed the body', () => {
-    const result = describeDelivery({ headers: headersFor('b'), body, secrets: ['a', 'b'] })
+  it('says valid when the secret signed the body', () => {
+    const result = describeDelivery({ headers: headersFor('b'), body, secret: 'b' })
     expect(result).toEqual({ signature: 'valid', line: 'build.completed d1 signature valid' })
   })
 
   it('says invalid for a signature no known secret made', () => {
-    const result = describeDelivery({ headers: headersFor('x'), body, secrets: ['a'] })
+    const result = describeDelivery({ headers: headersFor('x'), body, secret: 'a' })
     expect(result.signature).toBe('invalid')
     expect(result.line).toContain('INVALID')
   })
 
   it('says invalid when the body was changed', () => {
-    const result = describeDelivery({ headers: headersFor('a'), body: `${body} `, secrets: ['a'] })
+    const result = describeDelivery({ headers: headersFor('a'), body: `${body} `, secret: 'a' })
     expect(result.signature).toBe('invalid')
   })
 
-  it('says unknown when no secret is saved yet', () => {
-    expect(describeDelivery({ headers: headersFor('a'), body, secrets: [] }).signature).toBe(
-      'unknown',
+  it('says not checked for a webhook the seed did not create', () => {
+    const result = describeDelivery({ headers: headersFor('a'), body, secret: undefined })
+    expect(result.signature).toBe('unchecked')
+    expect(result.line).toBe(
+      'build.completed d1 signature not checked (webhook not created by the seed)',
     )
   })
 
   it('says missing without the header, and names absent event and ID', () => {
-    const result = describeDelivery({ headers: {}, body, secrets: ['a'] })
+    const result = describeDelivery({ headers: {}, body, secret: 'a' })
     expect(result).toEqual({ signature: 'missing', line: '(no event) (no ID) no signature' })
   })
 })
 
 describe('parseSecrets', () => {
-  it('reads an array of strings and ignores anything else', () => {
-    expect(parseSecrets('["a","b",3]')).toEqual(['a', 'b'])
-    expect(parseSecrets('{"a":1}')).toEqual([])
-    expect(parseSecrets('not json')).toEqual([])
+  it('reads secrets by path and ignores anything else', () => {
+    expect(parseSecrets('{"/hooks/a":"s1","/b":3}')).toEqual({ '/hooks/a': 's1' })
+    expect(parseSecrets('["a"]')).toEqual({})
+    expect(parseSecrets('null')).toEqual({})
+    expect(parseSecrets('not json')).toEqual({})
   })
 })

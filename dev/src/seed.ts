@@ -632,8 +632,9 @@ async function seedActivity(world: World): Promise<void> {
   ])
 
   // Webhooks at the dev receiver, added now so they don't deliver for every build above; each gets
-  // a test event, so the delivery list has one. The receiver checks signatures with the secrets
-  // saved here.
+  // a test event, so the delivery list has one (the one at /fail/always fails on purpose, so
+  // its list shows failures and retries). The receiver checks signatures with the secrets saved
+  // here, by path.
   const made = await Promise.all(
     PROJECTS.flatMap((p) =>
       (p.webhooks ?? []).map(async (hook) => {
@@ -642,6 +643,7 @@ async function seedActivity(world: World): Promise<void> {
         const id = stringIn(asRecord(asRecord(created).webhook), 'id')
         return {
           owner,
+          hookPath: new URL(hook.url).pathname,
           path: `${projectPath(p)}/webhooks/${id}/test`,
           secret: stringIn(created, 'secret'),
         }
@@ -649,7 +651,10 @@ async function seedActivity(world: World): Promise<void> {
     ),
   )
   // The secrets first, so the receiver can check the test events' signatures.
-  await writeFile(WEBHOOK_SECRETS_FILE, JSON.stringify(made.map((m) => m.secret)))
+  await writeFile(
+    WEBHOOK_SECRETS_FILE,
+    JSON.stringify(Object.fromEntries(made.map((m) => [m.hookPath, m.secret]))),
+  )
   await Promise.all(made.map((m) => call(m.owner, 'POST', m.path)))
 
   // Invitations that stay pending (better-auth's own endpoint, which also sends the email).

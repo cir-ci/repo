@@ -30,7 +30,7 @@ What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm buil
 `pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from
 source under `node --watch`, Vite for the dashboard on :5173 (PUBLIC_URL; it proxies every server path to :3000), and a
 first-run seed (owner@example.com / member@example.com, password `circi-dev-password`, workspace `acme`, project `web-app`,
-four builds in different review states); `pnpm dev:reset` deletes its data. A tiny webhook receiver (`dev/src/webhook-receiver.ts`, :4747, `CIRCI_DEV_HOOKS_PORT`) answers 204 to the seeded webhooks and logs each delivery as `[hooks]` with its event, delivery ID and signature check.
+four builds in different review states); `pnpm dev:reset` deletes its data. A tiny webhook receiver (`dev/src/webhook-receiver.ts`, :4747, `CIRCI_DEV_HOOKS_PORT`) answers 204 to the seeded webhooks (one, `/fail/always`, gets 500 on purpose so the dashboard shows failures and retries; a fresh seed only) and logs each delivery as `[hooks]` with its event, delivery ID and signature check (only for webhooks the seed created; others log "not checked"), refusing bodies over 1 MiB.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
 ## Layers
@@ -157,7 +157,7 @@ A namespace must contain only types. Never put a value in one.
   of the dashboard. A settings page that needs another page (a project's Sites, a baseline's ignore
   regions) shows it inside settings, in its tab and frame; an app page never links into a settings
   page. The only ways in and out are the settings entry points (the workspace and account menus,
-  ⌘K, the project page's Settings button, and right-click context menus, e.g. a project's "Project
+  ⌘K, the project page's Settings button, the Inbox's reconnect notice, and right-click context menus, e.g. a project's "Project
   settings") and settings' own way back to the app. A context menu shows its settings item only to
   those who can open those settings; the file is a named entry point in
   `apps/web/test/app/closed-settings.test.ts`.
