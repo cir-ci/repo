@@ -12,6 +12,9 @@
 # branch (main), a time, and add the pipeline parameter `nightly` = true. See CONTRIBUTING.md.
 version: 2.1
 
+orbs:
+  node: circleci/node@7.2.1
+
 parameters:
   nightly:
     type: boolean
@@ -36,46 +39,15 @@ executors:
       TURBO_TELEMETRY_DISABLED: '1'
 
 commands:
-  # Node 26 no longer ships Corepack, so install it, then let it fetch the pnpm in package.json's
-  # "packageManager" (pnpm 12).
-  setup-pnpm:
+  # Node from .nvmrc and pnpm 12.16.1 (package.json's "packageManager") through the CircleCI node orb,
+  # then `pnpm install --frozen-lockfile` with the orb's node_modules cache.
+  setup:
     steps:
-      - run:
-          name: Enable pnpm through Corepack
-          command: |
-            sudo npm install --global corepack
-            sudo corepack enable
-            corepack install
-            pnpm --version
-            pnpm config set store-dir "$HOME/.pnpm-store"
-
-  # Machine images have no Node 26: install it with nvm from .nvmrc and put it on every later step's PATH.
-  setup-node-on-machine:
-    steps:
-      - run:
-          name: Install Node from .nvmrc
-          command: |
-            export NVM_DIR="$HOME/.nvm"
-            . "$NVM_DIR/nvm.sh"
-            nvm install
-            nvm alias default "$(cat .nvmrc)"
-            echo '. "$HOME/.nvm/nvm.sh"' >> "$BASH_ENV"
-            echo 'nvm use default >/dev/null' >> "$BASH_ENV"
-      - setup-pnpm
-
-  restore-pnpm-store:
-    steps:
-      - restore_cache:
-          keys:
-            - pnpm-store-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
-            - pnpm-store-v1-{{ arch }}-
-
-  save-pnpm-store:
-    steps:
-      - save_cache:
-          key: pnpm-store-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
-          paths:
-            - ~/.pnpm-store
+      - node/install:
+          install-pnpm: true
+          pnpm-version: '12.16.1'
+      - node/install-packages:
+          pkg-manager: pnpm
 
   # Turborepo's cache (.turbo/cache) makes an unchanged task instant. The key is per revision, so every
   # run saves; the restore falls back to the branch's latest, then to any run.
@@ -124,12 +96,7 @@ jobs:
     executor: node
     steps:
       - checkout
-      - setup-pnpm
-      - restore-pnpm-store
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
-      - save-pnpm-store
+      - setup
       - install-chromium
       - restore-turbo
       - run:
@@ -147,11 +114,7 @@ jobs:
       - run:
           name: Fetch main for the comparison
           command: git fetch origin main:refs/remotes/origin/main
-      - setup-pnpm
-      - restore-pnpm-store
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
+      - setup
       - run:
           name: Changeset status
           command: pnpm exec changeset status --since=origin/main
@@ -165,12 +128,7 @@ jobs:
       E2E_WORKERS: '2'
     steps:
       - checkout
-      - setup-node-on-machine
-      - restore-pnpm-store
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
-      - save-pnpm-store
+      - setup
       - install-chromium
       - restore-turbo
       - run:
@@ -223,12 +181,10 @@ jobs:
               -d '{"email":"ci@example.com","password":"ci-only-password-123"}' \
               http://localhost:3000/api/auth/sign-in/email
             curl -fsS -b cookies.txt http://localhost:3000/api/projects | grep -q '"ci-workspace"'
-      - setup-node-on-machine
-      - restore-pnpm-store
+      - setup
       - run:
           name: Live S3 storage tests against MinIO
           command: |
-            pnpm install --frozen-lockfile
             CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 pnpm exec vitest run packages/storage
       - run:
           name: Logs on failure
