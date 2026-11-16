@@ -11,6 +11,8 @@ const labelLeft = (name: string) =>
     ?.querySelector('span:not([aria-hidden])')
     ?.getBoundingClientRect().left
 
+const height = (name: string) => getComputedStyle(page.getByRole('link', { name }).element()).height
+
 describe('NavItem', () => {
   it('is a link with an href and marks the current page', async () => {
     await render(
@@ -85,5 +87,22 @@ describe('NavItem', () => {
     expect([style.height, style.paddingLeft, style.fontSize]).toEqual(['28px', '30px', '13px'])
     expect(page.getByTestId('sub-icon').element().getBoundingClientRect().width).toBe(16)
     expect(getComputedStyle(page.getByTestId('sub-icon').element()).strokeWidth).toBe('2px')
+  })
+
+  it('is 36px tall when tall, and its sub and more siblings keep 28px', async () => {
+    await render(
+      <>
+        <NavItem href="/a" tall icon={<svg width="16" height="16" />}>
+          Inbox
+        </NavItem>
+        <NavItem href="/b" sub>
+          Child
+        </NavItem>
+        <NavItem href="/c" more>
+          More
+        </NavItem>
+      </>,
+    )
+    expect([height('Inbox'), height('Child'), height('More')]).toEqual(['36px', '28px', '28px'])
   })
 })

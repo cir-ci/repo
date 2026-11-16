@@ -122,4 +122,40 @@ describe('PanelHeader', () => {
       await page.viewport(1280, 720)
     }
   })
+
+  it('lets a title that may be cut shrink to a stub in a narrow header, with its full name in a title', async () => {
+    const name = 'Build #148 feature/a-rather-long-branch-name'
+    const items = [{ label: 'Acme', href: '/' }, { label: 'web-app', href: '/p' }, { label: name }]
+    await render(
+      <div style={{ width: 200 }}>
+        <PanelHeader>
+          <Breadcrumbs currentMayTruncate items={items} />
+        </PanelHeader>
+      </div>,
+    )
+    const title = page.getByText(name).element()
+    await expect.poll(() => title.scrollWidth > title.clientWidth).toBe(true)
+    expect(title.getAttribute('title')).toBe(name)
+    // The nav's floor is the "…" and a stub of the name, not the whole name.
+    const nav = title.closest('nav')!
+    expect(Number.parseFloat(nav.style.minWidth)).toBeLessThan(title.scrollWidth)
+    await expect.element(page.getByRole('button', { name: 'Earlier pages' })).toBeVisible()
+  })
+
+  it('keeps a title that may not be cut whole, with no title attribute', async () => {
+    const name = 'Build #148 feature/a-rather-long-branch-name'
+    await render(
+      <div style={{ width: 200 }}>
+        <PanelHeader>
+          <Breadcrumbs items={[{ label: 'Acme', href: '/' }, { label: name }]} />
+        </PanelHeader>
+      </div>,
+    )
+    const title = page.getByText(name).element()
+    const nav = title.closest('nav')!
+    await expect
+      .poll(() => Number.parseFloat(nav.style.minWidth))
+      .toBeGreaterThanOrEqual(title.scrollWidth)
+    expect(title.getAttribute('title')).toBeNull()
+  })
 })

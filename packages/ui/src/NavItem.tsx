@@ -5,7 +5,7 @@ import { Badge } from './Badge.tsx'
 import styles from './NavItem.module.css'
 
 /**
- * One entry of the sidebar (32px, 14px text, an 18px icon at stroke 2; a `sub` item is 28px, 13px text, a 16px icon, and indented). A Lucide icon passed as `icon` is sized here, whatever size it was drawn at. `selected` marks the
+ * One entry of the sidebar (32px, or 36px with `tall`; 14px text, an 18px icon at stroke 2; a `sub` item is 28px, 13px text, a 16px icon, and indented). A Lucide icon passed as `icon` is sized here, whatever size it was drawn at. `selected` marks the
  * current page. A `count` is announced as part of the name ("Inbox, 3 unread").
  */
 export function NavItem(props: NavItem.Props) {
@@ -40,6 +40,7 @@ export function NavItem(props: NavItem.Props) {
     'data-within': props.within && !props.selected ? '' : undefined,
     'data-sub': props.sub ? '' : undefined,
     'data-more': props.more ? '' : undefined,
+    'data-tall': props.tall ? '' : undefined,
   }
   return props.href ? (
     <a {...common} href={props.href}>
@@ -75,6 +76,8 @@ export namespace NavItem {
     within?: boolean
     /** A sub-item: 28px tall, indented under its parent. */
     sub?: boolean
+    /** 36px, the height of the workspace switcher: the sidebar's top entries (Inbox, Projects, Reviews, Insights). Not with `sub` or `more`. */
+    tall?: boolean
     /** A "more" row ("All projects"): 28px, 13px secondary text, no icon, its label aligned with the items' labels. */
     more?: boolean
   }

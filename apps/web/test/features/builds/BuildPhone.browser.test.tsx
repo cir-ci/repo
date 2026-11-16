@@ -397,10 +397,10 @@ describe('the build page header on a desktop', () => {
       approve.element().getBoundingClientRect().bottom - 1,
     )
     expect(Math.abs(mid(approve.element()) - mid(title.element()))).toBeLessThan(4)
-    // Short of room: the buttons keep the title's line (the crumbs give way, down to the "…" and
-    // the title, which `Breadcrumbs` never squeezes: at 900 even those and the buttons don't fit);
-    // the chips take a line of their own under it, starting on the left.
-    await page.viewport(980, 900)
+    // Short of room: the buttons keep the title's line (the crumbs give way, down to the "…", and
+    // then the title is cut with an ellipsis); the chips take a line of their own under it,
+    // starting on the left.
+    await page.viewport(900, 900)
     await expect
       .poll(() => chip.element().getBoundingClientRect().top)
       .toBeGreaterThan(approve.element().getBoundingClientRect().bottom - 1)

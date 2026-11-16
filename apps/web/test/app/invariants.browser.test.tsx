@@ -165,7 +165,10 @@ async function check(scheme: Scheme) {
       el instanceof HTMLAnchorElement &&
       getComputedStyle(el).display === 'inline' &&
       (el.parentElement?.textContent ?? '').trim() !== (el.textContent ?? '').trim()
-    if (!inline && (box.width < 24 || box.height < 24)) {
+    // A control inside its label (a Switch's row) is pressed through the whole label: that is the target.
+    const label = el.closest('label')?.getBoundingClientRect()
+    const labelled = label !== undefined && label.width >= 24 && label.height >= 24
+    if (!inline && !labelled && (box.width < 24 || box.height < 24)) {
       problems.push(
         `target under 24px (${Math.round(box.width)}x${Math.round(box.height)}): ${describeEl(el)}`,
       )

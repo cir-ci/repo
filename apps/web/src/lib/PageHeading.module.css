@@ -25,8 +25,8 @@
 }
 
 /* With status chips the crumbs and what follows them (a branch) never push the buttons off the
-   title's line. The page's own title (the last crumb, the h1) always keeps its full width; the
-   crumbs before it collapse first (the `Breadcrumbs` "…" menu), then what follows the title. */
+   title's line. The crumbs before the title collapse first (the `Breadcrumbs` "…" menu), then
+   what follows the title, then the title itself is cut with an ellipsis (`currentMayTruncate`). */
 .shrinkCrumbs,
 .shrinkAfter {
   /* A 0 basis: they count for nothing when the line breaks, grow back to their own width (the
@@ -38,8 +38,6 @@
 
 .shrinkCrumbs {
   flex-grow: 1000;
-  /* Never narrower than the title: PageHeading sets it from the title's width. */
-  min-width: var(--circi-title-floor, 0);
 }
 
 /* The status chips (a build's review status, its target, who was asked): beside the buttons, or

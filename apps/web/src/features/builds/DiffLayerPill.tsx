@@ -1,7 +1,12 @@
 import { Slider, Text, useAnnounce } from '@circi/ui'
 import { useEffect, useState } from 'react'
 
-import { isEditable, useShortcutHandlers } from '#lib/shortcuts.ts'
+import {
+  DIFF_LAYER_ATTRIBUTE,
+  isDiffLayerSlider,
+  isEditable,
+  useShortcutHandlers,
+} from '#lib/shortcuts.ts'
 
 import styles from './DiffLayerPill.module.css'
 
@@ -46,7 +51,11 @@ export function useDiffLayerKeys(
         if (e.altKey) end()
         return
       }
-      if (e.repeat || timer !== undefined || (e.target instanceof Element && isEditable(e.target)))
+      if (
+        e.repeat ||
+        timer !== undefined ||
+        (e.target instanceof Element && isEditable(e.target) && !isDiffLayerSlider(e.target))
+      )
         return
       timer = setTimeout(() => setHeld(true), PEEK_DELAY_MS)
     }
@@ -77,6 +86,7 @@ export function DiffLayerPill({ value, onValueChange, touch = false }: DiffLayer
     <div
       className={styles.pill}
       data-touch={touch ? '' : undefined}
+      {...{ [DIFF_LAYER_ATTRIBUTE]: '' }}
       // A press here is the slider's: it never starts a region on the image under it.
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

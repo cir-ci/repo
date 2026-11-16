@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { handleKeydown } from '#lib/shortcuts.ts'
 import { useShortcutStore } from '#lib/stores/shortcut-store.ts'
+import { useSingleKeyStore } from '#lib/stores/single-key-store.ts'
 
 afterEach(() => {
+  useSingleKeyStore.getState().setEnabled(true)
   useShortcutStore.getState().reset()
   document.body.replaceChildren()
 })
@@ -84,5 +86,49 @@ describe('shortcuts and text fields', () => {
     useShortcutStore.getState().setDrafting('c', true)
     press({ key: 'k', metaKey: true })
     expect(command).toHaveBeenCalledOnce()
+  })
+})
+
+describe('shortcuts and sliders', () => {
+  const slider = '<input type="range" />'
+
+  it('ignores single-key shortcuts from any slider', () => {
+    const { approve } = bindApproveAll()
+    const diffLayer = vi.fn<() => void>()
+    useShortcutStore.getState().bind({ current: { diffLayer } })
+    const field = add(slider)
+    press({ key: 'a' }, field)
+    press({ key: '[' }, field)
+    expect(approve).not.toHaveBeenCalled()
+    expect(diffLayer).not.toHaveBeenCalled()
+  })
+
+  it('lets [ and ] through from the Diff layer slider only, and nothing else', () => {
+    const { approve } = bindApproveAll()
+    const diffLayer = vi.fn<() => void>()
+    useShortcutStore.getState().bind({ current: { diffLayer } })
+    const field = add(`<div data-diff-layer>${slider}</div>`).querySelector('input')
+    if (!field) throw new Error('no slider')
+    press({ key: ']' }, field)
+    expect(diffLayer).toHaveBeenCalledOnce()
+    press({ key: 'a' }, field)
+    expect(approve).not.toHaveBeenCalled()
+  })
+})
+
+describe('the single-key shortcuts preference', () => {
+  it('off, keeps only the shortcuts with a modifier', () => {
+    const { approve } = bindApproveAll()
+    const command = vi.fn<() => void>()
+    useShortcutStore.getState().bind({ current: { command } })
+    useSingleKeyStore.getState().setEnabled(false)
+    press({ key: 'a' })
+    press({ key: 'A', shiftKey: true })
+    expect(approve).not.toHaveBeenCalled()
+    press({ key: 'k', metaKey: true })
+    expect(command).toHaveBeenCalledOnce()
+    useSingleKeyStore.getState().setEnabled(true)
+    press({ key: 'a' })
+    expect(approve).toHaveBeenCalledOnce()
   })
 })

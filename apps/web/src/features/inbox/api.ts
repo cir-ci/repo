@@ -185,6 +185,31 @@ export function notificationTarget(item: Inbox.Item):
   return comment ? { ...target, search: { sidebar: 'comments' as const, comment } } : target
 }
 
+/**
+ * Where "Reconnect" leads: the connection's own page in workspace settings, or the list when the
+ * notice has no connection ID. Only a connection notice has one. The server delivers these notices
+ * to those who manage the workspace and nobody else (`MANAGER_ROLES` in `db/queries/inbox.ts`),
+ * so a row that shows it is already for someone who can manage integrations.
+ */
+export function reconnectTarget(item: Inbox.Item):
+  | {
+      to: '/workspaces/$workspace/settings/integrations/$kind/$id'
+      params: { workspace: string; kind: string; id: string }
+    }
+  | { to: '/workspaces/$workspace/settings/integrations'; params: { workspace: string } }
+  | undefined {
+  if (item.kind !== 'connection_needs_attention' || !item.workspace) return undefined
+  const workspace = item.workspace.slug
+  const kind = text(item.payload['integrationKind'])
+  const id = text(item.payload['integrationId'])
+  return kind && id
+    ? {
+        to: '/workspaces/$workspace/settings/integrations/$kind/$id',
+        params: { workspace, kind, id },
+      }
+    : { to: '/workspaces/$workspace/settings/integrations', params: { workspace } }
+}
+
 /** Every list showing the unread count or the same entry: refetched after a change. */
 function useRefresh() {
   const queryClient = useQueryClient()

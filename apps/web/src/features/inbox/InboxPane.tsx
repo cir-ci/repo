@@ -15,6 +15,7 @@ import {
   notificationTarget,
   notificationText,
   openLabel,
+  reconnectTarget,
   replyTarget,
   systemText,
   useReplyToMention,
@@ -46,6 +47,8 @@ export function InboxPane({
   const note = notificationNote(item)
   const target = notificationTarget(item)
   const link = target ? clientLink(target) : undefined
+  const reconnect = reconnectTarget(item)
+  const reconnectLink = reconnect ? clientLink(reconnect) : undefined
   const canApprove = awaitsYourReview(item)
   const context = [item.project?.name, item.build ? `#${item.build.number}` : undefined]
     .filter(Boolean)
@@ -105,6 +108,19 @@ export function InboxPane({
               }}
             >
               {openLabel(item)}
+            </Button>
+          ) : null}
+          {reconnectLink ? (
+            <Button
+              size="sm"
+              variant="primary"
+              href={reconnectLink.href}
+              onClick={(event) => {
+                onOpen(item)
+                reconnectLink.onClick(event)
+              }}
+            >
+              Reconnect
             </Button>
           ) : null}
           {canApprove ? (

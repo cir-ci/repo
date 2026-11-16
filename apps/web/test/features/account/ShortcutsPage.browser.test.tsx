@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { ShortcutsPage } from '#features/account/ShortcutsPage.tsx'
-import { shortcutGroups } from '#lib/shortcuts.ts'
+import { isSingleKey, shortcutGroups, SHORTCUTS } from '#lib/shortcuts.ts'
+import { useSingleKeyStore } from '#lib/stores/single-key-store.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 /** The rectangle of each group card, in group order. */
 function cardRects(): DOMRect[] {
@@ -60,5 +62,32 @@ describe('ShortcutsPage', () => {
     })
     await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
     expect(page.getByRole('heading', { name: 'Keyboard shortcuts' }).elements()).toHaveLength(0)
+  })
+
+  it('has a Single-key shortcuts switch, on by default, that saves at once with a toast', async () => {
+    await page.viewport(1000, 900)
+    await renderPage(<ShortcutsPage />)
+    const toggle = page.getByRole('switch', { name: /^Single-key shortcuts/ })
+    await expect.element(toggle).toBeChecked()
+    await userEvent.click(toggle)
+    await expect.element(toggle).not.toBeChecked()
+    await expect.element(toastNamed('Single-key shortcuts off')).toBeVisible()
+    expect(useSingleKeyStore.getState().enabled).toBe(false)
+    expect(localStorage.getItem('circi-single-key-shortcuts')).toBe('off')
+    await userEvent.click(toggle)
+    expect(useSingleKeyStore.getState().enabled).toBe(true)
+    await expect.element(toastNamed('Single-key shortcuts on')).toBeVisible()
+  })
+
+  it('marks the single-key rows and not the ⌘ ones', async () => {
+    await page.viewport(1000, 900)
+    await renderPage(<ShortcutsPage />)
+    const next = page.getByRole('term').filter({ hasText: 'Next item' })
+    await expect.element(next).toBeVisible()
+    expect(next.element().textContent).toContain('(single key)')
+    const command = page.getByRole('term').filter({ hasText: 'Open the command menu' })
+    await expect.element(command).toBeVisible()
+    expect(command.element().textContent).not.toContain('single key')
+    expect(SHORTCUTS.filter((s) => s.key === 'mod+k').every((s) => !isSingleKey(s))).toBe(true)
   })
 })

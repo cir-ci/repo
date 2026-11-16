@@ -42,6 +42,10 @@
   outline-offset: 2px;
 }
 
+.root[data-tall] {
+  height: 36px;
+}
+
 .root[data-sub] {
   height: 28px;
   padding-left: 30px;

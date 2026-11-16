@@ -87,6 +87,7 @@ export function Sidebar({ user }: Sidebar.Props) {
         <div className={styles.grow}>
           <NavLink
             to="/inbox"
+            tall
             icon={<InboxIcon />}
             selected={section === 'inbox'}
             {...counted(model?.inboxUnread, ['unread notification', 'unread notifications'])}
@@ -111,7 +112,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           </IconButton>
         </Tooltip>
       </div>
-      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'projects'}>
+      <NavLink to="/" tall icon={<FolderOpenIcon />} selected={section === 'projects'}>
         Projects
       </NavLink>
       <div className={styles.workspace}>
@@ -127,6 +128,7 @@ export function Sidebar({ user }: Sidebar.Props) {
       {workspace ? (
         <NavLink
           to="/workspaces/$workspace/reviews"
+          tall
           params={{ workspace: workspace.slug }}
           icon={<ReviewsIcon />}
           selected={section === 'reviews'}
@@ -138,6 +140,7 @@ export function Sidebar({ user }: Sidebar.Props) {
       {workspace ? (
         <NavLink
           to="/workspaces/$workspace/insights"
+          tall
           params={{ workspace: workspace.slug }}
           icon={<InsightsIcon />}
           selected={section === 'insights'}

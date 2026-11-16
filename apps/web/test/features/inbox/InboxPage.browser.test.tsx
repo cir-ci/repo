@@ -103,6 +103,29 @@ describe('InboxPage', () => {
     await expect.element(rows.getByText(/^\d+(m|h|d|w|mo|y)$|^now$/)).toBeVisible()
   })
 
+  it("gives a connection notice a Reconnect button that opens that integration's settings page", async () => {
+    fakeApi({
+      'GET /api/inbox': list([
+        item('n1', {
+          kind: 'connection_needs_attention',
+          actor: null,
+          build: null,
+          changes: null,
+          request: null,
+          project: null,
+          payload: { integrationId: 'i7', integrationKind: 'slack', name: 'Acme Slack' },
+        }),
+      ]),
+    })
+    await show('/inbox?item=n1')
+    const reconnect = page.getByRole('link', { name: 'Reconnect' })
+    await expect.element(reconnect).toBeVisible()
+    await expect
+      .element(reconnect)
+      .toHaveAttribute('href', '/workspaces/acme/settings/integrations/slack/i7')
+    expectOnePrimaryPerArea()
+  })
+
   it('fits a long mention beside the open notification: the list gives way, nothing runs past the panel', async () => {
     await page.viewport(1300, 800)
     const snippet = `@owner ${'this needs another look before we ship it, '.repeat(12)}`

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '#features/builds/search.ts'
 import { isInstalled } from '#lib/document-title.ts'
 import { useShortcutStore } from '#lib/stores/shortcut-store.ts'
+import { useSingleKeyStore } from '#lib/stores/single-key-store.ts'
 
 /**
  * The one keyboard layer. Every shortcut is declared once in `SHORTCUTS` (keys, scope, group,
@@ -393,6 +394,14 @@ export const SHORTCUTS: readonly Shortcut[] = [
   },
 ]
 
+/**
+ * Whether a shortcut is one key (a letter, digit or punctuation, alone or with Shift) and so
+ * switched off by the "Single-key shortcuts" preference: not one with ⌘/Ctrl or Option, nor the bare
+ * Option peek (a modifier, not a character key). A chord's keys are single keys too.
+ */
+export const isSingleKey = (s: Pick<Shortcut, 'key'>): boolean =>
+  s.key !== 'alt' && !/^(mod|alt)\+/.test(s.key)
+
 /** Whether the help lists and the screen honours a shortcut: the Design mode needs the integration. */
 export const isAvailable = (s: Shortcut, designEnabled: boolean, installed = isInstalled()) =>
   (designEnabled || s.action.type !== 'mode' || s.action.mode !== DESIGN_MODE) &&
@@ -493,11 +502,19 @@ export function keyToken(
 }
 
 /**
- * Anything a person types into: fields, selects, any contenteditable and the text-entry roles. A
- * range input (a slider's thumb) takes arrow keys only, so the shortcuts stay live while it has focus.
+ * Anything a person types into or adjusts with keys: fields, selects, sliders, any contenteditable
+ * and the text-entry roles. A single-key shortcut never fires from one of them, except `[` and `]`
+ * on the Diff layer slider (`isDiffLayerSlider`).
  */
 const EDITABLE =
-  'input:not([type="range"]), textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
+
+/** The Diff layer pill's slider (`DiffLayerPill`): the one slider that lets `[` and `]` through. */
+export const DIFF_LAYER_ATTRIBUTE = 'data-diff-layer'
+
+export function isDiffLayerSlider(el: Element): boolean {
+  return el.matches('input[type="range"]') && el.closest(`[${DIFF_LAYER_ATTRIBUTE}]`) !== null
+}
 
 /** Whether typing here edits text, so every plain key (and every letter) is the writer's. */
 export function isEditable(el: Element): boolean {
@@ -521,7 +538,7 @@ export function isHandledElsewhere(
         ? null
         : document.activeElement
   if (!where) return false
-  if (isEditable(where)) return true
+  if (isEditable(where) && !(isBracket && isDiffLayerSlider(where))) return true
   return where.closest('[role="dialog"], [role="alertdialog"]') !== null
 }
 
@@ -556,6 +573,8 @@ export function handleKeydown(event: KeyboardEvent, now = Date.now()): void {
     const where = event.target instanceof Element ? event.target : document.activeElement
     if (!installed || event.isComposing || (where && isEditable(where))) return
   } else if (!token.startsWith('mod+')) {
+    // WCAG 2.1.4: the person may turn every single-key shortcut off.
+    if (!useSingleKeyStore.getState().enabled) return
     // A shortcut with ⌘/Ctrl is meant to work anywhere; the rest leave typing and dialogs alone.
     if (
       isHandledElsewhere(event.target, event, token === '[' || token === ']') ||

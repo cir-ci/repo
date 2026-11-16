@@ -611,6 +611,23 @@ describe('diff mode: this build under the changed pixels', () => {
     expect(Number(getComputedStyle(pill).opacity)).toBeGreaterThanOrEqual(0.9)
   })
 
+  it("enlarges the diff at the pill's opacity, with the changed pixels over this build", async () => {
+    await opened()
+    await userEvent.keyboard(']')
+    // The fake images don't load, so the frame is a few pixels tall and the pill covers it: press it directly.
+    page
+      .getByRole('button', { name: 'Enlarge Diff' })
+      .element()
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    const dialog = page.getByRole('dialog', { name: 'Changed pixels' })
+    await expect.element(dialog).toBeVisible()
+    const cover = dialog.element().querySelector('img[alt=""]')
+    expect(cover).not.toBeNull()
+    expect(cover && getComputedStyle(cover).opacity).toBe('0.9')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(dialog).not.toBeInTheDocument()
+  })
+
   it('shows more of the build as the slider moves', async () => {
     await opened()
     page.getByRole('slider', { name: 'This build' }).element().focus()

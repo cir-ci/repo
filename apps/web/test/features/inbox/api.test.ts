@@ -10,6 +10,7 @@ import {
   notificationText,
   openLabel,
   systemText,
+  reconnectTarget,
   replyTarget,
   snoozeBody,
   validateInboxSearch,
@@ -132,6 +133,20 @@ describe('notification rows', () => {
     expect(
       notificationTarget(item({ build: null, project: null, workspace: null })),
     ).toBeUndefined()
+  })
+
+  it("opens a connection notice's integration in workspace settings, the list without its ID, and nothing for other kinds", () => {
+    const connection = (payload: Record<string, unknown>) =>
+      item({ kind: 'connection_needs_attention', build: null, project: null, payload })
+    expect(reconnectTarget(connection({ integrationId: 'i7', integrationKind: 'slack' }))).toEqual({
+      to: '/workspaces/$workspace/settings/integrations/$kind/$id',
+      params: { workspace: 'acme', kind: 'slack', id: 'i7' },
+    })
+    expect(reconnectTarget(connection({}))).toEqual({
+      to: '/workspaces/$workspace/settings/integrations',
+      params: { workspace: 'acme' },
+    })
+    expect(reconnectTarget(item())).toBeUndefined()
   })
 
   it('opens a mention on the Comments tab, at its comment', () => {

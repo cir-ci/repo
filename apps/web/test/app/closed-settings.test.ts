@@ -33,6 +33,9 @@ const ENTRY_POINTS = new Set([
   // A project's right-click menu (sidebar entry, Projects page row): Project settings, for those who may manage.
   'features/projects/ProjectContextMenu.tsx',
   'features/command/model.ts',
+  // The Inbox's "connection needs attention" notice: Reconnect opens that integration in workspace settings (the server sends the notice to those who manage the workspace only).
+  'features/inbox/InboxPane.tsx',
+  'features/inbox/api.ts',
   // The command menu's settings sections (Settings · Members, All workspaces, ...).
   'features/command/settings.ts',
   // The phone's More menu: the workspace and account settings entries (built from helpers, not route literals).

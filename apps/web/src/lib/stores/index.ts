@@ -10,6 +10,7 @@ import { RECENT_KEY, useRecentStore } from './recent-store.ts'
 import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
 import { useSetupStore } from './setup-store.ts'
 import { useShortcutStore } from './shortcut-store.ts'
+import { SINGLE_KEY_KEY, useSingleKeyStore } from './single-key-store.ts'
 import { TABS_KEY, useTabStore } from './tab-store.ts'
 import { useToastStore } from './toast-store.ts'
 import { useWorkspaceStore } from './workspace-store.ts'
@@ -64,4 +65,10 @@ export function resetStores(): void {
     // No storage to clear.
   }
   useTabStore.getState().reset()
+  try {
+    localStorage.removeItem(SINGLE_KEY_KEY)
+  } catch {
+    // No storage to clear.
+  }
+  useSingleKeyStore.getState().reset()
 }

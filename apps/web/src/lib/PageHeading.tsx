@@ -62,7 +62,7 @@ export function PageHeading({
     >
       <NavToggleButton />
       <Breadcrumbs
-        {...(status ? { className: styles.shrinkCrumbs } : {})}
+        {...(status ? { className: styles.shrinkCrumbs, currentMayTruncate: true } : {})}
         currentIsHeading={!headingInPage}
         items={[
           ...crumbs.map((crumb) => ({
@@ -111,15 +111,11 @@ function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): 
     const header = status?.closest<HTMLElement>('[data-panel-header]')
     if (!enabled || !status || !header) return undefined
     const measure = () => {
-      keepTitleWhole(header)
       setRow(lineOverflows(header))
     }
     measure()
     const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     resize?.observe(header)
-    // A new title changes the width the crumbs must keep.
-    const current = header.querySelector('nav[aria-label="Breadcrumb"] li:last-child')
-    if (current) resize?.observe(current)
     const changes = new MutationObserver(measure)
     changes.observe(status, { childList: true, subtree: true, characterData: true })
     return () => {
@@ -128,20 +124,6 @@ function useStatusRow(ref: RefObject<HTMLDivElement | null>, enabled: boolean): 
     }
   }, [ref, enabled])
   return row
-}
-
-/**
- * The page's title (the last crumb) never gives up width: the crumbs' floor is its own width, so
- * the crumbs before it and what follows it are what shorten.
- */
-function keepTitleWhole(header: HTMLElement) {
-  const crumbs = header.querySelector<HTMLElement>('nav[aria-label="Breadcrumb"]')
-  const last = crumbs?.querySelector<HTMLElement>('li:last-child')
-  if (!crumbs || !last) return
-  crumbs.style.setProperty(
-    '--circi-title-floor',
-    `${Math.ceil(last.getBoundingClientRect().width)}px`,
-  )
 }
 
 /** Whether the header's items, each at its natural width, are wider than one line of it. */

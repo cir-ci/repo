@@ -17,9 +17,10 @@ export function Breadcrumbs({
   items,
   label = 'Breadcrumb',
   currentIsHeading = false,
+  currentMayTruncate = false,
   className,
 }: Breadcrumbs.Props) {
-  const { navRef, listRef, collapsed } = useCollapse(items)
+  const { navRef, listRef, collapsed, cut } = useCollapse(items, currentMayTruncate)
   const firstCollapsed = collapsed.length > 0 ? Math.min(...collapsed) : -1
   return (
     <nav ref={navRef} aria-label={label} className={cx(styles.root, className)}>
@@ -52,11 +53,19 @@ export function Breadcrumbs({
             >
               {index > 0 ? <Separator /> : null}
               {last && currentIsHeading ? (
-                <h1 className={styles.current} aria-current="page">
+                <h1
+                  className={styles.current}
+                  aria-current="page"
+                  title={cut ? item.label : undefined}
+                >
                   {item.label}
                 </h1>
               ) : last || item.href === undefined ? (
-                <span className={styles.current} aria-current={last ? 'page' : undefined}>
+                <span
+                  className={styles.current}
+                  aria-current={last ? 'page' : undefined}
+                  title={last && cut ? item.label : undefined}
+                >
                   {item.label}
                 </span>
               ) : item.tooltip ? (
@@ -105,22 +114,31 @@ function menuItem(item: Breadcrumbs.Item): Menu.Item {
   }
 }
 
+/** The least of a truncating current crumb that stays readable (px), beside the "…". */
+const TRUNCATED_FLOOR = 40
+
 /**
  * Which crumbs are collapsed into the "…" menu: none while the trail fits its room; otherwise one
  * more at a time (the second, the third, … up to the one before the current, then the first)
  * until the list neither overflows nor cuts the current crumb. Measured before paint; the count
  * starts over when the crumbs or the room change.
  */
-function useCollapse(items: ReadonlyArray<Breadcrumbs.Item>): {
+function useCollapse(
+  items: ReadonlyArray<Breadcrumbs.Item>,
+  mayTruncate: boolean,
+): {
   navRef: RefObject<HTMLElement | null>
   listRef: RefObject<HTMLOListElement | null>
   collapsed: number[]
+  /** The current crumb is cut short (only when `mayTruncate`), so its full name goes in a title. */
+  cut: boolean
 } {
   const navRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const [room, setRoom] = useState(0)
   const signature = `${items.map((item) => item.label).join('\u0000')}@${room}`
   const [state, setState] = useState({ signature, hidden: 0 })
+  const [cut, setCut] = useState(false)
   const hidden = state.signature === signature ? state.hidden : 0
   // The order crumbs give way: from the second on, the first last; the current one never.
   const order = [...items.keys()].slice(1, -1).concat(items.length > 1 ? [0] : [])
@@ -140,23 +158,52 @@ function useCollapse(items: ReadonlyArray<Breadcrumbs.Item>): {
   }, [])
 
   // The nav never gets narrower than the current page's name and the "…" before it (a header that
-  // is short of room squeezes its neighbours, not the title down to "B…").
+  // is short of room squeezes its neighbours, not the title down to "B…"). With `mayTruncate` (a
+  // header whose buttons must keep the title's line) the name may be cut: the floor is the "…" and
+  // a stub of the name.
   useLayoutEffect(() => {
     const nav = navRef.current
     const current = nav?.querySelector<HTMLElement>('[data-current] > [aria-current]')
     if (!nav || !current) return
     // The "…" button, a chevron and its margins.
     const more = items.length > 1 ? 24 + 12 + 16 : 0
-    nav.style.minWidth = `${Math.ceil(current.scrollWidth) + more}px`
+    const name = mayTruncate
+      ? Math.min(Math.ceil(current.scrollWidth), TRUNCATED_FLOOR)
+      : Math.ceil(current.scrollWidth)
+    nav.style.minWidth = `${name + more}px`
   })
+
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    if (!mayTruncate || !nav || typeof ResizeObserver === 'undefined') {
+      setCut(false)
+      return undefined
+    }
+    const measure = () => {
+      const current = nav.querySelector<HTMLElement>('[data-current] > [aria-current]')
+      const isCut = current ? current.scrollWidth > current.clientWidth : false
+      setCut((was) => (was === isCut ? was : isCut))
+    }
+    measure()
+    const resize = new ResizeObserver(measure)
+    resize.observe(nav)
+    // A new name changes whether it is cut without the nav's own size changing.
+    const changes = new MutationObserver(measure)
+    changes.observe(nav, { childList: true, subtree: true, characterData: true })
+    return () => {
+      resize.disconnect()
+      changes.disconnect()
+    }
+  }, [mayTruncate])
 
   useLayoutEffect(() => {
     const list = listRef.current
     if (!list || hidden >= order.length) return undefined
     const check = () => {
       const current = list.querySelector<HTMLElement>('[data-current] > [aria-current]')
-      const cut = current ? current.scrollWidth > current.clientWidth : false
-      if (list.scrollWidth > list.clientWidth || cut) setState({ signature, hidden: hidden + 1 })
+      const clipped = current ? current.scrollWidth > current.clientWidth : false
+      if (list.scrollWidth > list.clientWidth || clipped)
+        setState({ signature, hidden: hidden + 1 })
     }
     check()
     // Neighbours that settle later (a header's buttons wrapping) change the nav's width after this ran.
@@ -169,7 +216,7 @@ function useCollapse(items: ReadonlyArray<Breadcrumbs.Item>): {
     }
   }, [hidden, signature, order.length])
 
-  return { navRef, listRef, collapsed: order.slice(0, hidden) }
+  return { navRef, listRef, collapsed: order.slice(0, hidden), cut }
 }
 
 export namespace Breadcrumbs {
@@ -191,6 +238,12 @@ export namespace Breadcrumbs {
     label?: string
     /** The current (last) crumb is the page's `<h1>`: every page's title is its breadcrumb. */
     currentIsHeading?: boolean
+    /**
+     * For a header whose buttons must keep the title's line: once every earlier crumb is in the
+     * "…" menu, the current crumb is cut with an ellipsis (its full name in a title) instead of
+     * keeping its whole width. False: it stays whole and the header's buttons wrap instead.
+     */
+    currentMayTruncate?: boolean
     className?: string
   }
 }

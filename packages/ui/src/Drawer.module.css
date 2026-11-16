@@ -34,9 +34,10 @@
   box-sizing: border-box;
   width: 280px;
   max-width: calc(100vw - 48px);
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   border-right: 1px solid var(--circi-line-strong);
   background: var(--circi-surface-chrome);
   color: var(--circi-text-primary);
@@ -70,6 +71,25 @@
 
 .content {
   display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scrollRoot {
+  flex: 1 1 0;
+}
+
+/* The thumb is laid over the 8px side padding, so entries keep their width whether or not it shows
+   (selector doubled to win over ScrollArea's own viewport rule). */
+.content .scroller {
+  box-sizing: border-box;
+  padding: 10px 8px;
+  overscroll-behavior: contain;
+}
+
+.scrollContent {
+  display: flex;
   flex-direction: column;
   min-height: 100%;
 }
@@ -78,33 +98,5 @@
   .backdrop,
   .popup {
     transition: none;
-  }
-}
-
-/* Like the sidebar: a 6px scrollbar, shown only while hovered, scrolled or focused by keyboard. */
-.popup::-webkit-scrollbar {
-  width: 6px;
-}
-
-.popup::-webkit-scrollbar-thumb {
-  border-width: 1px;
-  background-color: transparent;
-}
-
-.popup:hover::-webkit-scrollbar-thumb,
-.popup:has(:focus-visible)::-webkit-scrollbar-thumb,
-.popup[data-scrolling]::-webkit-scrollbar-thumb {
-  background-color: var(--circi-scrollbar-thumb);
-}
-
-@supports not selector(::-webkit-scrollbar) {
-  .popup {
-    scrollbar-color: transparent transparent;
-  }
-
-  .popup:hover,
-  .popup:has(:focus-visible),
-  .popup[data-scrolling] {
-    scrollbar-color: var(--circi-scrollbar-thumb) transparent;
   }
 }

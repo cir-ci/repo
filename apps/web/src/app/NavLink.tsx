@@ -14,6 +14,7 @@ export function NavLink({
   children,
   sub,
   more,
+  tall,
   count,
   countTone,
   countLabel,
@@ -32,6 +33,7 @@ export function NavLink({
       {...(within ? { within } : {})}
       {...(sub ? { sub } : {})}
       {...(more ? { more } : {})}
+      {...(tall ? { tall } : {})}
       {...(count === undefined ? {} : { count })}
       {...(countTone ? { countTone } : {})}
       {...(countLabel ? { countLabel } : {})}
@@ -51,6 +53,8 @@ export namespace NavLink {
     within?: boolean
     sub?: boolean
     more?: boolean
+    /** 36px, as the workspace switcher: the sidebar's top entries. */
+    tall?: boolean
     count?: number
     countTone?: NavItem.Props['countTone']
     countLabel?: string

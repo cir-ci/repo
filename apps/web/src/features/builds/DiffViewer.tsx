@@ -200,10 +200,16 @@ export function Viewer({
     ...(diff.head
       ? [{ key: 'build', image: diff.head, caption: buildCaption, label: 'This build' }]
       : []),
+    // The changed pixels over this build, at the pill's opacity (the dialog has no pill of its own).
+    ...(comparable && diff.head
+      ? [{ key: 'diff', image: diff.head, caption: 'Changed pixels', label: 'Diff' }]
+      : []),
   ]
   const enlargedAt = enlargeable.findIndex((e) => e.key === enlarged)
   const overlayAnnotations = annotationsFor(enlarged === 'baseline' ? 'baseline' : 'build', true)
   const layer = annotationsFor('build')
+  // In Diff a press that doesn't draw enlarges, as on the side-by-side images.
+  const diffLayer = withClick(layer, () => setEnlarged('diff'))
   const zoomed = zoom !== 'fit'
 
   return (
@@ -396,19 +402,28 @@ export function Viewer({
               Changed pixels in red, with this build under them
             </Text>
             <div className={styles.frame}>
-              <img
-                src={fileUrl(diff.head.sha256)}
-                alt={`This build: ${diff.name}`}
-                className={styles.image}
-                style={imageStyle(zoom, diff.head.width)}
-              />
-              <img
-                src={fileUrl(diff.diff.sha256)}
-                alt={`Changed pixels: ${diff.name}`}
-                className={styles.cover}
-                style={{ opacity: (peeking ? 0 : 100 - opacity) / 100 }}
-              />
-              {layer ? <RegionLayer annotations={layer} /> : null}
+              <EnlargeTrigger
+                label="Enlarge Diff"
+                onClick={(e) => {
+                  // A mouse press on a drawing layer is the layer's to tell from a drag.
+                  if (diffLayer && e.detail !== 0) return
+                  setEnlarged('diff')
+                }}
+              >
+                <img
+                  src={fileUrl(diff.head.sha256)}
+                  alt={`This build: ${diff.name}`}
+                  className={styles.image}
+                  style={imageStyle(zoom, diff.head.width)}
+                />
+                <img
+                  src={fileUrl(diff.diff.sha256)}
+                  alt={`Changed pixels: ${diff.name}`}
+                  className={styles.cover}
+                  style={{ opacity: (peeking ? 0 : 100 - opacity) / 100 }}
+                />
+              </EnlargeTrigger>
+              {diffLayer ? <RegionLayer annotations={diffLayer} /> : null}
               <DiffLayerPill value={opacity} onValueChange={setOpacity} touch={phone} />
             </div>
           </figure>
@@ -460,8 +475,24 @@ export function Viewer({
           label: e.label,
           ...(e.image.width ? { width: e.image.width } : {}),
           ...(e.image.height ? { height: e.image.height } : {}),
-          ...(annotatable && enlarged === e.key && overlayAnnotations
-            ? { overlay: <RegionOverlay annotations={overlayAnnotations} /> }
+          ...(e.key === 'diff' || (annotatable && enlarged === e.key && overlayAnnotations)
+            ? {
+                overlay: (
+                  <>
+                    {e.key === 'diff' && diff.diff ? (
+                      <img
+                        src={fileUrl(diff.diff.sha256)}
+                        alt=""
+                        className={styles.dialogCover}
+                        style={{ opacity: (100 - opacity) / 100 }}
+                      />
+                    ) : null}
+                    {annotatable && enlarged === e.key && overlayAnnotations ? (
+                      <RegionOverlay annotations={overlayAnnotations} />
+                    ) : null}
+                  </>
+                ),
+              }
             : {}),
         }))}
         hint={

@@ -52,3 +52,9 @@
   gap: 4px;
   margin: 0;
 }
+
+/* "(single key)" after a description: the rows the setting switches off. */
+.single {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
