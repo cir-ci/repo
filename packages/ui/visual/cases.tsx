@@ -11,7 +11,7 @@ import {
 } from '#src/index.ts'
 
 /**
- * Visual cases for the components that have no `.design-sync/previews` file. Each export is one
+ * Visual cases for the components that have no `previews/` file. Each export is one
  * screenshot per colour scheme (see `ui.visual.test.tsx`), so keep them small and static.
  */
 

@@ -167,7 +167,7 @@ export default defineConfig({
             {
               extends: true,
               oxc: { jsx: { runtime: 'automatic' as const } },
-              // The previews live in .design-sync, outside any package that depends on @circi/ui.
+              // The previews (packages/ui/visual/previews) import `@circi/ui` by name: point it at the source.
               resolve: {
                 alias: [
                   {

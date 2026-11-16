@@ -50,7 +50,7 @@ Give each browser project its own reporter `name` (`vitest-chromium`, `vitest-fi
 
 ## Running CirCI's own visual tests
 
-CirCI screenshots its own design system with this package: `packages/ui/visual/ui.visual.test.tsx` renders every component's case (the `.design-sync/previews` files, plus `packages/ui/visual/cases.tsx` for Button, TextField, Dialog, ColorSchemeControl and the icons) in light and dark and names the pictures `<component>/<case>/<scheme>`. The project `ui-visual` exists only when `VISUAL=1`, so `pnpm test` never takes them.
+CirCI screenshots its own design system with this package: `packages/ui/visual/ui.visual.test.tsx` renders every component's case (the `packages/ui/visual/previews` files, plus `packages/ui/visual/cases.tsx` for Button, TextField, Dialog, ColorSchemeControl and the icons) in light and dark and names the pictures `<component>/<case>/<scheme>`. The project `ui-visual` exists only when `VISUAL=1`, so `pnpm test` never takes them.
 
 ```sh
 pnpm test:visual                    # no CIRCI_* variables: pictures are saved to .circi/screenshots, the run passes

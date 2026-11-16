@@ -17,7 +17,7 @@ import { extraCases } from './cases.tsx'
  * CirCI tests its own design system: every `@circi/ui` component, in both colour schemes, is
  * screenshotted with `@circi/vitest` (run with `pnpm test:visual`, see docs/reference/vitest.md).
  *
- * The cases are the design-sync previews (`.design-sync/previews/*.tsx`, one file per component)
+ * The cases are the previews (`previews/*.tsx`, one file per component)
  * plus `./cases.tsx` for the components without a preview. A preview that pins its own schemes
  * (it shows `data-circi-color-scheme` subtrees side by side) is shot once per pinned subtree;
  * any other is rendered inside `CirciTheme` once per scheme. A preview that renders into a portal
@@ -26,10 +26,9 @@ import { extraCases } from './cases.tsx'
 
 const SCHEMES = ['light', 'dark'] as const
 
-const previewModules = import.meta.glob<Record<string, unknown>>(
-  '../../../.design-sync/previews/*.tsx',
-  { eager: true },
-)
+const previewModules = import.meta.glob<Record<string, unknown>>('./previews/*.tsx', {
+  eager: true,
+})
 
 const isComponent = (value: unknown): value is ComponentType => typeof value === 'function'
 
