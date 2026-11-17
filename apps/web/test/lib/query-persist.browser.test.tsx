@@ -24,11 +24,14 @@ afterEach(async () => {
 })
 
 /** The persister throttles its writes by two seconds; fake timers would starve IndexedDB, so wait for real. */
-async function untilStored(userId: string) {
+async function untilStored(userId: string, marker = 'items') {
   // The first write (the query was added, still empty) can come before the data: wait for the data.
-  await vi.waitFor(async () => expect(await get(`user:${userId}`, idb())).toContain('"items"'), {
-    timeout: 6000,
-  })
+  await vi.waitFor(
+    async () => expect(await get(`user:${userId}`, idb())).toContain(`"${marker}"`),
+    {
+      timeout: 6000,
+    },
+  )
 }
 
 describe('the stored query cache', () => {
@@ -48,6 +51,44 @@ describe('the stored query cache', () => {
     expect(second.getQueryData(['inbox', 'for-you'])).toEqual({ items: [{ id: 'n1' }] })
     expect(second.getQueryData(['token', 'acme', 'web'])).toBeUndefined()
     expect(second.getQueryData(['integrations', 'acme'])).toBeUndefined()
+  })
+
+  it('draws a restored page at once but fetches it again, even when it was fetched a moment ago', async () => {
+    const first = client()
+    startPersisting(first, 'u1')
+    first.setQueryData(['workspace-domains', 'acme'], { domains: [{ verified: false }] })
+    await untilStored('u1', 'domains')
+
+    // A reload seconds later: the stored copy is younger than staleTime, and would count as fresh.
+    await restorePersisted(client(), 'someone-else')
+    const second = new QueryClient({
+      defaultOptions: { queries: { gcTime: 24 * 3600_000, staleTime: 60_000 } },
+    })
+    await restorePersisted(second, 'u1')
+    expect(second.getQueryData(['workspace-domains', 'acme'])).toEqual({
+      domains: [{ verified: false }],
+    })
+    const fetched = vi.fn<() => Promise<unknown>>(() =>
+      Promise.resolve({ domains: [{ verified: true }] }),
+    )
+    const observer = new QueryObserver(second, {
+      queryKey: ['workspace-domains', 'acme'],
+      queryFn: fetched,
+    })
+    const stop = observer.subscribe(() => {})
+    await vi.waitFor(() =>
+      expect(observer.getCurrentResult().data).toEqual({ domains: [{ verified: true }] }),
+    )
+    expect(fetched).toHaveBeenCalledOnce()
+    stop()
+  })
+
+  it('stores what was already fetched when it starts, not only what changes afterwards', async () => {
+    const first = client()
+    first.setQueryData(['inbox', 'for-you'], { items: [{ id: 'early' }] })
+    startPersisting(first, 'u1')
+    await untilStored('u1', 'early')
+    expect(await get('user:u1', idb())).toContain('"early"')
   })
 
   it("never shows one person another person's data", async () => {

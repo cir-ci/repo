@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
+import { promisify } from 'node:util'
 
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -37,6 +38,14 @@ const toS3 = [
   'http://localstack:4566',
   '--force-path-style',
 ]
+const execFileAsync = promisify(execFile)
+
+/** `docker compose <args>` for the stack's project. */
+const compose = (project: string, ...args: string[]) =>
+  execFileAsync('docker', ['compose', '-p', project, '-f', COMPOSE_FILE, ...args], {
+    env: { ...process.env, COMPOSE_PROJECT_NAME: project },
+  })
+
 const migrated = (out: string) => {
   const m = /Copied (\d+), already there (\d+), missing at the source (\d+), failed (\d+)/.exec(out)
   if (!m) throw new Error(`no migrate summary in: ${out}`)
@@ -161,7 +170,9 @@ describe('storage usage and migrate', () => {
     const before = (await s3().keys()).length
 
     // Run it in the background, wait until some but not all of the new files are in the bucket,
-    // then kill the process inside the container.
+    // then freeze the bucket's server and kill the process inside the container. Freezing is what
+    // makes "midway" certain: killing alone races the copy, which a fast machine wins (all 300
+    // files are there before `docker exec` has started the `kill`) and a slow one starts late.
     const child = spawn(
       'docker',
       [
@@ -186,15 +197,19 @@ describe('storage usage and migrate', () => {
         stdio: 'ignore',
       },
     )
-    let present = before
     await expect
-      .poll(async () => (present = (await s3().keys()).length), { interval: 50, timeout: 60_000 })
+      .poll(async () => (await s3().keys()).length, { interval: 50, timeout: 120_000 })
       .toBeGreaterThan(before + 3)
-    await ctx.stack.exec('circi', ['sh', '-c', 'kill -9 $(cat /tmp/migrate.pid)'], {
-      allowFail: true,
-    })
-    child.kill()
-    present = (await s3().keys()).length
+    await compose(ctx.stack.composeProject, 'pause', 'localstack')
+    try {
+      await ctx.stack.exec('circi', ['sh', '-c', 'kill -9 $(cat /tmp/migrate.pid)'], {
+        allowFail: true,
+      })
+      child.kill()
+    } finally {
+      await compose(ctx.stack.composeProject, 'unpause', 'localstack')
+    }
+    const present = (await s3().keys()).length
     expect(present).toBeLessThan(total)
 
     const resumed = migrated((await ctx.stack.exec('circi', migrateArgs(...toS3))).stdout)
@@ -204,7 +219,7 @@ describe('storage usage and migrate', () => {
     expect(resumed.skipped).toBeGreaterThanOrEqual(present)
     expect(resumed.copied + resumed.skipped).toBe(total)
     expect((await s3().keys()).length).toBe(total)
-  })
+  }, 240_000)
 
   it('after switching the server to S3 the dashboard serves the migrated files from the bucket', async () => {
     const rows = await fileRows(ctx.stack)

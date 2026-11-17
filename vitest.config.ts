@@ -145,10 +145,14 @@ export default defineConfig({
               ],
               exclude: group === 'api' ? ['e2e/test/**/*.browser.e2e.test.ts'] : [],
               globalSetup: ['e2e/src/stack/global-setup.ts'],
-              // Fail fast: a broken test costs seconds, not minutes. The few tests that
-              // really wait (retry backoff, a whole migration) say so themselves.
-              testTimeout: 60_000,
-              hookTimeout: 120_000,
+              // A broken test costs a minute or two, not more. The few tests that really wait
+              // (retry backoff, a whole migration) say so themselves. Generous because CircleCI's
+              // 4 vCPU run both groups, their stacks and Chromium at once and took twice as long as
+              // a laptop for the same file (a stack alone took 17 to 61 s to boot): 60 s and a 5 s
+              // poll failed there on tests that need 10 s elsewhere.
+              testTimeout: 120_000,
+              hookTimeout: 240_000,
+              expect: { poll: { timeout: 20_000, interval: 50 } },
               // Files run in parallel, one stack pool per worker (e2e/src/stack/pool.ts). `isolate:
               // false` keeps a worker's module scope between files, which is what lets the
               // next file find the pool's stacks; the tests keep their state in the stack and
@@ -210,6 +214,10 @@ export default defineConfig({
                   provider: playwright(),
                   // A fixed viewport: portals (dialogs, drawers) are shot at this size.
                   viewport: { width: 1000, height: 700 },
+                  // The page connects to the runner only after Vite has optimised and served the
+                  // whole design system: a loaded CI machine (the end-to-end stacks beside it) takes
+                  // well over the default 60 s ("Failed to connect to the browser session").
+                  connectTimeout: 300_000,
                   instances: [{ browser: 'chromium' as const }],
                 },
               },

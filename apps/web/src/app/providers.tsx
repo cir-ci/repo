@@ -15,8 +15,15 @@ export function createQueryClient(): QueryClient {
     // A 401 means the session ended (expired, or signed out in another tab): re-check it, and the
     // app falls back to the sign-in page by itself; the stored cache goes too.
     queryCache: new QueryCache({
-      onError: (err) => {
-        if (err instanceof HttpError && err.status === 401) sessionEnded()
+      onError: (err, query) => {
+        if (!(err instanceof HttpError)) return
+        if (err.status === 401) sessionEnded()
+        // A 404 or 403 for something shown from memory or from the stored cache is the answer: it
+        // is gone, or no longer theirs. Its old data is dropped (and so, at the next write, from
+        // the stored cache) instead of staying behind the error.
+        if ((err.status === 404 || err.status === 403) && query.state.data !== undefined) {
+          query.setState({ data: undefined, dataUpdatedAt: 0 })
+        }
       },
     }),
     mutationCache: createMutationCache(),

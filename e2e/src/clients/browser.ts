@@ -20,8 +20,29 @@ export async function launchBrowser(): Promise<Browser> {
   })
 }
 
-/** Playwright's default wait for an element, navigation or action: fail fast. */
-export const PLAYWRIGHT_TIMEOUT_MS = 10_000
+/**
+ * Playwright's default wait for an element, navigation or action. A wait that is met returns at
+ * once, so the figure only matters when something is wrong; it is generous because a CI machine
+ * running the stacks, Chromium and the other group at once loads the dashboard (a cold bundle, a
+ * reload, a password hash) several times slower than a laptop, and 10 s failed there on tests that
+ * pass in seconds. A test that waits for something slower says so itself.
+ */
+export const PLAYWRIGHT_TIMEOUT_MS = 30_000
+
+/**
+ * `E2E_CPU_THROTTLE=4` slows every page of the context to a quarter of the speed (Chrome's CPU
+ * throttling), to reproduce locally what a small CI machine does to the dashboard's timing.
+ */
+function throttleCpu(context: BrowserContext): void {
+  const rate = Number(process.env['E2E_CPU_THROTTLE'] ?? 1)
+  if (!(rate > 1)) return
+  context.on('page', (page) => {
+    void context
+      .newCDPSession(page)
+      .then((session) => session.send('Emulation.setCPUThrottlingRate', { rate }))
+      .catch(() => undefined)
+  })
+}
 
 export interface BrowserSession {
   context: BrowserContext
@@ -46,6 +67,7 @@ export async function openSession(
     extraHTTPHeaders: clientAddressHeaders(options.session?.address ?? freshIp()),
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
+  throttleCpu(context)
   if (options.session) await context.addCookies(options.session.playwrightCookies())
   await context.tracing.start({ screenshots: true, snapshots: true })
   const page = await context.newPage()

@@ -1,6 +1,7 @@
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import {
   persistQueryClientRestore,
+  persistQueryClientSave,
   persistQueryClientSubscribe,
 } from '@tanstack/query-persist-client-core'
 import { defaultShouldDehydrateQuery, type QueryClient } from '@tanstack/react-query'
@@ -123,6 +124,11 @@ export function restorePersisted(queryClient: QueryClient, userId: string): Prom
   state.ready = (async () => {
     try {
       await persistQueryClientRestore(setup)
+      // What was stored is only what the page last saw: whatever its age, it is drawn at once and
+      // fetched again. Without this a copy younger than `staleTime` counts as fresh, and a reload
+      // right after a change elsewhere (a removed member, a verified domain) would keep showing
+      // the old state. Pages already mounted (a slow read) refetch now, the others on mount.
+      void queryClient.invalidateQueries()
     } catch {
       // Unreadable or no IndexedDB: start from the network, as without a stored cache.
     }
@@ -130,7 +136,7 @@ export function restorePersisted(queryClient: QueryClient, userId: string): Prom
       forgetQueries(queryClient)
       return
     }
-    state.stop = persistQueryClientSubscribe(setup)
+    keepStoring(setup, state)
   })()
   return state.ready
 }
@@ -142,7 +148,17 @@ export function startPersisting(queryClient: QueryClient, userId: string): void 
   const state: Active = { userId, dead: false, stop: () => {}, ready: Promise.resolve() }
   active = state
   activeClient = queryClient
-  state.stop = persistQueryClientSubscribe(options(queryClient, userId, state))
+  keepStoring(options(queryClient, userId, state), state)
+}
+
+/**
+ * Stores from now on, and what is in memory already: the queries that finished before the
+ * subscription (a slow restore, a fast answer) would otherwise reach storage only with the next
+ * change, which may never come.
+ */
+function keepStoring(setup: ReturnType<typeof options>, state: Active): void {
+  state.stop = persistQueryClientSubscribe(setup)
+  void persistQueryClientSave(setup)
 }
 
 function stopActive(): void {

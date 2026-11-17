@@ -206,8 +206,16 @@ Defaults the stack sets: `SMTP_*` to Mailpit, `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=t
   `src/fakes` may delay). To prove "nothing more happens", send a later event that would be
   processed and wait for it, then assert. `stack.jobs.runNow(queue, { payloadField: value })` makes
   pending jobs due now, so a retry with backoff need not be waited out.
-- Fail fast: `testTimeout` 60 s, `hookTimeout` 120 s, Playwright's default timeout 10 s
-  (`PLAYWRIGHT_TIMEOUT_MS`). A test that really waits says so: `it(name, { timeout: ... }, fn)`.
+- Timeouts are for a loaded machine, not a laptop: `testTimeout` 120 s, `hookTimeout` 240 s, `expect.poll` 20 s,
+  Playwright's default timeout 30 s (`PLAYWRIGHT_TIMEOUT_MS`). A wait that is met returns at once, so only a
+  failing test pays for them. CircleCI's 4 vCPU running both groups failed on 10 s waits (a reload, a
+  sign-in) that take under 2 s here. A test that really waits says so: `it(name, { timeout: ... }, fn)`.
+- Test slowness locally: `E2E_CPU_THROTTLE=4` slows every page of the browser to a quarter of the speed
+  (Chrome's CPU throttling), and a few busy loops (`perl -e 'alarm 900; 1 while 1' &`, one per core you want
+  taken) starve the machine and the Docker VM the way a 4 vCPU runner does. Run the group's files that way
+  before calling a timing fix done. A test never waits on "enough time has passed": a kill midway freezes
+  the thing it interrupts (`storage-cli` pauses LocalStack), and a reload that must show fresh server
+  state is covered by the dashboard refetching a restored page (`apps/web/test/lib/query-persist.browser.test.tsx`).
 - The tests of one file run in order and share the file's tenant (and its stack), so use unique
   names (`newAccount()`) and don't count what is instance-wide (`select count(*) from sso_provider`:
   scope it to the file's workspace). Files are independent of each other; tests within a file may
