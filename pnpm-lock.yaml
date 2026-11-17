@@ -364,6 +364,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 5.1.0(@vitest/browser@5.1.0)(vitest@5.1.0)
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       oxfmt:
         specifier: 'catalog:'
         version: 0.76.0
@@ -3427,6 +3430,11 @@ packages:
 
   human-id@4.2.2:
     resolution: {integrity: sha512-Z+8unD6em/MJwyrkWQ2M3wygRGI1+MztbutiNwk1DCuEPXOZRWGjtcMPZYP1exY9iNZMhd7ZOSMQSo9WYtiQRw==}
+    hasBin: true
+
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
     hasBin: true
 
   icss-utils@5.1.0:
@@ -6573,6 +6581,8 @@ snapshots:
       toidentifier: 1.0.1
 
   human-id@4.2.2: {}
+
+  husky@9.1.7: {}
 
   icss-utils@5.1.0(postcss@8.5.32):
     dependencies:
