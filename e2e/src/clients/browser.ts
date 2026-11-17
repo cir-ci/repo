@@ -44,6 +44,46 @@ function throttleCpu(context: BrowserContext): void {
   })
 }
 
+/** At most this many reloads of one page after a network change: one burst is a stack booting or going. */
+const NETWORK_CHANGE_RELOADS = 3
+
+/**
+ * Chromium cancels every request in flight when the machine's network interfaces change
+ * (`net::ERR_NETWORK_CHANGED`), and the other end-to-end worker booting or removing a stack (its Docker
+ * network and the containers' interfaces) is such a change. A page whose scripts or styles were
+ * cancelled while it loaded never boots: the cancelled modules are in the entry's static graph, so the
+ * app cannot catch it, and the test waits for a control that never comes. As a person would, the page
+ * is reloaded once that load is over (after the navigation the test awaits has resolved, so the reload
+ * does not interrupt it). Only the page's own document, scripts and styles: a failed API call is
+ * retried by the dashboard's queries.
+ */
+export function reloadAfterNetworkChange(context: BrowserContext): void {
+  const BOOT_RESOURCES = new Set(['document', 'script', 'stylesheet'])
+  context.on('page', (page) => {
+    let reloads = 0
+    let pending = false
+    page.on('requestfailed', (request) => {
+      if (!request.failure()?.errorText.includes('ERR_NETWORK_CHANGED')) return
+      if (!BOOT_RESOURCES.has(request.resourceType()) || request.frame() !== page.mainFrame())
+        return
+      if (pending || reloads >= NETWORK_CHANGE_RELOADS) return
+      pending = true
+      reloads += 1
+      void page
+        .waitForLoadState('load')
+        // The rest of the burst fails within a few hundred milliseconds; reload after it.
+        .then(() => new Promise((resolve) => setTimeout(resolve, 300)))
+        .then(() => {
+          pending = false
+          return page.reload()
+        })
+        .catch(() => {
+          pending = false
+        })
+    })
+  })
+}
+
 /**
  * What a stuck page leaves behind: its console errors, page errors, failed requests, HTTP errors
  * and navigations, with the time of each, and (when saved) the text it shows and what its service
@@ -125,6 +165,7 @@ export async function openSession(
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
   throttleCpu(context)
+  reloadAfterNetworkChange(context)
   const diagnostics = recordDiagnostics(context)
   if (options.session) await context.addCookies(options.session.playwrightCookies())
   await context.tracing.start({ screenshots: true, snapshots: true })

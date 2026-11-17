@@ -28,8 +28,25 @@ async function countScreenshots(dir: string): Promise<number> {
   return entries.filter((e) => e.isFile() && e.name.endsWith('.png')).length
 }
 
+/**
+ * `pnpm test:visual`, run again (at most twice more) when Vitest's Chromium could not even import the
+ * test file. That is a network change on the machine (another worker's stack starting or stopping
+ * cancels Chromium's requests in flight, `ERR_NETWORK_CHANGED`), not the suite: no test ran and
+ * nothing was uploaded, so the next run is the same first run.
+ */
+async function runVisualSuite(options: {
+  apiUrl: string
+  token: string
+}): Promise<{ exitCode: number; output: string }> {
+  let run = await runVisualSuiteOnce(options)
+  for (let again = 0; again < 2 && /Failed to import test file/.test(run.output); again++) {
+    run = await runVisualSuiteOnce(options)
+  }
+  return run
+}
+
 /** `pnpm test:visual` with the CirCI environment pointed at the stack, as CI would run it. */
-function runVisualSuite(options: {
+function runVisualSuiteOnce(options: {
   apiUrl: string
   token: string
 }): Promise<{ exitCode: number; output: string }> {

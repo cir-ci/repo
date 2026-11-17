@@ -1563,12 +1563,16 @@ describe('Shell, phone', () => {
     const { router } = await renderShell('/acme/web-app')
     const pages = page.getByRole('tablist', { name: 'Project pages' })
     await expect.element(pages).toBeVisible()
-    // Icons, named for their pages.
-    const names = pages
-      .getByRole('tab')
-      .elements()
-      .map((el) => el.textContent)
-    expect(names).toEqual(['Builds', 'Triage', 'Baselines'])
+    // Icons, named for their pages. web-app has sites, so Sites joins once the sidebar model has loaded
+    // (the tablist shows the other three before that, so the names are polled, not read once).
+    await expect
+      .poll(() =>
+        pages
+          .getByRole('tab')
+          .elements()
+          .map((el) => el.textContent),
+      )
+      .toEqual(['Builds', 'Triage', 'Baselines', 'Sites'])
     for (const tab of pages.getByRole('tab').elements()) {
       expect(tab.querySelector('svg')).not.toBeNull()
       // 44px targets.

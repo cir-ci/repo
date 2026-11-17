@@ -6,7 +6,12 @@ import type { Browser, Page } from 'playwright'
 import { ARTIFACTS_DIR } from '#stack/paths.ts'
 
 import { Session } from './admin.ts'
-import { openSession, PLAYWRIGHT_TIMEOUT_MS, recordDiagnostics } from './browser.ts'
+import {
+  openSession,
+  PLAYWRIGHT_TIMEOUT_MS,
+  recordDiagnostics,
+  reloadAfterNetworkChange,
+} from './browser.ts'
 import { clientAddressHeaders, freshIp } from './client-address.ts'
 import { extractCode, type Mailbox } from './mail.ts'
 
@@ -29,6 +34,7 @@ export async function withBrowser<T>(
     ...(options.userAgent ? { userAgent: options.userAgent } : {}),
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
+  reloadAfterNetworkChange(context)
   const diagnostics = recordDiagnostics(context)
   const page = await context.newPage()
   try {
