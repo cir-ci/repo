@@ -298,7 +298,10 @@ Close fakes in `afterAll`. Only the edge is fake: say so in a test that depends 
 
 - A failing test saves a screenshot and Playwright trace to `e2e/.artifacts/browser/<test>/`
   (`pnpm exec playwright show-trace <trace.zip>`) and its stack's logs to
-  `e2e/.artifacts/<project>/<service>.log`. The folder is gitignored.
+  `e2e/.artifacts/<project>/<service>.log`. The folder is gitignored. Beside the screenshot,
+  `page.log` lists the page's console errors, page errors, failed requests, HTTP errors (status 400
+  and up) and navigations with their times, and `page-state.txt` the address, title, service
+  worker state and text it showed: start there for a page that never drew what the test waited for.
 - `E2E_KEEP=1`: stacks are not removed. Each prints its compose project name and URL when its file ends, e.g.
   `left circi-e2e-ab12cd-1-9f3e running at http://localhost:54213`. Open the URL, read mail at the
   printed Mailpit URL, `docker compose -p <project> logs -f circi`, and clean up with

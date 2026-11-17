@@ -13,6 +13,7 @@ import {
   META_CACHE,
   notificationOptions,
   parsePushPayload,
+  respondFromCache,
   SHELL_CACHE,
   SHELL_KEY,
   strategyFor,
@@ -91,16 +92,26 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-async function keep(request: Request | string, response: Response): Promise<void> {
+/** Stores a copy of a kept-worthy answer (no eviction: see `evictOldAssets`). */
+async function store(request: Request | string, response: Response): Promise<void> {
   if (!isKeepable(response)) return
   const cache = await caches.open(SHELL_CACHE)
   await cache.put(request, response.clone())
+}
+
+/** Deletes the oldest assets beyond the cap. The shell and the few static files stay: only assets are ever evicted. */
+async function evictOldAssets(): Promise<void> {
+  const cache = await caches.open(SHELL_CACHE)
   const stale = entriesToEvict(
     (await cache.keys()).map((r) => new URL(r.url).pathname),
     MAX_ASSETS + 8,
   )
-  // The shell and the few static files stay: only assets are ever evicted.
   await Promise.all(stale.filter((p) => p.startsWith('/assets/')).map((p) => cache.delete(p)))
+}
+
+async function keep(request: Request | string, response: Response): Promise<void> {
+  await store(request, response)
+  await evictOldAssets()
 }
 
 /** The screenshots kept, least recently used first; read from the cache once per worker run. */
@@ -182,8 +193,9 @@ async function precacheNext(queue: string[]): Promise<void> {
   const path = queue.shift()
   if (path === undefined) return
   const init: RequestInit & { priority?: 'low' } = { priority: 'low' }
+  // One write per file, no scan of the whole cache after each (hundreds of files): `precache` evicts once at the end.
   await fetch(path, init)
-    .then((response) => keep(path, response))
+    .then((response) => store(path, response))
     .catch(() => undefined)
   await precacheNext(queue)
 }
@@ -195,6 +207,7 @@ async function precache(): Promise<void> {
   await Promise.all(staleEntries(kept, CIRCI_PRECACHE).map((p) => cache.delete(p)))
   const queue = missingEntries(kept, CIRCI_PRECACHE)
   await Promise.all([precacheNext(queue), precacheNext(queue)])
+  await evictOldAssets().catch(() => undefined)
 }
 
 self.addEventListener('message', (event) => {
@@ -263,7 +276,7 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           const response = await fetch(request)
-          event.waitUntil(keep(SHELL_KEY, response.clone()))
+          event.waitUntil(keep(SHELL_KEY, response.clone()).catch(() => undefined))
           return response
         } catch {
           const kept = await (await caches.open(SHELL_CACHE)).match(SHELL_KEY)
@@ -275,21 +288,12 @@ self.addEventListener('fetch', (event) => {
     return
   }
   event.respondWith(
-    (async () => {
-      const cache = await caches.open(SHELL_CACHE)
-      const kept = await cache.match(request)
-      if (strategy === 'asset' && kept) return kept
-      const fresh = fetch(request).then(async (response) => {
-        await keep(request, response.clone())
-        return response
-      })
-      if (kept) {
-        // Served from the cache now; the fresh copy replaces it for next time.
-        event.waitUntil(fresh.catch(() => undefined))
-        return kept
-      }
-      return fresh
-    })(),
+    respondFromCache(strategy, request, {
+      match: async (r) => (await caches.open(SHELL_CACHE)).match(r),
+      keep,
+      fetch: (r) => fetch(r),
+      waitUntil: (promise) => event.waitUntil(promise),
+    }),
   )
 })
 

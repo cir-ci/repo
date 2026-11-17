@@ -334,6 +334,10 @@ describe('webhooks (private addresses allowed)', () => {
 
     await row.getByRole('button', { name: 'Remove' }).click()
     await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
+    // The dialog closes once the server has answered and the list is refetched. Wait on that
+    // first: while it is open the page behind it is hidden from the accessibility tree, so a
+    // role-based `row` is "detached" at once, before the DELETE has even finished.
+    await dialog.waitFor({ state: 'hidden' })
     await row.waitFor({ state: 'detached' })
     expect((await hooks()).some((h) => h.id === completedHookId)).toBe(false)
 

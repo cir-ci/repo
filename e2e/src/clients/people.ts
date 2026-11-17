@@ -6,7 +6,7 @@ import type { Browser, Page } from 'playwright'
 import { ARTIFACTS_DIR } from '#stack/paths.ts'
 
 import { Session } from './admin.ts'
-import { openSession, PLAYWRIGHT_TIMEOUT_MS } from './browser.ts'
+import { openSession, PLAYWRIGHT_TIMEOUT_MS, recordDiagnostics } from './browser.ts'
 import { clientAddressHeaders, freshIp } from './client-address.ts'
 import { extractCode, type Mailbox } from './mail.ts'
 
@@ -29,15 +29,18 @@ export async function withBrowser<T>(
     ...(options.userAgent ? { userAgent: options.userAgent } : {}),
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
+  const diagnostics = recordDiagnostics(context)
   const page = await context.newPage()
   try {
     return await fn(page)
   } catch (err) {
     const dir = join(ARTIFACTS_DIR, 'browser')
     mkdirSync(dir, { recursive: true })
+    const stamp = Date.now()
     await page
-      .screenshot({ path: join(dir, `second-browser-${Date.now()}.png`), fullPage: true })
+      .screenshot({ path: join(dir, `second-browser-${stamp}.png`), fullPage: true })
       .catch(() => undefined)
+    await diagnostics.save(join(dir, `second-browser-${stamp}`), page).catch(() => undefined)
     throw err
   } finally {
     await context.close().catch(() => undefined)

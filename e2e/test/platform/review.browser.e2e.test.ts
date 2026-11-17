@@ -10,6 +10,29 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
  * The core loop on the real stack: the real CLI uploads a baseline on `main` and a changed build
  * from a pull request, the worker diffs, and a reviewer rejects, then approves, in the browser.
  */
+/** Everything the dashboard stored in this browser's query cache, as one text (empty while there is none). */
+const STORED_QUERIES = `new Promise((resolve) => {
+  const open = indexedDB.open('circi-cache')
+  open.addEventListener('error', () => resolve(''))
+  open.addEventListener('success', () => {
+    const db = open.result
+    if (!db.objectStoreNames.contains('queries')) {
+      db.close()
+      resolve('')
+      return
+    }
+    const all = db.transaction('queries').objectStore('queries').getAll()
+    all.addEventListener('success', () => {
+      db.close()
+      resolve(all.result.join('\\n'))
+    })
+    all.addEventListener('error', () => {
+      db.close()
+      resolve('')
+    })
+  })
+})`
+
 describe('upload, diff and review (local-disk storage)', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
@@ -87,14 +110,28 @@ describe('upload, diff and review (local-disk storage)', () => {
 
     // The project asks for a reason on reject (off by default): submitting without one keeps the
     // dialog open.
+    // The page keeps what it drew on this device (a moment after drawing it): the settings as
+    // they are now, with no reason required. They must not decide anything after the reload.
+    await expect
+      .poll(() => page.evaluate<string>(STORED_QUERIES))
+      .toContain('"requireRejectReason":false')
     await setup.session.patch(`/api/projects/${setup.workspace.slug}/${project.slug}/settings`, {
       requireRejectReason: true,
+    })
+    // The reload draws the stored (old) settings first; the answer with the new ones is held back
+    // until the empty reason has been refused, so the refusal can only come from not trusting the
+    // stored copy. (A slow machine is exactly this: the answer arrives after the person clicked.)
+    const answer = Promise.withResolvers<void>()
+    await page.route('**/api/projects/*/*/settings', async (route) => {
+      await answer.promise
+      await route.continue()
     })
     await page.reload()
     await page.getByRole('button', { name: 'Reject this screenshot' }).click()
     await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
     await dialog.getByRole('alert').waitFor()
     expect((await detail()).build.reviewStatus).toBe('pending')
+    answer.resolve()
     await dialog.getByRole('textbox', { name: 'Reason' }).fill('The header moved by 12px')
     await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
 

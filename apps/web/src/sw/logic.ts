@@ -168,6 +168,43 @@ export function isKeepable(response: ResponseLike): boolean {
   return response.status === 200 && response.type === 'basic' && response.redirected !== true
 }
 
+/** What `respondFromCache` needs of the worker: the cache, the network and the worker's lifetime. */
+export interface CacheServing {
+  /** The kept copy of the request, if any. A cache that can't be read is a miss. */
+  match(request: Request): Promise<Response | undefined>
+  /** Stores a copy; may be slow or fail. */
+  keep(request: Request, response: Response): Promise<void>
+  fetch(request: Request): Promise<Response>
+  /** Keeps the worker alive for work that outlasts the reply. */
+  waitUntil(promise: Promise<unknown>): void
+}
+
+/**
+ * The reply to a request for a built file or a static one. An `asset` (its name carries its
+ * content hash) is served from the cache when kept; a `static` file is served from the cache while
+ * a fresh copy is fetched behind it. Otherwise the network answers, and storing a copy is for the
+ * next time: the page never waits for it (the cache writes of one origin queue up behind each
+ * other, and the precache is writing hundreds of files then) and a copy that can't be stored
+ * never fails the request.
+ */
+export async function respondFromCache(
+  strategy: 'asset' | 'static',
+  request: Request,
+  serving: CacheServing,
+): Promise<Response> {
+  const kept = await serving.match(request).catch(() => undefined)
+  if (strategy === 'asset' && kept) return kept
+  const fresh = serving.fetch(request).then((response) => {
+    serving.waitUntil(serving.keep(request, response.clone()).catch(() => undefined))
+    return response
+  })
+  if (kept) {
+    serving.waitUntil(fresh.catch(() => undefined))
+    return kept
+  }
+  return fresh
+}
+
 /** The entries to delete so at most `max` stay, oldest (first in `keys`) first. */
 export function entriesToEvict(keys: readonly string[], max: number): string[] {
   return keys.length > max ? keys.slice(0, keys.length - max) : []

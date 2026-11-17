@@ -13,6 +13,7 @@ import type { Order } from '#features/builds/list/display-options.ts'
 import { projectPath, workspacePath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { livePoll } from '#lib/live.ts'
+import { fetchedThisLoad } from '#lib/page-load.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
@@ -400,11 +401,18 @@ export function useBulkRequestReview(workspace: string, project: string) {
 
 /**
  * Whether the project asks for a reason when someone rejects. True until the settings are known, so a
- * reject never goes out without one only because the answer was slow.
+ * reject never goes out without one only because the answer was slow. Settings restored from the stored
+ * cache don't count as known: after a reload they may predate a change, and a reject sent before the
+ * refetch answered would skip a reason the project now requires.
  */
 export function useRejectReasonRequired(workspace: string, project: string): boolean {
-  const { data } = useQuery({ ...settingsQuery(workspace, project), enabled: project !== '' })
-  // A reply without the settings (still loading, or refused) keeps the safe answer.
-  const settings: Partial<Project.Settings> | undefined = data?.settings
+  const { data, dataUpdatedAt } = useQuery({
+    ...settingsQuery(workspace, project),
+    enabled: project !== '',
+  })
+  // A reply without the settings (still loading, restored, or refused) keeps the safe answer.
+  const settings: Partial<Project.Settings> | undefined = fetchedThisLoad(dataUpdatedAt)
+    ? data?.settings
+    : undefined
   return settings?.requireRejectReason ?? true
 }

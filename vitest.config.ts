@@ -202,7 +202,14 @@ export default defineConfig({
                   })),
                 ],
               },
-              optimizeDeps: { include: visualOptimizeDeps },
+              // `entries` starts the dependency scan from the test file and its previews, so the
+              // optimiser knows every dependency before the browser asks for the first module: one
+              // found while the page already runs is re-optimised, the page reloads, and its pending
+              // imports fail with "Failed to fetch dynamically imported module".
+              optimizeDeps: {
+                include: visualOptimizeDeps,
+                entries: ['packages/ui/visual/**/*.tsx'],
+              },
               test: {
                 name: 'ui-visual',
                 include: ['packages/ui/visual/**/*.visual.test.tsx'],

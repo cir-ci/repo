@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { type Browser, type BrowserContext, chromium, type Page } from 'playwright'
@@ -44,6 +44,63 @@ function throttleCpu(context: BrowserContext): void {
   })
 }
 
+/**
+ * What a stuck page leaves behind: its console errors, page errors, failed requests, HTTP errors
+ * and navigations, with the time of each, and (when saved) the text it shows and what its service
+ * worker did. A page that never draws the control a test waits for is the hardest failure to read
+ * from a screenshot alone; these lines say whether a script threw, a request failed or the server
+ * answered with an error.
+ */
+export interface PageDiagnostics {
+  /** Writes `page.log` (the events) and `page-state.txt` (what the page shows now) into `dir`. */
+  save(dir: string, page: Page): Promise<void>
+}
+
+export function recordDiagnostics(context: BrowserContext): PageDiagnostics {
+  const began = Date.now()
+  const lines: string[] = []
+  const log = (kind: string, text: string) =>
+    lines.push(`${((Date.now() - began) / 1000).toFixed(1).padStart(6)}s ${kind} ${text}`)
+  context.on('page', (page) => {
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning') log(`console.${m.type()}`, m.text())
+    })
+    page.on('pageerror', (e) => log('pageerror', e.stack ?? e.message))
+    page.on('requestfailed', (r) =>
+      log('requestfailed', `${r.method()} ${r.url()} ${r.failure()?.errorText ?? ''}`),
+    )
+    page.on('response', (r) => {
+      if (r.status() >= 400) log('response', `${r.status()} ${r.request().method()} ${r.url()}`)
+    })
+    page.on('framenavigated', (f) => {
+      if (f === page.mainFrame()) log('navigated', f.url())
+    })
+    page.on('crash', () => log('crash', 'the page crashed'))
+  })
+  context.on('serviceworker', (worker) => log('serviceworker', worker.url()))
+  return {
+    async save(dir, page) {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'page.log'), `${lines.join('\n')}\n`)
+      const state = await page
+        .evaluate<string>(
+          `(async () => {
+            const registration = await navigator.serviceWorker?.getRegistration()
+            return [
+              'url: ' + location.href,
+              'title: ' + document.title,
+              'readyState: ' + document.readyState,
+              'serviceWorker: controller=' + (navigator.serviceWorker?.controller?.state ?? 'none') + ' active=' + (registration?.active?.state ?? 'none'),
+              'body text:\\n' + document.body.innerText.slice(0, 3000),
+            ].join('\\n')
+          })()`,
+        )
+        .catch((err: unknown) => `the page could not be read: ${String(err)}`)
+      writeFileSync(join(dir, 'page-state.txt'), `${state}\n`)
+    },
+  }
+}
+
 export interface BrowserSession {
   context: BrowserContext
   page: Page
@@ -68,6 +125,7 @@ export async function openSession(
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
   throttleCpu(context)
+  const diagnostics = recordDiagnostics(context)
   if (options.session) await context.addCookies(options.session.playwrightCookies())
   await context.tracing.start({ screenshots: true, snapshots: true })
   const page = await context.newPage()
@@ -82,6 +140,7 @@ export async function openSession(
         await page
           .screenshot({ path: join(dir, 'failure.png'), fullPage: true })
           .catch(() => undefined)
+        await diagnostics.save(dir, page).catch(() => undefined)
         await context.tracing.stop({ path: join(dir, 'trace.zip') }).catch(() => undefined)
       } else {
         await context.tracing.stop().catch(() => undefined)

@@ -13,6 +13,8 @@ import {
   mayKeep,
   notificationOptions,
   parsePushPayload,
+  type CacheServing,
+  respondFromCache,
   sameOriginPath,
   strategyFor,
 } from '../../src/sw/logic.ts'
@@ -236,5 +238,73 @@ describe('screenshots (/api/files/<sha256>)', () => {
     expect(imagesToEvict(files(3, IMAGE_MAX_BYTES / 2))).toEqual(['k0'])
     expect(imagesToEvict(files(3, 10), 2, 1000)).toEqual(['k0'])
     expect(imagesToEvict([])).toEqual([])
+  })
+})
+
+/** A worker whose cache holds `kept`, whose network answers `network`, and whose writes are `keep`. */
+function serving(options: {
+  kept?: Response
+  network?: () => Promise<Response>
+  keep?: () => Promise<void>
+  match?: () => Promise<Response | undefined>
+}) {
+  const waiting: Promise<unknown>[] = []
+  const fetched: Request[] = []
+  const value: CacheServing = {
+    match: options.match ?? (() => Promise.resolve(options.kept)),
+    keep: options.keep ?? (() => Promise.resolve()),
+    fetch: (r) => {
+      fetched.push(r)
+      return (options.network ?? (() => Promise.resolve(new Response('from network'))))()
+    },
+    waitUntil: (p) => {
+      waiting.push(p)
+    },
+  }
+  return { value, waiting, fetched }
+}
+
+describe('respondFromCache', () => {
+  const request = new Request(`${ORIGIN}/assets/LoginPage-abc123.js`)
+
+  it('serves a kept asset without touching the network', async () => {
+    const { value, fetched } = serving({ kept: new Response('kept') })
+    expect(await (await respondFromCache('asset', request, value)).text()).toBe('kept')
+    expect(fetched).toHaveLength(0)
+  })
+
+  it('answers from the network without waiting for the copy to be stored', async () => {
+    // A write that never finishes (a slow disk behind hundreds of queued writes).
+    const { value, waiting } = serving({ keep: () => new Promise<void>(() => {}) })
+    const response = await respondFromCache('asset', request, value)
+    expect(await response.text()).toBe('from network')
+    // The write is still going on, held by the worker's lifetime, and the page already has its file.
+    expect(waiting).toHaveLength(1)
+  })
+
+  it('does not fail the request when the copy cannot be stored', async () => {
+    const { value, waiting } = serving({
+      keep: () => Promise.reject(new Error('QuotaExceededError')),
+    })
+    const response = await respondFromCache('asset', request, value)
+    expect(await response.text()).toBe('from network')
+    await expect(Promise.all(waiting)).resolves.toBeDefined()
+  })
+
+  it('goes to the network when the cache cannot be read', async () => {
+    const { value } = serving({ match: () => Promise.reject(new Error('no cache storage')) })
+    expect(await (await respondFromCache('asset', request, value)).text()).toBe('from network')
+  })
+
+  it('serves a kept static file at once and refreshes it behind the reply', async () => {
+    const { value, waiting, fetched } = serving({ kept: new Response('old icon') })
+    expect(await (await respondFromCache('static', request, value)).text()).toBe('old icon')
+    expect(fetched).toHaveLength(1)
+    await Promise.all(waiting)
+  })
+
+  it('lets a failed network show as the failure it is when nothing is kept', async () => {
+    const { value } = serving({ network: () => Promise.reject(new TypeError('Failed to fetch')) })
+    await expect(respondFromCache('asset', request, value)).rejects.toThrow('Failed to fetch')
   })
 })
