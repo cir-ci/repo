@@ -37,20 +37,6 @@ executors:
     environment:
       CI: 'true'
       TURBO_TELEMETRY_DISABLED: '1'
-  # The end-to-end job alone: both groups at once, each with 2 Vitest workers, a Docker stack per
-  # worker and Chromium. On `large` (4 vCPU) a stack took 17 to 61 s to boot (7 s on a laptop) and the
-  # browser group needed 760 s with failures that were only waits running out; the work is CPU-bound,
-  # so twice the cores is about half the time at the same total cost, and the stacks, the tests and
-  # the dashboard stop competing for the same four cores.
-  docker-vm-xlarge:
-    machine:
-      image: ubuntu-2404:current
-    resource_class: xlarge # 8 vCPU, 32 GB
-    working_directory: ~/circi
-    environment:
-      CI: 'true'
-      TURBO_TELEMETRY_DISABLED: '1'
-
 commands:
   # Node from .nvmrc and pnpm 12.16.1 (package.json's "packageManager") through the CircleCI node orb,
   # then `pnpm install --frozen-lockfile` with the orb's node_modules cache.
@@ -135,9 +121,9 @@ jobs:
   # The end-to-end groups of `pnpm gate:full` (//#e2e:api and //#e2e:browser): the real server, worker and
   # CLI image on Docker, with Chromium for the dashboard. The gate's own tasks run in the `gate` job.
   e2e:
-    executor: docker-vm-xlarge
+    executor: docker-vm
     environment:
-      # 2 Vitest workers per group (the default of the e2e scripts); both groups run at once on 8 vCPU / 32 GB.
+      # 2 Vitest workers per group (the default of the e2e scripts); both groups run at once on the `large` machine (4 vCPU, 15 GB; xlarge needs a paid plan), with the e2e timeouts sized for it.
       E2E_WORKERS: '2'
     steps:
       - checkout
