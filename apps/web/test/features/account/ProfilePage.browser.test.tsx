@@ -259,7 +259,12 @@ describe('ProfilePage', () => {
 
   it('has one Display Settings section: the picture, the display name and the read-only email in one row', async () => {
     await page.viewport(1000, 900)
-    fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+    // Without mail the address can't be confirmed, so it is shown read-only (with mail it is editable).
+    fakeFetch({
+      ...signedIn,
+      'GET /api/capabilities': { mailConfigured: false },
+      'GET /api/auth/list-sessions': sessions,
+    })
     await renderPage(<ProfilePage />)
     const section = page.getByRole('region', { name: 'Details' })
     await expect.element(section).toBeVisible()

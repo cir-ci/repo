@@ -16,6 +16,24 @@ mockAuthClient()
 
 const API = '/api/projects/acme/web'
 
+/**
+ * The digits that type 31 February 2026 into the date input. The order of a date input's fields
+ * follows the machine's locale (month first, day first, year first), so a scratch input first
+ * learns it: typing 01 02 2026 gives January 2nd or February 1st, and the year first stays apart.
+ */
+async function february31Keys() {
+  const scratch = document.createElement('input')
+  scratch.type = 'date'
+  document.body.append(scratch)
+  scratch.focus()
+  await userEvent.keyboard('01022026')
+  const probe = scratch.value
+  scratch.remove()
+  if (probe === '2026-01-02') return '02312026'
+  if (probe === '2026-02-01') return '31022026'
+  return '20260231'
+}
+
 const settings = {
   name: 'Web App',
   defaultBranch: 'main',
@@ -304,8 +322,9 @@ describe('ReviewsSettingsPage', () => {
     const date = page.getByLabelText('First week starts')
     await expect.element(date).toHaveValue('2026-11-02')
     // A date input holds nothing for 31 February: its value goes empty, but its text stays.
+    const keys = await february31Keys()
     date.element().focus()
-    await userEvent.keyboard('02312026')
+    await userEvent.keyboard(keys)
     await expect.element(page.getByText('Enter a valid date')).toBeVisible()
     await page.getByRole('button', { name: 'Save changes' }).click()
     expect(calls.of('PUT')).toHaveLength(0)
@@ -324,8 +343,9 @@ describe('ReviewsSettingsPage', () => {
     const date = page.getByLabelText('First week starts')
     await expect.element(date).toHaveValue('')
     // 31 February: the value stays empty (no change event), but validity.badInput is true.
+    const keys = await february31Keys()
     date.element().focus()
-    await userEvent.keyboard('31022026')
+    await userEvent.keyboard(keys)
     const el = date.element()
     if (!(el instanceof HTMLInputElement)) throw new Error('not an input')
     expect(el.validity.badInput).toBe(true)

@@ -1514,11 +1514,15 @@ describe('Shell, phone', () => {
     // Reviews is a link once the sidebar model says which workspace. No Triage: a project's
     // Triage is one of its page icons beside the find field.
     await expect.poll(() => tabs().getByRole('link').elements().length).toBe(2)
-    const names = tabs()
-      .getByRole('link')
-      .elements()
-      .map((el) => el.textContent)
-    expect(names).toEqual(['3Inbox, 3 unread', '2Reviews, 2 waiting'])
+    // The counts arrive with the sidebar and inbox data, after the links are there.
+    await expect
+      .poll(() =>
+        tabs()
+          .getByRole('link')
+          .elements()
+          .map((el) => el.textContent),
+      )
+      .toEqual(['3Inbox, 3 unread', '2Reviews, 2 waiting'])
     expect(tabs().getByText('Triage').elements()).toHaveLength(0)
     // Projects opens a sheet, like More.
     await expect.element(tabs().getByRole('button', { name: 'Projects' })).toBeVisible()

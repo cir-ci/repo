@@ -68,7 +68,9 @@
 .link {
   display: inline-flex;
   align-items: center;
-  /* A 24px target (WCAG 2.5.8): the 13px line alone is 20px. */
+  /* A 24px target (WCAG 2.5.8): the 13px line alone is 20px, and a short crumb ("web") is
+     narrower than 24px in some fonts. */
+  min-width: 24px;
   min-height: 24px;
   color: var(--circi-text-secondary);
   text-decoration: none;
