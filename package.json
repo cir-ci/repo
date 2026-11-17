@@ -15,7 +15,7 @@
     "test:coverage": "vitest run --project node --coverage",
     "test:e2e": "E2E=1 vitest run --project e2e-api --project e2e-browser",
     "test:e2e:api": "E2E=1 vitest run --project e2e-api",
-    "test:compose": "COMPOSE_SMOKE=1 vitest run --project compose",
+    "test:compose": "turbo run build --filter=@circi/vitest && COMPOSE_SMOKE=1 vitest run --project compose",
     "test:e2e:browser": "E2E=1 vitest run --project e2e-browser",
     "test:visual": "VISUAL=1 vitest run --project ui-visual",
     "test:watch": "vitest",

@@ -69,7 +69,8 @@
         "!**/.vitest/**",
         "!**/.turbo/**"
       ],
-      "outputs": []
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#test:ui": {
       "inputs": [
@@ -83,7 +84,8 @@
         "!**/.vitest/**",
         "!**/.turbo/**"
       ],
-      "outputs": []
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#test:web-browser": {
       "inputs": [
@@ -97,7 +99,8 @@
         "!**/.vitest/**",
         "!**/.turbo/**"
       ],
-      "outputs": []
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#e2e:api": {
       "inputs": [
@@ -143,7 +146,8 @@
         "TMPDIR",
         "PLAYWRIGHT_*",
         "CI"
-      ]
+      ],
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#e2e:browser": {
       "inputs": [
@@ -178,7 +182,8 @@
         "TMPDIR",
         "PLAYWRIGHT_*",
         "CI"
-      ]
+      ],
+      "dependsOn": ["@circi/vitest#build"]
     }
   }
 }
