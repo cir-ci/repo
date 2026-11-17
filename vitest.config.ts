@@ -213,6 +213,11 @@ export default defineConfig({
               test: {
                 name: 'ui-visual',
                 include: ['packages/ui/visual/**/*.visual.test.tsx'],
+                // The same wait for the test file's iframe, which is ready only once the whole design
+                // system and every preview are transformed and loaded: Vitest gives it 60 s by default
+                // (read in the browser from the config's env), and a loaded CI machine took longer
+                // ("The iframe … did not become ready within 60000ms", so no test ran).
+                env: { VITEST_BROWSER_IFRAME_TIMEOUT: '300000' },
                 browser: {
                   enabled: true,
                   headless: true,

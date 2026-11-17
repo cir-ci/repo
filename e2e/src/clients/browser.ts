@@ -46,38 +46,55 @@ function throttleCpu(context: BrowserContext): void {
 
 /** At most this many reloads of one page after a network change: one burst is a stack booting or going. */
 const NETWORK_CHANGE_RELOADS = 3
+/** How long a dashboard page whose load lost requests may take to draw before it counts as never booted. */
+const BOOT_GRACE_MS = 5_000
+
+/**
+ * Whether the page's dashboard has drawn: React renders into `#root`, empty until the app boots. A
+ * page that is not the dashboard (a hosted site) has no `#root` and counts as drawn: it is left alone.
+ */
+const BOOTED = `(() => { const root = document.getElementById('root'); return !root || root.childElementCount > 0 })()`
 
 /**
  * Chromium cancels every request in flight when the machine's network interfaces change
  * (`net::ERR_NETWORK_CHANGED`), and the other end-to-end worker booting or removing a stack (its Docker
  * network and the containers' interfaces) is such a change. A page whose scripts or styles were
- * cancelled while it loaded never boots: the cancelled modules are in the entry's static graph, so the
- * app cannot catch it, and the test waits for a control that never comes. As a person would, the page
- * is reloaded once that load is over (after the navigation the test awaits has resolved, so the reload
- * does not interrupt it). Only the page's own document, scripts and styles: a failed API call is
- * retried by the dashboard's queries.
+ * cancelled while it loaded may never boot: the cancelled modules are in the entry's static graph, so
+ * the app cannot catch it, and the test waits for a control that never comes. Such a page is reloaded,
+ * as a person would, but only when it is still blank `BOOT_GRACE_MS` after its load: a page that drew
+ * (a cancelled request it could do without) is never reloaded under a test, whose own navigation or
+ * `page.evaluate` a reload would break. Only the page's own document, scripts and styles count: a
+ * failed API call is retried by the dashboard's queries.
  */
 export function reloadAfterNetworkChange(context: BrowserContext): void {
   const BOOT_RESOURCES = new Set(['document', 'script', 'stylesheet'])
   context.on('page', (page) => {
     let reloads = 0
     let pending = false
+    const neverBooted = async (): Promise<boolean> => {
+      await page.waitForLoadState('load')
+      const deadline = Date.now() + BOOT_GRACE_MS
+      while (Date.now() < deadline) {
+        // A navigation in between (the test moving on) ends the check: that page is a new load.
+        if (await page.evaluate<boolean>(BOOTED).catch(() => true)) return false
+        await new Promise((resolve) => setTimeout(resolve, 250))
+      }
+      return true
+    }
     page.on('requestfailed', (request) => {
       if (!request.failure()?.errorText.includes('ERR_NETWORK_CHANGED')) return
       if (!BOOT_RESOURCES.has(request.resourceType()) || request.frame() !== page.mainFrame())
         return
       if (pending || reloads >= NETWORK_CHANGE_RELOADS) return
       pending = true
-      reloads += 1
-      void page
-        .waitForLoadState('load')
-        // The rest of the burst fails within a few hundred milliseconds; reload after it.
-        .then(() => new Promise((resolve) => setTimeout(resolve, 300)))
-        .then(() => {
-          pending = false
-          return page.reload()
+      void neverBooted()
+        .then(async (blank) => {
+          if (!blank) return
+          reloads += 1
+          await page.reload()
         })
-        .catch(() => {
+        .catch(() => undefined)
+        .finally(() => {
           pending = false
         })
     })
