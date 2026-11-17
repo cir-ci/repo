@@ -60,7 +60,9 @@ const bump = /\[major\]/i.test(message) ? 'major' : /\[minor\]/i.test(message) ?
 const note = subject.replace(/\s*\[(major|minor|patch)\]\s*/gi, ' ').trim() || 'Update'
 const sha = git('rev-parse', '--short', 'HEAD')
 const file = join(root, '.changeset', `auto-${sha}.md`)
-const frontmatter = [...touched].sort().map((name) => `'${name}': ${bump}`)
+const frontmatter = [...touched]
+  .toSorted((a, b) => a.localeCompare(b))
+  .map((name) => `'${name}': ${bump}`)
 writeFileSync(file, `---\n${frontmatter.join('\n')}\n---\n\n${note}\n`)
 
 execFileSync('git', ['add', file])
