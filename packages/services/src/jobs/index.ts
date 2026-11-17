@@ -4,10 +4,12 @@ export { deliverWebhook } from './deliver-webhook.ts'
 export { integrationEvent } from './integration-event.ts'
 export { pruneFinishedJobs, runExclusive } from './sweeps.ts'
 export { notifyGit } from './notify-git.ts'
+export { importSiteArtifact, noteSiteArtifactGiveUp } from './site-artifact.ts'
 export { sendNotificationEmail } from './send-notification-email.ts'
 export {
   claimNextJob,
   GIT_NOTIFY_QUEUE,
+  SITE_ARTIFACT_QUEUE,
   JOBS_CHANNEL,
   QUEUES,
   completeJob,

@@ -10,5 +10,8 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "tar": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/testing": "workspace:*"
   }
 }

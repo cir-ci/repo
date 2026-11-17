@@ -794,6 +794,9 @@ importers:
       '@circi/integrations':
         specifier: workspace:*
         version: link:../integrations
+      '@circi/sites':
+        specifier: workspace:*
+        version: link:../sites
       '@circi/storage':
         specifier: workspace:*
         version: link:../storage
@@ -813,6 +816,10 @@ importers:
       tar:
         specifier: 'catalog:'
         version: 7.5.22
+    devDependencies:
+      '@circi/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/storage:
     dependencies:

@@ -6,6 +6,7 @@ import {
   workspace,
   projects,
   projectSites,
+  siteArtifactImports,
   siteHostnames,
   staticSiteFiles,
   staticSites,
@@ -370,4 +371,36 @@ export async function servedCommitForBranch(
       ),
     )
   return row?.commitSha
+}
+
+export namespace latestArtifactImport {
+  /** How the newest workflow run attempt of a project ended, for its settings. */
+  export interface Row {
+    status: 'published' | 'failed'
+    message: string
+    runId: string
+    commitSha: string
+    at: Date
+  }
+}
+
+export async function latestArtifactImport(
+  db: Database,
+  projectId: string,
+): Promise<latestArtifactImport.Row | undefined> {
+  const [row] = await db
+    .select({
+      status: siteArtifactImports.status,
+      message: siteArtifactImports.message,
+      runId: siteArtifactImports.runId,
+      commitSha: siteArtifactImports.commitSha,
+      at: siteArtifactImports.updatedAt,
+    })
+    .from(siteArtifactImports)
+    .where(eq(siteArtifactImports.projectId, projectId))
+    .orderBy(desc(siteArtifactImports.updatedAt))
+    .limit(1)
+  return row?.status === 'published' || row?.status === 'failed'
+    ? { ...row, status: row.status }
+    : undefined
 }

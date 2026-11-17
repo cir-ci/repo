@@ -72,10 +72,12 @@ export function ProjectSettingsPage() {
             />
             {data.sitesConfigured ? (
               <HostedSitesSection
-                key={`sites:${data.settings.staticHostingEnabled}`}
+                key={`sites:${data.settings.staticHostingEnabled}:${data.settings.sitesFromActions}:${data.settings.sitesArtifactName}:${data.settings.sitesArtifactSiteName}`}
                 settings={data.settings}
                 canManage={data.canManage}
                 save={saveSites}
+                githubLinked={data.github.link !== null}
+                lastResult={data.sitesFromActionsResult}
               />
             ) : null}
             <DeleteProjectSection

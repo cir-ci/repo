@@ -80,6 +80,15 @@ export const projects = pgTable(
      */
     triageRotationStartsOn: timestamp('triage_rotation_starts_on', { withTimezone: true }),
     staticHostingEnabled: boolean('static_hosting_enabled').notNull().default(false),
+    /**
+     * Publish a site from the artifact a successful GitHub Actions run uploaded (no CirCI step in
+     * the workflow). Needs the project linked to a GitHub repository and hosting on.
+     */
+    sitesFromActions: boolean('sites_from_actions').notNull().default(false),
+    /** The artifact's name (`actions/upload-artifact`'s `name`). */
+    sitesArtifactName: text('sites_artifact_name').notNull().default('circi-site'),
+    /** The site's name, like `circi site upload --name`; null is `site`. */
+    sitesArtifactSiteName: text('sites_artifact_site_name'),
     /** Last assigned per-project build number; bumped atomically when a build is created. */
     buildCounter: integer('build_counter').notNull().default(0),
     createdAt: createdAt(),

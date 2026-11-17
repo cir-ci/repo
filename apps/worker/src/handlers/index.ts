@@ -1,5 +1,12 @@
 import type { Job } from '@circi/db'
-import { failBuild, GIT_NOTIFY_QUEUE, QUEUES } from '@circi/services'
+import {
+  failBuild,
+  GIT_NOTIFY_QUEUE,
+  importSiteArtifact,
+  noteSiteArtifactGiveUp,
+  QUEUES,
+  SITE_ARTIFACT_QUEUE,
+} from '@circi/services'
 import { isSiteKindId, KINDS, siteOrigin } from '@circi/sites'
 
 import { deliverWebhook } from '../jobs/deliver-webhook.ts'
@@ -141,6 +148,34 @@ const integration: Handler = {
   failed: 'could not deliver an integration event',
 }
 
+const siteArtifact: Handler = {
+  fields: (job) => ({
+    projectId: job.payload.projectId,
+    runId: job.payload.runId,
+    runAttempt: job.payload.runAttempt,
+    prNumber: job.payload.prNumber,
+  }),
+  async run(deps, job) {
+    const { db, storage, integrations, authSecret, publicOrigin = '', sitesMaxBytes } = deps
+    if (!integrations || !authSecret || !sitesMaxBytes) {
+      return {
+        message: 'site artifact skipped: sites or integrations are not set up in this worker',
+      }
+    }
+    const { config, fetch } = integrations
+    const context = { authSecret, publicOrigin, config, ...(fetch ? { fetch } : {}) }
+    return {
+      result: await importSiteArtifact({ db, storage, context, maxBytes: sitesMaxBytes }, job),
+    }
+  },
+  done: 'site artifact processed',
+  retry: 'could not fetch a site artifact, will retry',
+  failed: 'could not fetch a site artifact',
+  async onGiveUp(deps, job, message) {
+    await noteSiteArtifactGiveUp(deps.db, job, message).catch(() => {})
+  },
+}
+
 /** The handler of each queue; the poll loop claims only these queues. */
 export const HANDLERS: Record<string, Handler | undefined> = {
   [QUEUES.processBuild]: build,
@@ -148,4 +183,5 @@ export const HANDLERS: Record<string, Handler | undefined> = {
   [GIT_NOTIFY_QUEUE]: gitNotify,
   [QUEUES.notificationEmail]: email,
   [QUEUES.integrationEvent]: integration,
+  [SITE_ARTIFACT_QUEUE]: siteArtifact,
 }

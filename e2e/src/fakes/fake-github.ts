@@ -82,6 +82,19 @@ export interface FakeGithub {
   restoreInstallation(installationId: string): void
   /** A comment written by a person on a pull request (so reactions and edits have something to hit). */
   seedComment(repo: string, prNumber: number, body: string): FakeGithub.Comment
+  /**
+   * An artifact of a workflow run (what `actions/upload-artifact` stored: a zip). Listed by
+   * `GET /repos/:repo/actions/runs/:run/artifacts`; its zip is a redirect to a signed address that
+   * needs no token. Returns the artifact's id.
+   */
+  addArtifact(
+    runId: number | string,
+    artifact: { name: string; zip: Buffer; expired?: boolean },
+  ): number
+  /** What `GET /repos/:repo/git/ref/heads/:branch` answers (404 for a branch with no tip set). */
+  setBranchTip(repo: string, branch: string, sha: string): void
+  /** For each download from the signed address, whether the request carried an `authorization` header. */
+  signedDownloadsHadAuth(): boolean[]
   /** Every installation token handed out so far (to grep logs for leaks). */
   issuedTokens(): string[]
   /** Requests whose "METHOD path" contains `match`. */
@@ -140,6 +153,9 @@ export async function startFakeGithub(
   }[] = []
   const delays: { match: string; ms: number; remaining: number }[] = []
   const revoked = new Set<string>()
+  const artifacts: { id: number; runId: string; name: string; zip: Buffer; expired: boolean }[] = []
+  const signedWithAuth: boolean[] = []
+  const branchTips = new Map<string, string>()
   const manifestCodes = new Set<string>()
   const slug = 'circi-e2e'
   let codeCounter = 0
@@ -232,6 +248,20 @@ export async function startFakeGithub(
           html_url: `http://${req.headers.host ?? 'github.invalid'}${prefix}/apps/${slug}`,
         })
       }
+      // The signed address of an artifact: the signature is the credential, not a token.
+      const signedZip = /^\/signed\/artifacts\/(\d+)$/.exec(url.pathname)
+      if (signedZip && method === 'GET') {
+        signedWithAuth.push(req.headers['authorization'] !== undefined)
+        const found = artifacts.find((a) => a.id === Number(signedZip[1]))
+        if (!found || url.searchParams.get('sig') !== 'e2e-signature') {
+          return sendJson(res, 403, { message: 'Bad signature' })
+        }
+        res.writeHead(200, {
+          'content-type': 'application/zip',
+          'content-length': String(found.zip.length),
+        })
+        return res.end(found.zip)
+      }
       if (auth === 'invalid' || auth === 'none') {
         return sendJson(res, 401, { message: 'Bad credentials' })
       }
@@ -269,6 +299,41 @@ export async function startFakeGithub(
       if (auth !== 'installation')
         return sendJson(res, 403, { message: 'Resource not accessible by integration' })
 
+      if (
+        (m = /^\/repos\/([^/]+\/[^/]+)\/actions\/runs\/(\d+)\/artifacts$/.exec(url.pathname)) &&
+        method === 'GET'
+      ) {
+        const list = artifacts.filter((a) => a.runId === m?.[2])
+        return sendJson(res, 200, {
+          total_count: list.length,
+          artifacts: list.map((a) => ({
+            id: a.id,
+            name: a.name,
+            size_in_bytes: a.zip.length,
+            expired: a.expired,
+          })),
+        })
+      }
+      if (
+        (m = /^\/repos\/([^/]+\/[^/]+)\/actions\/artifacts\/(\d+)\/zip$/.exec(url.pathname)) &&
+        method === 'GET'
+      ) {
+        const found = artifacts.find((a) => a.id === Number(m?.[2]))
+        if (!found) return sendJson(res, 404, { message: 'Not Found' })
+        res.writeHead(302, {
+          location: `http://${req.headers.host ?? 'github.invalid'}${prefix}/signed/artifacts/${found.id}?sig=e2e-signature`,
+        })
+        return res.end()
+      }
+      if (
+        (m = /^\/repos\/([^/]+\/[^/]+)\/git\/ref\/heads\/(.+)$/.exec(url.pathname)) &&
+        method === 'GET'
+      ) {
+        const sha = branchTips.get(`${m[1]}#${decodeURIComponent(m[2] ?? '')}`)
+        return sha
+          ? sendJson(res, 200, { object: { sha, type: 'commit' } })
+          : sendJson(res, 404, { message: 'Not Found' })
+      }
       if (url.pathname === '/installation/repositories' && method === 'GET') {
         return sendJson(res, 200, { total_count: 0, repositories: [] })
       }
@@ -407,6 +472,19 @@ export async function startFakeGithub(
       manifestCodes.add(code)
       return code
     },
+    addArtifact(runId, artifact) {
+      const id = nextId++
+      artifacts.push({
+        id,
+        runId: String(runId),
+        name: artifact.name,
+        zip: artifact.zip,
+        expired: artifact.expired ?? false,
+      })
+      return id
+    },
+    setBranchTip: (repo, branch, sha) => void branchTips.set(`${repo}#${branch}`, sha),
+    signedDownloadsHadAuth: () => [...signedWithAuth],
     issuedTokens: () => [...tokens],
     revokeInstallation: (id) => void revoked.add(id),
     restoreInstallation: (id) => void revoked.delete(id),
@@ -449,6 +527,9 @@ export async function startFakeGithub(
       delays.length = 0
       revoked.clear()
       manifestCodes.clear()
+      artifacts.length = 0
+      signedWithAuth.length = 0
+      branchTips.clear()
     },
     close: () => listening.close(),
   }

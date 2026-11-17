@@ -22,6 +22,9 @@ const settings = {
   retentionDays: 30,
   reviewTargetHours: 24 as number | null,
   staticHostingEnabled: false,
+  sitesFromActions: false,
+  sitesArtifactName: 'circi-site',
+  sitesArtifactSiteName: null as string | null,
 }
 
 function response(over: Record<string, unknown> = {}) {
@@ -34,6 +37,7 @@ function response(over: Record<string, unknown> = {}) {
     webhookEvents: ['build.completed', 'build.reviewed'],
     github: { configured: false, webhookUrl: 'https://circi.test/webhooks/github', link: null },
     sitesConfigured: false,
+    sitesFromActionsResult: null,
     ...over,
   }
 }
@@ -247,6 +251,74 @@ describe('ProjectSettingsPage', () => {
     await page.getByRole('button', { name: 'Save hosted sites' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
     expect(fake.of('PATCH')[2]?.body).toEqual({ staticHostingEnabled: true })
+  })
+
+  describe('Hosted sites: upload from GitHub Actions', () => {
+    const linked = github({ installationId: '9', repoRef: 'acme/web', attention: null })
+    const hosted = { ...settings, staticHostingEnabled: true }
+
+    it('waits for Save: the artifact and site names appear once it is on, and only changes are sent', async () => {
+      const fake = api({ sitesConfigured: true, settings: hosted, github: linked })
+      await show()
+      const toggle = page.getByRole('checkbox', { name: /^Upload sites from GitHub Actions/ })
+      await expect.element(toggle).not.toBeChecked()
+      expect(page.getByRole('textbox', { name: /^Artifact name/ }).elements()).toHaveLength(0)
+      await toggle.click()
+      await expect
+        .element(page.getByRole('textbox', { name: /^Artifact name/ }))
+        .toHaveValue('circi-site')
+      await page.getByRole('textbox', { name: /^Artifact name/ }).fill('storybook-static')
+      await page.getByRole('textbox', { name: /^Site name/ }).fill('storybook')
+      expect(fake.of('PATCH')).toHaveLength(0)
+      await page.getByRole('button', { name: 'Save hosted sites' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toEqual({
+        sitesFromActions: true,
+        sitesArtifactName: 'storybook-static',
+        sitesArtifactSiteName: 'storybook',
+      })
+      await expect.element(toastNamed('Hosted sites saved')).toBeVisible()
+    })
+
+    it('does not save an empty artifact name', async () => {
+      const fake = api({
+        sitesConfigured: true,
+        settings: { ...hosted, sitesFromActions: true },
+        github: linked,
+      })
+      await show()
+      await page.getByRole('textbox', { name: /^Artifact name/ }).fill('')
+      await page.getByRole('button', { name: 'Save hosted sites' }).click()
+      await expect.element(page.getByText('Enter the artifact name')).toBeVisible()
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('needs a linked repository', async () => {
+      api({ sitesConfigured: true, settings: hosted })
+      await show()
+      await expect
+        .element(page.getByRole('checkbox', { name: /^Upload sites from GitHub Actions/ }))
+        .toBeDisabled()
+    })
+
+    it('says how the last run went, and what to fix', async () => {
+      api({
+        sitesConfigured: true,
+        settings: { ...hosted, sitesFromActions: true },
+        github: linked,
+        sitesFromActionsResult: {
+          status: 'failed',
+          message: 'Run 77 has no artifact named "circi-site".',
+          runId: '77',
+          commitSha: 'abc1234',
+          at: '2026-11-17T10:00:00.000Z',
+        },
+      })
+      await show()
+      await expect
+        .element(page.getByRole('alert').filter({ hasText: 'no artifact named "circi-site"' }))
+        .toBeVisible()
+    })
   })
 
   it("shows a section's Save and Discard only while it has changes, one primary at a time", async () => {

@@ -15,4 +15,5 @@ export {
 export { detectKind, isSiteKindId, KINDS, SITE_KIND_IDS, type SiteKind } from './kinds.ts'
 export { requestPath, RESERVED_PREFIX, safeEntryPath, UnsafePathError } from './paths.ts'
 export { IngestError, ingestTarball } from './ingest.ts'
+export { ingestZip } from './ingest-zip.ts'
 export { contentTypeFor } from './mime.ts'

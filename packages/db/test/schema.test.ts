@@ -71,6 +71,7 @@ describe('migrations', () => {
       'screenshots',
       'session',
       'session_methods',
+      'site_artifact_imports',
       'site_hostnames',
       'site_sessions',
       'site_tokens',

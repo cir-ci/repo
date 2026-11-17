@@ -1,6 +1,8 @@
 /** `@circi/integrations/github`: the GitHub App client and the manifest flow that creates the App. */
 export {
   GithubApiError,
+  GithubArtifactTooLargeError,
+  type GithubArtifact,
   GithubApp,
   githubWebhookVerifier,
   GithubInstallationRevokedError,

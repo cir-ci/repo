@@ -183,3 +183,32 @@ export const siteSessions = pgTable(
     index('site_sessions_auth_session_idx').on(t.authSessionId),
   ],
 )
+
+/**
+ * One workflow run attempt's artifact import (sites published from GitHub Actions). The row is the
+ * idempotency record: a redelivered webhook or a retried job finds the attempt `published` and does
+ * nothing; a `failed` attempt keeps its message for the project's settings and may be tried again
+ * (a redelivery after the cause was fixed). A re-run of the workflow is a new attempt.
+ */
+export const siteArtifactImports = pgTable(
+  'site_artifact_imports',
+  {
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    runId: text('run_id').notNull(),
+    runAttempt: integer('run_attempt').notNull(),
+    status: text('status').notNull(),
+    /** The artifact that was published, once known. */
+    artifactId: text('artifact_id'),
+    commitSha: text('commit_sha').notNull(),
+    /** What happened, in words for a person (why it failed, or what was published). */
+    message: text('message').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.runId, t.runAttempt] }),
+    index('site_artifact_imports_project_idx').on(t.projectId, t.updatedAt),
+    check('site_artifact_imports_status_check', inList(t.status.name, ['published', 'failed'])),
+  ],
+)

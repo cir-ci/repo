@@ -3,7 +3,7 @@ import type { Database, Job } from '@circi/db'
 import * as queue from '@circi/db/queue'
 import { jobIsForDeletedWorkspace } from '@circi/db/repositories'
 
-export { GIT_NOTIFY_QUEUE, JOBS_CHANNEL, QUEUES } from '@circi/db/queue'
+export { GIT_NOTIFY_QUEUE, JOBS_CHANNEL, QUEUES, SITE_ARTIFACT_QUEUE } from '@circi/db/queue'
 
 /** What the worker's poll loop does with the job queue: claim, finish, fail. */
 
@@ -14,6 +14,8 @@ const ALL_QUEUES = [
   queue.QUEUES.webhook,
   queue.QUEUES.notificationEmail,
   queue.QUEUES.integrationEvent,
+  // Added with sites from GitHub Actions: an older worker doesn't list it, so never claims it.
+  queue.SITE_ARTIFACT_QUEUE,
 ] as const
 
 /** Everything but builds: what the lanes reserved for light work claim, so a backlog of builds can't starve them. */

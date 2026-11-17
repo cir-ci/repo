@@ -408,3 +408,63 @@ describe('GitHub webhook: which builds can be approved', () => {
     expect(sent.map((m) => m.split(':')[0])).toEqual([`note check-${build.id}`, 'reply 34'])
   })
 })
+
+const workflowRun = (over: Record<string, unknown> = {}, action = 'completed') => ({
+  action,
+  workflow_run: {
+    id: 9001,
+    run_attempt: 1,
+    conclusion: 'success',
+    head_sha: 'abc1230000000000000000000000000000000001',
+    head_branch: 'feature',
+    pull_requests: [{ number: 5 }],
+    head_repository: { full_name: 'Acme/Web' },
+    ...over,
+  },
+  installation: { id: 99 },
+  repository: { full_name: 'Acme/Web' },
+})
+const queuedSiteImports = async (runId: string) =>
+  (await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'site-artifact'))).filter(
+    (j) => j.payload.runId === runId,
+  )
+
+describe('GitHub webhook: finished workflow runs (sites from GitHub Actions)', () => {
+  it('queues nothing while the project does not publish sites from GitHub Actions', async () => {
+    expect((await deliver('workflow_run', workflowRun({ id: 9001 }))).statusCode).toBe(200)
+    expect(await queuedSiteImports('9001')).toEqual([])
+  })
+
+  it('queues one import for a successful run once the setting is on, and once per delivery', async () => {
+    await t.db
+      .update(schema.projects)
+      .set({ staticHostingEnabled: true, sitesFromActions: true })
+      .where(eq(schema.projects.id, acme.project.id))
+    expect(
+      (await deliver('workflow_run', workflowRun({ id: 9002 }), { delivery: 'run-1' })).statusCode,
+    ).toBe(200)
+    const [job] = await queuedSiteImports('9002')
+    expect(job?.payload).toMatchObject({
+      projectId: acme.project.id,
+      repo: 'Acme/Web',
+      headBranch: 'feature',
+      prNumber: 5,
+      fork: false,
+    })
+    const replay = await deliver('workflow_run', workflowRun({ id: 9002 }), { delivery: 'run-1' })
+    expect(replay.json()).toMatchObject({ duplicate: true })
+    // Another delivery of the same attempt (a manual redelivery) is one job, too.
+    await deliver('workflow_run', workflowRun({ id: 9002 }), { delivery: 'run-1-again' })
+    expect(await queuedSiteImports('9002')).toHaveLength(1)
+  })
+
+  it('ignores a run that has not finished or did not succeed, and refuses a bad signature', async () => {
+    await deliver('workflow_run', workflowRun({ id: 9003 }, 'requested'))
+    await deliver('workflow_run', workflowRun({ id: 9004, conclusion: 'failure' }))
+    expect(await queuedSiteImports('9003')).toEqual([])
+    expect(await queuedSiteImports('9004')).toEqual([])
+    const bad = await deliver('workflow_run', workflowRun({ id: 9005 }), { secret: 'wrong' })
+    expect(bad.statusCode).toBe(401)
+    expect(await queuedSiteImports('9005')).toEqual([])
+  })
+})

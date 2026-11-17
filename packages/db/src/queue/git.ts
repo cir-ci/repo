@@ -389,3 +389,42 @@ export async function linkBuildsToPullRequest(
     .returning({ id: builds.id })
   return rows.length
 }
+
+/**
+ * Publishing a site from a GitHub Actions artifact: one job per workflow run attempt of a project.
+ *
+ * Rolling deploys: a new queue name. A worker only claims the queues its own handler table knows,
+ * so an old worker never touches these rows; they wait (pending) until a new worker runs, and an
+ * old server simply ignores the `workflow_run` webhook that would have queued them. No payload
+ * key is ever renamed: a new one is added as optional.
+ */
+export const SITE_ARTIFACT_QUEUE = 'site-artifact'
+
+export namespace enqueueSiteArtifact {
+  export interface Payload {
+    projectId: string
+    /** The git host's kind (`github`) and its connection, to download the artifact. */
+    kind: string
+    externalId: string
+    repo: string
+    runId: string
+    runAttempt: number
+    headSha: string
+    headBranch?: string
+    prNumber?: number
+    fork: boolean
+  }
+}
+
+/** Queues the import; a duplicate of one still pending or running is dropped. */
+export async function enqueueSiteArtifact(
+  db: Database,
+  payload: enqueueSiteArtifact.Payload,
+): Promise<void> {
+  await enqueueJob(db, {
+    queue: SITE_ARTIFACT_QUEUE,
+    payload: { ...payload },
+    dedupeKey: `site-artifact:${payload.projectId}:${payload.runId}:${payload.runAttempt}`,
+    maxAttempts: 5,
+  })
+}

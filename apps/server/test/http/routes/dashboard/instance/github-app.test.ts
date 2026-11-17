@@ -213,8 +213,13 @@ describe('the manifest', () => {
       setup_url: 'https://ci.acme.io/api/integrations/github/setup',
       setup_on_update: true,
       public: false,
-      default_permissions: { checks: 'write', pull_requests: 'write', metadata: 'read' },
-      default_events: ['check_run', 'issue_comment', 'pull_request'],
+      default_permissions: {
+        actions: 'read',
+        checks: 'write',
+        pull_requests: 'write',
+        metadata: 'read',
+      },
+      default_events: ['check_run', 'issue_comment', 'pull_request', 'workflow_run'],
     })
     expect(body.postUrl).toBe('https://github.com/settings/apps/new')
     expect(verifyState(SECRET, body.state)).toEqual({ kind: 'github-manifest', userId: admin.id })

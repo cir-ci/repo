@@ -4,6 +4,7 @@ import { ConflictError, type Build, type Database } from '@circi/db'
 import { getProjectById } from '@circi/db/queries'
 import {
   clearInstallationNeedsAttention,
+  enqueueSiteArtifact,
   findBuildByCheckRun,
   findGitProjects,
   latestBuildsForPr,
@@ -96,6 +97,8 @@ export async function handleGitEvents(db: Database, input: handleGitEvents.Input
     // oxlint-disable-next-line no-await-in-loop
     else if (event.type === 'command') await onCommand(db, input, event)
     // oxlint-disable-next-line no-await-in-loop
+    else if (event.type === 'workflow_run') await onWorkflowRun(db, input, event)
+    // oxlint-disable-next-line no-await-in-loop
     else await onCheckAction(db, input, event)
   }
 }
@@ -168,6 +171,39 @@ async function onPullRequestClosed(
           kinds: ['review_requested', 'review_re_requested', 'review_overdue'],
         })
       }
+    })
+  }
+}
+
+/**
+ * A CI run finished well: for each project of the repository that publishes sites from the run's
+ * artifact (hosting on, the setting on), queue the import. The job reads the settings again; this
+ * only keeps the queue free of projects that never asked.
+ */
+async function onWorkflowRun(
+  db: Database,
+  input: handleGitEvents.Input,
+  event: Of<'workflow_run'>,
+) {
+  const kind = input.definition.id
+  if (!input.definition.capabilities.runArtifacts) return
+  const projects = await findGitProjects(db, kind, event.repo.connection, event.repo.ref)
+  for (const linked of projects) {
+    // eslint-disable-next-line no-await-in-loop -- one repository rarely feeds several projects
+    const project = await getProjectById(db, linked.id)
+    if (!project?.staticHostingEnabled || !project.sitesFromActions) continue
+    // eslint-disable-next-line no-await-in-loop
+    await enqueueSiteArtifact(db, {
+      projectId: project.id,
+      kind,
+      externalId: linked.externalId,
+      repo: event.repo.ref,
+      runId: event.runId,
+      runAttempt: event.runAttempt,
+      headSha: event.headSha,
+      ...(event.headBranch ? { headBranch: event.headBranch } : {}),
+      ...(event.prNumber ? { prNumber: event.prNumber } : {}),
+      fork: event.fork,
     })
   }
 }

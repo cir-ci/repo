@@ -28,6 +28,8 @@ export namespace startWorker {
     publicOrigin?: string
     /** The sites domain (`STATIC_SITES_HOST`), when static site hosting is on: the PR comment lists a commit's sites. */
     sitesHost?: string
+    /** The largest a published site may unpack to, in bytes, as it is now (`STATIC_SITES_MAX_MB`); sites from GitHub Actions need it. */
+    sitesMaxBytes?: () => Promise<number>
     /** Stands in for the GitHub App's adapter (tests); production builds it from `integrations.config.github`. */
     github?: GithubApp
     /** Stands in for the git host adapters by connection kind (tests); production uses the definitions'. */

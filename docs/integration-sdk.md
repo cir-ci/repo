@@ -274,8 +274,9 @@ an App created on another replica when they restart.
 **Permissions and events** (`GITHUB_APP_PERMISSIONS` / `GITHUB_APP_EVENTS` in
 `packages/integrations/src/kinds/github/manifest.ts`; keep the manual setup identical): Checks (write: the
 CirCI check run and its Approve and Reject buttons), Pull requests (write: the summary comment and
-its reactions), Metadata (read). Events: `check_run`, `issue_comment` (`/circi` commands) and
-`pull_request` (remembers who opened it).
+its reactions), Actions (read: the artifacts a workflow uploads, for sites published from GitHub
+Actions), Metadata (read). Events: `check_run`, `issue_comment` (`/circi` commands), `pull_request`
+(remembers who opened it) and `workflow_run` (a finished run: its artifact may hold a site).
 
 ## What stays custom
 

@@ -6,17 +6,28 @@
 
 /**
  * What the GitHub App needs, and nothing more: checks (the CirCI check run with its buttons),
- * pull requests (the summary comment and its reactions) and metadata (always read-only).
- * The same list the manual setup in the README names.
+ * pull requests (the summary comment and its reactions), actions (read-only: the artifacts a
+ * workflow uploads, for sites published from GitHub Actions) and metadata (always read-only).
+ * The same list the manual setup in the README names. An App created before `actions` was added
+ * keeps working; only "Sites from GitHub Actions" needs it (see the GitHub integration docs).
  */
 export const GITHUB_APP_PERMISSIONS = {
+  actions: 'read',
   checks: 'write',
   pull_requests: 'write',
   metadata: 'read',
 } as const
 
-/** Pull requests (author linking), the check's buttons, and `/circi` comments. */
-export const GITHUB_APP_EVENTS = ['check_run', 'issue_comment', 'pull_request'] as const
+/**
+ * Pull requests (author linking), the check's buttons, `/circi` comments, and finished workflow
+ * runs (sites published from GitHub Actions).
+ */
+export const GITHUB_APP_EVENTS = [
+  'check_run',
+  'issue_comment',
+  'pull_request',
+  'workflow_run',
+] as const
 
 /** GitHub limits an App's name to 34 characters. */
 export const GITHUB_APP_NAME_MAX = 34

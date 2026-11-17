@@ -46,6 +46,23 @@ export class GithubInstallationRevokedError extends GithubApiError {
   }
 }
 
+/** An artifact is larger than the caller allows (nothing was kept). Not a failure of the call: no retry helps. */
+export class GithubArtifactTooLargeError extends Error {
+  readonly bytes: number
+  constructor(bytes: number) {
+    super(`The artifact is ${bytes} bytes or more`)
+    this.name = 'GithubArtifactTooLargeError'
+    this.bytes = bytes
+  }
+}
+
+export interface GithubArtifact {
+  id: number
+  name: string
+  sizeInBytes: number
+  expired: boolean
+}
+
 /** A 401 for a token, before it is known whether a fresh one helps. */
 function isRejectedToken(err: unknown): err is GithubApiError {
   return (
@@ -401,6 +418,139 @@ export class GithubApp implements GitProvider {
         content,
       },
     )
+  }
+
+  /** The commit a branch points at, or null when it doesn't exist. */
+  async branchTip(installationId: string, repo: string, branch: string): Promise<string | null> {
+    const ref = branch.split('/').map(encodeURIComponent).join('/')
+    try {
+      const { data } = await this.#api(installationId, 'GET', `/repos/${repo}/git/ref/heads/${ref}`)
+      const sha: unknown = prop(prop(data, 'object'), 'sha')
+      return typeof sha === 'string' ? sha : null
+    } catch (err) {
+      if (
+        err instanceof GithubApiError &&
+        !(err instanceof GithubInstallationRevokedError) &&
+        err.status === 404
+      ) {
+        return null
+      }
+      throw err
+    }
+  }
+
+  /** The artifacts of a workflow run, newest first (up to 300). */
+  async listRunArtifacts(
+    installationId: string,
+    repo: string,
+    runId: string,
+  ): Promise<GithubArtifact[]> {
+    const found: GithubArtifact[] = []
+    for (let page = 1; page <= 3; page++) {
+      // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
+      const { data } = await this.#api(
+        installationId,
+        'GET',
+        `/repos/${repo}/actions/runs/${encodeURIComponent(runId)}/artifacts?per_page=100&page=${page}`,
+      )
+      const list: unknown =
+        typeof data === 'object' && data !== null ? Reflect.get(data, 'artifacts') : undefined
+      if (!Array.isArray(list)) break
+      for (const a of list) {
+        const id: unknown = prop(a, 'id')
+        const name: unknown = prop(a, 'name')
+        if (typeof id !== 'number' || typeof name !== 'string') continue
+        const size: unknown = prop(a, 'size_in_bytes')
+        found.push({
+          id,
+          name,
+          sizeInBytes: typeof size === 'number' ? size : 0,
+          expired: prop(a, 'expired') === true,
+        })
+      }
+      if (list.length < 100) break
+    }
+    return found
+  }
+
+  /**
+   * The zip of one artifact. GitHub answers with a redirect to a signed address: it is followed
+   * WITHOUT the installation token (the signature is the credential there; the token must never
+   * leave GitHub's API). Reads at most `maxBytes`, else throws `GithubArtifactTooLargeError`.
+   */
+  async downloadArtifact(
+    installationId: string,
+    repo: string,
+    artifactId: number | string,
+    maxBytes: number,
+  ): Promise<Buffer> {
+    const fetcher = this.#options.fetch ?? fetch
+    const timeout = () => AbortSignal.timeout(this.#options.timeoutMs ?? 15_000)
+    const request = async (token: string) =>
+      fetcher(`${this.#options.apiUrl}/repos/${repo}/actions/artifacts/${artifactId}/zip`, {
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: 'application/vnd.github+json',
+          'x-github-api-version': '2022-11-28',
+          'user-agent': 'CirCI',
+        },
+        redirect: 'manual',
+        signal: timeout(),
+      })
+    let res = await request(await this.#installationToken(installationId))
+    if (res.status === 401) {
+      this.#tokens.delete(installationId)
+      res = await request(await this.#installationToken(installationId))
+      if (res.status === 401) {
+        throw new GithubInstallationRevokedError(
+          installationId,
+          new GithubApiError(401, 'GitHub refused the installation token'),
+        )
+      }
+    }
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location')
+      let target: URL | undefined
+      try {
+        target = location ? new URL(location, this.#options.apiUrl) : undefined
+      } catch {
+        target = undefined
+      }
+      if (!target || (target.protocol !== 'https:' && target.protocol !== 'http:')) {
+        throw new GithubApiError(502, 'GitHub sent no address for the artifact')
+      }
+      await res.body?.cancel()
+      // No authorization header: the address is signed.
+      res = await fetcher(target, {
+        headers: { 'user-agent': 'CirCI' },
+        signal: timeout(),
+      })
+    }
+    if (!res.ok) {
+      await res.body?.cancel()
+      throw new GithubApiError(
+        res.status,
+        `GitHub GET /repos/${repo}/actions/artifacts/${artifactId}/zip: HTTP ${res.status}`,
+      )
+    }
+    const declared = Number(res.headers.get('content-length'))
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      await res.body?.cancel()
+      throw new GithubArtifactTooLargeError(declared)
+    }
+    const chunks: Uint8Array[] = []
+    let size = 0
+    if (res.body) {
+      for await (const chunk of res.body) {
+        size += chunk.length
+        if (size > maxBytes) {
+          await res.body.cancel()
+          throw new GithubArtifactTooLargeError(size)
+        }
+        chunks.push(chunk)
+      }
+    }
+    return Buffer.concat(chunks)
   }
 
   /** Whether the user has at least write access to the repo (`admin`, `maintain`, `write`). */

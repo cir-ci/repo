@@ -2,7 +2,12 @@ import type { Project } from '@circi/api'
 import { deleteProjectWithToken, rotateProjectToken } from '@circi/auth'
 import { NotFoundError, ValidationError } from '@circi/core'
 import { checkWebhookEvents, WEBHOOK_EVENTS, webhookUrlProblem } from '@circi/core/node'
-import { getWorkspaceSettings, getProjectById, projectSettings } from '@circi/db/queries'
+import {
+  getWorkspaceSettings,
+  getProjectById,
+  latestArtifactImport,
+  projectSettings,
+} from '@circi/db/queries'
 import {
   addWebhook,
   changeProjectSettings,
@@ -61,6 +66,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
 
   app.get('/projects/:workspace/:project/settings', async (req) => {
     const found = await load(req)
+    const last = await latestArtifactImport(deps.db, found.project.id)
     return {
       canManage: found.canManage,
       settings: projectSettings(found.project),
@@ -70,6 +76,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       webhooks: await presentWebhooks(deps.db, found.project.id),
       webhookEvents: WEBHOOK_EVENTS,
       sitesConfigured: deps.sites !== undefined,
+      sitesFromActionsResult: last ? { ...last, at: last.at.toISOString() } : null,
       github: {
         configured: githubConfigured(deps),
         webhookUrl: `${deps.publicOrigin}/webhooks/github`,

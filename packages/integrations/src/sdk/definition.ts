@@ -219,6 +219,23 @@ export namespace IntegrationDefinition {
         repo?: GitRepo
         actor: GitActor
       }
+    | {
+        /**
+         * A CI workflow run finished successfully (GitHub `workflow_run`): its artifacts may hold
+         * a site to publish for the run's commit.
+         */
+        type: 'workflow_run'
+        repo: GitRepo
+        runId: string
+        /** Which attempt of the run: a re-run is a new attempt with new artifacts. */
+        runAttempt: number
+        headSha: string
+        headBranch?: string
+        /** The pull request the run belongs to, when the host says. */
+        prNumber?: number
+        /** The run is of a fork's pull request: its site never moves a branch address. */
+        fork: boolean
+      }
 
   /** How the one shared handler's verdict is told to the person on the host. */
   export interface GitAnswer {
@@ -262,11 +279,47 @@ export namespace IntegrationDefinition {
     respond(input: GitAnswer, ctx: Context): Promise<void>
   }
 
+  /** What `RunArtifacts.fetch` found. Permanent outcomes are values; a transient failure throws. */
+  export type RunArtifact =
+    | { status: 'found'; artifactId: string; data: Buffer }
+    /** No artifact of that name in the run; `available` are the names it has. */
+    | { status: 'missing'; available: readonly string[] }
+    | { status: 'expired' }
+    | { status: 'too_large'; bytes: number }
+    /** The host refuses: the App lacks the permission, or the connection is gone. */
+    | { status: 'denied'; message: string }
+
+  /** Downloads a file a CI run uploaded (GitHub Actions artifacts). */
+  export interface RunArtifacts {
+    fetch(
+      input: {
+        connection: { externalId: string }
+        repo: string
+        runId: string
+        /** The artifact's name. */
+        name: string
+        /** Refuse anything larger (the compressed size). */
+        maxBytes: number
+      },
+      ctx: Context,
+    ): Promise<RunArtifact>
+    /**
+     * The commit a branch points at now, or null when the host can't say (the branch is gone, or
+     * the call failed): a site's branch address only follows the branch's tip.
+     */
+    branchTip(
+      input: { connection: { externalId: string }; repo: string; branch: string },
+      ctx: Context,
+    ): Promise<string | null>
+  }
+
   export interface Capabilities {
     /** Posts a message about an event to the mapped channel. Throws; the worker classifies it. */
     chat?: { send(message: ChatMessage, ctx: Context): Promise<void> }
     /** A git host. */
     git?: Git
+    /** A CI system's uploaded files, on a git host that runs CI. */
+    runArtifacts?: RunArtifacts
     /** An issue tracker built from the opened credentials. */
     tracker?: { create(credentials: string, ctx: Context): IssueTracker | undefined }
     /** A design tool: the frames of a file, renders of them and comments on them. */

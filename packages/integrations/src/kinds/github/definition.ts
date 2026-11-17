@@ -8,7 +8,12 @@ import { defineIntegration } from '#src/sdk/define.ts'
 import type { IntegrationDefinition } from '#src/sdk/definition.ts'
 import { InvalidInputError } from '#src/sdk/errors.ts'
 
-import { GithubApp } from './client.ts'
+import {
+  GithubApiError,
+  GithubApp,
+  GithubArtifactTooLargeError,
+  GithubInstallationRevokedError,
+} from './client.ts'
 
 /**
  * GitHub, through the instance's GitHub App. A connection is one installation of the App on an
@@ -120,6 +125,33 @@ function events(
       },
     ]
   }
+  if (event === 'workflow_run') {
+    // Only a run that finished well has an artifact worth publishing.
+    if (p.action !== 'completed') return []
+    const run = asRecord(p.workflow_run)
+    if (run.conclusion !== 'success') return []
+    const runId = str(run.id)
+    const headSha = str(run.head_sha)
+    const repo = repoOf(p)
+    if (!runId || !headSha || !repo) return []
+    const attempt = Number(run.run_attempt)
+    const branch = str(run.head_branch)
+    const pulls = Array.isArray(run.pull_requests) ? run.pull_requests : []
+    const prNumber = Number(asRecord(pulls[0]).number)
+    const headRepo = str(asRecord(run.head_repository).full_name)
+    return [
+      {
+        type: 'workflow_run',
+        repo,
+        runId,
+        runAttempt: Number.isInteger(attempt) && attempt > 0 ? attempt : 1,
+        headSha,
+        ...(branch ? { headBranch: branch } : {}),
+        ...(Number.isInteger(prNumber) && prNumber > 0 ? { prNumber } : {}),
+        fork: headRepo !== undefined && headRepo.toLowerCase() !== repo.ref.toLowerCase(),
+      },
+    ]
+  }
   if (event === 'issue_comment') {
     if (p.action !== 'created') return []
     const issue = asRecord(p.issue)
@@ -197,6 +229,51 @@ export const github = defineIntegration({
   events: [],
 
   capabilities: {
+    runArtifacts: {
+      async branchTip(input, ctx) {
+        // Best effort: a failure just means the branch address isn't moved by guesswork.
+        return (
+          (await githubApp(ctx)
+            ?.branchTip(input.connection.externalId, input.repo, input.branch)
+            .catch(() => null)) ?? null
+        )
+      },
+      async fetch(input, ctx) {
+        const app = githubApp(ctx)
+        if (!app) return { status: 'denied', message: 'This instance has no GitHub App configured' }
+        const { externalId } = input.connection
+        try {
+          const artifacts = await app.listRunArtifacts(externalId, input.repo, input.runId)
+          const found = artifacts.find((a) => a.name === input.name)
+          if (!found) return { status: 'missing', available: artifacts.map((a) => a.name) }
+          if (found.expired) return { status: 'expired' }
+          if (found.sizeInBytes > input.maxBytes) {
+            return { status: 'too_large', bytes: found.sizeInBytes }
+          }
+          const data = await app.downloadArtifact(externalId, input.repo, found.id, input.maxBytes)
+          return { status: 'found', artifactId: String(found.id), data }
+        } catch (err) {
+          if (err instanceof GithubArtifactTooLargeError) {
+            return { status: 'too_large', bytes: err.bytes }
+          }
+          if (err instanceof GithubInstallationRevokedError) {
+            return { status: 'denied', message: REVOKED }
+          }
+          // A refusal from GitHub (the App lacks Actions: read) or an artifact that is gone is
+          // permanent; a server error or rate limit is worth another try, so it throws.
+          if (err instanceof GithubApiError && (err.status === 403 || err.status === 404)) {
+            return {
+              status: 'denied',
+              message:
+                err.status === 403
+                  ? "GitHub refused to list the run's artifacts. The GitHub App needs the Actions: read permission; add it in the App's settings and accept the new permissions on the installation"
+                  : 'GitHub has no such run or artifact (it may have been deleted)',
+            }
+          }
+          throw err
+        }
+      },
+    },
     git: {
       provider: (ctx) => githubApp(ctx),
       webhook: {

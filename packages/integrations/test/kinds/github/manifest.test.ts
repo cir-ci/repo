@@ -26,8 +26,13 @@ describe('the App manifest', () => {
       setup_url: 'https://ci.example.com/api/integrations/github/setup',
       setup_on_update: true,
       public: false,
-      default_permissions: { checks: 'write', pull_requests: 'write', metadata: 'read' },
-      default_events: ['check_run', 'issue_comment', 'pull_request'],
+      default_permissions: {
+        actions: 'read',
+        checks: 'write',
+        pull_requests: 'write',
+        metadata: 'read',
+      },
+      default_events: ['check_run', 'issue_comment', 'pull_request', 'workflow_run'],
     })
   })
 

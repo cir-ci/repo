@@ -102,7 +102,13 @@ export async function runServices(options: runServices.Options): Promise<void> {
         ping: () => rt.db.ping(),
         listen: rt.db.listen,
         publicOrigin: rt.config.publicUrl.origin,
-        ...(rt.config.staticSites ? { sitesHost: rt.config.staticSites.host } : {}),
+        ...(rt.config.staticSites
+          ? {
+              sitesHost: rt.config.staticSites.host,
+              sitesMaxBytes: async () =>
+                (await rt.instanceConfig.get()).limits.staticSitesMaxMb * 1024 * 1024,
+            }
+          : {}),
         authSecret: rt.config.authSecret,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         limits: async () => {

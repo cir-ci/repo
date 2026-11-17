@@ -118,7 +118,11 @@ describe('project settings', () => {
       flakyAfterChanges: 3,
       snoozeDefaultDays: 7,
       reviewOverdueNotifyUserId: null,
+      sitesFromActions: false,
+      sitesArtifactName: 'circi-site',
+      sitesArtifactSiteName: null,
     })
+    expect(owner.sitesFromActionsResult).toBeNull()
     const member = (await call('GET', `${base()}/settings`, memberCookie)).json()
     expect(member.canManage).toBe(false)
   })
@@ -135,6 +139,45 @@ describe('project settings', () => {
       defaultBranch: 'main',
     })
     expect((await getProjectById(t.db, acme.project.id))?.blockMergeOnChanges).toBe(false)
+  })
+
+  it('saves sites from GitHub Actions: the artifact name, an optional site name, and what the last run did', async () => {
+    const res = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      sitesFromActions: true,
+      sitesArtifactName: '  storybook-static ',
+      sitesArtifactSiteName: 'storybook',
+    })
+    expect(res.json().settings).toMatchObject({
+      sitesFromActions: true,
+      sitesArtifactName: 'storybook-static',
+      sitesArtifactSiteName: 'storybook',
+    })
+    // An empty site name goes back to the default; bad names are refused and change nothing.
+    expect(
+      (await call('PATCH', `${base()}/settings`, ownerCookie, { sitesArtifactSiteName: '' })).json()
+        .settings.sitesArtifactSiteName,
+    ).toBeNull()
+    const refused = await Promise.all(
+      [{ sitesArtifactSiteName: 'a b' }, { sitesArtifactName: '  ' }].map((body) =>
+        call('PATCH', `${base()}/settings`, ownerCookie, body),
+      ),
+    )
+    expect(refused.map((r) => r.statusCode)).toEqual([400, 400])
+    await t.db.insert(schema.siteArtifactImports).values({
+      projectId: acme.project.id,
+      runId: '77',
+      runAttempt: 1,
+      status: 'failed',
+      commitSha: 'abc1234',
+      message: 'Run 77 has no artifact named "storybook-static".',
+    })
+    expect(
+      (await call('GET', `${base()}/settings`, ownerCookie)).json().sitesFromActionsResult,
+    ).toMatchObject({
+      status: 'failed',
+      runId: '77',
+      message: expect.stringContaining('no artifact named'),
+    })
   })
 
   it("renames the project's slug, and the old address stops working", async () => {

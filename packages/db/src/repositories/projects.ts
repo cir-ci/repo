@@ -13,6 +13,7 @@ import {
   type ProjectColor,
   ValidationError,
   assertFound,
+  SITE_NAME_RE,
 } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
@@ -215,6 +216,22 @@ export async function updateProjectSettings(
   }
   if (patch.staticHostingEnabled !== undefined)
     set.staticHostingEnabled = patch.staticHostingEnabled
+  if (patch.sitesFromActions !== undefined) set.sitesFromActions = patch.sitesFromActions
+  if (patch.sitesArtifactName !== undefined) {
+    const name = patch.sitesArtifactName.trim()
+    // GitHub allows most characters in an artifact name; keep it printable and short.
+    if (!name || name.length > 255 || /[\p{Cc}]/u.test(name)) {
+      throw new ValidationError('Artifact name is required and at most 255 characters')
+    }
+    set.sitesArtifactName = name
+  }
+  if (patch.sitesArtifactSiteName !== undefined) {
+    const name = patch.sitesArtifactSiteName?.trim() ?? ''
+    if (name && !SITE_NAME_RE.test(name)) {
+      throw new ValidationError('Site name: use letters, digits, ".", "_" or "-" (up to 64)')
+    }
+    set.sitesArtifactSiteName = name || null
+  }
   if (Object.keys(set).length === 0) {
     const current = await getProjectById(db, projectId)
     assertFound(current, 'Project not found')

@@ -1,21 +1,9 @@
 import { Readable } from 'node:stream'
 
-import { INSTANCE_LIMIT_BOUNDS, ValidationError } from '@circi/core'
+import { INSTANCE_LIMIT_BOUNDS } from '@circi/core'
 import { servedCommitForBranch } from '@circi/db/queries'
-import { publishSite } from '@circi/services'
-import {
-  branchHash,
-  chooseSlug,
-  commitHash,
-  detectKind,
-  IngestError,
-  ingestTarball,
-  isSiteKindId,
-  KINDS,
-  pickLabel,
-  SITE_KIND_IDS,
-  siteSlug,
-} from '@circi/sites'
+import { publishSiteFiles } from '@circi/services'
+import { IngestError, ingestTarball, SITE_KIND_IDS } from '@circi/sites'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -101,41 +89,18 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         }
         throw err
       }
-      if (files.length === 0) throw new ValidationError('The archive contains no files')
-
-      const paths = new Set(files.map((f) => f.path))
-      const kind =
-        q.kind === 'auto' ? detectKind(paths) : isSiteKindId(q.kind) ? KINDS[q.kind] : KINDS.generic
-      const entryPath = kind.entryPath(paths)
-      if (!paths.has(entryPath)) {
-        throw new ValidationError(`A ${kind.label} needs ${entryPath} at its top level`)
-      }
-
-      const published = await publishSite(deps.db, {
-        projectId: ctx.project.id,
+      const published = await publishSiteFiles(deps.db, {
+        project: { id: ctx.project.id, slug: ctx.project.slug, workspaceSlug: ctx.workspaceSlug },
         name: q.name,
-        kind: kind.id,
-        spa: q.spa ?? kind.spaFallback,
+        kind: q.kind,
+        spa: q.spa,
         commitSha: q.commit,
         branch: q.branch,
         branchTip: q.branch_tip,
         descends: q.descends,
         fork: q.fork,
-        entryPath,
         files,
         storageKeys: keys,
-        fallbackKey: (sha256) => contentKey(sha256),
-        slugPrefix: siteSlug(`${ctx.project.slug}-${q.name}`).slice(0, 10),
-        addressing: {
-          chooseSlug: (taken) =>
-            chooseSlug(
-              { project: ctx.project.slug, name: q.name, workspace: ctx.workspaceSlug },
-              taken,
-            ),
-          commitLabel: (slug, exists) =>
-            pickLabel(commitHash(q.commit.toLowerCase(), 16), slug, exists),
-          branchLabel: (branch, slug, exists) => pickLabel(branchHash(branch, 16), slug, exists),
-        },
       })
       return reply.code(201).send({
         site: published.site,

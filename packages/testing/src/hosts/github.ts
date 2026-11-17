@@ -28,6 +28,9 @@ export function fakeGithubHost(options: {
   }[] = []
   const outputs = new Map<number, unknown>()
   let revoked = false
+  const artifacts: { id: number; runId: string; name: string; zip: Buffer; expired: boolean }[] = []
+  /** Whether a request for the signed artifact address carried an `authorization` header. */
+  const signedWithAuth: boolean[] = []
 
   const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
@@ -82,6 +85,39 @@ export function fakeGithubHost(options: {
       found.body = String(Reflect.get(Object(body), 'body'))
       return json(found)
     }
+    const runArtifacts = /\/actions\/runs\/(\d+)\/artifacts$/.exec(path)
+    if (req.method === 'GET' && runArtifacts) {
+      const list = artifacts.filter((a) => a.runId === runArtifacts[1])
+      return json({
+        total_count: list.length,
+        artifacts: list.map((a) => ({
+          id: a.id,
+          name: a.name,
+          size_in_bytes: a.zip.length,
+          expired: a.expired,
+        })),
+      })
+    }
+    const zipOf = /\/actions\/artifacts\/(\d+)\/zip$/.exec(path)
+    if (req.method === 'GET' && zipOf) {
+      const found = artifacts.find((a) => a.id === Number(zipOf[1]))
+      if (!found) return json({ message: 'Not Found' }, 404)
+      // GitHub redirects to a signed address on another host.
+      return new Response(null, {
+        status: 302,
+        headers: { location: `https://pipelines.signed.test/artifact/${found.id}?sig=abc` },
+      })
+    }
+    const signed = /^\/artifact\/(\d+)$/.exec(path)
+    if (req.method === 'GET' && url.host === 'pipelines.signed.test' && signed) {
+      signedWithAuth.push(req.headers.has('authorization'))
+      const found = artifacts.find((a) => a.id === Number(signed[1]))
+      return found
+        ? new Response(new Uint8Array(found.zip), {
+            headers: { 'content-length': String(found.zip.length) },
+          })
+        : json({ message: 'Not Found' }, 404)
+    }
     if (req.method === 'GET' && path === '/installation/repositories') {
       return json({
         total_count: options.repos.length,
@@ -115,6 +151,23 @@ export function fakeGithubHost(options: {
       revoke: () => {
         revoked = true
       },
+      /** An artifact of a workflow run: `zip` is what `actions/upload-artifact` stored. */
+      addArtifact: (
+        runId: string | number,
+        artifact: { name: string; zip: Buffer; expired?: boolean },
+      ) => {
+        const id = nextId++
+        artifacts.push({
+          id,
+          runId: String(runId),
+          name: artifact.name,
+          zip: artifact.zip,
+          expired: artifact.expired ?? false,
+        })
+        return id
+      },
+      /** For each download from the signed address, whether the request carried a token. */
+      signedDownloadsHadAuth: () => [...signedWithAuth],
     },
     sign: (secret: string, body: string) => ({
       'x-hub-signature-256': githubSignature(secret, body),

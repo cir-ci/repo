@@ -143,3 +143,18 @@ describe('fake GitHub: the App manifest conversion and the App itself', () => {
     expect(await app.appInfo()).toMatchObject({ slug: gh.slug, name: 'CirCI' })
   })
 })
+
+describe('fake GitHub: Actions artifacts, driven by the real GithubApp', () => {
+  it('lists a run, redirects the zip to a signed address and gets no token there', async () => {
+    const zip = Buffer.from('PK-not-really-a-zip')
+    const id = gh.addArtifact(12, { name: 'circi-site', zip })
+    expect(await app.listRunArtifacts('77', 'acme/web', '12')).toEqual([
+      { id, name: 'circi-site', sizeInBytes: zip.length, expired: false },
+    ])
+    expect((await app.downloadArtifact('77', 'acme/web', id, 1000)).equals(zip)).toBe(true)
+    expect(gh.signedDownloadsHadAuth()).toEqual([false])
+    gh.setBranchTip('acme/web', 'feature/x', 'b'.repeat(40))
+    expect(await app.branchTip('77', 'acme/web', 'feature/x')).toBe('b'.repeat(40))
+    expect(await app.branchTip('77', 'acme/web', 'gone')).toBeNull()
+  })
+})

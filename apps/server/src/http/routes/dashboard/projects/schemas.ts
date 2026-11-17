@@ -28,6 +28,10 @@ export const settingsBody = z
     flakyAfterChanges: z.number(),
     snoozeDefaultDays: z.number(),
     staticHostingEnabled: z.boolean(),
+    sitesFromActions: z.boolean(),
+    sitesArtifactName: z.string().max(255),
+    /** null (or empty): the site is called `site`. */
+    sitesArtifactSiteName: z.string().max(64).nullable(),
   })
   .partial()
   .strict()

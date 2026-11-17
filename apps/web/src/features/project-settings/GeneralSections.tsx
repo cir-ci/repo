@@ -9,6 +9,7 @@ import {
   SettingsRow,
   SettingsSection,
   Text,
+  TextField,
 } from '@circi/ui'
 import { useState } from 'react'
 
@@ -261,28 +262,54 @@ export function MergeGateSection({
   )
 }
 
-/** The switch for hosting static sites (only where the instance can host them). */
-export function HostedSitesSection({ settings: s, canManage, save }: SectionProps) {
+/**
+ * Hosting static sites, and where they come from. Uploading from GitHub Actions is a workflow
+ * setting (it changes what gets published), so it waits for Save with the rest of the section.
+ */
+export function HostedSitesSection({
+  settings: s,
+  canManage,
+  save,
+  githubLinked,
+  lastResult,
+}: SectionProps & {
+  /** The project is linked to a GitHub repository (the artifacts come from its runs). */
+  githubLinked: boolean
+  lastResult: Project.SitesFromActionsResult | null
+}) {
   const [hosting, setHosting] = useState(s.staticHostingEnabled)
+  const [fromActions, setFromActions] = useState(s.sitesFromActions)
+  const [artifact, setArtifact] = useState(s.sitesArtifactName)
+  const [siteName, setSiteName] = useState(s.sitesArtifactSiteName ?? '')
+  const patch: Partial<Project.Settings> = {
+    ...(hosting !== s.staticHostingEnabled ? { staticHostingEnabled: hosting } : {}),
+    ...(fromActions !== s.sitesFromActions ? { sitesFromActions: fromActions } : {}),
+    ...(artifact.trim() !== s.sitesArtifactName ? { sitesArtifactName: artifact.trim() } : {}),
+    ...(siteName.trim() !== (s.sitesArtifactSiteName ?? '')
+      ? { sitesArtifactSiteName: siteName.trim() || null }
+      : {}),
+  }
+  const artifactProblem = artifact.trim() ? null : 'Enter the artifact name'
   return (
     <SectionForm
       id="hosted-sites"
       title="Hosted sites"
       description="Storybook, test reports and docs for each commit, behind sign-in. Needs the sites domain set on the server."
-      dirty={hosting !== s.staticHostingEnabled}
+      dirty={Object.keys(patch).length > 0}
       pending={save.isPending}
       canManage={canManage}
       error={save.error?.message}
       onDiscard={() => {
         setHosting(s.staticHostingEnabled)
+        setFromActions(s.sitesFromActions)
+        setArtifact(s.sitesArtifactName)
+        setSiteName(s.sitesArtifactSiteName ?? '')
         save.reset()
       }}
-      onSave={() =>
-        save.mutate(
-          { staticHostingEnabled: hosting },
-          { onSuccess: () => toast('Hosted sites saved') },
-        )
-      }
+      onSave={() => {
+        if (artifactProblem) return
+        save.mutate(patch, { onSuccess: () => toast('Hosted sites saved') })
+      }}
     >
       <SettingsRow>
         <Checkbox
@@ -298,6 +325,69 @@ export function HostedSitesSection({ settings: s, canManage, save }: SectionProp
           disabled={!canManage}
         />
       </SettingsRow>
+      {hosting ? (
+        <SettingsRow>
+          <div className={styles.fields}>
+            <Checkbox
+              label="Upload sites from GitHub Actions"
+              description={
+                githubLinked ? (
+                  <>
+                    Publish the artifact of each successful workflow run, with no CirCI step in the
+                    workflow. The GitHub App needs the <Text variant="mono">Actions: read</Text>{' '}
+                    permission.
+                  </>
+                ) : (
+                  'Needs a linked GitHub repository.'
+                )
+              }
+              checked={fromActions}
+              onCheckedChange={setFromActions}
+              disabled={!canManage || !githubLinked}
+            />
+            {fromActions ? (
+              <>
+                <TextField
+                  label="Artifact name"
+                  name="sitesArtifactName"
+                  stacked
+                  value={artifact}
+                  disabled={!canManage}
+                  error={artifactProblem}
+                  onChange={(e) => {
+                    setArtifact(e.target.value)
+                    if (save.isError) save.reset()
+                  }}
+                  description={
+                    <>
+                      The <Text variant="mono">name</Text> of the{' '}
+                      <Text variant="mono">actions/upload-artifact</Text> step.
+                    </>
+                  }
+                />
+                <TextField
+                  label="Site name"
+                  name="sitesArtifactSiteName"
+                  stacked
+                  value={siteName}
+                  placeholder="site"
+                  disabled={!canManage}
+                  onChange={(e) => {
+                    setSiteName(e.target.value)
+                    if (save.isError) save.reset()
+                  }}
+                  description="Which of the project's sites this is, like circi site upload --name."
+                />
+              </>
+            ) : null}
+            {s.sitesFromActions && lastResult ? (
+              <Banner tone={lastResult.status === 'published' ? 'success' : 'danger'}>
+                {lastResult.message}
+              </Banner>
+            ) : null}
+          </div>
+        </SettingsRow>
+      ) : null}
     </SectionForm>
   )
 }

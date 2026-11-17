@@ -187,6 +187,12 @@ export namespace projectSettings {
     snoozeDefaultDays: number
     /** Whether CI may upload static sites for this project (needs `STATIC_SITES_HOST`). */
     staticHostingEnabled: boolean
+    /** Publish a site from the artifact a successful GitHub Actions run uploaded. */
+    sitesFromActions: boolean
+    /** The artifact's name. */
+    sitesArtifactName: string
+    /** The site's name (`circi site upload --name`); null is `site`. */
+    sitesArtifactSiteName: string | null
   }
 }
 
@@ -210,5 +216,8 @@ export function projectSettings(project: Project): projectSettings.Settings {
     flakyAfterChanges: project.flakyAfterChanges,
     snoozeDefaultDays: project.snoozeDefaultDays,
     staticHostingEnabled: project.staticHostingEnabled,
+    sitesFromActions: project.sitesFromActions,
+    sitesArtifactName: project.sitesArtifactName,
+    sitesArtifactSiteName: project.sitesArtifactSiteName,
   }
 }

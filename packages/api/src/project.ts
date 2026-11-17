@@ -130,6 +130,23 @@ export namespace Project {
     /** Days a snoozed triage item stays away when the snooze names no date. */
     snoozeDefaultDays: number
     staticHostingEnabled: boolean
+    /** Publish a site from the artifact a successful GitHub Actions run uploaded. */
+    sitesFromActions: boolean
+    /** The artifact's name (`actions/upload-artifact`'s `name`). */
+    sitesArtifactName: string
+    /** The site's name (like `circi site upload --name`); null is `site`. */
+    sitesArtifactSiteName: string | null
+  }
+
+  /** How the newest GitHub Actions run attempt of a project ended. */
+  export interface SitesFromActionsResult {
+    status: 'published' | 'failed'
+    /** In words: what was published, or what to fix. */
+    message: string
+    runId: string
+    commitSha: string
+    /** ISO date. */
+    at: string
   }
 
   export interface Webhook {
@@ -191,5 +208,7 @@ export namespace Project {
     github: { configured: boolean; webhookUrl: string; link: GithubLink | null }
     /** Static site hosting is set up on this instance (`STATIC_SITES_HOST`). */
     sitesConfigured: boolean
+    /** The newest run attempt published from GitHub Actions, or null when there was none. */
+    sitesFromActionsResult: SitesFromActionsResult | null
   }
 }

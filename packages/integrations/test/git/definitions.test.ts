@@ -181,6 +181,45 @@ describe('GitHub', () => {
         },
       ),
     ).toMatchObject([{ type: 'check_action', action: 'reject', checkRunId: '5' }])
+    // A finished, successful workflow run names its commit, branch and pull request.
+    const run = (over: object, action = 'completed') => ({
+      action,
+      workflow_run: {
+        id: 77,
+        run_attempt: 2,
+        conclusion: 'success',
+        head_sha: 'abc123',
+        head_branch: 'feature',
+        pull_requests: [{ number: 9 }],
+        head_repository: { full_name: 'acme/web' },
+        ...over,
+      },
+      installation,
+      repository,
+    })
+    expect(webhook.events({ 'x-github-event': 'workflow_run' }, run({}))).toEqual([
+      {
+        type: 'workflow_run',
+        repo: { ref: 'Acme/Web', connection: { externalId: '99' } },
+        runId: '77',
+        runAttempt: 2,
+        headSha: 'abc123',
+        headBranch: 'feature',
+        prNumber: 9,
+        fork: false,
+      },
+    ])
+    expect(
+      webhook.events(
+        { 'x-github-event': 'workflow_run' },
+        run({ pull_requests: [], head_branch: null, head_repository: { full_name: 'eve/web' } }),
+      ),
+    ).toMatchObject([{ runId: '77', fork: true }])
+    // Not finished, or not a success: nothing to publish.
+    expect(webhook.events({ 'x-github-event': 'workflow_run' }, run({}, 'requested'))).toEqual([])
+    expect(
+      webhook.events({ 'x-github-event': 'workflow_run' }, run({ conclusion: 'failure' })),
+    ).toEqual([])
     // Bots, other actions and unknown events mean nothing.
     expect(
       webhook.events(
