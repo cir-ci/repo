@@ -1,8 +1,9 @@
+import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { upload } from '@circi/cli'
 
-import { type CollectedScreenshot, collectDirectory, collectToMatchScreenshot } from './collect.ts'
+import { type CollectedScreenshot, collectDirectory } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
 import { type Shard, shardFromArgs } from './shard.ts'
 
@@ -14,10 +15,10 @@ export namespace CirciReporter {
     token?: string
     /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
     name?: string
-    /** Where `circiScreenshot` wrote. Default `.circi/screenshots`. */
+    /** Where captures are written, relative to the project root. Default `.circi/screenshots`. */
     dir?: string
-    /** Also upload the pictures Vitest's `toMatchScreenshot` produced. Default false. */
-    collectToMatchScreenshot?: boolean
+    /** Empty `dir` when the run starts, so a build holds only this run's captures. Default false. */
+    clean?: boolean
     /** Project root to look in. Default: the root of the Vitest run. */
     root?: string
     /** Wait for the result and fail the run when changes need review. Default false. */
@@ -49,11 +50,15 @@ export class CirciReporter {
   readonly onInit: (vitest: { config: { root: string } }) => void
 
   constructor(options: CirciReporter.Options = {}) {
-    // `circiScreenshot` saves under the Vitest project's root, so that is where to look, whatever
+    // Captures are written under the Vitest project's root, so that is where to look, whatever
     // directory the run was started from.
     let vitestRoot: string | undefined
     this.onInit = (vitest) => {
       vitestRoot = vitest.config.root
+      // A run uploads only its own captures. Synchronous and at init, before any test can write one.
+      if (options.clean) {
+        rmSync(resolve(vitestRoot, options.dir ?? DEFAULT_DIR), { recursive: true, force: true })
+      }
     }
     this.onTestRunEnd = async () => {
       const log = options.log ?? ((l: string) => console.log(l))
@@ -94,10 +99,7 @@ export class CirciReporter {
 
 async function collect(options: CirciReporter.Options): Promise<CollectedScreenshot[]> {
   const root = options.root ?? process.cwd()
-  const own = await collectDirectory(resolve(root, options.dir ?? DEFAULT_DIR))
-  const adopted = options.collectToMatchScreenshot ? await collectToMatchScreenshot(root) : []
-  const names = new Set(own.map((s) => s.name))
-  return [...own, ...adopted.filter((s) => !names.has(s.name))]
+  return collectDirectory(resolve(root, options.dir ?? DEFAULT_DIR))
 }
 
 /** Copies the collected files into one temporary directory laid out by name. */

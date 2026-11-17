@@ -5,7 +5,7 @@ import { defineConfig } from 'tsdown'
 import { failOnUnresolvedImport, publishedNodePackage } from '../../tsdown.shared.ts'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/browser.ts'],
+  entry: ['src/index.ts', 'src/browser.ts', 'src/setup.ts'],
   ...publishedNodePackage,
   plugins: [
     {

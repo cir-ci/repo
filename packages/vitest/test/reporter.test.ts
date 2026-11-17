@@ -97,4 +97,25 @@ describe('CirciReporter', () => {
     await reporter.onTestRunEnd([], [], 'passed')
     expect(staged).toEqual(['primary.png'])
   })
+
+  it('with clean, starts from an empty folder so only this run is uploaded', async () => {
+    await touch('.circi/screenshots/stale.png')
+    const names: string[] = []
+    const reporter = new CirciReporter({
+      apiUrl: 'https://x',
+      token: 't',
+      clean: true,
+      collectImpl: async (o) => {
+        const { collectDirectory } = await import('#src/collect.ts')
+        names.push(...(await collectDirectory(`${o.root}/.circi/screenshots`)).map((c) => c.name))
+        return []
+      },
+      ...quiet,
+    })
+    reporter.onInit({ config: { root: tmp.root() } })
+    await touch('.circi/screenshots/fresh.png')
+    await reporter.onTestRunEnd([], [], 'passed')
+    // The folder was emptied at init, before the fresh capture was written; stale is gone.
+    expect(names).toEqual(['fresh'])
+  })
 })

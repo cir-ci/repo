@@ -1,4 +1,5 @@
-export { type CollectedScreenshot, collectDirectory, collectToMatchScreenshot } from './collect.ts'
+export { type CollectedScreenshot, collectDirectory } from './collect.ts'
+export { circi } from './plugin.ts'
 export { CirciReporter } from './reporter.ts'
 export {
   circiScreenshot,

@@ -1,7 +1,6 @@
 /**
- * Taking screenshots from Vitest browser mode that stay the same between runs: motion off,
- * fonts loaded, a settled layout. Anything with `.screenshot({ path })` works as the target
- * (Vitest's `page` and its locators both do).
+ * Browser-side steps that make a page hold still, and the deprecated `circiScreenshot` helper.
+ * New tests call Vitest's `toMatchScreenshot` and add the `circi()` plugin instead.
  */
 
 export namespace circiScreenshot {
@@ -112,15 +111,29 @@ export async function settlePage(
   await frame()
 }
 
+let warned = false
+
 /**
  * Takes a stabilized screenshot named `name` (e.g. `settings/profile`), saved under `dir`.
  * Returns the path it wrote, relative to the project root.
+ *
+ * @deprecated Use Vitest's `await expect(locator).toMatchScreenshot('name')` with the `circi()`
+ * plugin from `@circi/vitest` in `vitest.config.ts`: no CirCI import in the test files. This
+ * helper is removed in the next minor release.
  */
 export async function circiScreenshot(
   target: circiScreenshot.Screenshotter,
   name: string,
   options: circiScreenshot.Options = {},
 ): Promise<string> {
+  if (!warned) {
+    warned = true
+    console.warn(
+      '[circi] circiScreenshot() is deprecated and will be removed in the next minor release: ' +
+        "use `await expect(locator).toMatchScreenshot('name')` with the circi() plugin " +
+        '(https://circi.dev/ci/vitest/#migrating-from-circiscreenshot)',
+    )
+  }
   await settlePage()
   await options.ready?.()
   const dir = options.dir ?? DEFAULT_DIR

@@ -12,12 +12,14 @@ import { useStack } from '#stack/vitest.ts'
 
 /**
  * CirCI tests its own design system. `pnpm test:visual` screenshots every `@circi/ui` component in
- * both colour schemes in Vitest browser mode and uploads them through `@circi/vitest`; here that
+ * both colour schemes with Vitest's `toMatchScreenshot` in browser mode and uploads them through the
+ * `@circi/vitest` plugin (`circi()` in the root vitest.config.ts); here that
  * runs as a child process against the real stack, the way a CI job would. Run twice on the same
  * commit, the second build must find nothing changed: a screenshot that differs between two runs
  * of unchanged code is flakiness in the suite, and is fixed there (animations, fonts, time).
  */
 const SCREENSHOTS = join(REPO_ROOT, '.circi', 'screenshots')
+const VISUAL_TEST_FILE = 'packages/ui/visual/ui.visual.test.tsx'
 // Unrelated to this checkout's real history: the build is about the screenshots, not the commit.
 const COMMIT = 'd0f00d'.repeat(6) + 'd0f0'
 
@@ -98,10 +100,10 @@ describe('the design system tests itself with @circi/vitest', () => {
       })
       expect(first.diffs).toHaveLength(expected)
       expect(new Set(first.diffs.map((d) => d.status))).toEqual(new Set(['added']))
-      // Named by component, case and scheme.
+      // Named by test file, component, case and scheme.
       const names = first.diffs.map((d) => d.name)
-      expect(names).toContain('button/variants/light')
-      expect(names).toContain('button/variants/dark')
+      expect(names).toContain(`${VISUAL_TEST_FILE}/Button/variants/light`)
+      expect(names).toContain(`${VISUAL_TEST_FILE}/Button/variants/dark`)
       expect(names.filter((n) => n.endsWith('/light')).length).toBeGreaterThan(40)
       expect(names.filter((n) => n.endsWith('/dark')).length).toBeGreaterThan(40)
     },

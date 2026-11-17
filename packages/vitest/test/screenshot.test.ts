@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { circiScreenshot, screenshotPath, settlePage, STABILIZE_CSS } from '#src/screenshot.ts'
 
@@ -90,6 +90,26 @@ describe('settlePage and circiScreenshot', () => {
       expect(frames).toBe(3)
     } finally {
       Reflect.deleteProperty(globalThis, 'requestAnimationFrame')
+    }
+  })
+})
+
+describe('circiScreenshot deprecation', () => {
+  it('warns once, however often it is called', async () => {
+    vi.resetModules()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { circiScreenshot: fresh } = await import('#src/screenshot.ts')
+    const { doc } = fakeDocument()
+    Reflect.set(globalThis, 'document', doc)
+    try {
+      const target = { screenshot: async () => {} }
+      await fresh(target, 'a', { root: '/proj' })
+      await fresh(target, 'b', { root: '/proj' })
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(String(warn.mock.calls[0]?.[0])).toContain('toMatchScreenshot')
+    } finally {
+      Reflect.deleteProperty(globalThis, 'document')
+      warn.mockRestore()
     }
   })
 })
