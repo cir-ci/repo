@@ -36,7 +36,12 @@ export function EmptyState({
         {glyph}
       </span>
       <Heading className={styles.title}>{title}</Heading>
-      {children ? <p className={styles.description}>{children}</p> : null}
+      {/* A div, not a p: a description may hold its own paragraphs or a Collapsible. */}
+      {children ? (
+        <div data-part="description" className={styles.description}>
+          {children}
+        </div>
+      ) : null}
       {action ? <div className={styles.action}>{action}</div> : null}
     </div>
   )

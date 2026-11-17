@@ -33,6 +33,17 @@ describe('EmptyState', () => {
     expect(container.querySelector('[data-tone="failed"]')).not.toBeNull()
   })
 
+  it('takes paragraphs and blocks in its description without nesting them in a <p>', async () => {
+    const { container } = await render(
+      <EmptyState title="Couldn't read it">
+        <p>The file is not a PNG.</p>
+        <div>Technical details</div>
+      </EmptyState>,
+    )
+    await expect.element(page.getByText('The file is not a PNG.')).toBeVisible()
+    expect(container.querySelector('p p, p div')).toBeNull()
+  })
+
   it('renders without description or action', async () => {
     await render(<EmptyState title="Nothing here" />)
     await expect.element(page.getByRole('heading', { name: 'Nothing here' })).toBeVisible()

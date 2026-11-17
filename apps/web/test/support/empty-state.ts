@@ -31,7 +31,7 @@ export async function expectEmptyState(
   expect(icon!.getBoundingClientRect().width).toBe(32)
   if (expected.tone) expect(root.dataset['tone']).toBe(expected.tone)
 
-  const body = root.querySelector('p')
+  const body = root.querySelector('[data-part="description"]')
   if (expected.body === undefined) {
     expect(body, 'no body').toBeNull()
   } else if (typeof expected.body === 'string') {
