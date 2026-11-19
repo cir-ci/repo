@@ -7,16 +7,20 @@ import { ARTIFACTS_DIR } from '#stack/paths.ts'
 
 import type { Session } from './admin.ts'
 import { clientAddressHeaders, freshIp } from './client-address.ts'
+import { browserEnv } from './no-netlink.ts'
 
 /**
  * Chromium with `host.docker.internal` mapped to loopback, so a fake running on the host (an
  * OIDC provider, a fake GitHub) has the same address for the container, which reaches it through
- * `extra_hosts: host-gateway`, and for the browser.
+ * `extra_hosts: host-gateway`, and for the browser. On Linux it never hears of the host's network
+ * changes (`browserEnv`): other workers' stacks starting and stopping would abort its requests.
  */
 export async function launchBrowser(): Promise<Browser> {
+  const env = browserEnv()
   return chromium.launch({
     headless: !process.env['E2E_HEADED'],
     args: ['--host-resolver-rules=MAP host.docker.internal 127.0.0.1'],
+    ...(env ? { env } : {}),
   })
 }
 
@@ -41,63 +45,6 @@ function throttleCpu(context: BrowserContext): void {
       .newCDPSession(page)
       .then((session) => session.send('Emulation.setCPUThrottlingRate', { rate }))
       .catch(() => undefined)
-  })
-}
-
-/** At most this many reloads of one page after a network change: one burst is a stack booting or going. */
-const NETWORK_CHANGE_RELOADS = 3
-/** How long a dashboard page whose load lost requests may take to draw before it counts as never booted. */
-const BOOT_GRACE_MS = 5_000
-
-/**
- * Whether the page's dashboard has drawn: React renders into `#root`, empty until the app boots. A
- * page that is not the dashboard (a hosted site) has no `#root` and counts as drawn: it is left alone.
- */
-const BOOTED = `(() => { const root = document.getElementById('root'); return !root || root.childElementCount > 0 })()`
-
-/**
- * Chromium cancels every request in flight when the machine's network interfaces change
- * (`net::ERR_NETWORK_CHANGED`), and the other end-to-end worker booting or removing a stack (its Docker
- * network and the containers' interfaces) is such a change. A page whose scripts or styles were
- * cancelled while it loaded may never boot: the cancelled modules are in the entry's static graph, so
- * the app cannot catch it, and the test waits for a control that never comes. Such a page is reloaded,
- * as a person would, but only when it is still blank `BOOT_GRACE_MS` after its load: a page that drew
- * (a cancelled request it could do without) is never reloaded under a test, whose own navigation or
- * `page.evaluate` a reload would break. Only the page's own document, scripts and styles count: a
- * failed API call is retried by the dashboard's queries.
- */
-export function reloadAfterNetworkChange(context: BrowserContext): void {
-  const BOOT_RESOURCES = new Set(['document', 'script', 'stylesheet'])
-  context.on('page', (page) => {
-    let reloads = 0
-    let pending = false
-    const neverBooted = async (): Promise<boolean> => {
-      await page.waitForLoadState('load')
-      const deadline = Date.now() + BOOT_GRACE_MS
-      while (Date.now() < deadline) {
-        // A navigation in between (the test moving on) ends the check: that page is a new load.
-        if (await page.evaluate<boolean>(BOOTED).catch(() => true)) return false
-        await new Promise((resolve) => setTimeout(resolve, 250))
-      }
-      return true
-    }
-    page.on('requestfailed', (request) => {
-      if (!request.failure()?.errorText.includes('ERR_NETWORK_CHANGED')) return
-      if (!BOOT_RESOURCES.has(request.resourceType()) || request.frame() !== page.mainFrame())
-        return
-      if (pending || reloads >= NETWORK_CHANGE_RELOADS) return
-      pending = true
-      void neverBooted()
-        .then(async (blank) => {
-          if (!blank) return
-          reloads += 1
-          await page.reload()
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          pending = false
-        })
-    })
   })
 }
 
@@ -182,7 +129,6 @@ export async function openSession(
   })
   context.setDefaultTimeout(PLAYWRIGHT_TIMEOUT_MS)
   throttleCpu(context)
-  reloadAfterNetworkChange(context)
   const diagnostics = recordDiagnostics(context)
   if (options.session) await context.addCookies(options.session.playwrightCookies())
   await context.tracing.start({ screenshots: true, snapshots: true })

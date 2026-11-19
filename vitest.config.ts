@@ -6,7 +6,11 @@ import { circi } from '@circi/vitest'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
+import { browserEnv } from './e2e/src/clients/no-netlink.ts'
 import { E2eTimingReporter } from './e2e/src/reporting/timing-reporter.ts'
+
+// Only built for a visual run (`VISUAL=1`): on Linux that compiles the preload library once.
+const visualBrowserEnv = process.env['VISUAL'] ? browserEnv() : undefined
 
 const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/package.json'))
 
@@ -221,7 +225,12 @@ export default defineConfig({
                 browser: {
                   enabled: true,
                   headless: true,
-                  provider: playwright(),
+                  // The end-to-end suite runs this beside its Docker stacks: on Linux the browser must
+                  // not hear of the host's network changes, or it aborts its module requests
+                  // ("Failed to fetch dynamically imported module"); see e2e/src/clients/no-netlink.ts.
+                  provider: visualBrowserEnv
+                    ? playwright({ launchOptions: { env: visualBrowserEnv } })
+                    : playwright(),
                   // A fixed viewport: portals (dialogs, drawers) are shot at this size.
                   viewport: { width: 1000, height: 700 },
                   // The page connects to the runner only after Vite has optimised and served the

@@ -17,7 +17,7 @@ The full guide is on the documentation site: **https://circi.dev/contributing/ho
 
 ## CI
 
-CircleCI runs on every push and pull request: the `gate` job is `pnpm gate`. A `changeset` job fails a pull request that changes a published package without a changeset. Releases run on GitHub Actions (`.github/workflows/release.yml`, for npm provenance). The `e2e` job (the end-to-end tests on Docker) and `compose-smoke` (the shipped Compose files) run on pushes to `main` and nightly. A nightly run is a CircleCI scheduled pipeline, which is set up in the CircleCI UI (Project Settings, Triggers) with the pipeline parameter `nightly` set to `true`. Make `gate` a required status check on pull requests.
+CircleCI runs on every push and pull request: the `gate` job is `pnpm gate` in its two halves, `pnpm gate:checks` (format check, lint, typecheck) and then `pnpm gate:tests` (tests and build), so the type-aware lint never runs beside the browser tests on the 8 GiB machine. A `changeset` job fails a pull request that changes a published package without a changeset. Releases run on GitHub Actions (`.github/workflows/release.yml`, for npm provenance). The `e2e` job (the end-to-end tests on Docker) and `compose-smoke` (the shipped Compose files) run on pushes to `main` and nightly. A nightly run is a CircleCI scheduled pipeline, which is set up in the CircleCI UI (Project Settings, Triggers) with the pipeline parameter `nightly` set to `true`. Make `gate` a required status check on pull requests.
 
 Security issues: use the repository's Security tab ("Report a vulnerability"), not a public issue.
 

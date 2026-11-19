@@ -16,6 +16,8 @@ code (the PGlite test database and seeders are `@circi/db/testing`, part of `db`
 dependency on `testing` does not reach `db` or `core`: a change in `db` reruns the Node tests, lint, typecheck, format check and the
 server build, and leaves the UI/web tests and the cli, vitest, ui and web builds cached (a change in `core` also reruns what reads
 `core`: the web browser tests and the web build).
+`pnpm gate:checks` (format check, lint, typecheck) and `pnpm gate:tests` (the three test tasks and the build) are its two halves; CI runs them
+one after the other, because together they ran its 8 GiB machine out of memory.
 `pnpm gate:full` is `gate` plus the two end-to-end groups as cached root tasks, `//#e2e:api` (the server, worker and CLI image,
 no browser) and `//#e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
 `pnpm gate` stays Docker-free. Both tasks also hash `E2E_ENV_FINGERPRINT` (Playwright, Chromium and Docker server versions, printed by

@@ -98,9 +98,16 @@ jobs:
       - setup
       - install-chromium
       - restore-turbo
+      # `pnpm gate` in its two halves, one after the other: tsgolint (`oxlint --type-aware`) and the four
+      # `tsc` runs started beside the Node and browser tests took the job to 7.2 of its 8 GiB, and the
+      # kernel killed tsgolint (SIGKILL).
       - run:
-          name: pnpm gate
-          command: pnpm gate
+          name: pnpm gate:checks
+          command: pnpm gate:checks
+          no_output_timeout: 20m
+      - run:
+          name: pnpm gate:tests
+          command: pnpm gate:tests
           no_output_timeout: 20m
       - save-turbo
 
