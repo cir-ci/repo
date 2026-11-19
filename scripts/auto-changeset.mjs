@@ -9,6 +9,10 @@
 // Packages" commit, and with CIRCI_AUTO_CHANGESET=0. pnpm decides what changed: a package whose
 // files or catalog versions the commit changed, and every package that depends on one (so a CLI
 // change also releases @circi/vitest, which bundles it).
+//
+// The app is released too: its version is @circi/server's, the tag of the image the release workflow
+// publishes. The image holds the server (and everything it depends on), the dashboard, and what
+// deploy/ builds and runs it with, so a change to any of those releases the app.
 import { execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -36,7 +40,7 @@ if (changed.some((path) => /^\.changeset\/(?!README\.md$|config\.json$).+\.md$/.
 }
 
 // Most commits touch no package, catalog or lockfile: no need to start pnpm for those.
-const relevant = /^(apps|packages)\/|^(pnpm-workspace\.yaml|pnpm-lock\.yaml|package\.json)$/
+const relevant = /^(apps|packages|deploy)\/|^(pnpm-workspace\.yaml|pnpm-lock\.yaml|package\.json)$/
 if (!changed.some((path) => relevant.test(path))) process.exit(0)
 
 // The published (not private) packages the commit changed, and those that depend on them.
@@ -53,6 +57,15 @@ try {
   process.exit(0) // the first commit (no HEAD^), or pnpm unavailable: nothing to compare
 }
 const touched = new Set(selected.filter((pkg) => !pkg.private).map((pkg) => pkg.name))
+// The dashboard ships inside the app's image without being a dependency of the server; deploy/ is
+// in no package at all.
+const app = new Set(['@circi/server', '@circi/web'])
+if (
+  selected.some((pkg) => app.has(pkg.name)) ||
+  changed.some((path) => path.startsWith('deploy/'))
+) {
+  touched.add('@circi/server')
+}
 if (touched.size === 0) process.exit(0)
 
 const bump = /\[major\]/i.test(message) ? 'major' : /\[minor\]/i.test(message) ? 'minor' : 'patch'

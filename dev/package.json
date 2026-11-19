@@ -9,11 +9,11 @@
     "#src/*": "./src/*"
   },
   "dependencies": {
-    "@circi/cli": "catalog:",
     "@circi/core": "catalog:",
     "sharp": "catalog:"
   },
   "devDependencies": {
+    "@circi/cli": "catalog:",
     "@types/node": "catalog:"
   }
 }
