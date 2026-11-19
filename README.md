@@ -65,7 +65,7 @@ Everything else is on **[circi.dev](https://circi.dev)**:
 
 ## Development
 
-Node 26 (`.nvmrc`), pnpm 12, and Docker for the local environment.
+pnpm 12 and Docker for the local environment. `pnpm install` also installs the Node it runs on (26, `devEngines` in package.json).
 
 ```sh
 pnpm install

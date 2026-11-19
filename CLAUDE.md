@@ -4,7 +4,7 @@ Self-hosted visual regression testing (README.md points to the documentation sit
 
 ## Commands
 
-Node 26 via nvm, pnpm 12. Before committing: `pnpm format`, then `pnpm gate` (Turborepo: format check, lint, typecheck, test and
+pnpm 12, which installs and runs Node 26 itself (package.json `devEngines.runtime`). Before committing: `pnpm format`, then `pnpm gate` (Turborepo: format check, lint, typecheck, test and
 build in parallel where independent, each cached by its inputs; a second run on an unchanged tree is instant). The old chain
 `pnpm lint && pnpm typecheck && pnpm test && pnpm build` still works. `pnpm build` is `turbo run build`: per-package
 caching of `dist/**`, with a `transit` task so a package's build is invalidated by changes in the packages it depends on, but
