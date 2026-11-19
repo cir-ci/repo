@@ -1,6 +1,6 @@
 # CirCI: working conventions
 
-Self-hosted visual regression testing (README.md for use, docs/ for the references).
+Self-hosted visual regression testing (README.md points to the documentation site, circi.dev; docs/ has the references).
 
 ## Commands
 
