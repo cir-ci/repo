@@ -23,7 +23,9 @@ parameters:
 executors:
   node:
     docker:
-      - image: cimg/node:26.13 # Node 26, the same major as .nvmrc
+      # Node 26 (the major of package.json's devEngines.runtime). The -browsers variant has Chromium's
+      # system libraries, so the gate needs no apt-get: an Ubuntu mirror outage failed it before any test ran.
+      - image: cimg/node:26.13-browsers
     resource_class: large # 4 vCPU, 8 GB: the two browser test projects each take a quarter of the cores
     working_directory: ~/circi
     environment:
@@ -38,8 +40,10 @@ executors:
       CI: 'true'
       TURBO_TELEMETRY_DISABLED: '1'
 commands:
-  # Node from .nvmrc and pnpm 12.16.1 (package.json's "packageManager") through the CircleCI node orb,
-  # then `pnpm install --frozen-lockfile` with the orb's node_modules cache.
+  # Node and pnpm 12.16.1 (package.json's "packageManager") through the CircleCI node orb, then
+  # `pnpm install --frozen-lockfile` with the orb's node_modules cache. The orb's Node (its LTS) only
+  # runs pnpm: the install also installs package.json's devEngines.runtime (the Node 26 pinned in the
+  # lockfile), and every pnpm script and `pnpm exec` runs on that one.
   setup:
     steps:
       - node/install:
@@ -96,7 +100,8 @@ jobs:
     steps:
       - checkout
       - setup
-      - install-chromium
+      - install-chromium:
+          with-deps: false # the image has them
       - restore-turbo
       # `pnpm gate` in its two halves, one after the other: tsgolint (`oxlint --type-aware`) and the four
       # `tsc` runs started beside the Node and browser tests took the job to 7.2 of its 8 GiB, and the
