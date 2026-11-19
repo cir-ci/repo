@@ -73,10 +73,12 @@ export async function collectAncestry(
   }
   const head = options.headSha
 
-  if (!(await hasCommit(git, head)) && doFetch) {
+  let present = await hasCommit(git, head)
+  if (!present && doFetch) {
     await tryRun(git, ['fetch', '--no-tags', ...(await depthArgs(git)), remote, head])
+    present = await hasCommit(git, head)
   }
-  if (!(await hasCommit(git, head))) {
+  if (!present) {
     return {
       status: 'missing',
       ancestorShas: [],
@@ -176,8 +178,9 @@ export async function isAncestor(
 }
 
 export async function localHead(git: gitRunner.Runner): Promise<{ sha?: string; branch?: string }> {
-  const sha = await tryRun(git, ['rev-parse', 'HEAD'])
-  const branch = await tryRun(git, ['rev-parse', '--abbrev-ref', 'HEAD'])
+  // One call for both: the commit, then the branch (`HEAD` when detached).
+  const out = await tryRun(git, ['rev-parse', 'HEAD', '--abbrev-ref', 'HEAD'])
+  const [sha, branch] = out?.split('\n') ?? []
   return {
     ...(sha ? { sha } : {}),
     ...(branch && branch !== 'HEAD' ? { branch } : {}),

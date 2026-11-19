@@ -35,8 +35,8 @@ COPY dev/package.json dev/
 COPY perf/package.json perf/
 
 # The native pixel comparison (packages/diff/native), compiled for the image's own architecture.
-# glibc-linked like the node:slim runtime; CIRCI_DIFF_ENGINE=native uses it, the default js ignores it.
-FROM rust:1-slim-bookworm AS native
+# glibc-linked like the node:slim runtime (both Debian trixie); CIRCI_DIFF_ENGINE=native uses it, the default js ignores it.
+FROM rust:1-slim-trixie AS native
 WORKDIR /native
 COPY packages/diff/native/Cargo.toml packages/diff/native/Cargo.lock packages/diff/native/build.rs ./
 COPY packages/diff/native/src src

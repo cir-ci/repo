@@ -4,6 +4,7 @@ import { ValidationError } from '@circi/core'
 import { ConflictError, NotFoundError } from '@circi/db'
 import { Command } from 'commander'
 
+import { VERSION } from '../version.ts'
 import { addAdminCommands } from './admin.ts'
 import { type CommandLike, debugOn, describeFailure } from './lib/usage.ts'
 import { addServerCommands } from './server.ts'
@@ -13,6 +14,7 @@ export async function runCli(argv: string[]): Promise<void> {
   const program = new Command()
     .name('circi')
     .description('CirCI server: visual regression testing, self-hosted')
+    .version(VERSION)
     .option('--debug', 'print the stack trace of an unexpected error (or set DEBUG=1)')
     .showHelpAfterError()
   addServerCommands(program)

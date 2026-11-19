@@ -1,13 +1,11 @@
-import { readFileSync } from 'node:fs'
 import { lstat } from 'node:fs/promises'
 
 import * as tar from 'tar'
 
 import { ApiClient } from './api.ts'
-import { detectCi } from './ci-env.ts'
-import { errorLine } from './errors.ts'
-import { gitRunner, isAncestor, localHead, remoteBranchTip } from './git.ts'
-import { UsageError } from './upload.ts'
+import { buildContext } from './context.ts'
+import { errorLine, UsageError } from './errors.ts'
+import { gitRunner, isAncestor, remoteBranchTip } from './git.ts'
 
 export namespace uploadSite {
   export interface Options {
@@ -33,13 +31,6 @@ export namespace uploadSite {
   }
 }
 
-function fileKind(stat: {
-  isFile(): boolean
-  isDirectory(): boolean
-}): 'File' | 'Directory' | 'Other' {
-  return stat.isFile() ? 'File' : stat.isDirectory() ? 'Directory' : 'Other'
-}
-
 /** Packs `dir` as a `.tar.gz`, refusing symlinks and special files up front with their names. */
 export async function packSite(dir: string): Promise<Buffer> {
   const info = await lstat(dir).catch(() => undefined)
@@ -54,8 +45,11 @@ export async function packSite(dir: string): Promise<Buffer> {
       // Not following links: a link in the site is refused by the server, so say so here.
       filter: (path, entry) => {
         // A `Stats` for the walk of the directory, a `ReadEntry` once it's being written.
-        const kind = 'type' in entry ? entry.type : fileKind(entry)
-        if (kind !== 'File' && kind !== 'Directory') refused.push(path)
+        const allowed =
+          'type' in entry
+            ? entry.type === 'File' || entry.type === 'Directory'
+            : entry.isFile() || entry.isDirectory()
+        if (!allowed) refused.push(path)
         return true
       },
     },
@@ -76,55 +70,18 @@ export async function uploadSite(options: uploadSite.Options): Promise<uploadSit
   const log = options.log ?? ((line: string) => console.log(line))
   const env = options.env ?? process.env
   const git = gitRunner(options.cwd ?? process.cwd())
-  const ci = detectCi(env, (path) => JSON.parse(readFileSync(path, 'utf8')))
-  if (!ci.commitSha || !ci.branch) {
-    const local = await localHead(git)
-    ci.commitSha ??= local.sha
-    if (!ci.branch && local.branch) ci.branch = local.branch
-  }
-  if (!ci.commitSha) {
-    throw new UsageError(
-      'Could not determine the commit. Run inside a git checkout or set CIRCI_COMMIT.',
-    )
-  }
-
   const client = new ApiClient({
     baseUrl: options.apiUrl,
     token: options.token,
-    ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
-    ...(options.retryDelayMs !== undefined ? { retryDelayMs: options.retryDelayMs } : {}),
+    fetch: options.fetchImpl,
+    retryDelayMs: options.retryDelayMs,
   })
   const name = options.name ?? 'site'
-  const archive = await packSite(options.dir)
-
-  // The branch address follows the branch's tip (PLAN §7.6): ask git for it, and if that fails
-  // fall back to checking that this commit descends from what the address serves now.
-  const query: Record<string, string> = {
-    name,
-    kind: options.kind ?? 'auto',
-    commit: ci.commitSha,
-  }
-  if (options.spa) query.spa = 'true'
-  if (ci.fromFork) query.fork = 'true'
-  if (ci.branch) {
-    query.branch = ci.branch
-    const tip = await remoteBranchTip(git, ci.branch)
-    if (tip) query.branch_tip = tip
-    else {
-      // Only the server's explicit "nothing served yet" (null) says the branch is free to take;
-      // when it can't be asked, say nothing and let the server decide.
-      let served: string | null | undefined
-      try {
-        served = await client.servedCommit(name, ci.branch)
-      } catch (err) {
-        served = undefined
-        log(`warning: couldn't ask what ${ci.branch} serves now (${errorLine(err)}); continuing`)
-      }
-      if (served === null) query.descends = 'true'
-      else if (served && (await isAncestor(git, served))) query.descends = 'true'
-    }
-  }
-
+  // Packing is the slow part and needs nothing from git or the server: it runs alongside them.
+  const [archive, { ci, query }] = await Promise.all([
+    packSite(options.dir),
+    siteQuery(options, { env, git, client, name, log }),
+  ])
   log(
     `Uploading ${options.dir} (${(archive.length / 1024).toFixed(0)} kB) for ${ci.commitSha.slice(0, 12)}`,
   )
@@ -135,4 +92,48 @@ export async function uploadSite(options: uploadSite.Options): Promise<uploadSit
   else if (ci.branch)
     log(`  The ${ci.branch} address was not moved: this commit isn't the branch's tip.`)
   return { ...result, archiveBytes: archive.length }
+}
+
+/** The build's commit and branch, and what the server needs to know to place the upload. */
+async function siteQuery(
+  options: uploadSite.Options,
+  { env, git, client, name, log }: siteQuery.Context,
+): Promise<{ ci: Awaited<ReturnType<typeof buildContext>>; query: Record<string, string> }> {
+  const ci = await buildContext(env, git)
+  // The branch address follows the branch's tip (PLAN §7.6): ask git for it, and if that fails
+  // fall back to checking that this commit descends from what the address serves now.
+  const query: Record<string, string> = {
+    name,
+    kind: options.kind ?? 'auto',
+    commit: ci.commitSha,
+  }
+  if (options.spa) query.spa = 'true'
+  if (ci.fromFork) query.fork = 'true'
+  if (!ci.branch) return { ci, query }
+  query.branch = ci.branch
+  const tip = await remoteBranchTip(git, ci.branch)
+  if (tip) {
+    query.branch_tip = tip
+    return { ci, query }
+  }
+  // Only the server's explicit "nothing served yet" (null) says the branch is free to take;
+  // when it can't be asked, say nothing and let the server decide.
+  let served: string | null | undefined
+  try {
+    served = await client.servedCommit(name, ci.branch)
+  } catch (err) {
+    log(`warning: couldn't ask what ${ci.branch} serves now (${errorLine(err)}); continuing`)
+  }
+  if (served === null || (served && (await isAncestor(git, served)))) query.descends = 'true'
+  return { ci, query }
+}
+
+namespace siteQuery {
+  export interface Context {
+    env: Record<string, string | undefined>
+    git: gitRunner.Runner
+    client: ApiClient
+    name: string
+    log: (line: string) => void
+  }
 }

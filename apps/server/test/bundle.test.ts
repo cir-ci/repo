@@ -73,6 +73,8 @@ describe('the server bundle', () => {
     const ours = map.sources.filter((s) => !s.includes('node_modules'))
     expect(ours).toContain('../apps/server/src/main.ts')
     expect(ours).toContain('../packages/db/src/client.ts')
-    expect(ours.every((s) => /^\.\.\/(apps|packages)\/[^/]+\/src\/.+\.ts$/.test(s))).toBe(true)
+    // Besides the TypeScript, the server's package.json: the version (src/version.ts) is read from it.
+    const ourFile = /^\.\.\/(apps|packages)\/[^/]+\/(src\/.+\.ts|package\.json)$/
+    expect(ours.filter((s) => !ourFile.test(s))).toEqual([])
   })
 })

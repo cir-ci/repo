@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
-    "@circi/cli": "workspace:*",
+    "@circi/cli": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:"
   },

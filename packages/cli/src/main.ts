@@ -1,10 +1,22 @@
 #!/usr/bin/env node
-import { Command } from 'commander'
+import { Command, Option } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
 import { debugOn, reportError, UsageError } from './errors.ts'
+import { parseShard } from './shard.ts'
 import { uploadSite } from './site.ts'
 import { upload } from './upload.ts'
+
+/** `--api-url`, read from CIRCI_API_URL when not given (commander shows that in `--help`). */
+const apiUrlOption = () => new Option('--api-url <url>', 'CirCI address').env('CIRCI_API_URL')
+
+/** The CirCI address and CI token every command needs. */
+function connection(apiUrl: string | undefined): { apiUrl: string; token: string } {
+  const token = process.env.CIRCI_TOKEN
+  if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
+  if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
+  return { apiUrl, token }
+}
 
 // If whoever reads our output goes away (e.g. `circi upload … | head -1`), keep uploading
 // quietly instead of dying halfway with EPIPE.
@@ -38,7 +50,7 @@ program
   )
   .option('--author <login>', 'who made the change (default: the CI actor, e.g. GITHUB_ACTOR)')
   .option('--timeout <seconds>', 'how long --wait waits', '600')
-  .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
+  .addOption(apiUrlOption())
   .option('--no-fetch', "don't run git fetch to complete shallow history")
   .option('--json', 'print the result as JSON')
   .addHelpText(
@@ -77,10 +89,7 @@ Failed API calls are retried with backoff. Pass --debug (or set DEBUG=1) for sta
         json?: boolean
       },
     ) => {
-      const token = process.env.CIRCI_TOKEN
-      const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
-      if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
-      if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
+      const { apiUrl, token } = connection(opts.apiUrl)
       const timeout = Number(opts.timeout)
       if (!Number.isFinite(timeout) || timeout <= 0)
         throw new UsageError('--timeout must be a positive number of seconds')
@@ -88,7 +97,7 @@ Failed API calls are retried with backoff. Pass --debug (or set DEBUG=1) for sta
       if (opts.gate !== undefined && opts.gate !== 'status' && opts.gate !== 'exit-code') {
         throw new UsageError('--gate must be "status" or "exit-code"')
       }
-      const shard = opts.shard ? parseShard(opts.shard, opts.nonce) : undefined
+      const shard = opts.shard ? shardFlag(opts.shard, opts.nonce) : undefined
       const result = await upload({
         dir,
         apiUrl,
@@ -114,7 +123,7 @@ function siteCommand(parent: Command, name: string, description: string, fixedKi
     .argument('<dir>', 'the built site (a folder with its index.html)')
     .option('--name <name>', "which of the project's sites this is", fixedKind ?? 'site')
     .option('--spa', 'serve unknown paths with the entry page (single-page apps)')
-    .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
+    .addOption(apiUrlOption())
   if (!fixedKind) {
     command.option(
       '--kind <kind>',
@@ -124,10 +133,7 @@ function siteCommand(parent: Command, name: string, description: string, fixedKi
   }
   command.action(
     async (dir: string, opts: { name: string; kind?: string; spa?: boolean; apiUrl?: string }) => {
-      const token = process.env.CIRCI_TOKEN
-      const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
-      if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
-      if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
+      const { apiUrl, token } = connection(opts.apiUrl)
       await uploadSite({
         dir,
         apiUrl,
@@ -148,12 +154,9 @@ siteCommand(storybook, 'upload', 'upload a built Storybook (storybook build)', '
 program
   .command('argos-env')
   .description('print the environment that points the Argos SDKs at this CirCI server')
-  .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
+  .addOption(apiUrlOption())
   .action((opts: { apiUrl?: string }) => {
-    const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
-    const token = process.env.CIRCI_TOKEN
-    if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
-    if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
+    const { apiUrl, token } = connection(opts.apiUrl)
     // `eval "$(circi argos-env)"` in a shell, or append the output to $GITHUB_ENV.
     console.log(`ARGOS_API_BASE_URL=${apiUrl.replace(/\/$/, '')}/v2`)
     console.log(`ARGOS_TOKEN=${token}`)
@@ -164,9 +167,12 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   process.exitCode = 2
 })
 
-/** `2/4` → the second of four jobs, 0-based internally. */
-function parseShard(text: string, nonce: string | undefined) {
-  const m = /^(\d+)\/(\d+)$/.exec(text.trim())
-  if (!m?.[1] || !m[2]) throw new UsageError('--shard must look like 1/4')
-  return { index: Number(m[1]) - 1, total: Number(m[2]), ...(nonce ? { nonce } : {}) }
+function shardFlag(text: string, nonce: string | undefined) {
+  const shard = parseShard(text)
+  if (!shard) {
+    throw new UsageError(
+      "--shard must look like 1/4: this job's number, then how many jobs there are",
+    )
+  }
+  return { ...shard, ...(nonce ? { nonce } : {}) }
 }

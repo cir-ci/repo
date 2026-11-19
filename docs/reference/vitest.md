@@ -51,7 +51,7 @@ Vitest writes a reference and fails the test when none exists, before it asks a 
 
 ## Migrating from `circiScreenshot`
 
-`circiScreenshot` (from `@circi/vitest/browser`) still works for one release and prints a warning the first time it is called. To move: add `circi()` to `plugins` (replacing `new CirciReporter(...)` in `reporters`), then change each call:
+`circiScreenshot` (from `@circi/vitest/browser`) was deprecated in 0.2.0 and removed in 0.3.0, along with `screenshotPath`. To move: add `circi()` to `plugins` (replacing `new CirciReporter(...)` in `reporters`), then change each call:
 
 ```ts
 // before

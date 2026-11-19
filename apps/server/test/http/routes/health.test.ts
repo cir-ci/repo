@@ -3,17 +3,19 @@ import { describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 
+import pkg from '../../../package.json' with { type: 'json' }
+
 const logger = pino({ level: 'silent' })
 
 describe('health endpoints', () => {
-  it('/healthz answers without touching dependencies', async () => {
+  it('/healthz answers without touching dependencies, with the version this server runs', async () => {
     const app = buildServer({
       logger,
       checks: [{ name: 'database', check: () => Promise.reject(new Error('down')) }],
     })
     const res = await app.inject({ method: 'GET', url: '/healthz' })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ status: 'ok' })
+    expect(res.json()).toEqual({ status: 'ok', version: pkg.version })
   })
 
   it('/readyz is 200 when every check passes', async () => {

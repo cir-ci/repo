@@ -1,12 +1,6 @@
 /**
- * What a test file imports (`@circi/vitest/browser`): the screenshot helper and nothing that
- * needs Node. The package's main entry also holds the reporter, which reads files and talks to
- * CirCI; a browser bundle cannot load that, so tests running in Vitest browser mode import from here.
+ * What a browser-side file may import (`@circi/vitest/browser`): the page-settling step and
+ * nothing that needs Node. The package's main entry also holds the reporter, which reads files and
+ * talks to CirCI; a browser bundle cannot load that.
  */
-export {
-  circiScreenshot,
-  DEFAULT_DIR,
-  screenshotPath,
-  settlePage,
-  STABILIZE_CSS,
-} from './screenshot.ts'
+export { DEFAULT_DIR, settlePage, STABILIZE_CSS } from './screenshot.ts'

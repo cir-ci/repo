@@ -11,16 +11,16 @@
   },
   "exports": "./src/index.ts",
   "dependencies": {
-    "@circi/core": "workspace:*",
-    "@circi/db": "workspace:*",
-    "@circi/diff": "workspace:*",
-    "@circi/integrations": "workspace:*",
-    "@circi/services": "workspace:*",
-    "@circi/sites": "workspace:*",
-    "@circi/storage": "workspace:*"
+    "@circi/core": "catalog:",
+    "@circi/db": "catalog:",
+    "@circi/diff": "catalog:",
+    "@circi/integrations": "catalog:",
+    "@circi/services": "catalog:",
+    "@circi/sites": "catalog:",
+    "@circi/storage": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*",
+    "@circi/testing": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "drizzle-orm": "catalog:",
     "sharp": "catalog:"

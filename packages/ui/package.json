@@ -42,7 +42,7 @@
     "react": "catalog:"
   },
   "devDependencies": {
-    "@circi/vitest": "workspace:*",
+    "@circi/vitest": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@fontsource-variable/jetbrains-mono": "catalog:",
     "@tsdown/css": "catalog:",

@@ -1,13 +1,13 @@
-import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 import { ApiClient, ApiError, isRetryable } from './api.ts'
-import { ciRunId, detectCi } from './ci-env.ts'
+import { ciRunId, type detectCi } from './ci-env.ts'
+import { mapLimit } from './concurrency.ts'
+import { buildContext } from './context.ts'
 import { errorLine, UsageError } from './errors.ts'
 import { collectScreenshots } from './files.ts'
-import { collectAncestry, gitRunner, localHead } from './git.ts'
-
-export { UsageError }
+import { collectAncestry, gitRunner } from './git.ts'
 
 export namespace upload {
   export interface Options {
@@ -66,29 +66,18 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
   const client = new ApiClient({
     baseUrl: options.apiUrl,
     token: options.token,
-    ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
-    ...(options.retryDelayMs !== undefined ? { retryDelayMs: options.retryDelayMs } : {}),
+    fetch: options.fetchImpl,
+    retryDelayMs: options.retryDelayMs,
   })
   const git = gitRunner(cwd)
 
-  // Hashing the files and asking the server (and git) about the project don't depend on each other.
+  // Hashing the files, asking the server about the project and reading the checkout don't
+  // depend on each other.
   const [shots, context] = await Promise.all([
     collectScreenshots(options.dir),
     (async () => {
-      const project = await client.project()
-      const ci = detectCi(env, (path) => JSON.parse(readFileSync(path, 'utf8')))
+      const [project, ci] = await Promise.all([client.project(), buildContext(env, git)])
       if (options.author?.trim()) ci.author = { login: options.author.trim() }
-      if (!ci.commitSha || !ci.branch) {
-        const local = await localHead(git)
-        ci.commitSha ??= local.sha
-        // A detached checkout reports no branch, so this only fills in a real one.
-        if (!ci.branch && local.branch) ci.branch = local.branch
-      }
-      if (!ci.commitSha) {
-        throw new UsageError(
-          'Could not determine the commit. Run inside a git checkout or set CIRCI_COMMIT.',
-        )
-      }
       const isBaseBranchBuild = !ci.prNumber && ci.branch === project.defaultBranch
       const ancestry = await collectAncestry(git, {
         headSha: ci.commitSha,
@@ -282,7 +271,7 @@ async function waitForResult(
     const delay = opts.intervalMs ?? pollDelay(attempt)
     if (Date.now() + delay > deadline) return undefined
     // oxlint-disable-next-line no-await-in-loop -- polling interval
-    await new Promise((r) => setTimeout(r, delay))
+    await sleep(delay)
   }
 }
 
@@ -308,29 +297,18 @@ async function sendAll(
   byHash: Map<string, collectScreenshots.Screenshot>,
   log: (line: string) => void,
 ): Promise<void> {
-  let next = 0
   let done = 0
   // A line per quarter, so a long upload shows life in a CI log without a line per file.
   const step = Math.max(1, Math.ceil(instructions.length / 4))
-  const lanes = Array.from(
-    { length: Math.min(UPLOAD_CONCURRENCY, instructions.length) },
-    async () => {
-      while (next < instructions.length) {
-        const instruction = instructions[next]
-        next += 1
-        if (!instruction) continue
-        const shot = byHash.get(instruction.sha256)
-        if (!shot) throw new Error(`Server asked for unknown file ${instruction.sha256}`)
-        // oxlint-disable-next-line no-await-in-loop -- each lane uploads one file at a time
-        await client.upload(instruction, await readFile(shot.path))
-        done += 1
-        if (instructions.length > 4 && (done % step === 0 || done === instructions.length)) {
-          log(`  uploaded ${done} of ${instructions.length}`)
-        }
-      }
-    },
-  )
-  await Promise.all(lanes)
+  await mapLimit(instructions, UPLOAD_CONCURRENCY, async (instruction) => {
+    const shot = byHash.get(instruction.sha256)
+    if (!shot) throw new Error(`Server asked for unknown file ${instruction.sha256}`)
+    await client.upload(instruction, await readFile(shot.path))
+    done += 1
+    if (instructions.length > 4 && (done % step === 0 || done === instructions.length)) {
+      log(`  uploaded ${done} of ${instructions.length}`)
+    }
+  })
 }
 
 function missingFrom(err: unknown): string[] | undefined {

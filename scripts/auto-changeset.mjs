@@ -6,10 +6,15 @@
 //
 // The bump is a patch, unless the message carries `[minor]` or `[major]` (the marker is left out of
 // the note). Skipped while rebasing, merging or cherry-picking, for the release PR's "Version
-// Packages" commit, and with CIRCI_AUTO_CHANGESET=0. A CLI change also releases @circi/vitest,
-// which bundles the CLI.
+// Packages" commit, and with CIRCI_AUTO_CHANGESET=0. pnpm decides what changed: a package whose
+// files or catalog versions the commit changed, and every package that depends on one (so a CLI
+// change also releases @circi/vitest, which bundles it).
+//
+// The app is released too: its version is @circi/server's, the tag of the image the release workflow
+// publishes. The image holds the server (and everything it depends on), the dashboard, and what
+// deploy/ builds and runs it with, so a change to any of those releases the app.
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim()
@@ -27,19 +32,6 @@ const message = git('log', '-1', '--format=%B')
 const subject = message.split('\n')[0] ?? ''
 if (/^Version Packages\b/.test(subject)) process.exit(0)
 
-// The packages that publish: every workspace package not marked private.
-const published = new Map()
-for (const group of ['packages', 'apps']) {
-  const dir = join(root, group)
-  if (!existsSync(dir)) continue
-  for (const name of readdirSync(dir)) {
-    const file = join(dir, name, 'package.json')
-    if (!existsSync(file)) continue
-    const pkg = JSON.parse(readFileSync(file, 'utf8'))
-    if (!pkg.private) published.set(`${group}/${name}/`, pkg.name)
-  }
-}
-
 const changed = git('diff-tree', '--no-commit-id', '--name-only', '--root', '-r', 'HEAD').split(
   '\n',
 )
@@ -47,14 +39,34 @@ if (changed.some((path) => /^\.changeset\/(?!README\.md$|config\.json$).+\.md$/.
   process.exit(0)
 }
 
-const touched = new Set()
-for (const path of changed) {
-  for (const [dir, name] of published) if (path.startsWith(dir)) touched.add(name)
+// Most commits touch no package, catalog or lockfile: no need to start pnpm for those.
+const relevant = /^(apps|packages|deploy)\/|^(pnpm-workspace\.yaml|pnpm-lock\.yaml|package\.json)$/
+if (!changed.some((path) => relevant.test(path))) process.exit(0)
+
+// The published (not private) packages the commit changed, and those that depend on them.
+// `HEAD^...HEAD`, not `[HEAD^]`: that one also counts uncommitted edits in the working tree.
+let selected
+try {
+  const out = execFileSync(
+    'pnpm',
+    ['list', '--recursive', '--filter', '...[HEAD^...HEAD]', '--depth', '-1', '--json'],
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  )
+  selected = JSON.parse(out)
+} catch {
+  process.exit(0) // the first commit (no HEAD^), or pnpm unavailable: nothing to compare
+}
+const touched = new Set(selected.filter((pkg) => !pkg.private).map((pkg) => pkg.name))
+// The dashboard ships inside the app's image without being a dependency of the server; deploy/ is
+// in no package at all.
+const app = new Set(['@circi/server', '@circi/web'])
+if (
+  selected.some((pkg) => app.has(pkg.name)) ||
+  changed.some((path) => path.startsWith('deploy/'))
+) {
+  touched.add('@circi/server')
 }
 if (touched.size === 0) process.exit(0)
-if (touched.has('@circi/cli') && [...published.values()].includes('@circi/vitest')) {
-  touched.add('@circi/vitest')
-}
 
 const bump = /\[major\]/i.test(message) ? 'major' : /\[minor\]/i.test(message) ? 'minor' : 'patch'
 const note = subject.replace(/\s*\[(major|minor|patch)\]\s*/gi, ' ').trim() || 'Update'
