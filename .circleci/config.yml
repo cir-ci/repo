@@ -22,10 +22,16 @@ parameters:
 
 executors:
   node:
+    parameters:
+      variant:
+        description: An image variant suffix, e.g. -browsers
+        type: string
+        default: ''
     docker:
-      # Node 26 (the major of package.json's devEngines.runtime). The -browsers variant has Chromium's
-      # system libraries, so the gate needs no apt-get: an Ubuntu mirror outage failed it before any test ran.
-      - image: cimg/node:26.13-browsers
+      # Its Node only starts pnpm (see `setup`). The gate takes the -browsers variant, which has
+      # Chromium's system libraries, so it needs no apt-get: an Ubuntu mirror outage failed it before
+      # any test ran.
+      - image: cimg/node:26.13<< parameters.variant >>
     resource_class: large # 4 vCPU, 8 GB: the two browser test projects each take a quarter of the cores
     working_directory: ~/circi
     environment:
@@ -40,15 +46,14 @@ executors:
       CI: 'true'
       TURBO_TELEMETRY_DISABLED: '1'
 commands:
-  # Node and pnpm 12.16.1 (package.json's "packageManager") through the CircleCI node orb, then
-  # `pnpm install --frozen-lockfile` with the orb's node_modules cache. The orb's Node (its LTS) only
-  # runs pnpm: the install also installs package.json's devEngines.runtime (the Node 26 pinned in the
-  # lockfile), and every pnpm script and `pnpm exec` runs on that one.
+  # pnpm 12.22.0 (package.json's "packageManager") on the executor's own Node, then `pnpm install
+  # --frozen-lockfile` with the orb's node_modules cache. The install also installs package.json's
+  # devEngines.runtime (the Node 26 pinned in the lockfile), and every pnpm script and `pnpm exec`
+  # runs on that one, so the executor's Node only has to start pnpm.
   setup:
     steps:
-      - node/install:
-          install-pnpm: true
-          pnpm-version: '12.16.1'
+      - node/install-pnpm:
+          version: '12.22.0'
       - node/install-packages:
           pkg-manager: pnpm
 
@@ -96,7 +101,9 @@ jobs:
   # Required status check. Everything in `pnpm gate`, without Docker. The image has no Rust toolchain, so
   # the build skips the native diff engine and the JS engine (the default) is what the tests use.
   gate:
-    executor: node
+    executor:
+      name: node
+      variant: -browsers
     steps:
       - checkout
       - setup

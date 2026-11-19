@@ -2,7 +2,7 @@
 # Build from the repo root:  docker build -f deploy/Dockerfile -t circi .
 
 ARG NODE_VERSION=26
-ARG PNPM_VERSION=12.0.0
+ARG PNPM_VERSION=12.22.0
 
 FROM node:${NODE_VERSION}-slim AS base
 ARG PNPM_VERSION
@@ -28,8 +28,11 @@ COPY packages/services/package.json packages/services/
 COPY packages/sites/package.json packages/sites/
 COPY packages/storage/package.json packages/storage/
 COPY packages/testing/package.json packages/testing/
+COPY packages/ui/package.json packages/ui/
 COPY packages/vitest/package.json packages/vitest/
 COPY e2e/package.json e2e/
+COPY dev/package.json dev/
+COPY perf/package.json perf/
 
 # The native pixel comparison (packages/diff/native), compiled for the image's own architecture.
 # glibc-linked like the node:slim runtime; CIRCI_DIFF_ENGINE=native uses it, the default js ignores it.
@@ -41,7 +44,8 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     cargo build --release --locked
 
 FROM manifests AS build
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
+# --no-runtime: the image's Node builds it; package.json's devEngines Node is for development and CI.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --no-runtime
 COPY tsconfig.base.json tsconfig.json tsdown.shared.ts ./
 COPY apps apps
 COPY packages packages
