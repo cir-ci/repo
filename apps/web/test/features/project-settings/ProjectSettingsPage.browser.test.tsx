@@ -1,9 +1,8 @@
-import { PROJECT_ICON_NAMES } from '@circi/core'
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { ProjectSettingsPage } from '#features/project-settings/ProjectSettingsPage.tsx'
-import { iconLabel } from '#features/projects/appearance.ts'
+import { filterIcons, ICON_PAGE, iconLabel } from '#features/projects/appearance.ts'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { openDialogs, toastNamed } from '#test/support/toast.ts'
@@ -849,10 +848,20 @@ describe('ProjectSettingsPage', () => {
       const group = page.getByRole('radiogroup', { name: 'Icon' })
       await expect.element(group.getByRole('radio', { name: 'No icon' })).toBeVisible()
       expect(page.getByRole('button', { name: 'Show more icons' }).elements()).toHaveLength(0)
+      // A search with a few pages of matches: scrolling through all 2,167 icons is 37 page loads
+      // and a module import per icon, which a busy CI machine did not finish in 15 s. The paging and
+      // the drawing are the same for these 397 ("le": "Leaf", "Circle", …) as for all of them.
+      const matches = filterIcons('le')
+      expect(matches.length).toBeGreaterThan(ICON_PAGE * 4)
+      expect(matches.length).toBeGreaterThan(DRAWN_AT_MOST)
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('le')
       const scroller = group.element().parentElement
       if (!scroller) throw new Error('no scroll box')
-      const last = iconLabel(PROJECT_ICON_NAMES.at(-1) ?? '')
-      // Scroll to the end until the last icon has loaded and is drawn.
+      const last = iconLabel(matches.at(-1) ?? '')
+      await expect
+        .element(group.getByRole('radio', { name: last, exact: true }))
+        .not.toBeInTheDocument()
+      // Scroll to the end until the last match has loaded and is drawn.
       await expect
         .poll(
           () => {
