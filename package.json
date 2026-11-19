@@ -45,15 +45,15 @@
     "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest && changeset publish"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^1.0.1",
-    "@changesets/cli": "^3.0.3",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
     "@circi/testing": "workspace:*",
     "@circi/ui": "workspace:*",
     "@circi/vitest": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "husky": "^9.1.7",
+    "husky": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

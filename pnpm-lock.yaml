@@ -188,12 +188,21 @@ catalogs:
     '@better-auth/api-key':
       specifier: 1.7.25
       version: 1.7.25
+    '@better-auth/core':
+      specifier: 1.7.25
+      version: 1.7.25
     '@better-auth/drizzle-adapter':
       specifier: 1.7.25
       version: 1.7.25
     '@better-auth/sso':
       specifier: 1.7.25
       version: 1.7.25
+    '@changesets/changelog-github':
+      specifier: 1.0.1
+      version: 1.0.1
+    '@changesets/cli':
+      specifier: 3.0.3
+      version: 3.0.3
     '@electric-sql/pglite':
       specifier: 0.5.16
       version: 0.5.16
@@ -275,6 +284,9 @@ catalogs:
     fastify:
       specifier: 5.12.8
       version: 5.12.8
+    husky:
+      specifier: 9.1.7
+      version: 9.1.7
     idb-keyval:
       specifier: 6.3.0
       version: 6.3.0
@@ -350,10 +362,10 @@ importers:
   .:
     devDependencies:
       '@changesets/changelog-github':
-        specifier: ^1.0.1
+        specifier: 'catalog:'
         version: 1.0.1
       '@changesets/cli':
-        specifier: ^3.0.3
+        specifier: 'catalog:'
         version: 3.0.3
       '@circi/testing':
         specifier: workspace:*
@@ -374,7 +386,7 @@ importers:
         specifier: 'catalog:'
         version: 5.1.1(@vitest/browser@5.1.1)(vitest@5.1.1)
       husky:
-        specifier: ^9.1.7
+        specifier: 'catalog:'
         version: 9.1.7
       node:
         specifier: runtime:^26.13.1
@@ -672,7 +684,7 @@ importers:
         specifier: 'catalog:'
         version: 1.7.25(@better-auth/core@1.7.25(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.17)(kysely@0.29.9)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(better-auth@1.7.25(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.16)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.1))(better-call@1.4.5(zod@4.6.7))
       '@better-auth/core':
-        specifier: 1.7.25
+        specifier: 'catalog:'
         version: 1.7.25(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.17)(kysely@0.29.9)(nanostores@1.5.5)
       '@better-auth/drizzle-adapter':
         specifier: 'catalog:'
