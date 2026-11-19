@@ -79,7 +79,7 @@ describe('CirciReporter', () => {
   })
 
   it('looks in the root Vitest reports, not the directory the run was started from', async () => {
-    // circiScreenshot saves under the Vitest project's root; `vitest --root x` or a run from a
+    // The plugin saves under the Vitest project's root; `vitest --root x` or a run from a
     // subfolder must still find those pictures.
     await touch('.circi/screenshots/button/primary.png')
     const staged: string[] = []

@@ -21,7 +21,7 @@ await expect.element(page.getByRole('button')).toMatchScreenshot('button/primary
 
 By default (`local: false`) nothing is compared or stored locally and a test never fails on pixels. With `local: true`, Vitest's normal comparison also runs and the screenshots are uploaded as well.
 
-`circiScreenshot` is deprecated; see the [migration guide](https://circi.dev/ci/vitest/#migrating-from-circiscreenshot).
+`circiScreenshot` was removed in 0.3.0; see the [migration guide](https://circi.dev/ci/vitest/#migrating-from-circiscreenshot).
 
 Tested with Vitest 5.1 (Chromium through Playwright); needs Node 22 or later.
 
