@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 /** Thin client for the CirCI `/v1` API, using the built-in fetch. */
 
@@ -6,13 +7,13 @@ export namespace ApiClient {
   export interface Options {
     baseUrl: string
     token: string
-    fetch?: typeof fetch
+    fetch?: typeof fetch | undefined
     /** Per request, in milliseconds (default 30 s; file and site uploads get four times that). */
     timeoutMs?: number
     /** Tries per call for transient failures (default 4). */
     attempts?: number
     /** First backoff in milliseconds; each retry doubles it, with jitter (default 500). */
-    retryDelayMs?: number
+    retryDelayMs?: number | undefined
   }
 
   export interface Project {
@@ -158,7 +159,7 @@ export function backoffDelay(retry: number, baseMs: number, random = Math.random
 }
 
 /** Runs `fn`, resending after a transient failure (see `isRetryable`) with exponential backoff. */
-export async function withRetry<T>(
+async function withRetry<T>(
   fn: () => Promise<T>,
   options: { attempts: number; baseDelayMs: number; safe: boolean },
 ): Promise<T> {
@@ -169,7 +170,7 @@ export async function withRetry<T>(
     } catch (err) {
       if (attempt >= options.attempts || !isRetryable(err, options.safe)) throw err
       // oxlint-disable-next-line no-await-in-loop -- backoff between retries
-      await new Promise((r) => setTimeout(r, backoffDelay(attempt, options.baseDelayMs)))
+      await sleep(backoffDelay(attempt, options.baseDelayMs))
     }
   }
 }

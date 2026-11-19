@@ -1,7 +1,7 @@
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { upload } from '@circi/cli'
+import { errorLine, upload } from '@circi/cli'
 
 import { type CollectedScreenshot, collectDirectory } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
@@ -68,10 +68,9 @@ export class CirciReporter {
         log('[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots')
         return
       }
-      const shots = await (options.collectImpl ?? collect)({
-        ...options,
-        root: options.root ?? vitestRoot,
-      })
+      const root = options.root ?? vitestRoot ?? process.cwd()
+      const dir = resolve(root, options.dir ?? DEFAULT_DIR)
+      const shots = await (options.collectImpl?.({ ...options, root }) ?? collectDirectory(dir))
       if (shots.length === 0) {
         log('[circi] no screenshots found, nothing to upload')
         return
@@ -79,8 +78,8 @@ export class CirciReporter {
       const shard = options.shard ?? shardFromArgs(process.argv)
       try {
         const result = await (options.uploadImpl ?? upload)({
-          // The CLI uploads a directory; the files are mirrored into one below.
-          dir: await stage(shots),
+          // The captures are already laid out by name, which is how the CLI names a directory's files.
+          dir,
           apiUrl,
           token,
           name: options.name ?? 'vitest',
@@ -90,30 +89,9 @@ export class CirciReporter {
         })
         if (result.exitCode !== 0 && options.wait) process.exitCode = result.exitCode
       } catch (err) {
-        log(`[circi] upload failed: ${err instanceof Error ? err.message : String(err)}`)
+        log(`[circi] upload failed: ${errorLine(err)}`)
         if (options.strict) process.exitCode = 1
       }
     }
   }
-}
-
-async function collect(options: CirciReporter.Options): Promise<CollectedScreenshot[]> {
-  const root = options.root ?? process.cwd()
-  return collectDirectory(resolve(root, options.dir ?? DEFAULT_DIR))
-}
-
-/** Copies the collected files into one temporary directory laid out by name. */
-async function stage(shots: CollectedScreenshot[]): Promise<string> {
-  const { cp, mkdir, mkdtemp } = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const { dirname, join } = await import('node:path')
-  const dir = await mkdtemp(join(tmpdir(), 'circi-vitest-'))
-  await Promise.all(
-    shots.map(async (s) => {
-      const target = join(dir, `${s.name}.png`)
-      await mkdir(dirname(target), { recursive: true })
-      await cp(s.path, target)
-    }),
-  )
-  return dir
 }

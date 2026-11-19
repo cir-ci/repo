@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { pollDelay, UsageError, upload } from '#src/upload.ts'
+import { UsageError } from '#src/errors.ts'
+import { pollDelay, upload } from '#src/upload.ts'
 
 import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 

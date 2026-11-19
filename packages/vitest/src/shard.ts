@@ -1,3 +1,5 @@
+import { parseShard } from '@circi/cli'
+
 /** Vitest's `--shard=2/4` is 1-based like CirCI's `--shard`; this reads it from the command line. */
 
 export interface Shard {
@@ -14,12 +16,8 @@ export function shardFromArgs(argv: readonly string[]): Shard | undefined {
       : arg === '--shard'
         ? argv[i + 1]
         : undefined
-    const m = value ? /^(\d+)\/(\d+)$/.exec(value) : null
-    if (m?.[1] && m[2]) {
-      const index = Number(m[1]) - 1
-      const total = Number(m[2])
-      if (total >= 1 && index >= 0 && index < total) return { index, total }
-    }
+    const shard = value ? parseShard(value) : undefined
+    if (shard) return shard
   }
   return undefined
 }

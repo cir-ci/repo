@@ -5,8 +5,8 @@ import { gunzipSync } from 'node:zlib'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { UsageError } from '#src/errors.ts'
 import { packSite, uploadSite } from '#src/site.ts'
-import { UsageError } from '#src/upload.ts'
 
 import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 
