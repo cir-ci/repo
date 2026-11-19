@@ -72,11 +72,11 @@ const iconDeps = ['boring-avatars', 'lucide-react', 'lucide-react/dynamic.mjs']
 const viaUi = (ids: string[]) => ids.map((id) => `@circi/ui > ${id}`)
 
 /** Headless Chromium at a desktop size unless a test says otherwise (the phone layout starts below 820px). */
-function chromium(provider = playwright()) {
+function chromium(env?: Record<string, string>) {
   return {
     enabled: true,
     headless: true,
-    provider,
+    provider: playwright(env ? { launchOptions: { env } } : {}),
     viewport: { width: 1000, height: 700 },
     instances: [{ browser: 'chromium' as const }],
   }
@@ -162,8 +162,9 @@ function e2e(group: 'api' | 'browser'): TestProjectInlineConfiguration {
     extends: true,
     test: {
       name: `e2e-${group}`,
-      include: group === 'browser' ? [browserFiles] : ['e2e/test/**/*.e2e.test.ts'],
-      exclude: group === 'api' ? [browserFiles] : [],
+      ...(group === 'browser'
+        ? { include: [browserFiles] }
+        : { include: ['e2e/test/**/*.e2e.test.ts'], exclude: [browserFiles] }),
       globalSetup: ['e2e/src/stack/global-setup.ts'],
       // A broken test costs a minute or two, not more. The few tests that really wait (retry
       // backoff, a whole migration) say so themselves. Generous because CircleCI's 4 vCPU run both
@@ -239,7 +240,7 @@ function visual(): TestProjectInlineConfiguration {
       // within 60000ms", so no test ran).
       env: { VITEST_BROWSER_IFRAME_TIMEOUT: '300000' },
       browser: {
-        ...chromium(env ? playwright({ launchOptions: { env } }) : playwright()),
+        ...chromium(env),
         // The page connects to the runner only after Vite has optimized and served the whole design
         // system: a loaded CI machine (the end-to-end stacks beside it) takes well over the default
         // 60 s ("Failed to connect to the browser session").
