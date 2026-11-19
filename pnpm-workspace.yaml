@@ -9,8 +9,8 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - tsdown
   - '@tsdown/*'
-# Every dependency's version lives here: `pnpm add` writes `catalog:` (strict), and
-# packages/services/test/catalog.test.ts fails on a version written into a package.json.
+# Every dependency's version lives here, the workspace's own packages too (`workspace:*`): `pnpm add`
+# writes `catalog:` (strict), and packages/services/test/catalog.test.ts fails on anything else.
 catalogMode: strict
 catalog:
   '@arethetypeswrong/core': 0.18.5
@@ -23,6 +23,21 @@ catalog:
   '@better-auth/sso': 1.7.25
   '@changesets/changelog-github': 1.0.1
   '@changesets/cli': 3.0.3
+  '@circi/api': workspace:*
+  '@circi/auth': workspace:*
+  '@circi/cli': workspace:*
+  '@circi/config': workspace:*
+  '@circi/core': workspace:*
+  '@circi/db': workspace:*
+  '@circi/diff': workspace:*
+  '@circi/integrations': workspace:*
+  '@circi/services': workspace:*
+  '@circi/sites': workspace:*
+  '@circi/storage': workspace:*
+  '@circi/testing': workspace:*
+  '@circi/ui': workspace:*
+  '@circi/vitest': workspace:*
+  '@circi/worker': workspace:*
   '@electric-sql/pglite': 0.5.16
   '@fastify/multipart': 10.1.9
   '@fastify/static': 10.1.11

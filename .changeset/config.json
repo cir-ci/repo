@@ -6,5 +6,6 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [],
-  "privatePackages": { "version": false, "tag": false }
+  "privatePackages": { "version": false, "tag": false },
+  "bumpVersionsWithWorkspaceProtocolOnly": true
 }

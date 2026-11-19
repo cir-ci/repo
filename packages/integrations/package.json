@@ -16,11 +16,11 @@
     "./bitbucket": "./src/kinds/bitbucket/index.ts"
   },
   "dependencies": {
-    "@circi/api": "workspace:*",
-    "@circi/core": "workspace:*",
+    "@circi/api": "catalog:",
+    "@circi/core": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*"
+    "@circi/testing": "catalog:"
   }
 }

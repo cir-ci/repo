@@ -47,9 +47,9 @@
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
-    "@circi/testing": "workspace:*",
-    "@circi/ui": "workspace:*",
-    "@circi/vitest": "workspace:*",
+    "@circi/testing": "catalog:",
+    "@circi/ui": "catalog:",
+    "@circi/vitest": "catalog:",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",

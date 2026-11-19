@@ -5,10 +5,11 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Every dependency's version lives in pnpm-workspace.yaml's catalog. `catalogMode: strict` makes
- * `pnpm add` write `catalog:`, and pnpm refuses a `catalog:` entry the catalog doesn't have; this
- * catches the rest: a version written into a package.json by hand. peerDependencies are left out:
- * they are the range a package asks of its users (`vitest: >=4`), not a version installed here.
+ * Every dependency's version lives in pnpm-workspace.yaml's catalog, the workspace's own packages too
+ * (`workspace:*` there). `catalogMode: strict` makes `pnpm add` write `catalog:`, and pnpm refuses a
+ * `catalog:` entry the catalog doesn't have; this catches the rest: a version written into a
+ * package.json by hand. peerDependencies are left out: they are the range a package asks of its
+ * users (`vitest: >=4`), not a version installed here.
  */
 const root = join(import.meta.dirname, '../../..')
 const workspace: { path: string }[] = JSON.parse(
@@ -19,7 +20,7 @@ const workspace: { path: string }[] = JSON.parse(
 )
 
 describe('dependency versions', () => {
-  it('come from the catalog (or the workspace) in every package.json', () => {
+  it('come from the catalog in every package.json', () => {
     const written: string[] = []
     for (const { path } of workspace) {
       const file = join(relative(root, path), 'package.json')
@@ -28,7 +29,7 @@ describe('dependency versions', () => {
       )
       for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
         for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
-          if (spec !== 'catalog:' && !spec.startsWith('workspace:')) {
+          if (spec !== 'catalog:') {
             written.push(`${file}: ${field}.${name} is "${spec}"`)
           }
         }

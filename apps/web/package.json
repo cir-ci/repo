@@ -17,9 +17,9 @@
     "icons": "node scripts/make-icons.ts"
   },
   "dependencies": {
-    "@circi/api": "workspace:*",
-    "@circi/core": "workspace:*",
-    "@circi/ui": "workspace:*",
+    "@circi/api": "catalog:",
+    "@circi/core": "catalog:",
+    "@circi/ui": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@fontsource-variable/jetbrains-mono": "catalog:",
     "@tanstack/query-async-storage-persister": "catalog:",

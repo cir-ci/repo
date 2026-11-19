@@ -203,6 +203,51 @@ catalogs:
     '@changesets/cli':
       specifier: 3.0.3
       version: 3.0.3
+    '@circi/api':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/auth':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/cli':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/config':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/core':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/db':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/diff':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/integrations':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/services':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/sites':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/storage':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/testing':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/ui':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/vitest':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/worker':
+      specifier: workspace:*
+      version: workspace:*
     '@electric-sql/pglite':
       specifier: 0.5.16
       version: 0.5.16
@@ -368,13 +413,13 @@ importers:
         specifier: 'catalog:'
         version: 3.0.3
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:packages/testing
       '@circi/ui':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:packages/ui
       '@circi/vitest':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:packages/vitest
       '@types/node':
         specifier: 'catalog:'
@@ -429,43 +474,43 @@ importers:
         version: 0.35.5(@types/node@26.6.6)
     devDependencies:
       '@circi/api':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/api
       '@circi/auth':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/auth
       '@circi/cli':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/cli
       '@circi/config':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/config
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/core
       '@circi/db':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/db
       '@circi/integrations':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/integrations
       '@circi/services':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/services
       '@circi/sites':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/sites
       '@circi/storage':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/storage
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/testing
       '@circi/ui':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/ui
       '@circi/worker':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../worker
       '@electric-sql/pglite':
         specifier: 'catalog:'
@@ -501,13 +546,13 @@ importers:
   apps/web:
     dependencies:
       '@circi/api':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/api
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/core
       '@circi/ui':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/ui
       '@fontsource-variable/inter':
         specifier: 'catalog:'
@@ -571,29 +616,29 @@ importers:
   apps/worker:
     dependencies:
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/core
       '@circi/db':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/db
       '@circi/diff':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/diff
       '@circi/integrations':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/integrations
       '@circi/services':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/services
       '@circi/sites':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/sites
       '@circi/storage':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/storage
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../../packages/testing
       '@electric-sql/pglite':
         specifier: 'catalog:'
@@ -608,10 +653,10 @@ importers:
   dev:
     dependencies:
       '@circi/cli':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/cli
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/core
       sharp:
         specifier: 'catalog:'
@@ -627,22 +672,22 @@ importers:
         specifier: 'catalog:'
         version: 3.1171.0
       '@circi/auth':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/auth
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/core
       '@circi/db':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/db
       '@circi/services':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/services
       '@circi/storage':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/storage
       '@circi/worker':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../apps/worker
       drizzle-orm:
         specifier: 'catalog:'
@@ -658,13 +703,13 @@ importers:
         version: 0.35.5(@types/node@26.6.6)
     devDependencies:
       '@circi/api':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/api
       '@circi/integrations':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/integrations
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/testing
       '@types/node':
         specifier: 'catalog:'
@@ -693,10 +738,10 @@ importers:
         specifier: 'catalog:'
         version: 1.7.25(@better-auth/core@1.7.25(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.17)(kysely@0.29.9)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.25(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.16)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.1))(better-call@1.4.5(zod@4.6.7))
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../core
       '@circi/db':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../db
       better-auth:
         specifier: 'catalog:'
@@ -743,7 +788,7 @@ importers:
   packages/config:
     dependencies:
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../core
       zod:
         specifier: 'catalog:'
@@ -754,7 +799,7 @@ importers:
   packages/db:
     dependencies:
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../core
       drizzle-orm:
         specifier: 'catalog:'
@@ -764,7 +809,7 @@ importers:
         version: 8.23.1
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../testing
       '@electric-sql/pglite':
         specifier: 'catalog:'
@@ -791,42 +836,42 @@ importers:
   packages/integrations:
     dependencies:
       '@circi/api':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../api
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../core
       zod:
         specifier: 'catalog:'
         version: 4.6.7
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../testing
 
   packages/services:
     dependencies:
       '@circi/core':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../core
       '@circi/db':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../db
       '@circi/diff':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../diff
       '@circi/integrations':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../integrations
       '@circi/sites':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../sites
       '@circi/storage':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../storage
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../testing
       drizzle-orm:
         specifier: 'catalog:'
@@ -842,7 +887,7 @@ importers:
         version: 7.5.23
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../testing
 
   packages/storage:
@@ -855,7 +900,7 @@ importers:
         version: 3.1171.0
     devDependencies:
       '@circi/testing':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../testing
 
   packages/testing:
@@ -883,7 +928,7 @@ importers:
         version: 19.3.1
     devDependencies:
       '@circi/vitest':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../vitest
       '@fontsource-variable/inter':
         specifier: 'catalog:'
@@ -926,7 +971,7 @@ importers:
         specifier: 'catalog:'
         version: 0.18.5
       '@circi/cli':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../cli
       publint:
         specifier: 'catalog:'
@@ -938,7 +983,7 @@ importers:
   perf:
     dependencies:
       '@circi/diff':
-        specifier: workspace:*
+        specifier: 'catalog:'
         version: link:../packages/diff
       sharp:
         specifier: 'catalog:'

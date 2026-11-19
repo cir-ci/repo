@@ -13,6 +13,6 @@
     "@aws-sdk/s3-request-presigner": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*"
+    "@circi/testing": "catalog:"
   }
 }
