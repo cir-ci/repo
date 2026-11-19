@@ -1,6 +1,6 @@
 {
   "name": "@circi/vitest",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
   "keywords": [
     "screenshots",
