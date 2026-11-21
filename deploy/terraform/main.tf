@@ -21,11 +21,11 @@ locals {
   }
   db = local.bundled_postgres ? local.bundled_db : {
     host     = var.database.host
-    port     = var.database.port
-    name     = var.database.name
+    port     = tonumber(coalesce(try(var.database.port, null), 5432))
+    name     = coalesce(try(var.database.name, null), "circi")
     user     = var.database.user
     password = var.database_password
-    query = !var.database.tls ? "?sslmode=disable" : (
+    query = try(var.database.tls, null) == false ? "?sslmode=disable" : (
       "?sslmode=verify-full${local.database_ca == null ? "" : "&sslrootcert=${local.database_ca_path}"}"
     )
   }
@@ -40,59 +40,59 @@ locals {
 
   public_url = var.caddy == null ? var.public_url : "https://${var.caddy.dashboard_host}"
 
-  # Every setting the server reads, by name (packages/config/src/schema.ts). The image sets NODE_ENV,
-  # HOST, PORT, STORAGE_PATH, CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the port, the volume and the
-  # files below depend on them, so they are not inputs. A null value is left unset.
+  # Every setting the server reads, by name (packages/config/src/schema.ts), from its group's key. The
+  # image sets NODE_ENV, HOST, PORT, STORAGE_PATH, CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the port, the
+  # volume and the files below depend on them, so they are not inputs. A null value is left unset.
   settings = {
     PUBLIC_URL                      = local.public_url
     PREVIOUS_PUBLIC_URLS            = length(var.previous_public_urls) == 0 ? null : join(",", var.previous_public_urls)
     TRUSTED_PROXIES                 = var.caddy != null ? local.caddy_address : length(var.trusted_proxies) == 0 ? null : join(",", var.trusted_proxies)
-    STATIC_SITES_HOST               = var.caddy != null ? var.caddy.sites_host : var.static_sites_host
     LOG_LEVEL                       = var.log_level
-    DATABASE_POOL_MAX               = var.database_pool_max
-    STORAGE_DRIVER                  = var.s3_bucket == null ? null : "s3"
-    S3_BUCKET                       = var.s3_bucket
-    S3_REGION                       = var.s3_region
-    S3_ENDPOINT                     = var.s3_endpoint
-    S3_FORCE_PATH_STYLE             = var.s3_force_path_style
-    S3_ACCESS_KEY_ID                = var.s3_access_key_id
-    S3_CONNECT_TIMEOUT_SECONDS      = var.s3_connect_timeout_seconds
-    S3_REQUEST_TIMEOUT_SECONDS      = var.s3_request_timeout_seconds
-    SMTP_HOST                       = var.smtp_host
-    SMTP_PORT                       = var.smtp_port
-    SMTP_SECURE                     = var.smtp_secure
-    SMTP_USER                       = var.smtp_user
-    SMTP_FROM                       = var.smtp_from
-    AUTH_EMAIL_ENABLED              = var.auth_email_enabled
-    AUTH_PASSWORD_ENABLED           = var.auth_password_enabled
-    AUTH_SSO_ENABLED                = var.auth_sso_enabled
-    AUTH_GITHUB_CLIENT_ID           = var.auth_github_client_id
-    AUTH_GOOGLE_CLIENT_ID           = var.auth_google_client_id
-    AUTH_GITLAB_CLIENT_ID           = var.auth_gitlab_client_id
-    AUTH_GITLAB_URL                 = var.auth_gitlab_url
-    AUTH_OIDC_ISSUER                = var.auth_oidc_issuer
-    AUTH_OIDC_CLIENT_ID             = var.auth_oidc_client_id
-    AUTH_OIDC_NAME                  = var.auth_oidc_name
-    AUTH_OIDC_TRUSTED_FOR_EMAIL     = var.auth_oidc_trusted_for_email
     WORKSPACE_CREATION              = var.workspace_creation
-    GITHUB_APP_ID                   = var.github_app_id
-    GITHUB_API_URL                  = var.github_api_url
-    GITHUB_API_TIMEOUT_SECONDS      = var.github_api_timeout_seconds
-    SLACK_CLIENT_ID                 = var.slack_client_id
-    SLACK_API_URL                   = var.slack_api_url
-    VAPID_PUBLIC_KEY                = var.vapid_public_key
-    VAPID_SUBJECT                   = var.vapid_subject
-    STATIC_SITES_MAX_MB             = var.static_sites_max_mb
-    UPLOAD_TIMEOUT_MINUTES          = var.upload_timeout_minutes
-    GC_GRACE_HOURS                  = var.gc_grace_hours
-    JOB_RETENTION_DAYS              = var.job_retention_days
-    JOB_RETRY_BASE_SECONDS          = var.job_retry_base_seconds
-    JOB_RETRY_MAX_SECONDS           = var.job_retry_max_seconds
-    WEBHOOK_TIMEOUT_SECONDS         = var.webhook_timeout_seconds
-    WEBHOOK_ALLOW_PRIVATE_ADDRESSES = var.webhook_allow_private_addresses
-    LIVE_MAX_STREAMS                = var.live_max_streams
-    CIRCI_DIFF_ENGINE               = var.diff_engine
-    CIRCI_DIFF_THREADS              = var.diff_threads
+    STORAGE_DRIVER                  = var.s3 == null ? null : "s3"
+    S3_BUCKET                       = try(var.s3.bucket, null)
+    S3_REGION                       = try(var.s3.region, null)
+    S3_ENDPOINT                     = try(var.s3.endpoint, null)
+    S3_FORCE_PATH_STYLE             = try(var.s3.force_path_style, null)
+    S3_ACCESS_KEY_ID                = try(var.s3.access_key_id, null)
+    S3_CONNECT_TIMEOUT_SECONDS      = try(var.s3.connect_timeout_seconds, null)
+    S3_REQUEST_TIMEOUT_SECONDS      = try(var.s3.request_timeout_seconds, null)
+    SMTP_HOST                       = try(var.smtp.host, null)
+    SMTP_PORT                       = try(var.smtp.port, null)
+    SMTP_SECURE                     = try(var.smtp.secure, null)
+    SMTP_USER                       = try(var.smtp.user, null)
+    SMTP_FROM                       = try(var.smtp.from, null)
+    AUTH_EMAIL_ENABLED              = try(var.sign_in.email, null)
+    AUTH_PASSWORD_ENABLED           = try(var.sign_in.password, null)
+    AUTH_SSO_ENABLED                = try(var.sign_in.sso, null)
+    AUTH_GITHUB_CLIENT_ID           = try(var.sso.github_client_id, null)
+    AUTH_GOOGLE_CLIENT_ID           = try(var.sso.google_client_id, null)
+    AUTH_GITLAB_CLIENT_ID           = try(var.sso.gitlab_client_id, null)
+    AUTH_GITLAB_URL                 = try(var.sso.gitlab_url, null)
+    AUTH_OIDC_ISSUER                = try(var.sso.oidc_issuer, null)
+    AUTH_OIDC_CLIENT_ID             = try(var.sso.oidc_client_id, null)
+    AUTH_OIDC_NAME                  = try(var.sso.oidc_name, null)
+    AUTH_OIDC_TRUSTED_FOR_EMAIL     = try(var.sso.oidc_trusted_for_email, null)
+    GITHUB_APP_ID                   = try(var.github_app.id, null)
+    GITHUB_API_URL                  = try(var.github_app.api_url, null)
+    GITHUB_API_TIMEOUT_SECONDS      = try(var.github_app.api_timeout_seconds, null)
+    SLACK_CLIENT_ID                 = try(var.slack.client_id, null)
+    SLACK_API_URL                   = try(var.slack.api_url, null)
+    VAPID_PUBLIC_KEY                = try(var.vapid.public_key, null)
+    VAPID_SUBJECT                   = try(var.vapid.subject, null)
+    STATIC_SITES_HOST               = var.caddy != null ? var.caddy.sites_host : try(var.sites.host, null)
+    STATIC_SITES_MAX_MB             = try(var.sites.max_mb, null)
+    UPLOAD_TIMEOUT_MINUTES          = try(var.jobs.upload_timeout_minutes, null)
+    GC_GRACE_HOURS                  = try(var.jobs.gc_grace_hours, null)
+    JOB_RETENTION_DAYS              = try(var.jobs.retention_days, null)
+    JOB_RETRY_BASE_SECONDS          = try(var.jobs.retry_base_seconds, null)
+    JOB_RETRY_MAX_SECONDS           = try(var.jobs.retry_max_seconds, null)
+    WEBHOOK_TIMEOUT_SECONDS         = try(var.webhooks.timeout_seconds, null)
+    WEBHOOK_ALLOW_PRIVATE_ADDRESSES = try(var.webhooks.allow_private_addresses, null)
+    DATABASE_POOL_MAX               = try(var.tuning.database_pool_max, null)
+    CIRCI_DIFF_ENGINE               = try(var.tuning.diff_engine, null)
+    CIRCI_DIFF_THREADS              = try(var.tuning.diff_threads, null)
+    LIVE_MAX_STREAMS                = try(var.tuning.live_max_streams, null)
   }
 
   # Secrets go into the container as files, named by <NAME>_FILE, so the environment above stays
@@ -118,6 +118,25 @@ locals {
     [for name, value in local.settings : "${name}=${tostring(value)}" if value != null],
     [for name in local.secret_names : "${name}_FILE=${local.secrets_dir}/${name}"],
   )
+
+  # Settings that go together: all set, or none (SETTING_GROUPS in packages/config/src/settings.ts,
+  # which the server checks too, but only once the container starts).
+  setting_groups = [
+    ["SMTP_USER", "SMTP_PASSWORD"],
+    ["S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"],
+    ["GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_WEBHOOK_SECRET"],
+    ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET"],
+    ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+    ["AUTH_GITHUB_CLIENT_ID", "AUTH_GITHUB_CLIENT_SECRET"],
+    ["AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET"],
+    ["AUTH_GITLAB_CLIENT_ID", "AUTH_GITLAB_CLIENT_SECRET"],
+    ["AUTH_OIDC_ISSUER", "AUTH_OIDC_CLIENT_ID", "AUTH_OIDC_CLIENT_SECRET"],
+  ]
+  every_setting = merge(local.settings, local.secrets)
+  half_set_groups = nonsensitive([
+    for group in local.setting_groups : join(" / ", group)
+    if length(distinct([for name in group : local.every_setting[name] != null])) > 1
+  ])
 }
 
 resource "docker_network" "circi" {
@@ -250,42 +269,20 @@ resource "docker_container" "circi" {
       error_message = "Set database_password with database."
     }
     precondition {
-      condition     = (var.smtp_user == null) == (var.smtp_password == null)
-      error_message = "Set smtp_user and smtp_password together, or neither for a server without login."
+      condition     = length(local.half_set_groups) == 0
+      error_message = "These settings go together, set all of each or none: ${join("; ", local.half_set_groups)}. (A secret's variable is its name in lower case, e.g. smtp_password; the others are keys of their group, e.g. smtp.user.)"
     }
     precondition {
-      condition     = var.smtp_host == null || var.smtp_from != null
-      error_message = "smtp_from is required with smtp_host."
+      condition     = try(var.smtp.host, null) == null || try(var.smtp.from, null) != null
+      error_message = "smtp.from is required with smtp.host."
     }
     precondition {
-      condition     = (var.s3_access_key_id == null) == (var.s3_secret_access_key == null)
-      error_message = "Set s3_access_key_id and s3_secret_access_key together, or neither to use the host's instance role."
+      condition     = var.s3 == null || try(var.s3.bucket, null) != null
+      error_message = "s3 needs a bucket."
     }
     precondition {
-      condition     = var.s3_bucket != null || alltrue([for v in [var.s3_region, var.s3_endpoint, var.s3_force_path_style, var.s3_access_key_id] : v == null])
-      error_message = "The s3_* settings need s3_bucket."
-    }
-    precondition {
-      condition     = length(distinct([var.github_app_id != null, var.github_app_private_key != null, var.github_app_webhook_secret != null])) == 1
-      error_message = "Set github_app_id, github_app_private_key and github_app_webhook_secret together."
-    }
-    precondition {
-      condition     = length(distinct([var.auth_oidc_issuer != null, var.auth_oidc_client_id != null, var.auth_oidc_client_secret != null])) == 1
-      error_message = "Set auth_oidc_issuer, auth_oidc_client_id and auth_oidc_client_secret together."
-    }
-    precondition {
-      condition = alltrue([
-        (var.auth_github_client_id == null) == (var.auth_github_client_secret == null),
-        (var.auth_google_client_id == null) == (var.auth_google_client_secret == null),
-        (var.auth_gitlab_client_id == null) == (var.auth_gitlab_client_secret == null),
-        (var.slack_client_id == null) == (var.slack_client_secret == null),
-        (var.vapid_public_key == null) == (var.vapid_private_key == null),
-      ])
-      error_message = "Set each client ID with its secret (auth_github_*, auth_google_*, auth_gitlab_*, slack_*) and vapid_public_key with vapid_private_key, or neither."
-    }
-    precondition {
-      condition     = var.caddy == null || (var.static_sites_host == null && length(var.trusted_proxies) == 0)
-      error_message = "With caddy, static_sites_host is caddy.sites_host and trusted_proxies is Caddy's address: leave both unset."
+      condition     = var.caddy == null || (try(var.sites.host, null) == null && length(var.trusted_proxies) == 0)
+      error_message = "With caddy, sites.host is caddy.sites_host and trusted_proxies is Caddy's address: leave both unset."
     }
   }
 }
@@ -317,7 +314,7 @@ resource "docker_container" "caddy" {
     [
       "DASHBOARD_HOST=${var.caddy.dashboard_host}",
       "SITES_HOST=${var.caddy.sites_host}",
-      "AWS_REGION=${var.caddy.aws_region}",
+      "AWS_REGION=${coalesce(try(var.caddy.aws_region, null), "us-east-1")}",
     ],
     local.caddy_aws_keys ? ["AWS_SHARED_CREDENTIALS_FILE=/run/caddy/aws-credentials"] : [],
   )

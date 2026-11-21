@@ -56,14 +56,12 @@ describe('deploy/terraform', () => {
     )
   })
 
-  it('checks every group of settings that go together in the plan', () => {
-    const preconditions = [...main.matchAll(/precondition \{([\s\S]*?)\n {4}\}/g)].map(
-      (m) => m[1] ?? '',
+  it('checks the same groups of settings that go together in the plan', () => {
+    const block = /\n {2}setting_groups = \[\n([\s\S]*?)\n {2}\]/.exec(main)?.[1] ?? ''
+    const groups = [...block.matchAll(/\[(.*)\]/g)].map((m) =>
+      [...(m[1] ?? '').matchAll(/"([A-Z0-9_]+)"/g)].map((n) => n[1]).join(' / '),
     )
-    const unchecked = Object.values(SETTING_GROUPS)
-      .map((group) => group.map((name) => `var.${name.toLowerCase()}`))
-      .filter((vars) => !preconditions.some((block) => vars.every((v) => block.includes(v))))
-    expect(unchecked).toEqual([])
+    expect(sorted(groups)).toEqual(sorted(Object.values(SETTING_GROUPS).map((g) => g.join(' / '))))
   })
 
   it('tests the wiring of every setting', () => {

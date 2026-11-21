@@ -53,7 +53,7 @@ run "rds_with_its_certificate_bundle" {
       ca_certificate = "-----BEGIN CERTIFICATE-----\nRDS\n-----END CERTIFICATE-----\n"
     }
     database_password = "p@ss:w/rd"
-    database_pool_max = 20
+    tuning            = { database_pool_max = 20 }
   }
 
   assert {
@@ -66,7 +66,7 @@ run "rds_with_its_certificate_bundle" {
   }
   assert {
     condition     = contains(docker_container.circi.env, "DATABASE_POOL_MAX=20")
-    error_message = "database_pool_max reaches the server."
+    error_message = "tuning.database_pool_max reaches the server."
   }
 }
 
@@ -100,16 +100,17 @@ run "typed_settings_and_secrets" {
   command = plan
 
   variables {
-    log_level            = "debug"
-    smtp_host            = "email-smtp.eu-west-1.amazonaws.com"
-    smtp_from            = "CirCI <ci@acme.io>"
-    smtp_user            = "AKIA"
+    log_level = "debug"
+    smtp = {
+      host = "email-smtp.eu-west-1.amazonaws.com"
+      from = "CirCI <ci@acme.io>"
+      user = "AKIA"
+    }
     smtp_password        = "smtp-secret"
-    s3_bucket            = "acme-circi"
-    s3_region            = "eu-west-1"
+    s3                   = { bucket = "acme-circi", region = "eu-west-1" }
     previous_public_urls = ["https://old.acme.io", "https://older.acme.io"]
     trusted_proxies      = ["10.0.0.0/8"]
-    auth_sso_enabled     = false
+    sign_in              = { sso = false }
   }
 
   assert {
@@ -137,9 +138,7 @@ run "half_a_pair_fails_the_plan" {
   command = plan
 
   variables {
-    smtp_host = "smtp.acme.io"
-    smtp_from = "ci@acme.io"
-    smtp_user = "ci"
+    smtp = { host = "smtp.acme.io", from = "ci@acme.io", user = "ci" }
   }
 
   expect_failures = [docker_container.circi]
@@ -206,65 +205,72 @@ run "every_setting_reaches_the_server_under_its_name" {
   command = plan
 
   variables {
-    public_url                      = "https://ci.acme.io"
-    previous_public_urls            = ["https://old.acme.io"]
-    trusted_proxies                 = ["10.0.0.1"]
-    static_sites_host               = "acme-sites.com"
-    log_level                       = "warn"
-    database_pool_max               = 21
-    s3_bucket                       = "bucket"
-    s3_region                       = "eu-west-3"
-    s3_endpoint                     = "https://s3.example"
-    s3_force_path_style             = true
-    s3_access_key_id                = "s3-key-id"
-    s3_secret_access_key            = "s3-secret"
-    s3_connect_timeout_seconds      = 11
-    s3_request_timeout_seconds      = 61
-    smtp_host                       = "smtp.example"
-    smtp_port                       = 2525
-    smtp_secure                     = false
-    smtp_user                       = "smtp-user"
-    smtp_password                   = "smtp-password"
-    smtp_from                       = "ci@acme.io"
-    auth_email_enabled              = false
-    auth_password_enabled           = false
-    auth_sso_enabled                = true
-    auth_github_client_id           = "gh-id"
-    auth_github_client_secret       = "gh-secret"
-    auth_google_client_id           = "google-id"
-    auth_google_client_secret       = "google-secret"
-    auth_gitlab_client_id           = "gitlab-id"
-    auth_gitlab_client_secret       = "gitlab-secret"
-    auth_gitlab_url                 = "https://gitlab.acme.io"
-    auth_oidc_issuer                = "https://sso.acme.io"
-    auth_oidc_client_id             = "oidc-id"
-    auth_oidc_client_secret         = "oidc-secret"
-    auth_oidc_name                  = "Acme SSO"
-    auth_oidc_trusted_for_email     = true
-    workspace_creation              = "anyone"
-    github_app_id                   = "42"
-    github_app_private_key          = "pem"
-    github_app_webhook_secret       = "hook-secret"
-    github_api_url                  = "https://ghe.acme.io/api/v3"
-    github_api_timeout_seconds      = 16
-    slack_client_id                 = "slack-id"
-    slack_client_secret             = "slack-secret"
-    slack_api_url                   = "https://slack.example/api"
-    vapid_public_key                = "vapid-public"
-    vapid_private_key               = "vapid-private"
-    vapid_subject                   = "mailto:ops@acme.io"
-    static_sites_max_mb             = 201
-    upload_timeout_minutes          = 61
-    gc_grace_hours                  = 25
-    job_retention_days              = 15
-    job_retry_base_seconds          = 3
-    job_retry_max_seconds           = 301
-    webhook_timeout_seconds         = 12
-    webhook_allow_private_addresses = true
-    live_max_streams                = 2001
-    diff_engine                     = "js-workers"
-    diff_threads                    = 3
+    public_url           = "https://ci.acme.io"
+    previous_public_urls = ["https://old.acme.io"]
+    trusted_proxies      = ["10.0.0.1"]
+    log_level            = "warn"
+    workspace_creation   = "anyone"
+    s3 = {
+      bucket                  = "bucket"
+      region                  = "eu-west-3"
+      endpoint                = "https://s3.example"
+      force_path_style        = true
+      access_key_id           = "s3-key-id"
+      connect_timeout_seconds = 11
+      request_timeout_seconds = 61
+    }
+    s3_secret_access_key = "s3-secret"
+    smtp = {
+      host   = "smtp.example"
+      port   = 2525
+      secure = false
+      user   = "smtp-user"
+      from   = "ci@acme.io"
+    }
+    smtp_password = "smtp-password"
+    sign_in       = { email = false, password = false, sso = true }
+    sso = {
+      github_client_id       = "gh-id"
+      google_client_id       = "google-id"
+      gitlab_client_id       = "gitlab-id"
+      gitlab_url             = "https://gitlab.acme.io"
+      oidc_issuer            = "https://sso.acme.io"
+      oidc_client_id         = "oidc-id"
+      oidc_name              = "Acme SSO"
+      oidc_trusted_for_email = true
+    }
+    auth_github_client_secret = "gh-secret"
+    auth_google_client_secret = "google-secret"
+    auth_gitlab_client_secret = "gitlab-secret"
+    auth_oidc_client_secret   = "oidc-secret"
+    github_app = {
+      id                  = "42"
+      api_url             = "https://ghe.acme.io/api/v3"
+      api_timeout_seconds = 16
+    }
+    github_app_private_key    = "pem"
+    github_app_webhook_secret = "hook-secret"
+    slack                     = { client_id = "slack-id", api_url = "https://slack.example/api" }
+    slack_client_secret       = "slack-secret"
+    vapid                     = { public_key = "vapid-public", subject = "mailto:ops@acme.io" }
+    vapid_private_key         = "vapid-private"
+    sites                     = { host = "acme-sites.com", max_mb = 201 }
+    jobs = {
+      upload_timeout_minutes = 61
+      gc_grace_hours         = 25
+      retention_days         = 15
+      retry_base_seconds     = 3
+      retry_max_seconds      = 301
+    }
+    webhooks = { timeout_seconds = 12, allow_private_addresses = true }
+    tuning = {
+      database_pool_max = 21
+      diff_engine       = "js-workers"
+      diff_threads      = 3
+      live_max_streams  = 2001
+    }
   }
+
 
   assert {
     condition = toset(docker_container.circi.env) == toset([
@@ -348,4 +354,27 @@ run "every_setting_reaches_the_server_under_its_name" {
     }
     error_message = "Each secret's file holds its own variable's value."
   }
+}
+
+run "a_misspelled_key_fails_the_plan" {
+  command = plan
+
+  variables {
+    smtp     = { hots = "smtp.acme.io" }
+    database = { host = "db", user = "ci", passwrod = "x" }
+  }
+
+  expect_failures = [var.smtp, var.database]
+}
+
+run "a_value_of_the_wrong_type_fails_the_plan" {
+  command = plan
+
+  variables {
+    smtp   = { port = "twenty-five" }
+    s3     = { bucket = "b", force_path_style = "maybe" }
+    tuning = { diff_engine = "rust" }
+  }
+
+  expect_failures = [var.smtp, var.s3, var.tuning]
 }

@@ -32,26 +32,51 @@ module "circi" {
     sites_host     = "acme-sites.com" # a domain used for nothing else: read docs/reference/static-sites.md
   }
 
-  smtp_host     = "email-smtp.eu-west-1.amazonaws.com"
-  smtp_from     = "CirCI <ci@acme.io>"
-  smtp_user     = var.smtp_user
+  smtp = {
+    host = "email-smtp.eu-west-1.amazonaws.com"
+    from = "CirCI <ci@acme.io>"
+    user = var.smtp_user
+  }
   smtp_password = var.smtp_password
 }
 ```
 
-Every setting the server reads is a variable of its own, named after it in lower case (`SMTP_HOST` is `smtp_host`;
-`CIRCI_DIFF_ENGINE` is `diff_engine`), with its default and meaning in `variables.tf`. A misspelled name fails the plan,
-pairs that go together (`smtp_user` and `smtp_password`, a client ID and its secret, the three GitHub App values) are
-checked in the plan, and a change to any setting shows in it.
+The server's settings come in groups, one variable per area, each key named after its setting: `smtp.host` is
+`SMTP_HOST`, `tuning.diff_engine` is `CIRCI_DIFF_ENGINE`. `variables.tf` lists each group's keys with their types,
+settings and defaults.
 
-A variable left `null` leaves the setting unset: the server's default applies, and the settings the dashboard can
-change (Instance > Settings: SMTP, sign-in methods, Slack, retention, timeouts) stay changeable there. Setting one
-here locks it in the dashboard.
+| Group | Keys |
+| --- | --- |
+| `smtp` | `host`, `port`, `secure`, `user`, `from` |
+| `s3` | `bucket`, `region`, `endpoint`, `force_path_style`, `access_key_id`, `connect_timeout_seconds`, `request_timeout_seconds` |
+| `sign_in` | `email`, `password`, `sso` (which methods are on) |
+| `sso` | `github_client_id`, `google_client_id`, `gitlab_client_id`, `gitlab_url`, `oidc_issuer`, `oidc_client_id`, `oidc_name`, `oidc_trusted_for_email` |
+| `github_app` | `id`, `api_url`, `api_timeout_seconds` |
+| `slack` | `client_id`, `api_url` |
+| `vapid` | `public_key`, `subject` |
+| `sites` | `host` (without `caddy`), `max_mb` |
+| `jobs` | `upload_timeout_minutes`, `gc_grace_hours`, `retention_days`, `retry_base_seconds`, `retry_max_seconds` |
+| `webhooks` | `timeout_seconds`, `allow_private_addresses` |
+| `tuning` | `database_pool_max`, `diff_engine`, `diff_threads`, `live_max_streams` |
 
-**Secrets** (the variables marked `sensitive`: `better_auth_secret`, `smtp_password`, `github_app_private_key`, the
-`*_client_secret`s, ...) never go into the container's environment. Each is uploaded as a file under
-`/run/circi/secrets/` and named by `<NAME>_FILE`, which the server reads, so the plan shows every other setting in
-plain text. They are in the Terraform state like everything else: keep the state somewhere private.
+`log_level` and `workspace_creation` are variables of their own.
+
+- **A misspelled key fails the plan** (`smtp takes host, port, secure, user, from: hots isn't one.`), and so does a value
+  of the wrong type. The groups are typed `any` and checked key by key for that: an object type would drop a
+  misspelled key without a word.
+- **Settings that go together are checked in the plan**: `smtp.user` with `smtp_password`, each client ID with its
+  secret, the three GitHub App values, the three OIDC values.
+- **A key left out, or null, leaves the setting unset**: the server's default applies, and the settings the dashboard
+  can change (Instance > Settings: SMTP, sign-in methods, Slack, retention, timeouts) stay changeable there. Setting one
+  here locks it in the dashboard.
+- A change to any setting shows in the plan.
+
+**Secrets** are variables of their own, named after the setting in lower case and marked `sensitive`:
+`better_auth_secret`, `smtp_password`, `s3_secret_access_key`, `github_app_private_key`, `github_app_webhook_secret`,
+`slack_client_secret`, `vapid_private_key` and the `auth_*_client_secret`s. They never go into the container's
+environment: each is uploaded as a file under `/run/circi/secrets/` and named by `<NAME>_FILE`, which the server reads,
+so the plan shows every other setting in plain text. They are in the Terraform state like everything else: keep the
+state somewhere private.
 
 Without `caddy`, the app is published on `port` (3000) and `public_url` is its address; put your own proxy in front
 and list it in `trusted_proxies`. With `caddy`, the app trusts Caddy's address only (the 10th address of
@@ -91,13 +116,13 @@ data "http" "rds_ca" {
   needed; PostgreSQL 13 or later.
 - **Connect directly** to the instance (or the cluster's writer endpoint), not through RDS Proxy or PgBouncer in
   transaction mode: the server LISTENs for live updates and holds session locks, which those break or pin.
-- **Connections**: each server opens up to `database_pool_max` (10) plus a few of its own (live updates, locks).
+- **Connections**: each server opens up to `tuning.database_pool_max` (10) plus a few of its own (live updates, locks).
   Check the instance's `max_connections` on the smallest classes.
 - **Network**: the Docker host must reach the instance (the instance's security group allows 5432 from the host's).
   The module's Docker network uses `network_subnet` (`192.168.250.0/24`): keep it outside the VPC's CIDR range, or
   traffic to RDS goes into Docker instead. Docker's own default networks (172.17.0.0/16 and up) overlap an AWS default
   VPC (172.31.0.0/16), which is why the module doesn't let Docker choose.
-- **An instance role** for S3 (`s3_bucket` without keys) or Route53 (Caddy without `caddy_aws_credentials`): a container
+- **An instance role** for S3 (`s3` without `access_key_id`) or Route53 (Caddy without `caddy_aws_credentials`): a container
   reaches the role through the instance metadata service only if the instance's hop limit is 2
   (`metadata_options { http_put_response_hop_limit = 2 }`).
 
@@ -114,7 +139,9 @@ The main ones; `variables.tf` describes every input.
 | `public_url`, `previous_public_urls` | `http://localhost:3000`, `[]` | `public_url` is ignored with `caddy` (it becomes `https://<dashboard_host>`). |
 | `caddy`, `caddy_aws_credentials` | `null` | `dashboard_host`, `sites_host`, `aws_region`; Route53 keys when there's no instance role. |
 | `port`, `trusted_proxies` | `3000`, `[]` | Without `caddy`: the host port, and your proxy's addresses. |
-| `smtp_*`, `auth_*`, `github_*`, `slack_*`, `s3_*`, `vapid_*`, ... | `null` | One per server setting. |
+| `smtp`, `s3`, `sign_in`, `sso`, `github_app`, `slack`, `vapid`, `sites`, `jobs`, `webhooks`, `tuning` | `null` | The server's settings, by area (above). |
+| `log_level`, `workspace_creation` | `null` | |
+| `smtp_password`, `s3_secret_access_key`, `github_app_private_key`, `github_app_webhook_secret`, `slack_client_secret`, `vapid_private_key`, `auth_*_client_secret` | `null` | The secrets, as files. |
 | `network_subnet` | `192.168.250.0/24` | The Docker network; outside any range the host must reach. |
 | `image_repository` | `ghcr.io/cir-ci/circi` | Another registry or a mirror; the Caddy image is `<repository>-caddy`. |
 | `postgres_image` | `postgres:18-alpine` | Keep the major: a new one needs a dump and restore. |
@@ -128,4 +155,4 @@ Outputs: `version`, `image`, `public_url`.
 Docker provider, no Docker needed, and checks what reaches the containers: one case sets every variable and expects each
 setting under its own name. `packages/config/test/deploy-settings.test.ts` (in `pnpm test`) holds the module to
 `@circi/config`'s lists of settings (`src/settings.ts`): every setting passed, the secrets as files and marked
-`sensitive`, a precondition for each group of settings that go together, and every setting in that test case.
+`sensitive`, the same groups of settings that go together, and every setting in that test case.
