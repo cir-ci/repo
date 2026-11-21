@@ -61,6 +61,8 @@
         "$TURBO_ROOT$/vitest.config.ts",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/{dev,perf}/package.json",
+        "$TURBO_ROOT$/deploy/{.env.example,docker-compose.yml}",
+        "$TURBO_ROOT$/deploy/terraform/*.tf",
         "!$TURBO_ROOT$/e2e/.artifacts/**",
         "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**",
         "!**/node_modules/**",

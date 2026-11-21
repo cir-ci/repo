@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { isIP } from 'node:net'
 
 import { INSTANCE_ENV, INSTANCE_LOCK_KEYS, type InstanceLockKey } from '@circi/core'
@@ -17,7 +18,11 @@ export class ConfigError extends Error {
   }
 }
 
-export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
+export function loadConfig(
+  rawEnv: Record<string, string | undefined> = process.env,
+  readFile: (path: string) => string = (path) => readFileSync(path, 'utf8'),
+): Config {
+  const env = withSettingFiles(rawEnv, readFile)
   const parsed = envSchema.safeParse(env)
   if (!parsed.success) {
     throw new ConfigError(
@@ -251,6 +256,35 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     jobRetentionDays: e.JOB_RETENTION_DAYS,
     workspaceCreation: e.WORKSPACE_CREATION,
   }
+}
+
+/**
+ * `<NAME>_FILE` names a file that holds a setting's value (Docker and Kubernetes secrets, the
+ * Terraform module's uploaded secrets), so a secret needn't sit in the container's environment.
+ * One trailing newline is dropped; setting both `<NAME>` and `<NAME>_FILE` is an error.
+ */
+function withSettingFiles(
+  env: Record<string, string | undefined>,
+  readFile: (path: string) => string,
+): Record<string, string | undefined> {
+  const resolved = { ...env }
+  const issues: string[] = []
+  for (const key of Object.keys(envSchema.shape)) {
+    const path = env[`${key}_FILE`]
+    if (!path) continue
+    if (env[key] !== undefined && env[key] !== '') {
+      issues.push(`${key} / ${key}_FILE: set one, not both`)
+      continue
+    }
+    try {
+      resolved[key] = readFile(path).replace(/\r?\n$/, '')
+    } catch (err) {
+      const reason = err instanceof Error && 'code' in err ? String(err.code) : String(err)
+      issues.push(`${key}_FILE: couldn't read ${path} (${reason})`)
+    }
+  }
+  if (issues.length > 0) throw new ConfigError(issues)
+  return resolved
 }
 
 /** The settings of Instance › Settings whose environment variable is set (and not empty). */

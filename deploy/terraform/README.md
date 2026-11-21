@@ -1,8 +1,8 @@
 # CirCI on a Docker host, with Terraform
 
 Runs a released CirCI on one Docker host: the app (`ghcr.io/cir-ci/circi:<version>`), Postgres in a container
-(unless you give `database_url`), and Caddy for TLS and hosted sites (when `caddy` is set). The same services as
-`deploy/docker-compose.yml` with the Caddy overlay, managed by Terraform.
+(unless you give `database`, e.g. Amazon RDS), and Caddy for TLS and hosted sites (when `caddy` is set). The same
+services as `deploy/docker-compose.yml` with the Caddy overlay, managed by Terraform. Needs Terraform 1.8 or later.
 
 ## Updating
 
@@ -32,38 +32,98 @@ module "circi" {
     sites_host     = "acme-sites.com" # a domain used for nothing else: read docs/reference/static-sites.md
   }
 
-  environment = {
-    SMTP_HOST = "email-smtp.eu-west-1.amazonaws.com"
-    SMTP_FROM = "CirCI <ci@acme.io>"
-  }
-  secrets = {
-    SMTP_USER     = var.smtp_user
-    SMTP_PASSWORD = var.smtp_password
-  }
+  smtp_host     = "email-smtp.eu-west-1.amazonaws.com"
+  smtp_from     = "CirCI <ci@acme.io>"
+  smtp_user     = var.smtp_user
+  smtp_password = var.smtp_password
 }
 ```
 
+Every setting the server reads is a variable of its own, named after it in lower case (`SMTP_HOST` is `smtp_host`;
+`CIRCI_DIFF_ENGINE` is `diff_engine`), with its default and meaning in `variables.tf`. A misspelled name fails the plan,
+pairs that go together (`smtp_user` and `smtp_password`, a client ID and its secret, the three GitHub App values) are
+checked in the plan, and a change to any setting shows in it.
+
+A variable left `null` leaves the setting unset: the server's default applies, and the settings the dashboard can
+change (Instance > Settings: SMTP, sign-in methods, Slack, retention, timeouts) stay changeable there. Setting one
+here locks it in the dashboard.
+
+**Secrets** (the variables marked `sensitive`: `better_auth_secret`, `smtp_password`, `github_app_private_key`, the
+`*_client_secret`s, ...) never go into the container's environment. Each is uploaded as a file under
+`/run/circi/secrets/` and named by `<NAME>_FILE`, which the server reads, so the plan shows every other setting in
+plain text. They are in the Terraform state like everything else: keep the state somewhere private.
+
 Without `caddy`, the app is published on `port` (3000) and `public_url` is its address; put your own proxy in front
-and set `TRUSTED_PROXIES` in `environment`. Every setting in `deploy/.env.example` goes in `environment`, or in
-`secrets` when it's secret (both end up in the container's environment; `secrets` stays out of plan output).
+and list it in `trusted_proxies`. With `caddy`, the app trusts Caddy's address only (the 10th address of
+`network_subnet`).
 
 The volumes for screenshots and the bundled Postgres have `prevent_destroy`: a `terraform destroy` stops at them
 instead of deleting your data.
 
+## Your own Postgres (Amazon RDS)
+
+```hcl
+module "circi" {
+  # ...
+  database = {
+    host           = aws_db_instance.circi.address
+    user           = aws_db_instance.circi.username
+    name           = "circi"
+    ca_certificate = data.http.rds_ca.response_body # verify RDS's certificate
+  }
+  database_password = var.database_password
+}
+
+data "http" "rds_ca" {
+  url = "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
+}
+```
+
+- **TLS**: on by default, with the certificate verified (`sslmode=verify-full`). RDS's certificates come from
+  Amazon's own CA, which Node doesn't trust, so pass its bundle as `ca_certificate` (from the URL above, or a
+  copy kept next to your configuration with `file()`). Without it the server fails to start with a certificate
+  error (`self-signed certificate in certificate chain`, or `unable to verify the first certificate`). RDS for PostgreSQL 15 and later refuses connections without TLS.
+- **Password**: any characters (the module URL-encodes it). IAM database authentication isn't supported. If the
+  password is rotated (RDS managed master password, Secrets Manager rotation), apply again with the new one; the server
+  can't connect until you do. A user of its own for CirCI, rather than the master user, avoids that.
+- **Permissions**: the server runs its migrations at start, so its user must be able to create tables in the
+  database's `public` schema: the database's owner, e.g. `CREATE DATABASE circi OWNER circi_app`. No extensions are
+  needed; PostgreSQL 13 or later.
+- **Connect directly** to the instance (or the cluster's writer endpoint), not through RDS Proxy or PgBouncer in
+  transaction mode: the server LISTENs for live updates and holds session locks, which those break or pin.
+- **Connections**: each server opens up to `database_pool_max` (10) plus a few of its own (live updates, locks).
+  Check the instance's `max_connections` on the smallest classes.
+- **Network**: the Docker host must reach the instance (the instance's security group allows 5432 from the host's).
+  The module's Docker network uses `network_subnet` (`192.168.250.0/24`): keep it outside the VPC's CIDR range, or
+  traffic to RDS goes into Docker instead. Docker's own default networks (172.17.0.0/16 and up) overlap an AWS default
+  VPC (172.31.0.0/16), which is why the module doesn't let Docker choose.
+- **An instance role** for S3 (`s3_bucket` without keys) or Route53 (Caddy without `caddy_aws_credentials`): a container
+  reaches the role through the instance metadata service only if the instance's hop limit is 2
+  (`metadata_options { http_put_response_hop_limit = 2 }`).
+
 ## Inputs
+
+The main ones; `variables.tf` describes every input.
 
 | Name | Default | |
 | --- | --- | --- |
 | `circi_version` | (required) | The release to run, e.g. `0.1.0`. |
-| `better_auth_secret` | (required) | `BETTER_AUTH_SECRET`. |
-| `postgres_password` | `null` | For the bundled Postgres; required unless `database_url` is set. |
-| `database_url` | `null` | Your own Postgres instead of the bundled one. |
-| `public_url` | `http://localhost:3000` | Ignored with `caddy` (it becomes `https://<dashboard_host>`). |
-| `caddy` | `null` | `dashboard_host`, `sites_host`, and optionally `aws_region`, `aws_access_key_id`, `aws_secret_access_key` (Route53, for the sites wildcard certificate; an instance role needs none), `trusted_proxies`. |
-| `environment`, `secrets` | `{}` | Other settings (`deploy/.env.example`). |
-| `port` | `3000` | Host port without `caddy`. |
+| `better_auth_secret` | (required) | `BETTER_AUTH_SECRET`, 32+ characters. |
+| `postgres_password` | `null` | For the bundled Postgres; required unless `database` is set. Changing it later: `ALTER USER` first. |
+| `database`, `database_password` | `null` | Your own Postgres (`host`, `port`, `name`, `user`, `tls`, `ca_certificate`). |
+| `public_url`, `previous_public_urls` | `http://localhost:3000`, `[]` | `public_url` is ignored with `caddy` (it becomes `https://<dashboard_host>`). |
+| `caddy`, `caddy_aws_credentials` | `null` | `dashboard_host`, `sites_host`, `aws_region`; Route53 keys when there's no instance role. |
+| `port`, `trusted_proxies` | `3000`, `[]` | Without `caddy`: the host port, and your proxy's addresses. |
+| `smtp_*`, `auth_*`, `github_*`, `slack_*`, `s3_*`, `vapid_*`, ... | `null` | One per server setting. |
+| `network_subnet` | `192.168.250.0/24` | The Docker network; outside any range the host must reach. |
 | `image_repository` | `ghcr.io/cir-ci/circi` | Another registry or a mirror; the Caddy image is `<repository>-caddy`. |
 | `postgres_image` | `postgres:18-alpine` | Keep the major: a new one needs a dump and restore. |
 | `name_prefix` | `circi` | Containers, volumes and network names, for two installs on one host. |
 
 Outputs: `version`, `image`, `public_url`.
+
+## Tests
+
+`terraform test` in this folder plans the module against a mocked Docker provider (no Docker needed) and checks what
+reaches the containers. `packages/config/test/deploy-settings.test.ts` (in `pnpm test`) fails when the server gets a
+setting the module doesn't pass.

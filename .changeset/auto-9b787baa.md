@@ -1,0 +1,5 @@
+---
+'@circi/server': patch
+---
+
+Every server setting reaches the container in both deploys: the Terraform module has one variable per setting (smtp_host, auth_oidc_issuer, s3_bucket, ...; null leaves it unset, so nothing is locked in the dashboard by accident), in place of the open environment/secrets maps, so a misspelled name and a half-set pair fail the plan; secrets go in as files named by <NAME>_FILE, which the server now reads for any setting, so the rest of the environment shows in plan output; database = { host, port, name, user, tls, ca_certificate } for your own Postgres such as RDS (verify-full, with RDS's CA bundle), with the password URL-encoded (the bundled one's too); the Docker network gets a fixed subnet and gateway and Caddy a fixed address, the one proxy the app trusts; Route53 keys in their own sensitive variable; the bundled Postgres's password can be rotated with ALTER USER; terraform test plans the module against a mocked provider; docker-compose.yml passes every setting (Slack, GitLab sign-in, S3 and the tuning settings never reached the server) and .env.example names them all, checked by packages/config/test/deploy-settings.test.ts
