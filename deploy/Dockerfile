@@ -63,12 +63,14 @@ FROM manifests AS runtime-deps
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm --filter @circi/server deploy --prod /deploy
 
 FROM node:${NODE_VERSION}-slim AS runtime
-# CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the bundle can't find these relative to itself.
+# CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the bundle can't find these relative to itself. The settings
+# set here are @circi/config's IMAGE_SETTINGS (packages/config/test/deploy-settings.test.ts).
 ENV NODE_ENV=production \
     NODE_OPTIONS=--enable-source-maps \
     CIRCI_MIGRATIONS=/app/migrations \
     CIRCI_WEB_DIST=/app/web \
     STORAGE_PATH=/var/lib/circi/files \
+    HOST=0.0.0.0 \
     PORT=3000
 WORKDIR /app
 COPY --from=runtime-deps /deploy/node_modules node_modules

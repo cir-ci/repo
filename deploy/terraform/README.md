@@ -124,6 +124,8 @@ Outputs: `version`, `image`, `public_url`.
 
 ## Tests
 
-`terraform test` in this folder plans the module against a mocked Docker provider (no Docker needed) and checks what
-reaches the containers. `packages/config/test/deploy-settings.test.ts` (in `pnpm test`) fails when the server gets a
-setting the module doesn't pass.
+`pnpm test:terraform` (`terraform test` in this folder; the CI job `terraform`) plans the module against a mocked
+Docker provider, no Docker needed, and checks what reaches the containers: one case sets every variable and expects each
+setting under its own name. `packages/config/test/deploy-settings.test.ts` (in `pnpm test`) holds the module to
+`@circi/config`'s lists of settings (`src/settings.ts`): every setting passed, the secrets as files and marked
+`sensitive`, a precondition for each group of settings that go together, and every setting in that test case.

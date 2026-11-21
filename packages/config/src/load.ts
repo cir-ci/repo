@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { isIP } from 'node:net'
 
-import { INSTANCE_ENV, INSTANCE_LOCK_KEYS, type InstanceLockKey } from '@circi/core'
+import { errorCode, INSTANCE_ENV, INSTANCE_LOCK_KEYS, type InstanceLockKey } from '@circi/core'
 import { isValidVapidKeys } from '@circi/core/node'
 
 import { isLocalAddress, parsePublicAddress } from './public-url.ts'
 import { envSchema } from './schema.ts'
+import { groupState, partlySet, SETTING_GROUPS, type SettingGroup } from './settings.ts'
 import { staticSitesHostProblem } from './sites-host.ts'
 import type { Config } from './types.ts'
 
@@ -20,9 +21,9 @@ export class ConfigError extends Error {
 
 export function loadConfig(
   rawEnv: Record<string, string | undefined> = process.env,
-  readFile: (path: string) => string = (path) => readFileSync(path, 'utf8'),
+  readFile?: (path: string) => string,
 ): Config {
-  const env = withSettingFiles(rawEnv, readFile)
+  const env = resolveSettingFiles(rawEnv, readFile)
   const parsed = envSchema.safeParse(env)
   if (!parsed.success) {
     throw new ConfigError(
@@ -55,9 +56,12 @@ export function loadConfig(
   let storage: Config.Storage
   if (e.STORAGE_DRIVER === 's3') {
     if (!e.S3_BUCKET) issues.push('S3_BUCKET: required when STORAGE_DRIVER=s3')
-    if (Boolean(e.S3_ACCESS_KEY_ID) !== Boolean(e.S3_SECRET_ACCESS_KEY)) {
+    if (groupState(e, SETTING_GROUPS.s3Keys) === 'some') {
       issues.push(
-        'S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY: set both, or neither to use the default AWS credential chain (e.g. an IAM role)',
+        partlySet(
+          SETTING_GROUPS.s3Keys,
+          ' to use the default AWS credential chain (e.g. an IAM role)',
+        ),
       )
     }
     storage = {
@@ -84,8 +88,8 @@ export function loadConfig(
   let smtp: Config.Smtp | undefined
   if (e.SMTP_HOST) {
     if (!e.SMTP_FROM) issues.push('SMTP_FROM: required when SMTP_HOST is set')
-    if (Boolean(e.SMTP_USER) !== Boolean(e.SMTP_PASSWORD)) {
-      issues.push('SMTP_USER / SMTP_PASSWORD: set both, or neither for a server without login')
+    if (groupState(e, SETTING_GROUPS.smtpLogin) === 'some') {
+      issues.push(partlySet(SETTING_GROUPS.smtpLogin, ' for a server without login'))
     }
     const port = e.SMTP_PORT ?? (e.SMTP_SECURE ? 465 : 587)
     smtp = {
@@ -100,12 +104,9 @@ export function loadConfig(
   }
 
   let vapid: Config.Vapid | undefined
-  if (e.VAPID_PUBLIC_KEY || e.VAPID_PRIVATE_KEY) {
-    if (!(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY)) {
-      issues.push('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY: set both, or neither')
-    } else if (
-      !isValidVapidKeys({ publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY })
-    ) {
+  if (groupState(e, SETTING_GROUPS.vapid) === 'some') issues.push(partlySet(SETTING_GROUPS.vapid))
+  if (e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY) {
+    if (!isValidVapidKeys({ publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY })) {
       issues.push('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY: not a matching P-256 key pair (base64url)')
     } else vapid = { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY }
   }
@@ -114,12 +115,10 @@ export function loadConfig(
   }
 
   let github: Config.GithubApp | undefined
-  const githubParts = [e.GITHUB_APP_ID, e.GITHUB_APP_PRIVATE_KEY, e.GITHUB_APP_WEBHOOK_SECRET]
-  if (githubParts.some(Boolean)) {
-    if (!githubParts.every(Boolean)) {
-      issues.push(
-        'GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_APP_WEBHOOK_SECRET: set all three',
-      )
+  const githubState = groupState(e, SETTING_GROUPS.githubApp)
+  if (githubState !== 'none') {
+    if (githubState === 'some') {
+      issues.push(partlySet(SETTING_GROUPS.githubApp))
     } else {
       const apiUrl = (e.GITHUB_API_URL ?? 'https://api.github.com').replace(/\/$/, '')
       if (!/^https?:\/\//.test(apiUrl)) issues.push('GITHUB_API_URL: must be an http(s) address')
@@ -134,17 +133,14 @@ export function loadConfig(
   }
   const githubApiUrl = e.GITHUB_API_URL?.replace(/\/$/, '')
   if (githubApiUrl && !/^https?:\/\//.test(githubApiUrl)) {
-    if (!githubParts.some(Boolean)) issues.push('GITHUB_API_URL: must be an http(s) address')
+    if (githubState === 'none') issues.push('GITHUB_API_URL: must be an http(s) address')
   }
   let slack: Config.Slack | undefined
-  if (e.SLACK_CLIENT_ID || e.SLACK_CLIENT_SECRET) {
-    if (!(e.SLACK_CLIENT_ID && e.SLACK_CLIENT_SECRET)) {
-      issues.push('SLACK_CLIENT_ID / SLACK_CLIENT_SECRET: set both, or neither')
-    } else {
-      const apiUrl = (e.SLACK_API_URL ?? 'https://slack.com/api').replace(/\/$/, '')
-      if (!/^https?:\/\//.test(apiUrl)) issues.push('SLACK_API_URL: must be an http(s) address')
-      slack = { clientId: e.SLACK_CLIENT_ID, clientSecret: e.SLACK_CLIENT_SECRET, apiUrl }
-    }
+  if (groupState(e, SETTING_GROUPS.slack) === 'some') issues.push(partlySet(SETTING_GROUPS.slack))
+  if (e.SLACK_CLIENT_ID && e.SLACK_CLIENT_SECRET) {
+    const apiUrl = (e.SLACK_API_URL ?? 'https://slack.com/api').replace(/\/$/, '')
+    if (!/^https?:\/\//.test(apiUrl)) issues.push('SLACK_API_URL: must be an http(s) address')
+    slack = { clientId: e.SLACK_CLIENT_ID, clientSecret: e.SLACK_CLIENT_SECRET, apiUrl }
   }
   let staticSites: Config.StaticSites | undefined
   if (e.STATIC_SITES_HOST) {
@@ -157,14 +153,12 @@ export function loadConfig(
     else staticSites = { host, maxBytes: e.STATIC_SITES_MAX_MB * 1024 * 1024 }
   }
   const sso: Config.Sso[] = []
-  const pair = (name: string, id: string | undefined, secret: string | undefined) => {
-    if (Boolean(id) !== Boolean(secret)) {
-      issues.push(`${name}_CLIENT_ID / ${name}_CLIENT_SECRET: set both, or neither`)
-      return false
-    }
-    return Boolean(id && secret)
+  const pair = (group: SettingGroup) => {
+    const state = groupState(e, group)
+    if (state === 'some') issues.push(partlySet(group))
+    return state === 'all'
   }
-  if (pair('AUTH_GITHUB', e.AUTH_GITHUB_CLIENT_ID, e.AUTH_GITHUB_CLIENT_SECRET)) {
+  if (pair(SETTING_GROUPS.authGithub)) {
     // GitHub reports the primary email only when it is verified.
     sso.push({
       id: 'github',
@@ -174,7 +168,7 @@ export function loadConfig(
       trustedForEmail: true,
     })
   }
-  if (pair('AUTH_GITLAB', e.AUTH_GITLAB_CLIENT_ID, e.AUTH_GITLAB_CLIENT_SECRET)) {
+  if (pair(SETTING_GROUPS.authGitlab)) {
     // A self-managed GitLab need not confirm its users' addresses: not trusted for email.
     sso.push({
       id: 'gitlab',
@@ -185,7 +179,7 @@ export function loadConfig(
       trustedForEmail: false,
     })
   }
-  if (pair('AUTH_GOOGLE', e.AUTH_GOOGLE_CLIENT_ID, e.AUTH_GOOGLE_CLIENT_SECRET)) {
+  if (pair(SETTING_GROUPS.authGoogle)) {
     sso.push({
       id: 'google',
       name: 'Google',
@@ -194,10 +188,10 @@ export function loadConfig(
       trustedForEmail: true,
     })
   }
-  const oidcParts = [e.AUTH_OIDC_ISSUER, e.AUTH_OIDC_CLIENT_ID, e.AUTH_OIDC_CLIENT_SECRET]
-  if (oidcParts.some(Boolean)) {
-    if (!oidcParts.every(Boolean)) {
-      issues.push('AUTH_OIDC_ISSUER / AUTH_OIDC_CLIENT_ID / AUTH_OIDC_CLIENT_SECRET: set all three')
+  const oidcState = groupState(e, SETTING_GROUPS.authOidc)
+  if (oidcState !== 'none') {
+    if (oidcState === 'some') {
+      issues.push(partlySet(SETTING_GROUPS.authOidc))
     } else if (!/^https?:\/\//.test(e.AUTH_OIDC_ISSUER ?? '')) {
       issues.push('AUTH_OIDC_ISSUER: must be an https:// address (the issuer URL)')
     } else {
@@ -263,23 +257,23 @@ export function loadConfig(
  * Terraform module's uploaded secrets), so a secret needn't sit in the container's environment.
  * One trailing newline is dropped; setting both `<NAME>` and `<NAME>_FILE` is an error.
  */
-function withSettingFiles(
-  env: Record<string, string | undefined>,
-  readFile: (path: string) => string,
+export function resolveSettingFiles(
+  env: Record<string, string | undefined> = process.env,
+  readFile: (path: string) => string = (path) => readFileSync(path, 'utf8'),
 ): Record<string, string | undefined> {
   const resolved = { ...env }
   const issues: string[] = []
   for (const key of Object.keys(envSchema.shape)) {
     const path = env[`${key}_FILE`]
     if (!path) continue
-    if (env[key] !== undefined && env[key] !== '') {
+    if (env[key]) {
       issues.push(`${key} / ${key}_FILE: set one, not both`)
       continue
     }
     try {
       resolved[key] = readFile(path).replace(/\r?\n$/, '')
     } catch (err) {
-      const reason = err instanceof Error && 'code' in err ? String(err.code) : String(err)
+      const reason = errorCode(err) ?? String(err)
       issues.push(`${key}_FILE: couldn't read ${path} (${reason})`)
     }
   }

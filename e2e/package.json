@@ -16,6 +16,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
     "@circi/auth": "catalog:",
+    "@circi/config": "catalog:",
     "@circi/core": "catalog:",
     "@circi/db": "catalog:",
     "@circi/services": "catalog:",

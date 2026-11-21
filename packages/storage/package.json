@@ -10,7 +10,8 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
-    "@aws-sdk/s3-request-presigner": "catalog:"
+    "@aws-sdk/s3-request-presigner": "catalog:",
+    "@circi/core": "catalog:"
   },
   "devDependencies": {
     "@circi/testing": "catalog:"

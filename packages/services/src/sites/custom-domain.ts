@@ -2,6 +2,7 @@ import { resolve4, resolve6, resolveCname } from 'node:dns/promises'
 
 import {
   customDomainProblem,
+  errorCode,
   normalizeCustomDomain,
   NotFoundError,
   ValidationError,
@@ -28,11 +29,7 @@ export interface SiteDnsResolver {
   address(host: string): Promise<string[]>
 }
 
-const missing = (err: unknown) =>
-  err instanceof Error &&
-  'code' in err &&
-  typeof err.code === 'string' &&
-  ['ENODATA', 'ENOTFOUND', 'ENOENT'].includes(err.code)
+const missing = (err: unknown) => ['ENODATA', 'ENOTFOUND', 'ENOENT'].includes(errorCode(err) ?? '')
 
 async function orNone(lookup: Promise<string[]>): Promise<string[]> {
   try {

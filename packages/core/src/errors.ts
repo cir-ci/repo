@@ -32,6 +32,13 @@ export class ConflictError extends DomainError {}
 /** The caller is known but may not do this (e.g. editing someone else's comment). */
 export class ForbiddenError extends DomainError {}
 
+/** The `code` an error carries (Node's `ENOENT`, `ECONNREFUSED`, ...), or undefined. */
+export function errorCode(err: unknown): string | undefined {
+  return err instanceof Error && 'code' in err && typeof err.code === 'string'
+    ? err.code
+    : undefined
+}
+
 /** Throws `NotFoundError(message)` when a lookup or an update found nothing (`undefined`, `null`, `false`). */
 export function assertFound<T>(value: T, message: string): asserts value is NonNullable<T> {
   if (!value) throw new NotFoundError(message)

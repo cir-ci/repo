@@ -32,6 +32,7 @@
     "e2e:browser": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:browser",
     "e2e:fingerprint": "node e2e/src/stack/env-fingerprint.ts",
     "test:compose": "turbo run build --filter=@circi/vitest && COMPOSE_SMOKE=1 vitest run --project compose",
+    "test:terraform": "terraform -chdir=deploy/terraform init -backend=false -input=false >/dev/null && terraform -chdir=deploy/terraform test",
     "db:generate": "pnpm --filter @circi/db generate",
     "db:auth-schema": "pnpm --filter @circi/auth schema",
     "icons:generate": "pnpm --filter @circi/ui exec node scripts/generate-lucide-icon-names.mjs",

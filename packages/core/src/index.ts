@@ -2,6 +2,7 @@ export {
   assertFound,
   ConflictError,
   DomainError,
+  errorCode,
   ForbiddenError,
   NotFoundError,
   ValidationError,

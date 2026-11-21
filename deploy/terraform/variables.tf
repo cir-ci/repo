@@ -5,7 +5,7 @@
 #
 # Secrets (sensitive = true) reach the container as files (`<NAME>_FILE`, read by the server), so the
 # rest of the environment stays readable in plan output. The server's own settings are listed in
-# packages/config/src/schema.ts; packages/config/test/terraform.test.ts fails when one has no variable.
+# packages/config/src/schema.ts; packages/config/test/deploy-settings.test.ts fails when main.tf doesn't pass one.
 
 # --- The release --------------------------------------------------------------------------------
 
@@ -123,7 +123,7 @@ variable "database" {
   })
   default = null
   validation {
-    condition     = var.database == null || try(var.database.ca_certificate == null || var.database.tls, false)
+    condition     = try(var.database.tls || var.database.ca_certificate == null, true)
     error_message = "database.ca_certificate is only used with tls = true."
   }
 }
@@ -332,7 +332,7 @@ variable "workspace_creation" {
   type        = string
   default     = null
   validation {
-    condition     = var.workspace_creation == null || contains(["admin", "anyone"], coalesce(var.workspace_creation, "admin"))
+    condition     = contains(["admin", "anyone"], coalesce(var.workspace_creation, "admin"))
     error_message = "workspace_creation is \"admin\" or \"anyone\"."
   }
 }
@@ -432,7 +432,7 @@ variable "log_level" {
   type        = string
   default     = null
   validation {
-    condition     = var.log_level == null || contains(["fatal", "error", "warn", "info", "debug", "trace"], coalesce(var.log_level, "info"))
+    condition     = contains(["fatal", "error", "warn", "info", "debug", "trace"], coalesce(var.log_level, "info"))
     error_message = "log_level is one of fatal, error, warn, info, debug, trace."
   }
 }
@@ -490,7 +490,7 @@ variable "diff_engine" {
   type        = string
   default     = null
   validation {
-    condition     = var.diff_engine == null || contains(["native", "js-workers", "js"], coalesce(var.diff_engine, "native"))
+    condition     = contains(["native", "js-workers", "js"], coalesce(var.diff_engine, "native"))
     error_message = "diff_engine is native, js-workers or js."
   }
 }

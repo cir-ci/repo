@@ -199,3 +199,153 @@ run "caddy_owns_trusted_proxies" {
 
   expect_failures = [docker_container.circi]
 }
+
+# Every variable set to a value of its own: each must reach the server under its own name, a secret
+# as a file. packages/config/test/deploy-settings.test.ts checks that every setting is listed here.
+run "every_setting_reaches_the_server_under_its_name" {
+  command = plan
+
+  variables {
+    public_url                      = "https://ci.acme.io"
+    previous_public_urls            = ["https://old.acme.io"]
+    trusted_proxies                 = ["10.0.0.1"]
+    static_sites_host               = "acme-sites.com"
+    log_level                       = "warn"
+    database_pool_max               = 21
+    s3_bucket                       = "bucket"
+    s3_region                       = "eu-west-3"
+    s3_endpoint                     = "https://s3.example"
+    s3_force_path_style             = true
+    s3_access_key_id                = "s3-key-id"
+    s3_secret_access_key            = "s3-secret"
+    s3_connect_timeout_seconds      = 11
+    s3_request_timeout_seconds      = 61
+    smtp_host                       = "smtp.example"
+    smtp_port                       = 2525
+    smtp_secure                     = false
+    smtp_user                       = "smtp-user"
+    smtp_password                   = "smtp-password"
+    smtp_from                       = "ci@acme.io"
+    auth_email_enabled              = false
+    auth_password_enabled           = false
+    auth_sso_enabled                = true
+    auth_github_client_id           = "gh-id"
+    auth_github_client_secret       = "gh-secret"
+    auth_google_client_id           = "google-id"
+    auth_google_client_secret       = "google-secret"
+    auth_gitlab_client_id           = "gitlab-id"
+    auth_gitlab_client_secret       = "gitlab-secret"
+    auth_gitlab_url                 = "https://gitlab.acme.io"
+    auth_oidc_issuer                = "https://sso.acme.io"
+    auth_oidc_client_id             = "oidc-id"
+    auth_oidc_client_secret         = "oidc-secret"
+    auth_oidc_name                  = "Acme SSO"
+    auth_oidc_trusted_for_email     = true
+    workspace_creation              = "anyone"
+    github_app_id                   = "42"
+    github_app_private_key          = "pem"
+    github_app_webhook_secret       = "hook-secret"
+    github_api_url                  = "https://ghe.acme.io/api/v3"
+    github_api_timeout_seconds      = 16
+    slack_client_id                 = "slack-id"
+    slack_client_secret             = "slack-secret"
+    slack_api_url                   = "https://slack.example/api"
+    vapid_public_key                = "vapid-public"
+    vapid_private_key               = "vapid-private"
+    vapid_subject                   = "mailto:ops@acme.io"
+    static_sites_max_mb             = 201
+    upload_timeout_minutes          = 61
+    gc_grace_hours                  = 25
+    job_retention_days              = 15
+    job_retry_base_seconds          = 3
+    job_retry_max_seconds           = 301
+    webhook_timeout_seconds         = 12
+    webhook_allow_private_addresses = true
+    live_max_streams                = 2001
+    diff_engine                     = "js-workers"
+    diff_threads                    = 3
+  }
+
+  assert {
+    condition = toset(docker_container.circi.env) == toset([
+      "PUBLIC_URL=https://ci.acme.io",
+      "PREVIOUS_PUBLIC_URLS=https://old.acme.io",
+      "TRUSTED_PROXIES=10.0.0.1",
+      "STATIC_SITES_HOST=acme-sites.com",
+      "LOG_LEVEL=warn",
+      "DATABASE_POOL_MAX=21",
+      "STORAGE_DRIVER=s3",
+      "S3_BUCKET=bucket",
+      "S3_REGION=eu-west-3",
+      "S3_ENDPOINT=https://s3.example",
+      "S3_FORCE_PATH_STYLE=true",
+      "S3_ACCESS_KEY_ID=s3-key-id",
+      "S3_CONNECT_TIMEOUT_SECONDS=11",
+      "S3_REQUEST_TIMEOUT_SECONDS=61",
+      "SMTP_HOST=smtp.example",
+      "SMTP_PORT=2525",
+      "SMTP_SECURE=false",
+      "SMTP_USER=smtp-user",
+      "SMTP_FROM=ci@acme.io",
+      "AUTH_EMAIL_ENABLED=false",
+      "AUTH_PASSWORD_ENABLED=false",
+      "AUTH_SSO_ENABLED=true",
+      "AUTH_GITHUB_CLIENT_ID=gh-id",
+      "AUTH_GOOGLE_CLIENT_ID=google-id",
+      "AUTH_GITLAB_CLIENT_ID=gitlab-id",
+      "AUTH_GITLAB_URL=https://gitlab.acme.io",
+      "AUTH_OIDC_ISSUER=https://sso.acme.io",
+      "AUTH_OIDC_CLIENT_ID=oidc-id",
+      "AUTH_OIDC_NAME=Acme SSO",
+      "AUTH_OIDC_TRUSTED_FOR_EMAIL=true",
+      "WORKSPACE_CREATION=anyone",
+      "GITHUB_APP_ID=42",
+      "GITHUB_API_URL=https://ghe.acme.io/api/v3",
+      "GITHUB_API_TIMEOUT_SECONDS=16",
+      "SLACK_CLIENT_ID=slack-id",
+      "SLACK_API_URL=https://slack.example/api",
+      "VAPID_PUBLIC_KEY=vapid-public",
+      "VAPID_SUBJECT=mailto:ops@acme.io",
+      "STATIC_SITES_MAX_MB=201",
+      "UPLOAD_TIMEOUT_MINUTES=61",
+      "GC_GRACE_HOURS=25",
+      "JOB_RETENTION_DAYS=15",
+      "JOB_RETRY_BASE_SECONDS=3",
+      "JOB_RETRY_MAX_SECONDS=301",
+      "WEBHOOK_TIMEOUT_SECONDS=12",
+      "WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true",
+      "LIVE_MAX_STREAMS=2001",
+      "CIRCI_DIFF_ENGINE=js-workers",
+      "CIRCI_DIFF_THREADS=3",
+      "BETTER_AUTH_SECRET_FILE=/run/circi/secrets/BETTER_AUTH_SECRET",
+      "DATABASE_URL_FILE=/run/circi/secrets/DATABASE_URL",
+      "S3_SECRET_ACCESS_KEY_FILE=/run/circi/secrets/S3_SECRET_ACCESS_KEY",
+      "SMTP_PASSWORD_FILE=/run/circi/secrets/SMTP_PASSWORD",
+      "AUTH_GITHUB_CLIENT_SECRET_FILE=/run/circi/secrets/AUTH_GITHUB_CLIENT_SECRET",
+      "AUTH_GOOGLE_CLIENT_SECRET_FILE=/run/circi/secrets/AUTH_GOOGLE_CLIENT_SECRET",
+      "AUTH_GITLAB_CLIENT_SECRET_FILE=/run/circi/secrets/AUTH_GITLAB_CLIENT_SECRET",
+      "AUTH_OIDC_CLIENT_SECRET_FILE=/run/circi/secrets/AUTH_OIDC_CLIENT_SECRET",
+      "GITHUB_APP_PRIVATE_KEY_FILE=/run/circi/secrets/GITHUB_APP_PRIVATE_KEY",
+      "GITHUB_APP_WEBHOOK_SECRET_FILE=/run/circi/secrets/GITHUB_APP_WEBHOOK_SECRET",
+      "SLACK_CLIENT_SECRET_FILE=/run/circi/secrets/SLACK_CLIENT_SECRET",
+      "VAPID_PRIVATE_KEY_FILE=/run/circi/secrets/VAPID_PRIVATE_KEY",
+    ])
+    error_message = "Each setting under its own name: ${join(", ", sort(docker_container.circi.env))}"
+  }
+  assert {
+    condition = nonsensitive({ for u in docker_container.circi.upload : trimprefix(u.file, "/run/circi/secrets/") => u.content if startswith(u.file, "/run/circi/secrets/") && u.file != "/run/circi/secrets/DATABASE_URL" }) == {
+      BETTER_AUTH_SECRET        = "a-secret-that-is-at-least-32-characters-long"
+      S3_SECRET_ACCESS_KEY      = "s3-secret"
+      SMTP_PASSWORD             = "smtp-password"
+      AUTH_GITHUB_CLIENT_SECRET = "gh-secret"
+      AUTH_GOOGLE_CLIENT_SECRET = "google-secret"
+      AUTH_GITLAB_CLIENT_SECRET = "gitlab-secret"
+      AUTH_OIDC_CLIENT_SECRET   = "oidc-secret"
+      GITHUB_APP_PRIVATE_KEY    = "pem"
+      GITHUB_APP_WEBHOOK_SECRET = "hook-secret"
+      SLACK_CLIENT_SECRET       = "slack-secret"
+      VAPID_PRIVATE_KEY         = "vapid-private"
+    }
+    error_message = "Each secret's file holds its own variable's value."
+  }
+}

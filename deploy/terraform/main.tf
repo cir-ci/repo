@@ -8,25 +8,34 @@ locals {
   secrets_dir      = "/run/circi/secrets"
   database_ca_path = "/run/circi/database-ca.pem"
 
-  # URL-encoded: urlencode writes a space as +, which a URL's user part reads as a plus sign.
-  encode = { for name, value in {
-    user     = local.bundled_postgres ? "circi" : var.database.user
-    password = local.bundled_postgres ? var.postgres_password : var.database_password
-    name     = local.bundled_postgres ? "circi" : var.database.name
-  } : name => replace(urlencode(value == null ? "" : value), "+", "%20") }
-  database_query = local.bundled_postgres ? "" : (
-    !var.database.tls ? "?sslmode=disable" : var.database.ca_certificate == null ? "?sslmode=verify-full" : (
-      "?sslmode=verify-full&sslrootcert=${local.database_ca_path}"
+  database_ca = try(var.database.ca_certificate, null)
+
+  # The bundled Postgres, or yours.
+  bundled_db = {
+    host     = "postgres"
+    port     = 5432
+    name     = "circi"
+    user     = "circi"
+    password = var.postgres_password
+    query    = ""
+  }
+  db = local.bundled_postgres ? local.bundled_db : {
+    host     = var.database.host
+    port     = var.database.port
+    name     = var.database.name
+    user     = var.database.user
+    password = var.database_password
+    query = !var.database.tls ? "?sslmode=disable" : (
+      "?sslmode=verify-full${local.database_ca == null ? "" : "&sslrootcert=${local.database_ca_path}"}"
     )
-  )
+  }
+  # URL-encoded: urlencode writes a space as +, which a URL's user part reads as a plus sign.
+  encoded = { for name in ["user", "password", "name"] : name => replace(
+    urlencode(local.db[name] == null ? "" : local.db[name]), "+", "%20",
+  ) }
   database_url = format(
     "postgres://%s:%s@%s:%d/%s%s",
-    local.encode.user,
-    local.encode.password,
-    local.bundled_postgres ? "postgres" : var.database.host,
-    local.bundled_postgres ? 5432 : var.database.port,
-    local.encode.name,
-    local.database_query,
+    local.encoded.user, local.encoded.password, local.db.host, local.db.port, local.encoded.name, local.db.query,
   )
 
   public_url = var.caddy == null ? var.public_url : "https://${var.caddy.dashboard_host}"
@@ -204,7 +213,7 @@ resource "docker_container" "circi" {
     }
   }
   dynamic "upload" {
-    for_each = try(var.database.ca_certificate, null) == null ? [] : [var.database.ca_certificate]
+    for_each = local.database_ca == null ? [] : [local.database_ca]
     content {
       file    = local.database_ca_path
       content = upload.value
@@ -257,11 +266,11 @@ resource "docker_container" "circi" {
       error_message = "The s3_* settings need s3_bucket."
     }
     precondition {
-      condition     = alltrue([for set in [[var.github_app_id != null, var.github_app_private_key != null, var.github_app_webhook_secret != null]] : alltrue(set) || !anytrue(set)])
+      condition     = length(distinct([var.github_app_id != null, var.github_app_private_key != null, var.github_app_webhook_secret != null])) == 1
       error_message = "Set github_app_id, github_app_private_key and github_app_webhook_secret together."
     }
     precondition {
-      condition     = alltrue([for set in [[var.auth_oidc_issuer != null, var.auth_oidc_client_id != null, var.auth_oidc_client_secret != null]] : alltrue(set) || !anytrue(set)])
+      condition     = length(distinct([var.auth_oidc_issuer != null, var.auth_oidc_client_id != null, var.auth_oidc_client_secret != null])) == 1
       error_message = "Set auth_oidc_issuer, auth_oidc_client_id and auth_oidc_client_secret together."
     }
     precondition {

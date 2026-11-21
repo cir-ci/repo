@@ -3,7 +3,8 @@
 #   gate  every push and pull request: `pnpm gate` (format check, lint, typecheck, the Node, UI and web
 #         browser tests, build). No Docker. Required status check: `gate`.
 #         The `changeset` job (branches other than main) fails when a published package changed without a
-#         changeset.
+#         changeset. The `terraform` job checks and tests deploy/terraform (`terraform test`, a mocked
+#         Docker provider: no Docker).
 #   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
 #         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
 #
@@ -180,11 +181,26 @@ jobs:
       - store_test_results:
           path: test-results
 
+  terraform:
+    docker:
+      - image: hashicorp/terraform:1.15
+    steps:
+      # The image has git but no ssh client, which checkout needs.
+      - run: apk add --no-cache openssh-client
+      - checkout
+      - run:
+          name: Terraform module
+          command: |
+            terraform -chdir=deploy/terraform fmt -check -recursive
+            terraform -chdir=deploy/terraform init -backend=false -input=false
+            terraform -chdir=deploy/terraform test
+
 workflows:
   gate:
     unless: << pipeline.parameters.nightly >>
     jobs:
       - gate
+      - terraform
       - changeset:
           filters:
             branches:
