@@ -15,6 +15,7 @@ version: 2.1
 
 orbs:
   node: circleci/node@7.2.1
+  terraform: circleci/terraform@3.7.0
 
 parameters:
   nightly:
@@ -182,18 +183,21 @@ jobs:
           path: test-results
 
   terraform:
-    docker:
-      - image: hashicorp/terraform:1.15
+    executor:
+      name: terraform/default
+      tag: '1.15'
     steps:
-      # The image has git but no ssh client, which checkout needs.
-      - run: apk add --no-cache openssh-client
       - checkout
+      - terraform/fmt:
+          path: deploy/terraform
+          recursive: true
+      - terraform/init:
+          path: deploy/terraform
+          backend: false
+      # The orb has no command for `terraform test`.
       - run:
-          name: Terraform module
-          command: |
-            terraform -chdir=deploy/terraform fmt -check -recursive
-            terraform -chdir=deploy/terraform init -backend=false -input=false
-            terraform -chdir=deploy/terraform test
+          name: terraform test
+          command: terraform -chdir=deploy/terraform test
 
 workflows:
   gate:
