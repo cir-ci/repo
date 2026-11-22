@@ -54,8 +54,12 @@ is a generated mirror of this folder, and nothing is edited there. The `terrafor
 is published. The script clones the mirror, replaces its contents with the module's files (`main.tf`, `variables.tf`,
 `outputs.tf`, `versions.tf`, `Caddyfile`, `tests/`), writes its README from `deploy/terraform-mirror/README.md` (the
 registry page: a usage example and a link to the website), commits as github-actions, pushes `main` and tags
-`v<version>`. A version whose tag exists is skipped, so a rerun does nothing. Without the `TERRAFORM_MIRROR_TOKEN`
-secret (a fine-grained token with contents: write on the mirror) the job only prints a notice.
+`v<version>`. A version whose tag exists is skipped, so a rerun does nothing. The job pushes over SSH with a deploy key
+of the mirror: its public key is on the mirror with write access, and its private key is the `TERRAFORM_MIRROR_DEPLOY_KEY`
+secret here, so it can push to that one repository and is tied to no one's account. Without the secret the job only
+prints a notice. To set it up or rotate it: `ssh-keygen -t ed25519 -N '' -C terraform-mirror -f mirror_key`, add
+`mirror_key.pub` to the mirror (Settings › Deploy keys, Allow write access), save `mirror_key` as the secret, and
+delete both files.
 
 `Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts. The module reads a
 file inside its own folder (`file("${path.module}/Caddyfile")`), so it works from the monorepo's Git source too, and the

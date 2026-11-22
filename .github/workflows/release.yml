@@ -111,25 +111,35 @@ jobs:
 
   # The Terraform module on the Terraform Registry (cir-ci/circi/docker): the registry needs a repository of its own with
   # the module at its root and `vX.Y.Z` tags, so each app version is mirrored to cir-ci/terraform-docker-circi after its
-  # image is up (scripts/sync-terraform-mirror.sh; a version already tagged there is skipped). Needs the
-  # TERRAFORM_MIRROR_TOKEN secret, a fine-grained token with contents: write on the mirror; without it the job only says so.
+  # image is up (scripts/sync-terraform-mirror.sh; a version already tagged there is skipped). Pushes over SSH
+  # with the TERRAFORM_MIRROR_DEPLOY_KEY secret, the private key of a deploy key with write access on the mirror; without
+  # it the job only says so.
   terraform-mirror:
     needs: image
     runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
-      MIRROR_TOKEN: ${{ secrets.TERRAFORM_MIRROR_TOKEN }}
+      # The private half of a deploy key with write access on the mirror (cir-ci/terraform-docker-circi): it can
+      # push to that one repository and nothing else, and isn't tied to anyone's account.
+      MIRROR_DEPLOY_KEY: ${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY }}
     steps:
-      - if: env.MIRROR_TOKEN == ''
-        run: echo "::notice::TERRAFORM_MIRROR_TOKEN is not set, so the Terraform module was not mirrored to the registry's repository."
-      - if: env.MIRROR_TOKEN != ''
+      - if: env.MIRROR_DEPLOY_KEY == ''
+        run: echo "::notice::TERRAFORM_MIRROR_DEPLOY_KEY is not set, so the Terraform module was not mirrored to the registry's repository."
+      - if: env.MIRROR_DEPLOY_KEY != ''
         uses: actions/checkout@v7
-      - if: env.MIRROR_TOKEN != ''
+      - if: env.MIRROR_DEPLOY_KEY != ''
         run: |
           version=$(node -p "require('./apps/server/package.json').version")
           if [ "$version" = 0.0.0 ]; then
             echo "Version 0.0.0 has never been released; nothing to mirror."
             exit 0
           fi
-          scripts/sync-terraform-mirror.sh "$version" "https://x-access-token:${MIRROR_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/terraform-docker-circi.git"
+          # The key in a file only this job reads, and github.com's host keys from GitHub's own API, so ssh
+          # refuses any other host.
+          ssh_dir=$(mktemp -d)
+          install -m 600 /dev/null "$ssh_dir/key"
+          printf '%s\n' "$MIRROR_DEPLOY_KEY" > "$ssh_dir/key"
+          curl -fsSL https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com \(.)"' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes"
+          scripts/sync-terraform-mirror.sh "$version" "git@github.com:${GITHUB_REPOSITORY_OWNER}/terraform-docker-circi.git"

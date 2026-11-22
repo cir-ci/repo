@@ -4,7 +4,8 @@
 # tag exists is skipped.
 #
 # usage: scripts/sync-terraform-mirror.sh <version> <mirror-remote> [<message-author-name> <message-author-email>]
-#   <mirror-remote> is a git URL (with its token for https) or a local path, which is how it is tested.
+#   <mirror-remote> is a git URL (the release workflow uses SSH with the mirror's deploy key) or a local path, which is
+#   how it is tested.
 set -euo pipefail
 
 version="${1:?usage: sync-terraform-mirror.sh <version> <mirror-remote>}"
