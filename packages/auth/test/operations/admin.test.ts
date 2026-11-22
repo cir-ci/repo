@@ -6,6 +6,7 @@ import {
 } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -28,7 +29,7 @@ beforeAll(async () => {
   t = await createTestDb()
   auth = createAuth({
     db: t.db,
-    secret: 'test-secret-that-is-long-enough-1234',
+    secret: TEST_AUTH_SECRET,
     baseURL: 'http://localhost:3000',
   })
 })

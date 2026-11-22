@@ -1,10 +1,7 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { createBuild } from '@circi/db/repositories'
 import { createTestDb, seedGitLink } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,7 +10,7 @@ import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-gate')
 let app: FastifyInstance
 let linked: Tenant
 let plain: Tenant
@@ -22,7 +19,6 @@ let plainBuildId = ''
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-gate-'))
   const auth = createTestAuth(t.db)
   app = buildServer({
     logger: pino({ level: 'silent' }),
@@ -30,7 +26,7 @@ beforeAll(async () => {
     api: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
       githubApp: true,
     },
@@ -46,7 +42,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const gateOf = async (tenant: Tenant, buildId: string, query = '') => {

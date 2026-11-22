@@ -17,7 +17,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { readStoredGithubApp, useStoredGithubApp } from '#composition/github-app.ts'
 import { buildServer } from '#http/app.ts'
-import { clientFor } from '#test/support/client.ts'
+import { clientFor, JSON_HEADERS } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
@@ -552,7 +552,7 @@ describe('an App from the environment', () => {
     const manifest = await envApp.inject({
       method: 'POST',
       url: '/api/instance/github-app/manifest',
-      headers: { origin: ORIGIN, 'content-type': 'application/json', cookie: adminCookie },
+      headers: { ...JSON_HEADERS, cookie: adminCookie },
       payload: '{}',
     })
     expect(manifest.statusCode).toBe(409)

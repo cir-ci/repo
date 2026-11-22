@@ -1,7 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import type { Account, InstanceAdmin } from '@circi/api'
 import { createUser } from '@circi/auth'
 import { loadConfig } from '@circi/config'
@@ -9,7 +5,7 @@ import { getAccountEmail } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { fakeMailer } from '@circi/testing'
+import { fakeMailer, TEST_AUTH_SECRET, useTempDir } from '@circi/testing'
 import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -21,13 +17,13 @@ import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helper
 
 /** Changing your own email (confirmed from the new mailbox) and an instance admin changing someone's. */
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-email-change')
 let withMail: FastifyInstance
 let noMail: FastifyInstance
 const mailer = fakeMailer()
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',
-  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-1234',
+  BETTER_AUTH_SECRET: TEST_AUTH_SECRET,
   PUBLIC_URL: ORIGIN,
   SMTP_HOST: 'smtp.acme.test',
   SMTP_FROM: 'CirCI <ci@acme.test>',
@@ -57,8 +53,7 @@ async function mailsTo(address: string, count = 1) {
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-email-change-'))
-  const storage = new FsStorage({ path: dir })
+  const storage = new FsStorage({ path: tempDir.path })
   const auth = createTestAuth(t.db, mailer)
   withMail = buildServer({
     logger: pino({ level: 'silent' }),
@@ -88,7 +83,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await Promise.all([withMail.close(), noMail.close()])
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 describe('changing your own email', () => {

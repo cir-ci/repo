@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import type { Browser, Page } from 'playwright'
 
+import { sleep } from '#fakes/http.ts'
 import { ARTIFACTS_DIR } from '#stack/paths.ts'
 
 import { Session } from './admin.ts'
@@ -105,7 +106,7 @@ export async function waitForNewMail(
     )
     if (found) return mail.message(found.ID)
     if (Date.now() > deadline) throw new Error(`No new mail to ${to} within the timeout`)
-    await new Promise((r) => setTimeout(r, 250))
+    await sleep(250)
   }
 }
 

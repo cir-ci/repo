@@ -6,8 +6,9 @@ import { join } from 'node:path'
 
 import { Mailbox } from '#clients/mail.ts'
 import { S3_ACCESS_KEY, S3_BUCKET, S3_SECRET_KEY, S3Bucket } from '#clients/s3.ts'
+import { sleep } from '#fakes/http.ts'
 
-import { removeRunProjectsSync, run } from './docker.ts'
+import { run } from './docker.ts'
 import { ARTIFACTS_DIR, COMPOSE_FILE, REPO_ROOT } from './paths.ts'
 
 export namespace Stack {
@@ -437,12 +438,7 @@ async function waitHealthy(url: string, timeoutMs = 120_000): Promise<void> {
     } catch (err) {
       last = err instanceof Error ? err.message : String(err)
     }
-    await new Promise((r) => setTimeout(r, 300))
+    await sleep(300)
   }
   throw new Error(`${url}/healthz not healthy after ${timeoutMs} ms (${last})`)
-}
-
-/** For tests that start stacks by hand: removes every stack of this run. */
-export function removeAllStacks(): string[] {
-  return removeRunProjectsSync(runId())
 }

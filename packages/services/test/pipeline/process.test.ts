@@ -1,7 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { getBuild, getFile } from '@circi/db/queries'
 import {
   createBuild,
@@ -19,23 +15,21 @@ import {
   type readPngInfo,
 } from '@circi/diff'
 import { contentKey, FsStorage } from '@circi/storage'
-import { sha256 } from '@circi/testing'
+import { sha256, useTempDir } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createLoader, finalizeBuild, processBuild, reviewBuild } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-pipeline')
 let storage: FsStorage
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-pipeline-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 /** The image functions, faked and counted: the bytes here are labels, not PNGs. */

@@ -9,7 +9,7 @@ import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedDiff } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { fakeSha } from '@circi/testing'
+import { TEST_AUTH_SECRET, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
@@ -19,7 +19,7 @@ import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
-const SECRET = 'test-secret-that-is-long-enough-1234'
+const SECRET = TEST_AUTH_SECRET
 const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-trackers-'))
 const auth = createTestAuth(t.db)

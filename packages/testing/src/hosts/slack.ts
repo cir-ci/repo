@@ -49,9 +49,29 @@ export function fakeSlackHost(validTokens: string[]) {
   }
 }
 
-/** Slack's HTTP edge: records posts, answers the OAuth exchange and the channel list. */
-export function fakeSlackWorkspaceHost() {
+export namespace fakeSlackWorkspaceHost {
+  export interface Options {
+    /** The bot token the code `good` is exchanged for (default `xoxb-1`); `conversations.list` insists on it when given. */
+    token?: string
+    team?: { id: string; name: string }
+    botUserId?: string
+    channels?: { id: string; name: string; is_private: boolean }[]
+  }
+}
+
+/**
+ * Slack's HTTP edge: records posts, answers the OAuth exchange (the code `good`) and the channel
+ * list. `state.revoked` makes the channel list answer `token_revoked`, as Slack does once the app
+ * was removed.
+ */
+export function fakeSlackWorkspaceHost(options: fakeSlackWorkspaceHost.Options = {}) {
   const posts: Record<string, unknown>[] = []
+  const state = { revoked: false }
+  const token = options.token ?? 'xoxb-1'
+  const channels = options.channels ?? [
+    { id: 'C2', name: 'zeta', is_private: false },
+    { id: 'G1', name: 'alpha', is_private: true },
+  ]
   const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const method = new URL(req.url).pathname.split('/').at(-1)
@@ -60,8 +80,9 @@ export function fakeSlackWorkspaceHost() {
       return new URLSearchParams(text).get('code') === 'good'
         ? Response.json({
             ok: true,
-            access_token: 'xoxb-1',
-            team: { id: 'T1', name: 'Acme' },
+            access_token: token,
+            ...(options.botUserId ? { bot_user_id: options.botUserId } : {}),
+            team: options.team ?? { id: 'T1', name: 'Acme' },
           })
         : Response.json({ ok: false, error: 'invalid_code' })
     }
@@ -70,15 +91,13 @@ export function fakeSlackWorkspaceHost() {
       return Response.json({ ok: true, ts: '1.0' })
     }
     if (method === 'conversations.list') {
-      return Response.json({
-        ok: true,
-        channels: [
-          { id: 'C2', name: 'zeta', is_private: false },
-          { id: 'G1', name: 'alpha', is_private: true },
-        ],
-      })
+      if (state.revoked) return Response.json({ ok: false, error: 'token_revoked' })
+      if (options.token && req.headers.get('authorization') !== `Bearer ${options.token}`) {
+        return Response.json({ ok: false, error: 'invalid_auth' })
+      }
+      return Response.json({ ok: true, channels })
     }
     return new Response('boom', { status: 500 })
   }
-  return { ...fakeHost(behaviour), posts }
+  return { ...fakeHost(behaviour), posts, state }
 }

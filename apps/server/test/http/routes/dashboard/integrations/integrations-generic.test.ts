@@ -12,6 +12,7 @@ import {
 } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { fakeSlackWorkspaceHost } from '@circi/testing/hosts'
 import { pino } from 'pino'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -27,35 +28,15 @@ const dir = await mkdtemp(join(tmpdir(), 'circi-slack-'))
 const auth = createTestAuth(t.db)
 
 /** Slack's HTTP edge: one workspace behind the code `good`, one channel list, tokens can die. */
-let revoked = false
-const fetcher: typeof fetch = async (input, init) => {
-  const req = new Request(input, init)
-  const method = new URL(req.url).pathname.split('/').at(-1)
-  const form = new URLSearchParams(await req.text())
-  if (method === 'oauth.v2.access') {
-    return form.get('code') === 'good'
-      ? Response.json({
-          ok: true,
-          access_token: 'xoxb-installed',
-          bot_user_id: 'U1',
-          team: { id: 'T42', name: 'Acme Workspace' },
-        })
-      : Response.json({ ok: false, error: 'invalid_code' })
-  }
-  if (method === 'conversations.list') {
-    if (revoked) return Response.json({ ok: false, error: 'token_revoked' })
-    return req.headers.get('authorization') === 'Bearer xoxb-installed'
-      ? Response.json({
-          ok: true,
-          channels: [
-            { id: 'C02WEB1', name: 'web-reviews', is_private: false },
-            { id: 'G01DSGN', name: 'design', is_private: true },
-          ],
-        })
-      : Response.json({ ok: false, error: 'invalid_auth' })
-  }
-  return Response.json({ ok: false, error: 'unknown_method' })
-}
+const slackHost = fakeSlackWorkspaceHost({
+  token: 'xoxb-installed',
+  botUserId: 'U1',
+  team: { id: 'T42', name: 'Acme Workspace' },
+  channels: [
+    { id: 'C02WEB1', name: 'web-reviews', is_private: false },
+    { id: 'G01DSGN', name: 'design', is_private: true },
+  ],
+})
 
 const app = buildServer({
   logger: pino({ level: 'silent' }),
@@ -70,7 +51,7 @@ const app = buildServer({
       config: {
         slack: { clientId: 'cid', clientSecret: 'csecret', apiUrl: 'https://slack.test/api' },
       },
-      fetch: fetcher,
+      fetch: slackHost.fetcher,
     },
   },
 })
@@ -305,9 +286,9 @@ describe('the mapping page, targets and project mapping', () => {
 
   it('flags the workspace when Slack says the token is gone', async () => {
     const id = await installSlack()
-    revoked = true
+    slackHost.state.revoked = true
     const res = await call('GET', `${workspaceBase}/${id}/targets`, ownerCookie)
-    revoked = false
+    slackHost.state.revoked = false
     expect(res.statusCode).toBe(409)
     const row = (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')
     expect(row).toMatchObject({ needsAttention: true })

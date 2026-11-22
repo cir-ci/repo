@@ -1,36 +1,33 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import type { Mailer } from '@circi/auth'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { fakeMailer, useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { JSON_HEADERS } from '#test/support/client.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  otpFrom,
+  seedTenant,
+  signIn,
+  type Tenant,
+} from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-email')
 let tenant: Tenant
-const sent: Mailer.Mail[] = []
+const mailer = fakeMailer()
 let on: FastifyInstance
 let off: FastifyInstance
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-email-'))
-  const storage = new FsStorage({ path: dir })
-  const mailer = {
-    send: async (mail: Mailer.Mail) => {
-      sent.push(mail)
-    },
-  }
+  const storage = new FsStorage({ path: tempDir.path })
   const auth = createTestAuth(t.db, mailer)
   const deps = { db: t.db, auth, storage, publicOrigin: ORIGIN }
   on = buildServer({
@@ -45,7 +42,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await Promise.all([on.close(), off.close()])
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const requestCode = (app: FastifyInstance, email: string) =>
@@ -64,8 +60,8 @@ const signInWithCode = (app: FastifyInstance, email: string, otp: string) =>
     payload: { email, otp },
   })
 
-function codeOf(mail: Mailer.Mail | undefined): string {
-  const code = /sign-in code is (\d{6})/.exec(mail?.text ?? '')?.[1]
+function codeOf(mail: fakeMailer.Mail | undefined): string {
+  const code = otpFrom(mail)
   if (!code) throw new Error('no code in the mail')
   return code
 }
@@ -87,10 +83,11 @@ describe('email login', () => {
   })
 
   it('mails a code and a fragment link, and the code signs the person in', async () => {
-    sent.length = 0
+    mailer.sent.length = 0
     expect((await requestCode(on, tenant.owner.email)).statusCode).toBe(200)
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    const [mail] = sent
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    const [mail] = mailer.sent
     expect(mail?.to).toBe(tenant.owner.email)
     expect(mail?.text).toContain(
       `${ORIGIN}/#signin-email=${encodeURIComponent(tenant.owner.email)}&code=`,
@@ -109,19 +106,21 @@ describe('email login', () => {
   })
 
   it('a code works once', async () => {
-    sent.length = 0
+    mailer.sent.length = 0
     await requestCode(on, tenant.owner.email)
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    const code = codeOf(sent[0])
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    const code = codeOf(mailer.sent[0])
     expect((await signInWithCode(on, tenant.owner.email, code)).statusCode).toBe(200)
     expect((await signInWithCode(on, tenant.owner.email, code)).statusCode).not.toBe(200)
   })
 
   it('locks a code after 5 wrong attempts', async () => {
-    sent.length = 0
+    mailer.sent.length = 0
     await requestCode(on, tenant.owner.email)
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    const code = codeOf(sent[0])
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    const code = codeOf(mailer.sent[0])
     const wrong = code === '000000' ? '111111' : '000000'
     for (let i = 0; i < 5; i++) {
       // oxlint-disable-next-line no-await-in-loop -- attempts are counted in order
@@ -131,12 +130,13 @@ describe('email login', () => {
   })
 
   it('answers the same for unknown addresses, and sends them nothing', async () => {
-    sent.length = 0
+    mailer.sent.length = 0
     const known = await requestCode(on, tenant.owner.email)
     const unknown = await requestCode(on, 'nobody@acme.test')
     expect(unknown.statusCode).toBe(known.statusCode)
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    expect(sent.map((m) => m.to)).toEqual([tenant.owner.email])
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    expect(mailer.sent.map((m) => m.to)).toEqual([tenant.owner.email])
     // And no account was created for them.
     expect((await signInWithCode(on, 'nobody@acme.test', '123456')).statusCode).not.toBe(200)
   })
@@ -147,13 +147,14 @@ describe('email login', () => {
       .update(schema.user)
       .set({ banned: true, banExpires: null })
       .where(eq(schema.user.email, banned.owner.email))
-    sent.length = 0
+    mailer.sent.length = 0
     const known = await requestCode(on, tenant.owner.email)
     const ban = await requestCode(on, banned.owner.email)
     expect(ban.statusCode).toBe(known.statusCode)
     expect(ban.json()).toEqual(known.json())
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    expect(sent.map((m) => m.to)).toEqual([tenant.owner.email])
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    expect(mailer.sent.map((m) => m.to)).toEqual([tenant.owner.email])
   })
 
   it('has no email-code endpoints when switched off', async () => {
@@ -176,7 +177,7 @@ async function invite(email: string, role = 'member') {
     headers: { cookie: ownerCookie, origin: ORIGIN },
     query: { organizationSlug: tenant.workspaceSlug },
   })
-  sent.length = 0
+  mailer.sent.length = 0
   const res = await on.inject({
     method: 'POST',
     url: '/api/auth/organization/invite-member',
@@ -184,8 +185,9 @@ async function invite(email: string, role = 'member') {
     payload: { email, role, organizationId: workspace.json().id },
   })
   expect(res.statusCode).toBe(200)
-  await vi.waitFor(() => expect(sent).toHaveLength(1))
-  return { invitationId: String(res.json().id), mail: sent[0] }
+  await mailer.idle()
+  expect(mailer.sent).toHaveLength(1)
+  return { invitationId: String(res.json().id), mail: mailer.sent[0] }
 }
 
 describe('invitations', () => {
@@ -195,10 +197,11 @@ describe('invitations', () => {
     expect(mail?.to).toBe(email)
     expect(mail?.text).toContain(`${ORIGIN}/#invite=${invitationId}&email=`)
 
-    sent.length = 0
+    mailer.sent.length = 0
     await requestCode(on, email)
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
-    const res = await signInWithCode(on, email, codeOf(sent[0]))
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    const res = await signInWithCode(on, email, codeOf(mailer.sent[0]))
     expect(res.statusCode).toBe(200)
     const cookie = cookieOf(res)
 
@@ -234,10 +237,11 @@ describe('invitations', () => {
   })
 
   it('still creates no account for an address nobody invited', async () => {
-    sent.length = 0
+    mailer.sent.length = 0
     await requestCode(on, 'stranger@acme.test')
     // The mail (if any) is sent before the request is answered, so nothing is still to come.
-    expect(sent).toHaveLength(0)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(0)
     expect((await signInWithCode(on, 'stranger@acme.test', '123456')).statusCode).not.toBe(200)
   })
 })
@@ -250,7 +254,7 @@ const signInFrom = (userAgent: string) =>
     payload: { email: tenant.owner.email, password: tenant.owner.password },
   })
 
-const newSignInMails = () => sent.filter((m) => m.subject.startsWith('New sign-in'))
+const newSignInMails = () => mailer.sent.filter((m) => m.subject.startsWith('New sign-in'))
 
 const post = (app: FastifyInstance, url: string, payload: object) =>
   app.inject({ method: 'POST', url, headers: JSON_HEADERS, payload })
@@ -270,10 +274,11 @@ describe('which email-code paths exist', () => {
   ] as const
 
   it.each(unused)('%s does not exist, with email codes on or off', async (url, payload) => {
-    sent.length = 0
+    mailer.sent.length = 0
     expect((await post(on, url, payload)).statusCode).toBe(404)
     expect((await post(off, url, payload)).statusCode).toBe(404)
-    expect(sent).toHaveLength(0)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(0)
   })
 
   it('keeps the two paths the sign-in page uses only while email codes are on', async () => {
@@ -310,9 +315,10 @@ describe('abuse limits and new-device mail', () => {
   it('mails the owner once per browser the account has not been used from before', async () => {
     // The account has been used before, from the default test client.
     await signIn(on, tenant.owner.email, tenant.owner.password)
-    sent.length = 0
+    mailer.sent.length = 0
     expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)
-    await vi.waitFor(() => expect(newSignInMails()).toHaveLength(1))
+    await mailer.idle()
+    expect(newSignInMails()).toHaveLength(1)
     const mail = newSignInMails()[0]
     expect(mail?.to).toBe(tenant.owner.email)
     expect(mail?.text).toContain('Firefox/130 (Macintosh)')
@@ -321,7 +327,8 @@ describe('abuse limits and new-device mail', () => {
     // The same browser again: nothing more. A different one: another mail.
     expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)
     expect((await signInFrom('Safari/17 (iPhone)')).statusCode).toBe(200)
-    await vi.waitFor(() => expect(newSignInMails()).toHaveLength(2))
+    await mailer.idle()
+    expect(newSignInMails()).toHaveLength(2)
     expect(newSignInMails()[1]?.text).toContain('Safari/17 (iPhone)')
   })
 })

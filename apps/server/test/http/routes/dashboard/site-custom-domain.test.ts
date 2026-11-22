@@ -7,6 +7,7 @@ import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import type { SiteDnsResolver } from '@circi/services'
 import { FsStorage } from '@circi/storage'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -71,7 +72,7 @@ beforeAll(async () => {
       storage,
       publicOrigin: DASH,
       sites,
-      secret: 'test-secret-that-is-long-enough-1234',
+      secret: TEST_AUTH_SECRET,
       revalidateMs: 0,
     },
     tlsAsk: { db: t.db, maxPerMinute: 1000 },

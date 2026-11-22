@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { acme, acmeCookie } = fx
@@ -11,7 +11,7 @@ const post = (url: string, payload: unknown, cookie = acmeCookie) =>
   fx.app.inject({
     method: 'POST',
     url,
-    headers: { origin: ORIGIN, 'content-type': 'application/json', cookie },
+    headers: { ...JSON_HEADERS, cookie },
     payload: JSON.stringify(payload),
   })
 

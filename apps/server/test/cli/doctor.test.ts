@@ -3,14 +3,14 @@ import { tmpdir } from 'node:os'
 
 import { loadConfig } from '@circi/config'
 import { createStorage } from '@circi/storage'
-import { fakeMailer } from '@circi/testing'
+import { TEST_AUTH_SECRET, fakeMailer } from '@circi/testing'
 import { describe, expect, it } from 'vitest'
 
 import { domainCookies, parentDomain, runDoctor } from '#composition/doctor.ts'
 
 const base = {
   DATABASE_URL: 'postgres://localhost/circi',
-  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-123',
+  BETTER_AUTH_SECRET: TEST_AUTH_SECRET,
   PUBLIC_URL: 'https://ci.acme.io',
   STATIC_SITES_HOST: 'acme-sites.com',
 }

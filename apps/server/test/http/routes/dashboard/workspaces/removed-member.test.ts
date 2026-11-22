@@ -1,8 +1,9 @@
 import { createUser } from '@circi/auth'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN, signIn, addMember } from '#test/support/helpers.ts'
+import { signIn, addMember } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, db, auth, acme, acmeCookie, get, buildDetail } = fx
@@ -46,7 +47,7 @@ describe('a member who is removed from a workspace', () => {
     const removed = await app.inject({
       method: 'POST',
       url: '/api/auth/organization/remove-member',
-      headers: { cookie: acmeCookie, origin: ORIGIN, 'content-type': 'application/json' },
+      headers: { ...JSON_HEADERS, cookie: acmeCookie },
       payload: { memberIdOrEmail: seat?.id, organizationId: body.id },
     })
     expect(removed.statusCode).toBe(200)

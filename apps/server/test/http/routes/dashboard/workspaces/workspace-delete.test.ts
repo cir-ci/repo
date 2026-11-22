@@ -1,7 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import type { InstanceAdmin, Workspace } from '@circi/api'
 import { createUser } from '@circi/auth'
 import { getWorkspaceBySlug } from '@circi/db/queries'
@@ -9,6 +5,7 @@ import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { runRetention } from '@circi/services'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -26,16 +23,20 @@ import {
 } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-delete')
 let app: FastifyInstance
 let auth: ReturnType<typeof createTestAuth>
 let adminCookie: string
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-delete-'))
   auth = createTestAuth(t.db)
-  const deps = { db: t.db, auth, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN }
+  const deps = {
+    db: t.db,
+    auth,
+    storage: new FsStorage({ path: tempDir.path }),
+    publicOrigin: ORIGIN,
+  }
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
@@ -54,7 +55,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const call = caller(() => app)

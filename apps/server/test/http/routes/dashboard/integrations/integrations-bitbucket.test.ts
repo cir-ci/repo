@@ -84,17 +84,6 @@ async function connectAcme(
 describe('POST /api/workspaces/:workspace/integrations/bitbucket/connect', () => {
   const connect = { bitbucketWorkspace: 'Acme-WS', token: 'good' }
 
-  it('needs a session, a workspace you belong to, and an owner or admin', async () => {
-    expect((await call('POST', `${base}/bitbucket/connect`, '', connect)).statusCode).toBe(401)
-    expect((await call('POST', `${base}/bitbucket/connect`, rivalCookie, connect)).statusCode).toBe(
-      404,
-    )
-    expect((await call('POST', `${base}/bitbucket/connect`, louCookie, connect)).statusCode).toBe(
-      403,
-    )
-    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
-  })
-
   it('validates the body', async () => {
     for (const body of [
       {},

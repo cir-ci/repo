@@ -1,5 +1,7 @@
 import type { Live } from '@circi/api'
 
+import { sleep } from '#fakes/http.ts'
+
 import type { Session } from './admin.ts'
 import { clientAddressHeaders } from './client-address.ts'
 
@@ -127,7 +129,7 @@ export class LiveStream {
         )
       }
       // oxlint-disable-next-line no-await-in-loop -- polling
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await sleep(20)
     }
   }
 
@@ -138,7 +140,7 @@ export class LiveStream {
       if (performance.now() > deadline)
         throw new Error(`the stream did not end within ${timeoutMs} ms`)
       // oxlint-disable-next-line no-await-in-loop -- polling
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await sleep(20)
     }
     await this.#done
   }

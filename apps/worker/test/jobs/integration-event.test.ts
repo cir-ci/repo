@@ -5,15 +5,14 @@ import { join } from 'node:path'
 import { sealSecret } from '@circi/core/node'
 import { getIntegration } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
-import { createBuild, createIntegration, setIntegrationProject } from '@circi/db/repositories'
+import { createIntegration, setIntegrationProject } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestMember,
   createTestDb,
+  seedBuild,
+  seedMember,
   seedProject,
   seedReviewRequest,
-  seedUser,
-  seedChangedSnapshots,
 } from '@circi/db/testing'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
@@ -39,18 +38,14 @@ afterAll(async () => {
 async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
   await t.db.delete(schema.jobs)
   const { project, workspace, owner } = await seedProject(t.db)
-  const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const reviewer = await seedMember(t.db, workspace.id)
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: 'f',
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['home'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
-  await seedChangedSnapshots(t.db, build.id)
   const integration = await createIntegration(t.db, {
     workspaceId: workspace.id,
     kind: 'slack',

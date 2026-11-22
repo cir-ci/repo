@@ -1,3 +1,5 @@
+import { sleep } from '#fakes/http.ts'
+
 /**
  * A client for Mailpit's HTTP API (https://mailpit.axllent.org/docs/api-v1/): the stack's SMTP
  * server catches everything CirCI sends.
@@ -90,7 +92,7 @@ export class Mailbox {
           `No mail to ${options.to} within ${options.timeoutMs ?? 30_000} ms. Mailbox holds: ${JSON.stringify(seen)}`,
         )
       }
-      await new Promise((r) => setTimeout(r, 250))
+      await sleep(250)
     }
   }
 }

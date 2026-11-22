@@ -1,15 +1,13 @@
 import { GIT_NOTIFY_QUEUE, QUEUES } from '@circi/db/queue'
-import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestMember,
   createTestDb,
-  seedChangedSnapshots,
+  seedBuild,
   seedGitLink,
+  seedMember,
   seedNotification,
-  seedReviewRequest,
   seedProject,
-  seedUser,
+  seedReviewRequest,
 } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -30,20 +28,16 @@ const jobs = async (queue: string) =>
 /** A finished build with changes to `a`, `b` and `c`, written by `ann`, reviewed by the owner. */
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const ann = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: ann.id })
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const ann = await seedMember(t.db, workspace.id)
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: 'feature',
     author: { login: 'ann', userId: ann.id },
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['a', 'b', 'c'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
   await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'acme/web' })
-  await seedChangedSnapshots(t.db, build.id, ['a', 'b', 'c'])
   await t.db.delete(schema.jobs)
   return { owner, ann, build }
 }

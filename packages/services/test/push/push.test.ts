@@ -10,7 +10,7 @@ import {
   setNotificationPreferences,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject, seedUser } from '@circi/db/testing'
 import { fakeMailer } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -97,8 +97,7 @@ const jobFor = (notificationId: string): Job => ({
 
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
+  const reviewer = await seedMember(t.db, workspace.id)
   const build = await createBuild(t.db, {
     projectId: project.id,
     commitSha: 'abc1234',

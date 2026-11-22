@@ -74,15 +74,6 @@ async function connectAcme(body: Record<string, unknown> = connect) {
 }
 
 describe('POST /api/workspaces/:workspace/integrations/gitlab/connect', () => {
-  it('needs a session, a workspace you belong to, and an owner or admin', async () => {
-    expect((await call('POST', `${base}/gitlab/connect`, '', connect)).statusCode).toBe(401)
-    expect((await call('POST', `${base}/gitlab/connect`, rivalCookie, connect)).statusCode).toBe(
-      404,
-    )
-    expect((await call('POST', `${base}/gitlab/connect`, louCookie, connect)).statusCode).toBe(403)
-    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
-  })
-
   it('validates the body and the address', async () => {
     for (const body of [
       {},

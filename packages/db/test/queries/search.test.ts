@@ -2,6 +2,7 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
+  seedMember,
   seedProject,
   seedReviewRequest,
   seedScreenshot,
@@ -129,8 +130,7 @@ describe('searchWorkspace', () => {
 describe('listBuildsForProject filters', () => {
   it('filters by status, review, branch, author, reviewer, name and date', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const mate = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const mate = await seedMember(t.db, workspace.id)
     const b1 = await seedBuild(t.db, project.id, {
       ...done,
       branch: 'main',
