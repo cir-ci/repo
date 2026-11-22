@@ -103,10 +103,6 @@ always computed.
 
 ## Known problems and approximations
 
-- The built bundle's `admin project create` exits before it prints (Node reports an unsettled
-  top-level await; the project row is created, but no token is returned). The seed therefore runs the admin
-  commands from source, like `dev/src/seed.ts`. The server and the worker that are measured run from
-  the bundle, and CI-token authentication works there.
 - CPU figures are per process and relative to one core (200 = two cores). Postgres is the Docker VM's
   view and sampled about every 2 seconds, so short runs have few samples. The one-second samples
   of the peak are averages over that second, not instants.
