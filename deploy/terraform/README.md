@@ -23,7 +23,8 @@ provider "docker" {
 module "circi" {
   source = "git::https://github.com/cir-ci/repo.git//deploy/terraform?ref=@circi/server@0.1.0"
 
-  circi_version      = "0.1.0"
+  circi_version      = "0.1.0"                # the image tag: ghcr.io/cir-ci/circi:0.1.0, and circi-caddy:0.1.0
+  image_repository   = "ghcr.io/cir-ci/circi" # the default; a mirror of it works too
   better_auth_secret = var.better_auth_secret # openssl rand -base64 32; keep it stable
   postgres_password  = var.postgres_password
 
@@ -38,6 +39,19 @@ module "circi" {
     user = var.smtp_user
   }
   smtp_password = var.smtp_password
+}
+```
+
+The images come from GitHub's container registry: `ghcr.io/cir-ci/circi:<version>` for the app and `ghcr.io/cir-ci/circi-caddy:<version>` for Caddy, both `linux/amd64`. To pull from a mirror, set `image_repository` to it (the Caddy image is `<repository>-caddy`). If your registry needs a login, give the Docker provider its credentials:
+
+```hcl
+provider "docker" {
+  host = "ssh://ubuntu@ci.acme.io"
+  registry_auth {
+    address  = "registry.acme.io"
+    username = var.registry_user
+    password = var.registry_password
+  }
 }
 ```
 
