@@ -1,5 +1,5 @@
 ---
-'@circi/server': patch
+'@circi/web': patch
 ---
 
-WorkspaceGeneralPage test: wait for the avatar stack's spread to stop before hovering the +N chip; on CI's slower machine the chip was still moving and the tooltip never opened
+A dashboard test that hovers a project's "+N" chip waits for the avatar stack's spread animation to finish first; it failed now and then on slower machines.
