@@ -7,8 +7,19 @@ import { STABILIZE_CSS } from '@circi/cli/names'
 
 export const STABILIZE_ID = 'circi-stabilize'
 
+// A browser only runs animation-frame callbacks while it paints the page, and a busy CI machine
+// can leave Cypress's page unpainted long enough to pass `cy.then()`'s 4 s limit (it did, once). The
+// timer is the floor: a frame that doesn't come within 100 ms isn't waited for.
+const FRAME_FALLBACK_MS = 100
+
 const frame = (win: Window): Promise<void> =>
-  new Promise((r) => win.requestAnimationFrame(() => r()))
+  new Promise((r) => {
+    const timer = win.setTimeout(r, FRAME_FALLBACK_MS)
+    win.requestAnimationFrame(() => {
+      win.clearTimeout(timer)
+      r()
+    })
+  })
 
 /** Add the stabilizing style, then wait for fonts and two painted frames. */
 export async function settle(win: Window): Promise<void> {
