@@ -1,12 +1,6 @@
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedUser,
-  seedChangedSnapshots,
-} from '@circi/db/testing'
+import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/db/testing'
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -217,16 +211,13 @@ describe('comment structure and permissions', () => {
 describe('reject reason', () => {
   it('is stored on the review and sent to the author', async () => {
     const { project, ann, owner } = await setup()
-    const build = await createBuild(t.db, {
-      projectId: project.id,
+    const build = await seedBuild(t.db, project.id, {
       commitSha: 'def5678',
       author: { login: 'ann', userId: ann.id },
+      status: 'complete',
+      conclusion: 'changes_detected',
+      changedSnapshots: ['home'],
     })
-    await t.db
-      .update(schema.builds)
-      .set({ status: 'complete', conclusion: 'changes_detected' })
-      .where(eq(schema.builds.id, build.id))
-    await seedChangedSnapshots(t.db, build.id)
     await reviewBuild(t.db, {
       buildId: build.id,
       userId: owner.id,

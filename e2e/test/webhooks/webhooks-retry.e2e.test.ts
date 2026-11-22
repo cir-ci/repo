@@ -6,6 +6,7 @@ import { disableWebhooks, failures, gapsOf, hookJobs } from '#clients/webhook-jo
 import { listen } from '#fakes/http.ts'
 import { startWebhookReceiver } from '#fakes/webhook-receiver.ts'
 import { Repo } from '#github/git-repo.ts'
+import { FAST_JOB_CLOCK } from '#stack/job-clock.ts'
 import { useStack } from '#stack/vitest.ts'
 
 /**
@@ -16,16 +17,13 @@ import { useStack } from '#stack/vitest.ts'
  * unit tests of `retryDelayMs` and `loadConfig`. Dedicated stack: the other webhook tests
  * (webhooks.browser.e2e.test.ts) must see the real schedule, and these retry quickly.
  */
-const BASE_MS = 500
+const BASE_MS = FAST_JOB_CLOCK.retryBaseMs
 
 describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () => {
   const ctx = useStack({
     dedicated: true,
     setup: true,
-    env: {
-      JOB_RETRY_BASE_SECONDS: String(BASE_MS / 1000),
-      WEBHOOK_TIMEOUT_SECONDS: '2',
-    },
+    env: FAST_JOB_CLOCK.env,
   })
   let repo: Repo
   let project: CreatedProject
@@ -158,9 +156,12 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
     expect(hits).toBeGreaterThanOrEqual(1)
     // Both are still being retried, not abandoned after one: waiting for the next attempt, or (on this
     // fast clock) in the middle of it. Only `failed` would mean it gave up; `done` can't happen here.
-    const job = (await hookJobs(stack, refused.webhook.id))[0]
-    expect(job?.attempts).toBeGreaterThanOrEqual(2)
-    expect(['pending', 'running']).toContain(job?.status)
+    await expect
+      .poll(async () => {
+        const job = (await hookJobs(stack, refused.webhook.id))[0]
+        return job !== undefined && job.attempts >= 2 && ['pending', 'running'].includes(job.status)
+      })
+      .toBe(true)
     await disableWebhooks(stack, refused.webhook.id, slow.webhook.id)
   })
 })

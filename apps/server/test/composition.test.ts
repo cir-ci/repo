@@ -4,6 +4,7 @@ import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
 import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { createInstanceConfig } from '@circi/services'
+import { fakeTimers, TEST_AUTH_SECRET } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { instanceEnvOf } from '#composition/instance-env.ts'
@@ -14,7 +15,7 @@ import { announceStartup } from '#composition/startup.ts'
 
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',
-  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-123',
+  BETTER_AUTH_SECRET: TEST_AUTH_SECRET,
   PUBLIC_URL: 'https://ci.acme.io',
 }
 
@@ -117,21 +118,17 @@ describe('createShutdown', () => {
   })
 
   it('gives up and exits 1 when closing hangs', async () => {
-    vi.useFakeTimers()
-    try {
-      const exit = vi.fn<(code: number) => void>()
-      const hung = createShutdown({
-        logger: quiet,
-        close: () => new Promise(() => {}),
-        exit,
-        timeoutMs: 50,
-      })('SIGTERM')
-      await vi.advanceTimersByTimeAsync(60)
-      expect(exit).toHaveBeenCalledWith(1)
-      void hung
-    } finally {
-      vi.useRealTimers()
-    }
+    const clock = fakeTimers()
+    const exit = vi.fn<(code: number) => void>()
+    const hung = createShutdown({
+      logger: quiet,
+      close: () => new Promise(() => {}),
+      exit,
+      timeoutMs: 50,
+    })('SIGTERM')
+    await clock.advance(60)
+    expect(exit).toHaveBeenCalledWith(1)
+    void hung
   })
 })
 

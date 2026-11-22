@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   forgetQueries,
+  type PersistOptions,
   purgePersisted,
   restorePersisted,
   startPersisting,
@@ -23,13 +24,19 @@ afterEach(async () => {
   await clear(idb())
 })
 
-/** The persister throttles its writes by two seconds; fake timers would starve IndexedDB, so wait for real. */
+/**
+ * The persister throttles its writes (2 s in the app; these tests ask for 20 ms: fake timers would
+ * starve IndexedDB, so the waits are real). A write is expected within a few throttle periods, and
+ * "nothing is written back" is shown by waiting out several.
+ */
+const THROTTLE: PersistOptions = { throttleMs: 20 }
+const LATE_WRITE_MS = 100
 async function untilStored(userId: string, marker = 'items') {
   // The first write (the query was added, still empty) can come before the data: wait for the data.
   await vi.waitFor(
     async () => expect(await get(`user:${userId}`, idb())).toContain(`"${marker}"`),
     {
-      timeout: 6000,
+      timeout: 3000,
     },
   )
 }
@@ -37,7 +44,7 @@ async function untilStored(userId: string, marker = 'items') {
 describe('the stored query cache', () => {
   it('stores allowlisted data and a new session restores it, but never a token or a secret', async () => {
     const first = client()
-    startPersisting(first, 'u1')
+    startPersisting(first, 'u1', THROTTLE)
     first.setQueryData(['inbox', 'for-you'], { items: [{ id: 'n1' }] })
     first.setQueryData(['token', 'acme', 'web'], { prefix: 'circi_AbC1' })
     first.setQueryData(['integrations', 'acme'], { webhook: { secret: 'shh' } })
@@ -45,9 +52,9 @@ describe('the stored query cache', () => {
 
     // A new page load: nothing in memory is active any more (another person's restore stops the
     // first's writes without touching what is stored).
-    await restorePersisted(client(), 'someone-else')
+    await restorePersisted(client(), 'someone-else', THROTTLE)
     const second = client()
-    await restorePersisted(second, 'u1')
+    await restorePersisted(second, 'u1', THROTTLE)
     expect(second.getQueryData(['inbox', 'for-you'])).toEqual({ items: [{ id: 'n1' }] })
     expect(second.getQueryData(['token', 'acme', 'web'])).toBeUndefined()
     expect(second.getQueryData(['integrations', 'acme'])).toBeUndefined()
@@ -55,16 +62,16 @@ describe('the stored query cache', () => {
 
   it('draws a restored page at once but fetches it again, even when it was fetched a moment ago', async () => {
     const first = client()
-    startPersisting(first, 'u1')
+    startPersisting(first, 'u1', THROTTLE)
     first.setQueryData(['workspace-domains', 'acme'], { domains: [{ verified: false }] })
     await untilStored('u1', 'domains')
 
     // A reload seconds later: the stored copy is younger than staleTime, and would count as fresh.
-    await restorePersisted(client(), 'someone-else')
+    await restorePersisted(client(), 'someone-else', THROTTLE)
     const second = new QueryClient({
       defaultOptions: { queries: { gcTime: 24 * 3600_000, staleTime: 60_000 } },
     })
-    await restorePersisted(second, 'u1')
+    await restorePersisted(second, 'u1', THROTTLE)
     expect(second.getQueryData(['workspace-domains', 'acme'])).toEqual({
       domains: [{ verified: false }],
     })
@@ -86,25 +93,25 @@ describe('the stored query cache', () => {
   it('stores what was already fetched when it starts, not only what changes afterwards', async () => {
     const first = client()
     first.setQueryData(['inbox', 'for-you'], { items: [{ id: 'early' }] })
-    startPersisting(first, 'u1')
+    startPersisting(first, 'u1', THROTTLE)
     await untilStored('u1', 'early')
     expect(await get('user:u1', idb())).toContain('"early"')
   })
 
   it("never shows one person another person's data", async () => {
     const first = client()
-    startPersisting(first, 'u1')
+    startPersisting(first, 'u1', THROTTLE)
     first.setQueryData(['inbox', 'for-you'], { items: [1] })
     await untilStored('u1')
 
     const other = client()
-    await restorePersisted(other, 'u2')
+    await restorePersisted(other, 'u2', THROTTLE)
     expect(other.getQueryData(['inbox', 'for-you'])).toBeUndefined()
   })
 
   it('is emptied by a purge: the data, the remembered person, and what a late write would add', async () => {
     const first = client()
-    startPersisting(first, 'u1')
+    startPersisting(first, 'u1', THROTTLE)
     writeSessionHint({ id: 'u1', name: 'Ada', email: 'a@b.test', image: null })
     first.setQueryData(['inbox', 'for-you'], { items: [1] })
     await untilStored('u1')
@@ -114,12 +121,12 @@ describe('the stored query cache', () => {
     expect(readSessionHint()).toBeNull()
     // A change after the purge is not written back.
     first.setQueryData(['inbox', 'for-you'], { items: [2] })
-    await new Promise((resolve) => setTimeout(resolve, 2600))
+    await new Promise((resolve) => setTimeout(resolve, LATE_WRITE_MS))
     expect(await stored()).toEqual([])
     const again = client()
-    await restorePersisted(again, 'u1')
+    await restorePersisted(again, 'u1', THROTTLE)
     expect(again.getQueryData(['inbox', 'for-you'])).toBeUndefined()
-  }, 15_000)
+  })
 
   it("purging also forgets the person's recent visits and searches and the installed app's tabs", async () => {
     useRecentStore.getState().record('acme', {
@@ -153,7 +160,7 @@ describe('the stored query cache', () => {
 
   it("another tab's purge stops this tab storing and empties its memory", async () => {
     const mine = client()
-    startPersisting(mine, 'u1')
+    startPersisting(mine, 'u1', THROTTLE)
     mine.setQueryData(['inbox', 'for-you'], { items: [1] })
     await untilStored('u1')
     // The other tab's purge deleted the store; this tab must not write it back.
@@ -164,9 +171,9 @@ describe('the stored query cache', () => {
     other.close()
     await vi.waitFor(() => expect(mine.getQueryData(['inbox', 'for-you'])).toBeUndefined())
     mine.setQueryData(['inbox', 'for-you'], { items: [2] })
-    await new Promise((resolve) => setTimeout(resolve, 2600))
+    await new Promise((resolve) => setTimeout(resolve, LATE_WRITE_MS))
     expect(await stored()).toEqual([])
-  }, 15_000)
+  })
 
   it("forgetting drops the old person's data but leaves a page that is loading its own to finish", async () => {
     const mine = client()

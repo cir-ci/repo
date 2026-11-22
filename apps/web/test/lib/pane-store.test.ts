@@ -1,7 +1,25 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PANES, PANE_IDS, paneWidth } from '#lib/panes.ts'
 import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
+
+const items = new Map<string, string>()
+const memoryStorage = {
+  getItem: (k: string) => items.get(k) ?? null,
+  setItem: (k: string, v: string) => void items.set(k, v),
+  removeItem: (k: string) => void items.delete(k),
+}
+
+beforeEach(() => {
+  items.clear()
+  vi.stubGlobal('localStorage', memoryStorage)
+  usePaneStore.getState().reset()
+})
+afterEach(() => vi.unstubAllGlobals())
+
+const blocked = () => {
+  throw new Error('blocked')
+}
 
 const stored = () => JSON.parse(localStorage.getItem(PANES_KEY) ?? 'null')?.state
 
@@ -74,18 +92,11 @@ describe('pane store', () => {
   })
 
   it('still works for this visit when storage throws', async () => {
-    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
-    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked')
-    })
+    vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked, removeItem: blocked })
     await usePaneStore.persist.rehydrate()
     usePaneStore.getState().setWidth('sidebar', 300)
     usePaneStore.getState().setCollapsed('sidebar', true)
     expect(usePaneStore.getState().widths.sidebar).toBe(300)
     expect(usePaneStore.getState().collapsed.sidebar).toBe(true)
-    get.mockRestore()
-    set.mockRestore()
   })
 })

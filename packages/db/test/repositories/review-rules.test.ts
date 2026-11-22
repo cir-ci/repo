@@ -1,4 +1,4 @@
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject, seedUser } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -23,8 +23,7 @@ afterAll(async () => {
 
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const mate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+  const mate = await seedMember(t.db, workspace.id)
   const stranger = await seedUser(t.db)
   return { project, owner, mate, stranger }
 }

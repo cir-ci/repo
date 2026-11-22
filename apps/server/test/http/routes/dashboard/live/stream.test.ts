@@ -150,9 +150,11 @@ describe('GET /api/live', () => {
     await emitUserLive(fx.db, 'notification.created', user.id)
     await emitUserLive(fx.db, 'notification.created', fx.acme.owner.id)
     await expect.poll(() => s.events()).toEqual([{ type: 'notification.created' }])
-    // Give the stream room to (wrongly) send more.
-    await new Promise((r) => setTimeout(r, 100))
-    expect(s.events()).toEqual([{ type: 'notification.created' }])
+    // A marker after the rest, in order: once it is here nothing else came before it.
+    await emitUserLive(fx.db, 'notification.read', user.id)
+    await expect
+      .poll(() => s.events())
+      .toEqual([{ type: 'notification.created' }, { type: 'notification.read' }])
   })
 
   it('sends an inbox event to its person only', async () => {

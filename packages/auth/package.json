@@ -27,6 +27,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@circi/testing": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@types/nodemailer": "catalog:",
     "auth": "catalog:"

@@ -1,20 +1,11 @@
-import { CirciTheme } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  RouterProvider,
 } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { Shell } from '#app/Shell.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
@@ -22,7 +13,10 @@ import { PANES } from '#lib/panes.ts'
 import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
 import { workspace as instanceWorkspace } from '#test/features/instance/fixtures.ts'
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
+import { fakeFetch, getRoutes } from '#test/support/fetch.ts'
 import { headerButton, pageHeader } from '#test/support/header.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
+import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, parentOf } from '#test/support/resize.ts'
 import { openDialogs } from '#test/support/toast.ts'
 
@@ -221,14 +215,7 @@ async function renderShell(path: string) {
     routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: [path] }),
   })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await render(
-    <CirciTheme>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  const { queryClient } = await renderPage(null, { router })
   return { router, queryClient }
 }
 
@@ -236,24 +223,11 @@ const auth = mockAuthClient()
 
 beforeEach(() => {
   auth.signOut.mockReset().mockResolvedValue(undefined)
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: string | URL | Request) => {
-      const path = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-        .pathname
-      const body = API[path]
-      return Promise.resolve(
-        body === undefined
-          ? new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
-          : new Response(JSON.stringify(body), { status: 200 }),
-      )
-    }),
-  )
+  fakeFetch(getRoutes(API))
 })
 
 afterEach(() => {
   API['/api/capabilities'] = BASE_CAPS
-  vi.unstubAllGlobals()
 })
 
 describe('Shell, wide', () => {
@@ -1542,7 +1516,7 @@ describe('Shell, phone', () => {
     const bar = tabs().element().getBoundingClientRect()
     expect(Math.round(bar.bottom)).toBe(844)
     expect(getComputedStyle(tabs().element()).paddingBottom).toBe('0px')
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 
   it('moves between Inbox and Reviews without a reload', async () => {
@@ -1691,7 +1665,7 @@ describe('Shell, phone', () => {
       await page.viewport(390, 844)
       const { router } = await renderShell(path)
       await expect.poll(() => router.state.status).toBe('idle')
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+      expectNoSidewaysScroll()
     },
   )
 })

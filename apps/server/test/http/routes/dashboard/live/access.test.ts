@@ -3,8 +3,9 @@ import { createUser } from '@circi/auth'
 import { emitBuildLive, emitUserLive } from '@circi/services'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN, addMember, signIn } from '#test/support/helpers.ts'
+import { addMember, signIn } from '#test/support/helpers.ts'
 
 /**
  * Access changes reach an open stream at once, not at the next heartbeat: the heartbeat here is a
@@ -70,12 +71,12 @@ afterAll(() => {
 })
 
 const acmeBuild = () => ({ projectId: fx.acme.project.id, number: 2 })
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
+const json = JSON_HEADERS
 
 /** A member of acme (no project membership) with a signed-in session, and what the owner needs to change their seat. */
 async function newMember(name: string) {
   const who = { email: `${name}@acme.test`, password: 'member-password-long-1' }
-  await createUser(fx.auth, { ...who, name })
+  const user = await createUser(fx.auth, { ...who, name })
   await addMember(fx.auth, fx.db, {
     workspaceSlug: fx.acme.workspaceSlug,
     email: who.email,
@@ -90,7 +91,7 @@ async function newMember(name: string) {
   })
   const body: { id: string; members: { id: string; user: { email: string } }[] } = roster.json()
   const seat = body.members.find((m) => m.user.email === who.email)
-  return { cookie, seatId: seat?.id ?? '', workspaceId: body.id, who }
+  return { cookie, seatId: seat?.id ?? '', workspaceId: body.id, who, userId: user.id }
 }
 
 describe('access changes on an open stream', () => {
@@ -144,22 +145,22 @@ describe('access changes on an open stream', () => {
     })
     expect(removed.statusCode).toBe(200)
     // Their stream is still open but the workspace is gone from what it may hear. The marker
-    // arrives after the build notice, in order.
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // (a notice for their own inbox) arrives after the build notice, in order, so once it is
+    // here the build notice has been dropped.
     await emitBuildLive(fx.db, 'build.updated', acmeBuild())
-    await emitUserLive(fx.db, 'notification.read', 'nobody')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    expect(s.events()).toHaveLength(1)
+    await emitUserLive(fx.db, 'notification.read', m.userId)
+    await expect
+      .poll(() => s.events())
+      .toEqual([expect.objectContaining({ type: 'build.updated' }), { type: 'notification.read' }])
   })
 
   it('applies a role change at once: an admin hears projects they are not in', async () => {
     const m = await newMember('promoted')
     const s = await stream(m.cookie)
     await emitBuildLive(fx.db, 'build.updated', acmeBuild())
-    await emitUserLive(fx.db, 'notification.created', 'nobody')
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    // A plain member outside the project hears nothing of it.
-    expect(s.events()).toEqual([])
+    await emitUserLive(fx.db, 'notification.created', m.userId)
+    // A plain member outside the project hears nothing of it: the marker, after it in order, is all there is.
+    await expect.poll(() => s.events()).toEqual([{ type: 'notification.created' }])
     const changed = await fx.app.inject({
       method: 'POST',
       url: '/api/auth/organization/update-member-role',
@@ -172,10 +173,10 @@ describe('access changes on an open stream', () => {
       .poll(
         async () => {
           await emitBuildLive(fx.db, 'build.updated', acmeBuild())
-          return s.events().length
+          return s.events().some((e) => e.type === 'build.updated')
         },
         { timeout: 3000 },
       )
-      .toBeGreaterThan(0)
+      .toBe(true)
   })
 })

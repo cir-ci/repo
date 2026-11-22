@@ -1,19 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
 import { Ref } from '#src/index.ts'
 
-const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
-
-function stubClipboard(writeText: (text: string) => Promise<void>) {
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-}
-
-afterEach(() => {
-  if (original) Object.defineProperty(navigator, 'clipboard', original)
-  else Reflect.deleteProperty(navigator, 'clipboard')
-})
+import { stubClipboard } from './support/clipboard.ts'
 
 describe('Ref', () => {
   it('shows the value in mono with a button named "Copy …"', async () => {
@@ -23,8 +14,7 @@ describe('Ref', () => {
   })
 
   it('shows a shortened form but copies the full value', async () => {
-    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve())
-    stubClipboard(writeText)
+    const writeText = stubClipboard()
     await render(<Ref value="3f9c2ab81d0e" display="3f9c2ab" label="SHA" />)
     await expect.element(page.getByText('3f9c2ab')).toBeVisible()
     await page.getByRole('button', { name: 'Copy SHA' }).click()

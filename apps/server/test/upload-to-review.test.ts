@@ -8,10 +8,10 @@ import { ApiClient, upload } from '@circi/cli'
 import { createTestDb } from '@circi/db/testing'
 import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
+import { pngBytes } from '@circi/testing'
 import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import sharp from 'sharp'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
@@ -48,20 +48,11 @@ let ownerId: string
 let reset: () => Promise<void>
 
 async function screenshot(path: string, dot?: { x: number; y: number }) {
-  const page = sharp({ create: { width: 400, height: 300, channels: 4, background: '#f8fafc' } })
-  let out = await page.png().toBuffer()
-  if (dot) {
-    const mark = await sharp({
-      create: { width: 20, height: 20, channels: 4, background: '#2563eb' },
-    })
-      .png()
-      .toBuffer()
-    out = await sharp(out)
-      .composite([{ input: mark, left: dot.x, top: dot.y }])
-      .png()
-      .toBuffer()
-  }
-  await writeFile(path, out)
+  const mark = dot && { ...dot, w: 20, h: 20, color: '#2563eb' }
+  await writeFile(
+    path,
+    await pngBytes({ width: 400, height: 300, color: '#f8fafc', ...(mark ? { mark } : {}) }),
+  )
 }
 
 beforeAll(async () => {

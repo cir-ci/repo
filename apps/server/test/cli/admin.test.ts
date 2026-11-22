@@ -1,11 +1,10 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedFile } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { sha256 } from '@circi/testing'
+import { sha256, TEST_AUTH_SECRET, useTempDir } from '@circi/testing'
 import { Command } from 'commander'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,20 +36,19 @@ vi.mock('#composition/runtime.ts', async (importOriginal) => {
 const bytes = Buffer.from('a')
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-admin')
 let storage: FsStorage
 let reset: () => Promise<void>
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-admin-'))
-  storage = new FsStorage({ path: join(dir, 'files') })
+  storage = new FsStorage({ path: join(tempDir.path, 'files') })
   world.db = t.db
   world.storage = storage
   vi.stubEnv('DATABASE_URL', 'postgres://localhost:1/unused')
-  vi.stubEnv('BETTER_AUTH_SECRET', 'test-secret-that-is-long-enough-123')
+  vi.stubEnv('BETTER_AUTH_SECRET', TEST_AUTH_SECRET)
   vi.stubEnv('PUBLIC_URL', 'https://ci.acme.io')
-  vi.stubEnv('STORAGE_PATH', join(dir, 'files'))
+  vi.stubEnv('STORAGE_PATH', join(tempDir.path, 'files'))
   await storage.put(`k/${sha256(bytes)}`, bytes)
   await seedFile(t.db, { sha256: sha256(bytes) })
   reset = await snapshotDb(t)
@@ -58,7 +56,6 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.unstubAllEnvs()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 beforeEach(() => reset())
 afterEach(() => {
@@ -99,7 +96,7 @@ describe('circi admin storage', () => {
   })
 
   it('migrate copies every file to the target under the same key', async () => {
-    const target = join(dir, 'target')
+    const target = join(tempDir.path, 'target')
     const lines = await run('migrate', '--to', 'fs', '--path', target)
     expect(lines[0]).toBe('Copied 1, already there 0, missing at the source 0, failed 0.')
     expect(await readFile(join(target, 'k', sha256(bytes)))).toEqual(bytes)

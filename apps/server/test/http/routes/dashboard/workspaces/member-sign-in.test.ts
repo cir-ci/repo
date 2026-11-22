@@ -1,12 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import type { Workspace } from '@circi/api'
 import { createUser } from '@circi/auth'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,21 +13,24 @@ import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-signin-methods')
 let app: FastifyInstance
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-signin-methods-'))
   const auth = createTestAuth(t.db)
-  const deps = { db: t.db, auth, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN }
+  const deps = {
+    db: t.db,
+    auth,
+    storage: new FsStorage({ path: tempDir.path }),
+    publicOrigin: ORIGIN,
+  }
   app = buildServer({ logger: pino({ level: 'silent' }), checks: [], dashboard: deps, api: deps })
   await app.ready()
 })
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const call = caller(() => app)

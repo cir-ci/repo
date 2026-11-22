@@ -219,3 +219,21 @@ describe('every consumer agrees', () => {
     expect(list).toEqual(['clock'])
   })
 })
+
+describe("the project's flaky threshold", () => {
+  it('is 3 by default, follows what the project saves, and refuses 1', async () => {
+    const { project } = await seedProject(t.db)
+    // `home` goes A, B, A, B: two returns to an earlier image.
+    await seedFlipFlops(t.db, project.id, 'home', ['A', 'B', 'A', 'B'])
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toEqual([])
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 2 })
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky.map((f) => f.name)).toEqual([
+      'home',
+    ])
+    await updateProjectSettings(t.db, project.id, { flakyAfterChanges: 3 })
+    expect((await listFlakyScreenshots(t.db, project.id)).flaky).toEqual([])
+    await expect(updateProjectSettings(t.db, project.id, { flakyAfterChanges: 1 })).rejects.toThrow(
+      /flaky after 2 to 8 flip-flops/,
+    )
+  })
+})

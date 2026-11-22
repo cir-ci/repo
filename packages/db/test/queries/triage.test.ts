@@ -1,11 +1,10 @@
 import {
-  addTestMember,
   createTestDb,
   imageSha,
   seedBuild,
   seedDiff,
+  seedMember,
   seedProject,
-  seedUser,
 } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -225,8 +224,7 @@ describe('listTriage', () => {
 
   it('names the assignee, and who is on triage this week', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const mate = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const mate = await seedMember(t.db, workspace.id)
     const failed = await mainBuild(project.id, { status: 'error' })
     await t.db.insert(schema.triageItems).values({
       projectId: project.id,

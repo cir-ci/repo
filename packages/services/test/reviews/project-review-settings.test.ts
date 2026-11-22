@@ -3,12 +3,12 @@ import { listTriage } from '@circi/db/queries'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestMember,
   createTestDb,
   seedBuild,
   seedChangedSnapshots,
-  seedReviewRequest,
+  seedMember,
   seedProject,
+  seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
@@ -41,10 +41,8 @@ const requestsOf = async (buildId: string) =>
 
 async function projectWithMates() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const mate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
-  const other = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: other.id })
+  const mate = await seedMember(t.db, workspace.id)
+  const other = await seedMember(t.db, workspace.id)
   return { project, workspace, owner, mate, other }
 }
 

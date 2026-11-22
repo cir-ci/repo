@@ -2,10 +2,6 @@ import type { Comment } from '@circi/api'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { frame, pointIn, stubPointerCapture, type Point } from '#test/support/pointer.ts'
 
 import { detail, type FakeApi, fakeBuildApi, renderBuild } from './fake-build-api.tsx'

@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
 
-import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/db/testing'
+import {
+  addTestMember,
+  createTestDb,
+  seedBuild,
+  seedMember,
+  seedProject,
+  seedUser,
+} from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -76,8 +83,7 @@ describe('listBuildsForWorkspace', () => {
   it('shows a plain member the same list as the owner', async () => {
     const w = await workspaceWithProjects()
     const build = await seedBuild(t.db, w.docs.id)
-    const member = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: w.workspace.id, userId: member.id })
+    const member = await seedMember(t.db, w.workspace.id)
     expect((await list(w, member.id))?.builds.map((x) => x.id)).toEqual([build.id])
   })
 

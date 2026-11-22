@@ -2,7 +2,7 @@ import { type Job } from '@circi/db'
 import { listWebhookDeliveries } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, setNotificationPreferences } from '@circi/db/repositories'
-import { addTestMember, createTestDb, seedProject, seedUser, seedWebhook } from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject, seedWebhook } from '@circi/db/testing'
 import { fakeMailer } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -83,8 +83,7 @@ describe('deliverWebhook (service)', () => {
 describe('sendNotificationEmail (service)', () => {
   it('mails once, and skips when the reviewer has opted out', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const reviewer = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
+    const reviewer = await seedMember(t.db, workspace.id)
     const build = await createBuild(t.db, {
       projectId: project.id,
       commitSha: 'abc1234',

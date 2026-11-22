@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 
 import { toolDir } from '@circi/cli/names'
 
+import { htmlReporterAvailable, isHtmlReporterEntry } from './html-report.ts'
 import { type BrowserSettings, PROVIDE_KEY } from './options.ts'
 import { CirciReporter } from './reporter.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
@@ -20,6 +21,7 @@ export namespace circi {
 
 /** The pieces of a Vite/Vitest config this plugin reads and edits. */
 interface TestConfig {
+  root?: string
   test?: {
     reporters?: unknown
     setupFiles?: string | string[]
@@ -49,10 +51,19 @@ export function circi(options: circi.Options = {}) {
     config(config: TestConfig) {
       const test = (config.test ??= {})
       const reporters = test.reporters
+      // Hosting the HTML report needs Vitest's html reporter: added unless it is there, or there is
+      // a folder to host instead, or @vitest/ui (which it loads) isn't installed.
+      const html =
+        options.site &&
+        !(typeof options.site === 'object' && options.site.dir) &&
+        htmlReporterAvailable(config.root ?? process.cwd())
+          ? ['html']
+          : []
       if (Array.isArray(reporters)) {
         if (!reporters.includes(reporter)) reporters.push(reporter)
+        if (!reporters.some(isHtmlReporterEntry)) reporters.push(...html)
       } else if (reporters === undefined) {
-        test.reporters = ['default', reporter]
+        test.reporters = ['default', reporter, ...html]
       }
       const setup = test.setupFiles
       const files = setup === undefined ? [] : Array.isArray(setup) ? setup : [setup]

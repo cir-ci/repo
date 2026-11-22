@@ -1,14 +1,6 @@
 import { decodeLiveNotice, encodeLiveNotice, type LiveNotice } from '@circi/core'
 import { createBuild } from '@circi/db/repositories'
-import * as schema from '@circi/db/schema'
-import {
-  addTestMember,
-  createTestDb,
-  seedChangedSnapshots,
-  seedProject,
-  seedUser,
-} from '@circi/db/testing'
-import { eq } from 'drizzle-orm'
+import { createTestDb, seedBuild, seedMember, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -59,8 +51,7 @@ async function listenLive() {
 
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const ann = await seedUser(t.db, `ann${Math.random().toString(36).slice(2, 8)}@example.com`)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: ann.id })
+  const ann = await seedMember(t.db, workspace.id)
   const build = await createBuild(t.db, { projectId: project.id, commitSha: 'abc1234' })
   return { project, workspace, owner, ann, build }
 }
@@ -133,12 +124,12 @@ describe('what a change says', () => {
   })
 
   it('a decision says review.changed once, however many things it touched', async () => {
-    const { project, owner, build } = await setup()
-    await t.db
-      .update(schema.builds)
-      .set({ status: 'complete', conclusion: 'changes_detected' })
-      .where(eq(schema.builds.id, build.id))
-    await seedChangedSnapshots(t.db, build.id)
+    const { project, owner } = await setup()
+    const build = await seedBuild(t.db, project.id, {
+      status: 'complete',
+      conclusion: 'changes_detected',
+      changedSnapshots: ['home'],
+    })
     const live = await listenLive()
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
     expect(await live.settled()).toEqual([
@@ -153,12 +144,12 @@ describe('what a change says', () => {
   })
 
   it('undoing a decision says review.changed for the project', async () => {
-    const { project, owner, build } = await setup()
-    await t.db
-      .update(schema.builds)
-      .set({ status: 'complete', conclusion: 'changes_detected' })
-      .where(eq(schema.builds.id, build.id))
-    await seedChangedSnapshots(t.db, build.id)
+    const { project, owner } = await setup()
+    const build = await seedBuild(t.db, project.id, {
+      status: 'complete',
+      conclusion: 'changes_detected',
+      changedSnapshots: ['home'],
+    })
     const { undo } = await reviewBuildUndoable(t.db, {
       buildId: build.id,
       userId: owner.id,

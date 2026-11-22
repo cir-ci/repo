@@ -560,7 +560,7 @@ describe('InboxPage on a phone', () => {
     for (const row of rows.getByRole('button').elements()) {
       expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(56)
     }
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
     await rows.getByRole('button').first().click()
     const sheet = page.getByRole('dialog', { name: 'Notification' })
     await expect.element(sheet).toBeVisible()

@@ -1,11 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import { createUser, type Mailer } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { listWorkspaceDomains } from '@circi/db/queries'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { fakeMailer, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -13,36 +10,37 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  seedTenant,
+  signIn,
+  signInWithEmailCode,
+  type Tenant,
+} from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
 let reset: () => Promise<void>
-let dir: string
+const tempDir = useTempDir('circi-domains')
 let app: FastifyInstance
 let acme: Tenant
 let rival: Tenant
 let ownerCookie: string
 let rivalCookie: string
-const sent: Mailer.Mail[] = []
+const mailer = fakeMailer()
 /** What DNS currently answers, by name. */
 const dns = new Map<string, string[][]>()
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-domains-'))
-  const auth = createTestAuth(t.db, {
-    send: async (mail: Mailer.Mail) => {
-      sent.push(mail)
-    },
-  })
+  const auth = createTestAuth(t.db, mailer)
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
     dashboard: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
       emailLogin: true,
       resolveTxt: async (name) => {
@@ -63,39 +61,14 @@ beforeAll(async () => {
 beforeEach(async () => {
   await reset()
   dns.clear()
-  sent.length = 0
+  mailer.sent.length = 0
 })
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const call = caller(() => app)
-
-async function codeSignIn(email: string): Promise<{ status: number; cookie: string }> {
-  sent.length = 0
-  await app.inject({
-    method: 'POST',
-    url: '/api/auth/email-otp/send-verification-otp',
-    headers: json,
-    payload: { email, type: 'sign-in' },
-  })
-  // The code is mailed before the request is answered (better-auth awaits the plugin's hook).
-  const otp = /sign-in code is (\d{6})/.exec(sent[0]?.text ?? '')?.[1]
-  if (!otp) return { status: 0, cookie: '' }
-  const res = await app.inject({
-    method: 'POST',
-    url: '/api/auth/sign-in/email-otp',
-    headers: json,
-    payload: { email, otp },
-  })
-  const cookie = [res.headers['set-cookie']]
-    .flat()
-    .map((c) => String(c).split(';')[0])
-    .join('; ')
-  return { status: res.statusCode, cookie }
-}
 
 const base = () => `/api/workspaces/${acme.workspaceSlug}/domains`
 
@@ -162,7 +135,7 @@ describe('claiming an email domain', () => {
       reason: "The TXT record at _circi-verify.corp.test doesn't match",
     })
     // Ann has an account but the domain isn't verified, so signing in doesn't add her.
-    const { status, cookie } = await codeSignIn('ann@corp.test')
+    const { status, cookie } = await signInWithEmailCode(app, mailer, 'ann@corp.test')
     expect(status).toBe(200)
     const projects = await call('GET', '/api/projects', cookie)
     expect(projects.json().projects).toEqual([])
@@ -177,7 +150,7 @@ describe('claiming an email domain', () => {
     const list = (await call('GET', base(), ownerCookie)).json().domains
     expect(list).toEqual([expect.objectContaining({ domain: 'corp.test', verified: true })])
 
-    const { status, cookie } = await codeSignIn('ann@corp.test')
+    const { status, cookie } = await signInWithEmailCode(app, mailer, 'ann@corp.test')
     expect(status).toBe(200)
     // Joining a workspace puts nobody in a project; the workspace is theirs all the same.
     expect(
@@ -188,7 +161,7 @@ describe('claiming an email domain', () => {
 
   it('lets a person with no account on a verified domain create one with a code', async () => {
     await verifiedDomain()
-    const { status, cookie } = await codeSignIn('newhire@corp.test')
+    const { status, cookie } = await signInWithEmailCode(app, mailer, 'newhire@corp.test')
     expect(status).toBe(200)
     expect(
       (await call('GET', `/api/workspaces/${acme.workspaceSlug}/sidebar`, cookie)).statusCode,
@@ -198,7 +171,7 @@ describe('claiming an email domain', () => {
 
   it('gives nothing to strangers or to other domains', async () => {
     await verifiedDomain()
-    const { status } = await codeSignIn('stranger@elsewhere.test')
+    const { status } = await signInWithEmailCode(app, mailer, 'stranger@elsewhere.test')
     expect(status).toBe(0) // no mail was sent at all
   })
 
@@ -217,7 +190,7 @@ describe('claiming an email domain', () => {
     expect((await call('GET', base(), rivalCookie)).statusCode).toBe(404)
     expect((await call('POST', base(), rivalCookie, { domain: 'x.test' })).statusCode).toBe(404)
     // Ann joined Acme as a member by signing in on the verified domain.
-    const { cookie: annCookie } = await codeSignIn('ann@corp.test')
+    const { cookie: annCookie } = await signInWithEmailCode(app, mailer, 'ann@corp.test')
     expect((await call('GET', base(), annCookie)).statusCode).toBe(403)
     expect((await call('DELETE', `${base()}/${id}`, annCookie)).statusCode).toBe(403)
   })

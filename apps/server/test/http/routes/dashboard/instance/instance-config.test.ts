@@ -1,7 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import type { InstanceAdmin } from '@circi/api'
 import { callbackUrl, createAuth, createUser, type Mailer } from '@circi/auth'
@@ -10,6 +7,7 @@ import { getWorkspaceSettings } from '@circi/db/queries'
 import { createTestDb } from '@circi/db/testing'
 import { createInstanceConfig, type InstanceConfigStore } from '@circi/services'
 import { FsStorage } from '@circi/storage'
+import { fakeMailer, TEST_AUTH_SECRET, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,11 +15,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { instanceEnvOf } from '#composition/instance-env.ts'
 import { createSsoSync } from '#composition/sso-sync.ts'
 import { buildServer } from '#http/app.ts'
-import { caller, type Client, signedInClient } from '#test/support/client.ts'
+import { caller, type Client, JSON_HEADERS, signedInClient } from '#test/support/client.ts'
 import { ORIGIN, seedTenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-instance-config')
 let app: FastifyInstance
 let store: InstanceConfigStore
 let idp: Server
@@ -30,11 +28,11 @@ let admin: Client
 let member: Client
 const adminUser = { email: 'root@acme.test', password: 'root-password-long-1' }
 const memberUser = { email: 'plain@acme.test', password: 'plain-password-long-1' }
-const sent: Mailer.Mail[] = []
+const fake = fakeMailer()
 
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',
-  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-1234',
+  BETTER_AUTH_SECRET: TEST_AUTH_SECRET,
   PUBLIC_URL: ORIGIN,
   // Set in the environment: locked in the dashboard.
   GC_GRACE_HOURS: '48',
@@ -67,7 +65,6 @@ beforeAll(async () => {
   issuer = `http://127.0.0.1:${portOf(idp)}`
 
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-instance-config-'))
   store = createInstanceConfig({
     db: t.db,
     authSecret: config.authSecret,
@@ -75,7 +72,7 @@ beforeAll(async () => {
   })
   const mailer: Mailer = {
     configured: async () => (await store.get()).smtp !== undefined,
-    send: async (mail) => void sent.push(mail),
+    send: (mail) => fake.send(mail),
   }
   const syncSso = createSsoSync({ instanceConfig: store, auth: () => auth })
   const auth = createAuth({
@@ -92,7 +89,7 @@ beforeAll(async () => {
     dashboard: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
       instanceConfig: store,
       instance: { config, mailer, fetchHost: async () => undefined },
@@ -109,7 +106,6 @@ afterAll(async () => {
   await app.close()
   await new Promise((resolve) => idp.close(resolve))
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const call = caller(() => app)
@@ -125,7 +121,7 @@ const otp = () =>
   app.inject({
     method: 'POST',
     url: '/api/auth/email-otp/send-verification-otp',
-    headers: { origin: ORIGIN, 'content-type': 'application/json' },
+    headers: JSON_HEADERS,
     payload: { email: memberUser.email, type: 'sign-in' },
   })
 const signInStatus = async (email: string, password: string) =>
@@ -133,7 +129,7 @@ const signInStatus = async (email: string, password: string) =>
     await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: { email, password },
     })
   ).statusCode
@@ -285,11 +281,11 @@ describe('mail server', () => {
     )
     expect((await methods()).email).toBe(true)
 
-    sent.length = 0
+    fake.sent.length = 0
     expect(
       (await admin.send('POST', '/api/instance/mail/test')).json<InstanceAdmin.MailTest>(),
     ).toMatchObject({ ok: true, to: adminUser.email })
-    expect(sent).toHaveLength(1)
+    expect(fake.sent).toHaveLength(1)
 
     // A change that leaves the password out keeps it.
     const kept = await admin.send('PUT', '/api/instance/config/smtp', {
@@ -417,7 +413,7 @@ describe('single sign-on providers', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/social',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: JSON.stringify({ provider: 'oidc', callbackURL: '/' }),
     })
     expect(res.statusCode).toBe(200)
@@ -435,7 +431,7 @@ describe('single sign-on providers', () => {
     const gh = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/social',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: JSON.stringify({ provider: 'github', callbackURL: '/' }),
     })
     expect(new URL(gh.json().url).searchParams.get('client_id')).toBe('gh-id')
@@ -447,7 +443,7 @@ describe('single sign-on providers', () => {
     const gone = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/social',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: JSON.stringify({ provider: 'github', callbackURL: '/' }),
     })
     expect(gone.statusCode).not.toBe(200)

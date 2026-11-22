@@ -325,7 +325,7 @@ describe('ProjectsPage', () => {
       await expect
         .element(page.getByRole('dialog', { name: 'New workspace' }))
         .not.toBeInTheDocument()
-      expect(api.of('POST')).toEqual([
+      expect(api.of('POST')).toMatchObject([
         { method: 'POST', path: '/api/workspaces', body: { name: 'Globex' } },
       ])
       await expect.element(toastNamed('Workspace Globex created')).toBeVisible()

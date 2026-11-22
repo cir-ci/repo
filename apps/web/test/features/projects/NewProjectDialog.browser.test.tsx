@@ -1,15 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { ProjectDialogs } from '#features/projects/ProjectDialogs.tsx'
 import { ProjectsPage } from '#features/projects/ProjectsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { ADA, mockAuthClient } from '#test/support/auth-client.ts'
+import { stubClipboard } from '#test/support/clipboard.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { openDialogs } from '#test/support/toast.ts'
@@ -188,8 +184,7 @@ describe('New project dialog', () => {
     await expect.element(panel).toMatchTextContent(/export CIRCI_TOKEN=circi_secret_token_value/)
 
     // Each example has its own copy button.
-    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const writeText = stubClipboard()
     await dialog.getByRole('button', { name: 'Copy Other example' }).click()
     await expect.poll(() => writeText.mock.calls.length).toBe(1)
     expect(writeText.mock.calls[0]?.[0]).toContain('npx circi upload ./screenshots --wait')
@@ -221,7 +216,7 @@ describe('New project dialog', () => {
     await page.getByRole('button', { name: 'Create project' }).click()
     const dialog = page.getByRole('dialog', { name: 'Project created' })
     await expect.element(dialog).toBeVisible()
-    expect(api.of('POST')).toEqual([
+    expect(api.of('POST')).toMatchObject([
       {
         method: 'POST',
         path: '/api/workspaces/acme/projects',

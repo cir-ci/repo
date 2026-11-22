@@ -1,7 +1,6 @@
-/// <reference types="@vitest/browser-playwright" />
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { cdp, page, userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import {
   CirciTheme,
@@ -11,6 +10,8 @@ import {
   ToastProvider,
   ToastViewport,
 } from '#src/index.ts'
+
+import { emulateMotion } from './support/motion.ts'
 
 async function setup() {
   const manager = createToastManager()
@@ -26,10 +27,6 @@ async function setup() {
 }
 
 const toastNamed = (name: string) => page.getByRole('dialog', { name })
-
-afterEach(async () => {
-  await cdp().send('Emulation.setEmulatedMedia', { features: [] })
-})
 
 describe('Toast', () => {
   it('stays five seconds and errors ten, unless told otherwise', () => {
@@ -62,29 +59,29 @@ describe('Toast', () => {
     const manager = await setup()
     manager.add({ title: 'Saved', timeout: 300, data: { tone: 'success' } })
     await expect.element(toastNamed('Saved')).toBeVisible()
-    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 3000 })
+    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 1000 })
   })
 
   it('pauses while hovered and runs on once the pointer leaves', async () => {
     const manager = await setup()
-    // Long enough that the pointer reaches it under load; held past it to show the pause.
-    manager.add({ title: 'Saved', timeout: 2000, data: { tone: 'success' } })
+    // Long enough that the pointer reaches it under load; held well past it to show the pause.
+    manager.add({ title: 'Saved', timeout: 300, data: { tone: 'success' } })
     const toast = toastNamed('Saved')
     await expect.element(toast).toBeVisible()
     await userEvent.hover(toast)
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    await new Promise((resolve) => setTimeout(resolve, 800))
     await expect.element(toast).toBeVisible()
     await userEvent.hover(page.getByRole('button', { name: 'Elsewhere' }))
-    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 8000 })
+    await vi.waitFor(() => expect(page.getByText('Saved').query()).toBeNull(), { timeout: 3000 })
   })
 
   it('pauses while focused', async () => {
     const manager = await setup()
-    manager.add({ title: 'Saved', timeout: 2000, data: { tone: 'success' } })
+    manager.add({ title: 'Saved', timeout: 300, data: { tone: 'success' } })
     await expect.element(toastNamed('Saved')).toBeVisible()
     await userEvent.tab()
     await userEvent.tab()
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    await new Promise((resolve) => setTimeout(resolve, 800))
     await expect.element(toastNamed('Saved')).toBeVisible()
   })
 
@@ -127,9 +124,6 @@ describe('Toast', () => {
   })
 
   it('does not move when the user prefers reduced motion', async () => {
-    await cdp().send('Emulation.setEmulatedMedia', {
-      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
-    })
     const manager = await setup()
     manager.add({ title: 'Saved', timeout: 0, data: { tone: 'success' } })
     const element = await vi.waitFor(() => {
@@ -141,6 +135,7 @@ describe('Toast', () => {
   })
 
   it('moves in with a transition otherwise', async () => {
+    await emulateMotion()
     const manager = await setup()
     manager.add({ title: 'Saved', timeout: 0, data: { tone: 'success' } })
     const element = await vi.waitFor(() => {

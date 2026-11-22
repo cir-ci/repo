@@ -1,12 +1,6 @@
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedReviewRequest,
-  seedUser,
-} from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject, seedReviewRequest } from '@circi/db/testing'
 import { snoozeReviewRequest } from '@circi/services'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -29,8 +23,7 @@ const after = new Date('2026-03-10T15:00:00.000Z')
 
 async function setup(dueAt: Date | null = due) {
   const { project, workspace } = await seedProject(t.db)
-  const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
+  const reviewer = await seedMember(t.db, workspace.id)
   const build = await createBuild(t.db, {
     projectId: project.id,
     commitSha: 'abc1234',

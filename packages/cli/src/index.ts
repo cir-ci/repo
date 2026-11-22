@@ -1,7 +1,7 @@
 export { ApiClient, ApiError } from './api.ts'
 export { detectCi } from './ci-env.ts'
 export { debugOn, errorLine, ignoreBrokenPipe, reportError, UsageError } from './errors.ts'
-export { type CaptureMetadata, uploadCaptures, writeCapture } from './captures.ts'
+export { type CaptureMetadata, uploadCaptures, uploadSiteAfter, writeCapture } from './captures.ts'
 export { mapLimit } from './concurrency.ts'
 export { collectScreenshots } from './files.ts'
 export type { CirciOptions } from './options.ts'

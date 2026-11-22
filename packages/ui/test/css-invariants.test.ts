@@ -1,7 +1,6 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
-
 import { describe, expect, it } from 'vitest'
+
+import { key, rules } from './support/css-rules.ts'
 
 /**
  * Static invariants over every CSS module of the design system and the dashboard. They are cheap
@@ -9,40 +8,6 @@ import { describe, expect, it } from 'vitest'
  * too small to read, a radius that is not on the scale. Offenders that exist today are listed in
  * the ALLOW-LISTS below with a reason; the lists may only shrink (a stale entry fails the test).
  */
-const ROOT = resolve(import.meta.dirname, '../../..')
-
-function cssModules(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) return cssModules(path)
-    return entry.name.endsWith('.module.css') ? [path] : []
-  })
-}
-
-interface Rule {
-  file: string
-  selector: string
-  declarations: Map<string, string>
-}
-
-const rules: Rule[] = [
-  ...cssModules(join(ROOT, 'packages/ui/src')),
-  ...cssModules(join(ROOT, 'apps/web/src')),
-].flatMap((path) => {
-  const source = readFileSync(path, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, '')
-  const file = relative(ROOT, path)
-  return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match) => {
-    const declarations = new Map<string, string>()
-    for (const part of match[2]!.split(';')) {
-      const colon = part.indexOf(':')
-      if (colon > 0) declarations.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim())
-    }
-    return { file, selector: match[1]!.trim().replaceAll(/\s+/g, ' '), declarations }
-  })
-})
-
-const key = (rule: Rule) => `${rule.file} ${rule.selector}`
-
 /** Offenders that exist today (key: "file selector"), each with the reason it is acceptable. */
 const OUTLINE_ALLOWED: Record<string, string> = {
   'packages/ui/src/AppFrame.module.css .main:focus-visible':

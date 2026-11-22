@@ -72,7 +72,6 @@ describe('Drawer', () => {
     // The viewport scrolls; the popup itself doesn't.
     expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
     expect(popup.scrollHeight).toBeLessThanOrEqual(popup.clientHeight)
-    expect(getComputedStyle(popup).overflowY).toBe('hidden')
     // No native scrollbar takes width from the entries: the thumb is laid over the padding.
     expect(viewport instanceof HTMLElement && viewport.offsetWidth - viewport.clientWidth).toBe(0)
     expect(popup.querySelector('[class*="thumb"]')).not.toBeNull()

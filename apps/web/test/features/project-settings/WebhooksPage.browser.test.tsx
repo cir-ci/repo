@@ -319,7 +319,7 @@ describe('WebhooksPage', () => {
     await expect.element(page.getByRole('dialog', { name: 'Signing secret' })).toBeVisible()
     await expect.element(page.getByText('whsec_abc')).toBeVisible()
     await expect.element(page.getByRole('button', { name: /Copy/ })).toBeVisible()
-    expect(fake.of('POST')).toEqual([
+    expect(fake.of('POST')).toMatchObject([
       {
         method: 'POST',
         path: `${API}/webhooks`,

@@ -1,12 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { getBuild } from '@circi/db/queries'
 import { enqueueJob } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedBuild, seedProject } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -14,7 +11,7 @@ import { giveUpExpiredJobs, runJob } from '#src/run-job.ts'
 import type { startWorker } from '#src/runner.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-runjob')
 let deps: startWorker.Deps
 const logged: { level: string; message: string }[] = []
 const log = (level: string) => (_fields: unknown, message?: string) =>
@@ -22,16 +19,14 @@ const log = (level: string) => (_fields: unknown, message?: string) =>
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-runjob-'))
   deps = {
     db: t.db,
-    storage: new FsStorage({ path: dir }),
+    storage: new FsStorage({ path: tempDir.path }),
     logger: { info: log('info'), warn: log('warn'), error: log('error') },
   }
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const rowOf = async (id: number) =>

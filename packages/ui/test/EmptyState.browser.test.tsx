@@ -12,6 +12,8 @@ import {
   SearchIcon,
 } from '#src/index.ts'
 
+import { stubClipboard } from './support/clipboard.ts'
+
 describe('EmptyState', () => {
   it('shows a heading, a line of text and an action', async () => {
     await render(
@@ -147,8 +149,7 @@ describe('PanePlaceholder', () => {
 
 describe('CommandBlock', () => {
   it('wraps a long command in mono 12 and copies it', async () => {
-    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve())
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const writeText = stubClipboard()
     const command =
       'CIRCI_TOKEN=… CIRCI_API_URL=https://ci.example.com \\\n  npx circi upload ./screenshots --wait'
     await render(

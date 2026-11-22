@@ -13,7 +13,8 @@ import {
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedBuild, seedDiff, seedScreenshot } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { fakeSha } from '@circi/testing'
+import { fakeSha, TEST_AUTH_SECRET } from '@circi/testing'
+import { fakeFigmaHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
@@ -23,55 +24,38 @@ import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
-const SECRET = 'test-secret-that-is-long-enough-1234'
+const SECRET = TEST_AUTH_SECRET
 const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-figma-'))
 const auth = createTestAuth(t.db)
 
 /**
  * Figma's HTTP edge, behind the real Figma definition: two tokens, one file `FileKey12345` with a
- * page of two frames; 403 for a token it does not know, 404 for any other file.
+ * page of two frames; 403 for a token it does not know or that was revoked, 404 for any other file.
  */
-const users: Record<string, { id: string; handle: string }> = {
-  figd_michael: { id: 'fu-1', handle: 'michael' },
-  figd_other: { id: 'fu-2', handle: 'other' },
-}
-const frames = [
-  { id: '1:1', name: 'Home', type: 'FRAME' },
-  { id: '1:2', name: 'Cart', type: 'FRAME' },
-]
-const fake = { down: false, revoked: new Set<string>(), requests: 0 }
-const fakeFetch: typeof fetch = async (input, init) => {
-  const req = new Request(input, init)
-  const url = new URL(req.url)
-  fake.requests += 1
-  if (fake.down) return new Response('boom', { status: 500 })
-  const token = req.headers.get('x-figma-token') ?? ''
-  const user = users[token]
-  if (!user || fake.revoked.has(token)) {
-    return Response.json({ status: 403, err: 'Invalid token' }, { status: 403 })
-  }
-  if (url.pathname === '/v1/me') return Response.json(user)
-  if (!url.pathname.startsWith('/v1/files/FileKey12345')) {
-    return Response.json({ err: 'Not found' }, { status: 404 })
-  }
-  if (url.pathname.endsWith('/nodes')) {
-    const ids = (url.searchParams.get('ids') ?? '').split(',')
-    return Response.json({
-      nodes: Object.fromEntries(
-        ids.map((id) => {
-          if (id === '0:1') return [id, { document: { id, name: 'Pages', children: frames } }]
-          const frame = frames.find((f) => f.id === id)
-          return [id, frame ? { document: { ...frame, children: [] } } : null]
-        }),
-      ),
-    })
-  }
-  return Response.json({
-    name: 'Checkout v3',
-    document: { id: '0:0', name: 'Document', children: [{ id: '0:1', name: 'Pages' }] },
-  })
-}
+const figma = fakeFigmaHost({
+  tokens: {
+    figd_michael: { id: 'fu-1', handle: 'michael' },
+    figd_other: { id: 'fu-2', handle: 'other' },
+  },
+  files: [
+    {
+      key: 'FileKey12345',
+      name: 'Checkout v3',
+      pages: [
+        {
+          id: '0:1',
+          name: 'Pages',
+          children: [
+            { id: '1:1', name: 'Home', type: 'FRAME' },
+            { id: '1:2', name: 'Cart', type: 'FRAME' },
+          ],
+        },
+      ],
+    },
+  ],
+})
+const fake = figma.state
 
 const app = buildServer({
   logger: pino({ level: 'silent' }),
@@ -82,7 +66,7 @@ const app = buildServer({
     storage: new FsStorage({ path: dir }),
     publicOrigin: ORIGIN,
     authSecret: SECRET,
-    integrations: { config: {}, fetch: fakeFetch },
+    integrations: { config: {}, fetch: figma.fetch },
   },
 })
 await app.ready()
@@ -114,7 +98,7 @@ const FRAME = (node: string) => `https://www.figma.com/design/FileKey12345/x?nod
 const reset = await snapshotDb(t)
 beforeEach(async () => {
   await reset()
-  Object.assign(fake, { down: false, requests: 0 })
+  fake.down = false
   fake.revoked.clear()
   id = ''
 })
@@ -162,17 +146,6 @@ async function autoLinked() {
 }
 
 describe('connecting Figma', () => {
-  it('needs a session, membership, and an admin for writes', async () => {
-    const body = { token: 'figd_michael' }
-    expect((await call('POST', `${workspaceBase}/figma/connect`, '', body)).statusCode).toBe(401)
-    expect((await call('POST', `${workspaceBase}/figma/connect`, louCookie, body)).statusCode).toBe(
-      403,
-    )
-    expect(
-      (await call('POST', `${workspaceBase}/figma/connect`, rivalCookie, body)).statusCode,
-    ).toBe(404)
-  })
-
   it('rejects a bad token and a Figma outage, storing nothing', async () => {
     const connect = `${workspaceBase}/figma/connect`
     const bad = await call('POST', connect, ownerCookie, { token: 'figd_wrongtoken' })

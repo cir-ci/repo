@@ -4,6 +4,7 @@ import { page } from 'vitest/browser'
 import { HttpError } from '#lib/http.ts'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { renderPage } from '#test/support/render.tsx'
+import { settled } from '#test/support/settled.ts'
 
 const idle = () => undefined
 
@@ -24,7 +25,7 @@ describe('QueryBoundary', () => {
         {children}
       </QueryBoundary>,
     )
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await settled()
     expect(children).not.toHaveBeenCalled()
     expect(page.getByText('loaded').elements()).toHaveLength(0)
   })

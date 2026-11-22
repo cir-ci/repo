@@ -114,6 +114,19 @@
       "outputs": [],
       "dependsOn": ["@circi/vitest#build", "@circi/cypress#build"]
     },
+    "//#test:vitest": {
+      "inputs": [
+        "$TURBO_ROOT$/packages/{vitest,cli,testing}/**",
+        "$TURBO_ROOT$/package.json",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.run-*/**",
+        "!**/.vitest/**",
+        "!**/.turbo/**"
+      ],
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
+    },
     "//#test:ui": {
       "inputs": [
         "$TURBO_ROOT$/packages/ui/**",

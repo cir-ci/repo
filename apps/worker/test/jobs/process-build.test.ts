@@ -1,7 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { buildOutcome } from '@circi/core'
 import { getBuild, getFile, listBuildReviews } from '@circi/db/queries'
 import {
@@ -15,41 +11,26 @@ import {
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
-import { sha256 } from '@circi/testing'
+import { pngBytes, sha256, useTempDir } from '@circi/testing'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { processBuild, startWorker } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-worker')
 let storage: FsStorage
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-worker-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
-async function png(
-  width: number,
-  height: number,
-  mark?: { x: number; y: number },
-): Promise<Buffer> {
-  const base = sharp({ create: { width, height, channels: 4, background: '#ffffff' } })
-  if (!mark) return base.png().toBuffer()
-  const dot = await sharp({ create: { width: 8, height: 8, channels: 4, background: '#e11d48' } })
-    .png()
-    .toBuffer()
-  return sharp(await base.png().toBuffer())
-    .composite([{ input: dot, left: mark.x, top: mark.y }])
-    .png()
-    .toBuffer()
-}
+const png = (width: number, height: number, mark?: { x: number; y: number }): Promise<Buffer> =>
+  pngBytes({ width, height, ...(mark ? { mark: { ...mark, w: 8, h: 8, color: '#e11d48' } } : {}) })
 
 /** Creates a build the way the API does: plan, store bytes, verify, finalize. */
 async function uploadBuild(

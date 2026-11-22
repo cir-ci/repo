@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import type { Auth } from '@circi/auth'
@@ -8,7 +5,7 @@ import { rotateProjectToken } from '@circi/auth'
 import { getBuild, getFile } from '@circi/db/queries'
 import { createTestDb, seedAccount } from '@circi/db/testing'
 import { FsStorage, type StorageDriver } from '@circi/storage'
-import { sha256 } from '@circi/testing'
+import { sha256, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -20,21 +17,20 @@ const logger = pino({ level: 'silent' })
 const png = (text: string) => Buffer.from(`\x89PNG fake ${text}`)
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-api')
 let app: FastifyInstance
 let betterAuth: Auth
 
 beforeAll(async () => {
   t = await createTestDb()
   betterAuth = createTestAuth(t.db)
-  dir = await mkdtemp(join(tmpdir(), 'circi-api-'))
   app = buildServer({
     logger,
     checks: [],
     api: {
       db: t.db,
       auth: betterAuth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
     },
   })
@@ -43,7 +39,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const auth = (token: string) => ({ authorization: `Bearer ${token}` })
