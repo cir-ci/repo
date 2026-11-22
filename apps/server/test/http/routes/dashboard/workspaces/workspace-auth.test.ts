@@ -1,37 +1,39 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import type { Mailer } from '@circi/auth'
 import { getWorkspaceAuthSettings, getSessionMethod } from '@circi/db/queries'
 import { setWorkspaceAuthSettings } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { fakeMailer, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
-import { caller, JSON_HEADERS } from '#test/support/client.ts'
+import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  seedTenant,
+  signIn,
+  signInWithEmailCode,
+  type Tenant,
+} from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-orgauth')
 let withEmail: FastifyInstance
 let passwordOnly: FastifyInstance
-const sent: Mailer.Mail[] = []
+const mailer = fakeMailer()
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-orgauth-'))
-  const mailer = {
-    send: async (mail: Mailer.Mail) => {
-      sent.push(mail)
-    },
-  }
   const auth = createTestAuth(t.db, mailer)
-  const deps = { db: t.db, auth, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN }
+  const deps = {
+    db: t.db,
+    auth,
+    storage: new FsStorage({ path: tempDir.path }),
+    publicOrigin: ORIGIN,
+  }
   withEmail = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
@@ -44,33 +46,9 @@ beforeAll(async () => {
 afterAll(async () => {
   await Promise.all([withEmail.close(), passwordOnly.close()])
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 let tenantAuth: ReturnType<typeof createTestAuth>
-
-async function codeSignIn(app: FastifyInstance, email: string): Promise<string> {
-  sent.length = 0
-  await app.inject({
-    method: 'POST',
-    url: '/api/auth/email-otp/send-verification-otp',
-    headers: JSON_HEADERS,
-    payload: { email, type: 'sign-in' },
-  })
-  await vi.waitFor(() => expect(sent).toHaveLength(1))
-  const otp = /sign-in code is (\d{6})/.exec(sent[0]?.text ?? '')?.[1]
-  const res = await app.inject({
-    method: 'POST',
-    url: '/api/auth/sign-in/email-otp',
-    headers: JSON_HEADERS,
-    payload: { email, otp },
-  })
-  expect(res.statusCode).toBe(200)
-  return [res.headers['set-cookie']]
-    .flat()
-    .map((c) => String(c).split(';')[0])
-    .join('; ')
-}
 
 describe('per-workspace login methods', () => {
   let acme: Tenant
@@ -81,7 +59,9 @@ describe('per-workspace login methods', () => {
   beforeAll(async () => {
     acme = await seedTenant(tenantAuth, t.db)
     passwordCookie = await signIn(withEmail, acme.owner.email, acme.owner.password)
-    emailCookie = await codeSignIn(withEmail, acme.owner.email)
+    const signedIn = await signInWithEmailCode(withEmail, mailer, acme.owner.email)
+    if (signedIn.status !== 200) throw new Error('the email code did not sign in')
+    emailCookie = signedIn.cookie
     reset = await snapshotDb(t)
   })
   beforeEach(() => reset())
@@ -229,7 +209,7 @@ describe('per-workspace login methods', () => {
     expect(ok.statusCode).toBe(200)
   })
 
-  it('lets only owners and admins change it, and rejects unknown fields', async () => {
+  it('rejects unknown fields', async () => {
     const res = await caller(withEmail)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,

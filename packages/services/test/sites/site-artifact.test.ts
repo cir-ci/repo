@@ -1,7 +1,4 @@
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { type Job } from '@circi/db'
 import { latestArtifactImport, servedCommitForBranch, sitesForCommit } from '@circi/db/queries'
@@ -11,7 +8,7 @@ import * as schema from '@circi/db/schema'
 import { createTestDb, seedGitLink, seedProject } from '@circi/db/testing'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 import { FsStorage } from '@circi/storage'
-import { makeZip, type ZipEntry } from '@circi/testing'
+import { makeZip, useTempDir, type ZipEntry } from '@circi/testing'
 import { fakeGithubHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -30,7 +27,7 @@ const { privateKey } = generateKeyPairSync('rsa', {
 })
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-site-artifact')
 let storage: FsStorage
 beforeAll(async () => {
   t = await createTestDb()
@@ -39,12 +36,9 @@ afterAll(async () => {
   await t.close()
 })
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'circi-site-artifact-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
-afterEach(async () => {
-  await rm(dir, { recursive: true, force: true })
-})
+afterEach(async () => {})
 
 const SHA = 'abcdef0123456789abcdef0123456789abcdef01'
 const site = (extra: ZipEntry[] = []) =>

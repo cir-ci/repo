@@ -3,13 +3,12 @@ import { linkBuildsToPullRequest } from '@circi/db/queue'
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestMember,
   createTestDb,
   seedAccount,
   seedChangedSnapshots,
   seedGitLink,
+  seedMember,
   seedProject,
-  seedUser,
 } from '@circi/db/testing'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { eq } from 'drizzle-orm'
@@ -57,8 +56,7 @@ async function world(
   seq += 1
   const repoRef = `acme/web-${seq}`
   const { project, workspace } = await seedProject(t.db)
-  const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
+  const reviewer = await seedMember(t.db, workspace.id)
   await seedAccount(t.db, { userId: reviewer.id, accountId: `acc-${seq}` })
   await seedGitLink(t.db, project.id, { externalId: '1', repoRef })
   const created = await createBuild(t.db, {

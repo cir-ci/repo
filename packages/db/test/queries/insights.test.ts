@@ -1,9 +1,9 @@
 import {
-  addTestMember,
   createTestDb,
   imageSha,
   seedBuild,
   seedDiff,
+  seedMember,
   seedProject,
   seedReview,
   seedReviewRequest,
@@ -53,8 +53,7 @@ const at = (iso: string) => new Date(`2026-${iso}:00Z`)
 async function history() {
   const { project, workspace, owner } = await seedProject(t.db, { slug: 'web' })
   const docs = await createProject(t.db, { workspaceSlug: workspace.slug, name: 'docs' })
-  const mia = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mia.id })
+  const mia = await seedMember(t.db, workspace.id)
 
   const make = (
     branch: string,
@@ -252,8 +251,7 @@ describe('getInsights', () => {
 
   it('counts a member for every build they decided snapshots on, even when someone else finished it', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const mia = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mia.id })
+    const mia = await seedMember(t.db, workspace.id)
     const at0 = at('03-10T10:00')
     const mk = (ready: string) =>
       seedBuild(t.db, project.id, {

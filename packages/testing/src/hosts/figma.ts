@@ -9,13 +9,15 @@ export interface FakeFigmaFile {
 /**
  * A stateful fake of Figma's HTTP edge: tokens map to users, files have pages with frames,
  * comments are kept. Only what `FigmaClient` calls, with Figma's response shapes and its 403 for
- * a bad token and 404 for a file the token can't see.
+ * a bad token and 404 for a file the token can't see. `state.revoked` holds tokens Figma no
+ * longer accepts and `state.down` makes every request a 500 (an outage); a test may change both.
  */
 export function fakeFigmaHost(options: {
   tokens: Record<string, { id: string; handle: string; email?: string }>
   files: FakeFigmaFile[]
 }) {
   let nextId = 1
+  const state = { down: false, revoked: new Set<string>() }
   const comments: { id: string; fileKey: string; message: string; nodeId: string | undefined }[] =
     []
   const requests: { method: string; path: string; token: string | null }[] = []
@@ -27,7 +29,8 @@ export function fakeFigmaHost(options: {
     const bearer = req.headers.get('authorization')?.replace(/^Bearer /, '') ?? null
     const token = header ?? bearer
     requests.push({ method: req.method, path: url.pathname + url.search, token })
-    const user = token ? options.tokens[token] : undefined
+    if (state.down) return new Response('boom', { status: 500 })
+    const user = token && !state.revoked.has(token) ? options.tokens[token] : undefined
     if (!user) return json({ status: 403, err: 'Invalid token' }, 403)
 
     if (req.method === 'GET' && url.pathname === '/v1/me') return json(user)
@@ -100,7 +103,7 @@ export function fakeFigmaHost(options: {
   }
 
   const base = fakeHost(behaviour)
-  return { ...base, fetch: base.fetcher, comments, requests }
+  return { ...base, fetch: base.fetcher, comments, requests, state }
 }
 
 /** Figma's HTTP edge: one token, one file with a page and two frames, comments kept. */

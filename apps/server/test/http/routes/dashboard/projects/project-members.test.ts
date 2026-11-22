@@ -3,9 +3,9 @@ import { listProjectMembers } from '@circi/db/queries'
 import { addTestProjectMember } from '@circi/db/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { sender } from '#test/support/client.ts'
+import { JSON_HEADERS, sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { addMember, ORIGIN, signIn } from '#test/support/helpers.ts'
+import { addMember, signIn } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
@@ -318,7 +318,7 @@ describe('leaving the workspace', () => {
     const removed = await app.inject({
       method: 'POST',
       url: '/api/auth/organization/remove-member',
-      headers: { cookie: acmeCookie, origin: ORIGIN, 'content-type': 'application/json' },
+      headers: { ...JSON_HEADERS, cookie: acmeCookie },
       payload: { memberIdOrEmail: seat?.id, organizationId: body.id },
     })
     expect(removed.statusCode).toBe(200)

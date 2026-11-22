@@ -1,19 +1,16 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { type ListenFn } from '@circi/db'
 import { enqueueJob, JOBS_CHANNEL } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { startWorker } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-runner')
 let storage: FsStorage
 const silentListen: ListenFn = async () => async () => {}
 const broken: ListenFn = async () => {
@@ -23,12 +20,10 @@ const silent = { info() {}, warn() {}, error() {} }
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-runner-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 /** A job the worker claims and fails for good at once (no buildId): `attempts` > 0 once claimed. */

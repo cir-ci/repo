@@ -96,6 +96,9 @@ describe('debugOn', () => {
   })
 })
 
+// A missing folder's message is tested in-process (upload.test.ts, files.test.ts); what needs a
+// real process is the exit code and the one-line report, so it is spawned here, once for a failure
+// (~3 s: the client retries a refused connection) and once for --help.
 describe('the circi command', () => {
   let cwd: string
   beforeAll(async () => {
@@ -119,13 +122,6 @@ describe('the circi command', () => {
   })
   const configured = () => ({ CIRCI_TOKEN: 't', CIRCI_API_URL: address })
 
-  it('says which folder is missing, with exit code 2 and no stack', async () => {
-    const result = await circi(['upload', './screenshotz'], configured())
-    expect(result.code).toBe(2)
-    expect(result.stderr).toContain('error: No such directory: ./screenshotz')
-    expect(result.stderr).not.toMatch(/\n\s+at /)
-  })
-
   it('says which server it could not reach and what to check', async () => {
     const result = await circi(['site', 'upload', cwd], {
       ...configured(),
@@ -135,6 +131,7 @@ describe('the circi command', () => {
     expect(result.stderr).toContain(
       `error: Couldn't reach ${address} (connection refused). Check CIRCI_API_URL.`,
     )
+    expect(result.stderr).not.toMatch(/\n\s+at /)
   })
 
   it('explains the exit codes in --help', async () => {

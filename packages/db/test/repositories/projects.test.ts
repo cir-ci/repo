@@ -1,11 +1,5 @@
 import { projectColorFor, PROJECT_COLORS } from '@circi/core'
-import {
-  addTestMember,
-  createTestDb,
-  seedWorkspace,
-  seedProject,
-  seedUser,
-} from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject, seedUser, seedWorkspace } from '@circi/db/testing'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -114,8 +108,7 @@ describe('projects', () => {
 describe('findProjectForMember (workspace isolation)', () => {
   it('shows a project to members of its workspace only', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const colleague = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: colleague.id })
+    const colleague = await seedMember(t.db, workspace.id)
     const outsider = await seedUser(t.db)
     const ask = (userId: string) =>
       findProjectForMember(t.db, {

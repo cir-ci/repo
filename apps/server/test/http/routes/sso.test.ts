@@ -1,20 +1,19 @@
-import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { callbackUrl, createAuth } from '@circi/auth'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { TEST_AUTH_SECRET, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { ORIGIN } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-sso')
 let app: FastifyInstance
 let idp: Server
 
@@ -45,7 +44,6 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => idp.listen(0, '127.0.0.1', resolve))
   issuer = `http://127.0.0.1:${portOf(idp)}`
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-sso-'))
   const sso = [
     {
       id: 'github' as const,
@@ -65,7 +63,7 @@ beforeAll(async () => {
   ]
   const auth = createAuth({
     db: t.db,
-    secret: 'test-secret-that-is-long-enough-1234',
+    secret: TEST_AUTH_SECRET,
     baseURL: ORIGIN,
     sso,
   })
@@ -75,7 +73,7 @@ beforeAll(async () => {
     dashboard: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
       sso: [
         { id: 'github', name: 'GitHub' },
@@ -89,7 +87,6 @@ afterAll(async () => {
   await app.close()
   await new Promise((resolve) => idp.close(resolve))
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 describe('single sign-on wiring', () => {
@@ -105,7 +102,7 @@ describe('single sign-on wiring', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/social',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: JSON.stringify({ provider: 'github', callbackURL: '/' }),
     })
     expect(res.statusCode).toBe(200)
@@ -119,7 +116,7 @@ describe('single sign-on wiring', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/social',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: JSON.stringify({ provider: 'oidc', callbackURL: '/' }),
     })
     expect(res.statusCode).toBe(200)

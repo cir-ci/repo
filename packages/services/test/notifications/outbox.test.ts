@@ -19,6 +19,7 @@ import {
   seedReviewRequest,
   seedProject,
   seedUser,
+  seedBuild,
 } from '@circi/db/testing'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { fakeSha } from '@circi/testing'
@@ -249,17 +250,14 @@ async function seedWorld(): Promise<World> {
   await seedChangedSnapshots(t.db, processingRow.id)
   const processing = await getBuild(t.db, processingRow.id)
 
-  const done = await createBuild(t.db, {
-    projectId: project.id,
+  const done = await seedBuild(t.db, project.id, {
     commitSha: 'abc1003',
     branch: 'c',
     author: { login: 'ann', userId: ann.id },
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['a', 'b'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, done.id))
-  await seedChangedSnapshots(t.db, done.id, ['a', 'b'])
   await linkBuildsToPullRequest(t.db, { projectId: project.id, prNumber: 7, commitSha: 'abc1003' })
   const bobRequest = await seedReviewRequest(t.db, {
     buildId: done.id,

@@ -1,12 +1,10 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { getFile, getProjectBuild } from '@circi/db/queries'
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { ChecksumMismatchError, FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -18,7 +16,7 @@ import {
 } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-uploads')
 let storage: FsStorage
 beforeAll(async () => {
   t = await createTestDb()
@@ -27,12 +25,9 @@ afterAll(async () => {
   await t.close()
 })
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'circi-uploads-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
-afterEach(async () => {
-  await rm(dir, { recursive: true, force: true })
-})
+afterEach(async () => {})
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 const bytes = (text: string) => Readable.from([Buffer.from(text)])

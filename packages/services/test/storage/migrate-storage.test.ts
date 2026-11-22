@@ -1,18 +1,17 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { ensureAssetFiles } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage, type StorageDriver } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { migrateStorage } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-migrate')
 let from: FsStorage
 let to: FsStorage
 let stored: { sha: string; key: string }[]
@@ -28,9 +27,8 @@ afterAll(async () => {
 // Every test gets its own database rows and its own pair of directories, three files in the source.
 beforeEach(async () => {
   await t.reset()
-  dir = await mkdtemp(join(tmpdir(), 'circi-migrate-'))
-  from = new FsStorage({ path: join(dir, 'from') })
-  to = new FsStorage({ path: join(dir, 'to') })
+  from = new FsStorage({ path: join(tempDir.path, 'from') })
+  to = new FsStorage({ path: join(tempDir.path, 'to') })
   stored = []
   await Promise.all(
     ['one', 'two', 'three'].map(async (text) => {
@@ -44,9 +42,7 @@ beforeEach(async () => {
     }),
   )
 })
-afterEach(async () => {
-  await rm(dir, { recursive: true, force: true })
-})
+afterEach(async () => {})
 
 describe('migrateStorage', () => {
   it('copies every file under its own key, checked against its hash', async () => {

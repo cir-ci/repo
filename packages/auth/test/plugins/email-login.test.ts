@@ -1,26 +1,22 @@
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedWorkspace, seedUser } from '@circi/db/testing'
+import { fakeMailer, TEST_AUTH_SECRET } from '@circi/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { type Auth, createAuth, type Mailer } from '#src/index.ts'
+import { type Auth, createAuth } from '#src/index.ts'
 
 let t: createTestDb.Result
 let auth: Auth
-const sent: Mailer.Mail[] = []
+const mailer = fakeMailer()
 const mailErrors: unknown[] = []
 
 beforeAll(async () => {
   t = await createTestDb()
   auth = createAuth({
     db: t.db,
-    secret: 'test-secret-that-is-long-enough-1234',
+    secret: TEST_AUTH_SECRET,
     baseURL: 'http://localhost:3000',
-    mailer: {
-      send: (mail) => {
-        sent.push(mail)
-        return Promise.resolve()
-      },
-    },
+    mailer,
     onMailError: (err) => mailErrors.push(err),
   })
 })
@@ -29,7 +25,7 @@ afterAll(async () => {
 })
 beforeEach(async () => {
   await t.reset()
-  sent.length = 0
+  mailer.sent.length = 0
   mailErrors.length = 0
 })
 
@@ -40,15 +36,17 @@ describe('email login plugin', () => {
   it('mails a code, with a link carrying it, to an address that has an account', async () => {
     const user = await seedUser(t.db, 'known@acme.test')
     await requestCode(user.email)
-    expect(sent).toHaveLength(1)
-    expect(sent[0]?.to).toBe('known@acme.test')
-    expect(sent[0]?.text).toMatch(/#signin-email=known%40acme\.test&code=\d{6}/)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(1)
+    expect(mailer.sent[0]?.to).toBe('known@acme.test')
+    expect(mailer.sent[0]?.text).toMatch(/#signin-email=known%40acme\.test&code=\d{6}/)
   })
 
   it('answers the same for an unknown address but sends nothing', async () => {
-    const before = sent.length
+    const before = mailer.sent.length
     await expect(requestCode('stranger@nowhere.test')).resolves.toEqual({ success: true })
-    expect(sent).toHaveLength(before)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(before)
   })
 
   it('mails an invited address', async () => {
@@ -62,9 +60,10 @@ describe('email login plugin', () => {
       expiresAt: new Date(Date.now() + 3600_000),
       inviterId: owner.id,
     })
-    const before = sent.length
+    const before = mailer.sent.length
     await requestCode('invited@acme.test')
-    expect(sent).toHaveLength(before + 1)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(before + 1)
   })
 
   it('mails an address on a verified workspace domain', async () => {
@@ -75,8 +74,9 @@ describe('email login plugin', () => {
       verificationToken: 't',
       verifiedAt: new Date(),
     })
-    const before = sent.length
+    const before = mailer.sent.length
     await requestCode('new@corp.test')
-    expect(sent).toHaveLength(before + 1)
+    await mailer.idle()
+    expect(mailer.sent).toHaveLength(before + 1)
   })
 })

@@ -3,6 +3,7 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
+  seedMember,
   seedNotification,
   seedProject,
   seedReviewRequest,
@@ -27,8 +28,7 @@ const before = new Date('2026-03-09T09:00:00.000Z')
 
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const teammate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
+  const teammate = await seedMember(t.db, workspace.id)
   const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
   return { project, workspace, owner, teammate, build }
 }

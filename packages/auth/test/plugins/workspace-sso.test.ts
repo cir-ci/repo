@@ -1,4 +1,5 @@
 import { createTestDb } from '@circi/db/testing'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { workspaceSsoPlugin } from '#plugins/workspace-sso.ts'
@@ -22,7 +23,7 @@ describe('workspace single sign-on plugin', () => {
   it('is part of the auth instance', () => {
     const auth = createAuth({
       db: t.db,
-      secret: 'test-secret-that-is-long-enough-1234',
+      secret: TEST_AUTH_SECRET,
       baseURL: 'http://localhost:3000',
     })
     expect(Object.keys(auth.api)).toContain('registerSSOProvider')

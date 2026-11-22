@@ -9,6 +9,7 @@ import { markInstallationNeedsAttention } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedGitConnection, seedGitLink, seedProject } from '@circi/db/testing'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -39,7 +40,7 @@ function githubFake(installed: string[], failure: Error = new Error('connect ETI
     },
   }
   const ctx: IntegrationDefinition.Context = {
-    authSecret: 'test-secret-that-is-long-enough-123',
+    authSecret: TEST_AUTH_SECRET,
     publicOrigin: 'https://ci.acme.io',
     config: {},
     gitProviders: { github: provider },

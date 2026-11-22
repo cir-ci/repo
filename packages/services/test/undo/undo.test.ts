@@ -1,13 +1,12 @@
 import { listBuildActivity } from '@circi/db/queries'
 import { GIT_NOTIFY_QUEUE } from '@circi/db/queue'
-import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
   addTestMember,
   createTestDb,
   seedBuild,
-  seedChangedSnapshots,
   seedGitLink,
+  seedMember,
   seedNotification,
   seedProject,
   seedUser,
@@ -52,18 +51,15 @@ async function setup() {
   const lou = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: workspace.id, userId: ann.id })
   await addTestMember(t.db, { workspaceId: workspace.id, userId: lou.id })
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: 'feature',
     author: { login: 'ann', userId: ann.id },
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['a', 'b', 'c'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
   await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'acme/web' })
-  await seedChangedSnapshots(t.db, build.id, ['a', 'b', 'c'])
   await t.db.delete(schema.jobs)
   return { project, owner, ann, lou, build }
 }
@@ -252,8 +248,7 @@ describe('undo of a build decision', () => {
 
 async function triage() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const mate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+  const mate = await seedMember(t.db, workspace.id)
   const failed = await seedBuild(t.db, project.id, { branch: 'main', status: 'error' })
   const ref = { projectId: project.id, kind: 'failed', key: `build:${failed.number}` }
   const row = async () =>

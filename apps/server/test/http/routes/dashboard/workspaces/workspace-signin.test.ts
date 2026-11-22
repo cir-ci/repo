@@ -1,13 +1,10 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { createUser } from '@circi/auth'
 import { getWorkspaceBySlug } from '@circi/db/queries'
 import { recordSessionMethod, setWorkspaceAuthSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedInvitation } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -32,7 +29,7 @@ import {
  * endpoints are not faked here.
  */
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-signin')
 let app: FastifyInstance
 let withoutGithub: FastifyInstance
 let auth: ReturnType<typeof createTestAuth>
@@ -43,9 +40,13 @@ const sso = [
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-signin-'))
   auth = createTestAuth(t.db)
-  const deps = { db: t.db, auth, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN }
+  const deps = {
+    db: t.db,
+    auth,
+    storage: new FsStorage({ path: tempDir.path }),
+    publicOrigin: ORIGIN,
+  }
   app = buildServer({ logger: pino({ level: 'silent' }), checks: [], dashboard: { ...deps, sso } })
   withoutGithub = buildServer({ logger: pino({ level: 'silent' }), checks: [], dashboard: deps })
   await Promise.all([app.ready(), withoutGithub.ready()])
@@ -53,7 +54,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await Promise.all([app.close(), withoutGithub.close()])
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 /** Signs in with a password, then records that session as one that came through `provider`. */

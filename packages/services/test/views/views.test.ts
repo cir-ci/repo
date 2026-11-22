@@ -1,6 +1,6 @@
 import { ConflictError, NotFoundError } from '@circi/db'
 import { listPinnedProjectIds, listSavedViews } from '@circi/db/queries'
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/db/testing'
+import { createTestDb, seedMember, seedProject } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -25,8 +25,7 @@ afterAll(async () => {
 
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const mate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+  const mate = await seedMember(t.db, workspace.id)
   const mine = { userId: owner.id, workspaceId: workspace.id }
   return { project, workspace, owner, mate, mine }
 }

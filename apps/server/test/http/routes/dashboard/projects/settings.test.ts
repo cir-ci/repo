@@ -1,5 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createUser } from '@circi/auth'
@@ -11,6 +9,7 @@ import { createTestDb } from '@circi/db/testing'
 import { providerRegistry } from '@circi/integrations/git'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -45,7 +44,7 @@ const githubEdge = providerRegistry<object>({
 })
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-settings')
 let app: FastifyInstance
 let auth: Auth
 let acme: Tenant
@@ -58,14 +57,13 @@ let reset: () => Promise<void>
 beforeAll(async () => {
   t = await createTestDb()
   auth = createTestAuth(t.db)
-  dir = await mkdtemp(join(tmpdir(), 'circi-settings-'))
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
     dashboard: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: join(dir, 'files') }),
+      storage: new FsStorage({ path: join(tempDir.path, 'files') }),
       publicOrigin: ORIGIN,
       githubApp: true,
       authSecret: 'settings-test-secret-long-enough-123',
@@ -95,7 +93,6 @@ beforeEach(() => reset())
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const base = () => `/api/projects/${acme.workspaceSlug}/web`
