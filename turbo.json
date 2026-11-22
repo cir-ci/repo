@@ -71,7 +71,7 @@
         "!**/.turbo/**"
       ],
       "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
+      "dependsOn": ["@circi/vitest#build", "@circi/cypress#build"]
     },
     "//#test:deploy": {
       "inputs": [

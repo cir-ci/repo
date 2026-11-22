@@ -13,7 +13,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --deny-warnings",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui && tsc -p packages/ui/tsconfig.previews.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui && tsc -p packages/ui/tsconfig.previews.json && tsc -p packages/cypress/tsconfig.browser.json",
     "gate": "turbo run //#format:check //#lint //#typecheck //#test:node //#test:deploy //#test:ui //#test:web-browser build",
     "gate:checks": "turbo run //#format:check //#lint //#typecheck",
     "gate:tests": "turbo run //#test:node //#test:deploy //#test:ui //#test:web-browser build",
@@ -45,7 +45,7 @@
     "perf:bench": "node perf/bench/diff.ts",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-chart-version.mjs && pnpm install --lockfile-only && pnpm format",
-    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest && changeset publish"
+    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest --filter=@circi/cypress && changeset publish"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",
