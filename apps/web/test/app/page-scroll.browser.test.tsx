@@ -40,44 +40,26 @@ async function open(width: number, height: number) {
   return router
 }
 
-describe('the page scroller', () => {
-  it('is the panel on a phone', async () => {
-    await open(390, 844)
+const SIZES = [
+  ['a phone', 390, 844],
+  ['1280px', 1280, 700],
+] as const
+
+describe.each(SIZES)('the page scroller on %s', (_, width, height) => {
+  it('is the panel, and the window never scrolls', async () => {
+    await open(width, height)
     expect(pageScroller()).toBe(document.getElementById('content'))
     scrollPageTo(300)
     await expect.poll(pageScrollTop).toBe(300)
     expect(window.scrollY).toBe(0)
   })
 
-  it('is the panel at 1280px too, and the window never scrolls', async () => {
-    await open(1280, 700)
-    expect(pageScroller()).toBe(document.getElementById('content'))
-    scrollPageTo(300)
-    await expect.poll(pageScrollTop).toBe(300)
-    expect(window.scrollY).toBe(0)
-  })
-})
-
-describe('the router scrolling', () => {
-  it('starts a new page at the top of the panel on a phone, and puts the panel back on back', async () => {
-    const router = await open(390, 844)
+  it('starts a new page at the top of the panel, and puts the panel back on back', async () => {
+    const router = await open(width, height)
     const panel = document.getElementById('content')!
     panel.scrollTo({ top: 600 })
     await expect.poll(() => panel.scrollTop).toBe(600)
     // The router notes the scroll from its event, which the browser fires on the next frame.
-    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
-    await router.navigate({ href: '/b' })
-    await expect.poll(() => panel.scrollTop).toBe(0)
-    router.history.back()
-    await expect.poll(() => panel.scrollTop).toBe(600)
-    expect(window.scrollY).toBe(0)
-  })
-
-  it('starts a new page at the top of the panel at 1280px, and puts the panel back on back', async () => {
-    const router = await open(1280, 700)
-    const panel = document.getElementById('content')!
-    panel.scrollTo({ top: 600 })
-    await expect.poll(() => panel.scrollTop).toBe(600)
     await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
     await router.navigate({ href: '/b' })
     await expect.poll(() => panel.scrollTop).toBe(0)

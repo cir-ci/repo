@@ -1,27 +1,20 @@
-import { CirciTheme, ContextMenu } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ContextMenu } from '@circi/ui'
 import {
   createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  RouterProvider,
 } from '@tanstack/react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { Shell } from '#app/Shell.tsx'
 import { clipboard } from '#lib/clipboard.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
-import { ToastHost } from '#lib/ToastHost.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { fakeFetch, getRoutes } from '#test/support/fetch.ts'
 import { menuItemNames } from '#test/support/menu.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const API: Record<string, unknown> = {
   '/api/workspaces/acme/sidebar': {
@@ -63,16 +56,7 @@ async function renderApp() {
     ]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
-  await render(
-    <CirciTheme>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
-        <RouterProvider router={router} />
-        <ToastHost />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  await renderPage(null, { router })
   await expect.element(page.getByRole('heading', { name: 'Projects page' })).toBeVisible()
 }
 
@@ -92,19 +76,7 @@ mockAuthClient()
 
 beforeEach(async () => {
   await page.viewport(1280, 800)
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: string | URL | Request) => {
-      const path = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-        .pathname
-      const body = API[path]
-      return Promise.resolve(
-        new Response(JSON.stringify(body ?? { error: 'not found' }), {
-          status: body === undefined ? 404 : 200,
-        }),
-      )
-    }),
-  )
+  fakeFetch(getRoutes(API))
 })
 
 describe('the app-level context menu', () => {

@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
 import { readSessionHint, writeSessionHint } from '#lib/session-hint.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
@@ -81,14 +76,8 @@ const api = (
     'GET /api/workspaces/acme/search': { body: search },
     ...extra,
   })
-  // The fake keys by path; the search's own address says which project and kinds were asked for.
-  const urls: string[] = []
-  const send = globalThis.fetch
-  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-    urls.push(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
-    return send(input, init)
-  })
-  return { ...fake, searches: () => urls.filter((u) => u.includes('/search?')) }
+  // The search's own address says which project and kinds were asked for.
+  return { ...fake, searches: () => fake.urls.filter((u) => u.includes('/search?')) }
 }
 
 const build = (over: Record<string, unknown> = {}) => ({

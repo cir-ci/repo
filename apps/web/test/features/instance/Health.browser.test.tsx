@@ -4,6 +4,7 @@ import { page } from 'vitest/browser'
 
 import { HealthPage } from '#features/instance/HealthPage.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const show = () => renderPage(<HealthPage />, { route: '/instance/health' })
@@ -354,7 +355,7 @@ describe('the Health header', () => {
       expect(new Set(items.map((el) => Math.round(el.getBoundingClientRect().top))).size).toBe(
         width > 600 ? 1 : 2,
       )
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+      expectNoSidewaysScroll()
     },
   )
 })

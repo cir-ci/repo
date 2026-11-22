@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { MemberPicker } from '#features/reviews/MemberPicker.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'

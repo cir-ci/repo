@@ -7,10 +7,6 @@ import { toastNamed } from '#test/support/toast.ts'
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
 // The build review reads the session: the fake client, signed in as Ada.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 beforeEach(async () => {
   await page.viewport(1280, 900)
 })

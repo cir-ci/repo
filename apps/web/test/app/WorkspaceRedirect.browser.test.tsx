@@ -1,19 +1,15 @@
 import { createMemoryHistory } from '@tanstack/react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { createAppRouter } from '#app/router.tsx'
 import { rememberWorkspace } from '#app/shell-model.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { settled } from '#test/support/settled.ts'
 
 const overview = (workspace: string, name: string) => ({
   workspace: { slug: workspace, name },
-  project: { slug: 'web', name: 'web', defaultBranch: 'main' },
+  project: { slug: 'web', name: 'web', defaultBranch: 'main', memberCount: 0, memberPreview: [] },
   latestBuild: null,
 })
 
@@ -38,12 +34,12 @@ async function open(
   lastWorkspace: string | null = null,
 ) {
   const router = createAppRouter({ history: createMemoryHistory({ initialEntries: [url] }) })
-  const { calls } = await renderPage(null, {
+  const { calls, queryClient } = await renderPage(null, {
     router,
     api: api(projects, lastWorkspace),
     ...(beforeRender ? { beforeRender } : {}),
   })
-  return { router, calls }
+  return { router, calls, queryClient }
 }
 const writes = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.method === 'PUT' && c.path.endsWith('/last-opened')).map((c) => c.path)
@@ -141,7 +137,7 @@ describe('/login while signed in', () => {
 
 describe('remembering the workspace on the server', () => {
   it('writes a workspace that is opened and is not the remembered one, once', async () => {
-    const { calls } = await open(
+    const { calls, queryClient } = await open(
       '/workspaces/beta/reviews?tab=for-you',
       [overview('beta', 'Beta'), overview('acme', 'Acme')],
       undefined,
@@ -149,31 +145,31 @@ describe('remembering the workspace on the server', () => {
     )
     await expect.poll(() => writes(calls)).toEqual(['/api/workspaces/beta/last-opened'])
     // The same address again (the cache has the new value): nothing more is written.
-    await new Promise((r) => setTimeout(r, 200))
+    await settled(queryClient)
     expect(writes(calls)).toHaveLength(1)
   })
 
   it('writes nothing for the workspace the server already remembers', async () => {
-    const { calls } = await open(
+    const { calls, queryClient } = await open(
       '/workspaces/acme/reviews?tab=for-you',
       [overview('beta', 'Beta'), overview('acme', 'Acme')],
       undefined,
       'acme',
     )
     await expect.poll(() => calls.some((c) => c.path === '/api/capabilities')).toBe(true)
-    await new Promise((r) => setTimeout(r, 200))
+    await settled(queryClient)
     expect(writes(calls)).toEqual([])
   })
 
   it("never writes a workspace that isn't theirs", async () => {
-    const { calls } = await open(
+    const { calls, queryClient } = await open(
       '/workspaces/stranger/reviews?tab=for-you',
       [overview('beta', 'Beta')],
       undefined,
       'beta',
     )
     await expect.poll(() => calls.some((c) => c.path === '/api/capabilities')).toBe(true)
-    await new Promise((r) => setTimeout(r, 200))
+    await settled(queryClient)
     expect(writes(calls)).toEqual([])
   })
 })

@@ -4,7 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { ScrollArea } from '#src/index.ts'
 
-const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+import { frame } from './support/dom.ts'
 
 function Harness({ width = 600, height = 1200 }: { width?: number; height?: number }) {
   return (

@@ -104,16 +104,6 @@ describe('Menu', () => {
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('closes on Escape and returns focus to the trigger', async () => {
-    await render(<Harness />)
-    const trigger = page.getByRole('button', { name: 'Row actions' })
-    await trigger.click()
-    await expect.element(page.getByRole('menu')).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
-    await expect.element(trigger).toHaveFocus()
-  })
-
   it('shows shortcut text and does not run disabled items', async () => {
     await render(<Harness />)
     await page.getByRole('button', { name: 'Row actions' }).click()

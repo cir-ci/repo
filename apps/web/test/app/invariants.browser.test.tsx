@@ -1,37 +1,13 @@
-import { CirciTheme } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryHistory, RouterProvider } from '@tanstack/react-router'
+import { createMemoryHistory } from '@tanstack/react-router'
 import axe from 'axe-core'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-const auth = vi.hoisted(() => ({
-  user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' } as {
-    id: string
-    name: string
-    email: string
-  } | null,
-}))
-vi.mock('#lib/auth-client.ts', () => ({
-  authClient: {
-    useSession: () => ({
-      data: auth.user ? { user: auth.user, session: { id: 's1', token: 't' } } : null,
-      isPending: false,
-    }),
-    listSessions: async () => ({ data: [], error: null }),
-    listAccounts: async () => ({ data: [], error: null }),
-    signOut: async () => {},
-    signIn: { email: async () => ({ data: null, error: new Error('no') }) },
-    $store: { notify: () => {} },
-    organization: { getInvitation: async () => ({ data: null, error: new Error('none') }) },
-  },
-}))
-
 import { createAppRouter } from '#app/router.tsx'
-import { resetStores } from '#lib/stores/index.ts'
-import { fakeFetch, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { setSignedInUser } from '#test/support/auth-client.ts'
+import { fakeFetch, hangingFetch } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 /** What each `$param` of an address stands for in this test. */
 const SAMPLE: Record<string, string> = {
@@ -51,16 +27,8 @@ const PATHS = Object.keys(createAppRouter().routesByPath).filter((p) => p !== '/
 type Scheme = 'light' | 'dark'
 
 async function open(url: string) {
-  resetStores()
   const router = createAppRouter({ history: createMemoryHistory({ initialEntries: [url] }) })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await render(
-    <CirciTheme mode="light">
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  const { queryClient } = await renderPage(null, { router, mode: 'light' })
   return { router, queryClient }
 }
 
@@ -189,13 +157,17 @@ async function focusRingProblems() {
   return ring || shadow ? [] : [`no focus ring on ${describeEl(el)}`]
 }
 
-const noHorizontalScroll = () => document.documentElement.scrollWidth <= window.innerWidth
+/** The page scrolls sideways: a problem line, or none. */
+function sidewaysScroll(at: number): string[] {
+  try {
+    expectNoSidewaysScroll()
+    return []
+  } catch (error) {
+    return [`horizontal scroll at ${at}: ${error instanceof Error ? error.message : ''}`]
+  }
+}
 
-beforeEach(() => {
-  auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
-})
 afterEach(() => {
-  restoreFetch()
   delete document.documentElement.dataset['circiColorScheme']
 })
 
@@ -236,10 +208,10 @@ describe('every page upholds the global invariants', () => {
       for (const p of await check('dark')) problems.push(`[dark] ${p}`)
       setScheme('light')
       problems.push(...(await focusRingProblems()))
-      if (!noHorizontalScroll()) problems.push('horizontal scroll at 1280')
+      problems.push(...sidewaysScroll(1280))
       await page.viewport(390, 800)
       await frame()
-      if (!noHorizontalScroll()) problems.push('horizontal scroll at 390')
+      problems.push(...sidewaysScroll(390))
       expect(unexpected(`${state} ${path}`, problems)).toEqual([])
     })
   })
@@ -253,7 +225,7 @@ describe('every page upholds the global invariants', () => {
   })
 
   it('upholds them on the sign-in page', async () => {
-    auth.user = null
+    setSignedInUser(null)
     fakeFetch({
       'GET /api/setup': { needed: false },
       'GET /api/auth-methods': { password: true, email: false, sso: [] },

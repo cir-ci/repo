@@ -1,21 +1,13 @@
-import { CirciTheme, ContextMenu } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ContextMenu } from '@circi/ui'
 import {
   createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  RouterProvider,
   useNavigate,
 } from '@tanstack/react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { Shell } from '#app/Shell.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -23,8 +15,11 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { openInNewTabItem } from '#lib/row-menu.ts'
 import { useTabStore } from '#lib/stores/tab-store.ts'
 import { hrefOf } from '#lib/tabs.ts'
-import { ToastHost } from '#lib/ToastHost.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { installedAs, switchableDisplayMode } from '#test/support/display-mode.ts'
+import { fakeFetch, getRoutes } from '#test/support/fetch.ts'
+import { emulateMotion } from '#test/support/motion.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const API: Record<string, unknown> = {
   '/api/workspaces/acme/sidebar': {
@@ -53,53 +48,6 @@ const API: Record<string, unknown> = {
   '/api/instance/notices': {},
   '/api/setup': { needed: false },
   '/api/auth-methods': { password: true, email: false, sso: [] },
-}
-
-/** Runs the dashboard as the installed app (or in a browser tab) by faking the display-mode media queries. */
-function installedAs(mode: 'browser' | 'standalone' | 'overlay') {
-  const real = window.matchMedia.bind(window)
-  vi.stubGlobal('matchMedia', (query: string) => {
-    if (!query.includes('display-mode')) return real(query)
-    const overlayOnly = query.includes('window-controls-overlay') && !query.includes('standalone')
-    const matches = mode === 'browser' ? false : overlayOnly ? mode === 'overlay' : true
-    // Listeners are kept by the app (useInstalled); this mode never changes, so they never run.
-    return Object.create(real(query), {
-      matches: { value: matches },
-      addEventListener: { value: () => {} },
-      removeEventListener: { value: () => {} },
-    })
-  })
-}
-
-/**
- * A display mode that can change while the app runs (entering full screen): the media queries
- * follow `mode`, and `switchTo` fires their change events as the browser does.
- */
-function switchableDisplayMode(start: 'standalone' | 'overlay' | 'fullscreen') {
-  let mode = start
-  const listeners = new Set<() => void>()
-  const real = window.matchMedia.bind(window)
-  const matchesFor = (query: string) => {
-    if (query.includes('fullscreen')) return mode === 'fullscreen'
-    const overlayOnly = query.includes('window-controls-overlay') && !query.includes('standalone')
-    return overlayOnly ? mode === 'overlay' : mode !== 'fullscreen'
-  }
-  vi.stubGlobal('matchMedia', (query: string) => {
-    if (!query.includes('display-mode')) return real(query)
-    return Object.create(real(query), {
-      matches: { get: () => matchesFor(query) },
-      addEventListener: { value: (_: string, listener: () => void) => listeners.add(listener) },
-      removeEventListener: {
-        value: (_: string, listener: () => void) => listeners.delete(listener),
-      },
-    })
-  })
-  return {
-    switchTo(next: typeof mode) {
-      mode = next
-      for (const listener of listeners) listener()
-    },
-  }
 }
 
 /** A page: a header, a title for the document, and buttons that go elsewhere through the router. */
@@ -142,15 +90,7 @@ async function renderApp(path = '/') {
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await render(
-    <CirciTheme>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <ToastHost />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  await renderPage(null, { router })
   return router
 }
 
@@ -173,19 +113,7 @@ mockAuthClient()
 
 beforeEach(async () => {
   await page.viewport(1280, 800)
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: string | URL | Request) => {
-      const path = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-        .pathname
-      const body = API[path]
-      return Promise.resolve(
-        new Response(JSON.stringify(body ?? { error: 'not found' }), {
-          status: body === undefined ? 404 : 200,
-        }),
-      )
-    }),
-  )
+  fakeFetch(getRoutes(API))
 })
 
 describe('tabs in a normal browser tab', () => {
@@ -316,8 +244,11 @@ describe('tabs in the installed app', () => {
     await expect.poll(() => tabs().elements()).toHaveLength(2)
     const list = document.querySelector('[role="tablist"]')!
     expect(list.querySelector('button:not([role="tab"])')).toBeNull()
+    // The close buttons are drawn over the strip, a render after the tabs: wait for both.
+    await expect
+      .poll(() => page.getByRole('button', { name: /^Close / }).elements())
+      .toHaveLength(2)
     const closes = page.getByRole('button', { name: /^Close / }).elements()
-    expect(closes).toHaveLength(2)
     for (const close of closes) {
       expect(list.contains(close)).toBe(false)
       expect(close.tabIndex).toBe(-1)
@@ -333,6 +264,7 @@ describe('tabs in the installed app', () => {
   })
 
   it('glides the highlight to the tab switched to, and fades the page in', async () => {
+    await emulateMotion()
     installedAs('standalone')
     await renderApp()
     await page.getByRole('button', { name: 'New tab' }).click()

@@ -2,11 +2,6 @@ import { AnnouncerProvider } from '@circi/ui'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { InviteForm } from '#features/members/InviteForm.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'

@@ -1,10 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it (Ada, u1, is signed in).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { ProjectContextMenu } from '#features/projects/ProjectContextMenu.tsx'
 import { ProjectsPage } from '#features/projects/ProjectsPage.tsx'

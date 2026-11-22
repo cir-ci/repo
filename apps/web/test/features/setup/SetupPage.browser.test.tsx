@@ -6,6 +6,9 @@ import { fakeFetch, json } from '#test/support/fetch.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 
+// This file drives the real better-auth client over the faked network, not the fake client `setup.ts` installs.
+vi.unmock('#lib/auth-client.ts')
+
 async function fillAccount(overrides: { code?: string; password?: string } = {}) {
   await page.getByRole('textbox', { name: 'Setup code' }).fill(overrides.code ?? ' abc123 ')
   await page.getByRole('textbox', { name: 'Your name' }).fill('Ada Lovelace')
