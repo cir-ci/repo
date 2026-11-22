@@ -1,36 +1,18 @@
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { errorLine, upload } from '@circi/cli'
+import { type CirciOptions, errorLine, upload } from '@circi/cli'
 
 import { type CollectedScreenshot, collectDirectory } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
-import { type Shard, shardFromArgs } from './shard.ts'
+import { shardFromArgs } from './shard.ts'
 
 export namespace CirciReporter {
-  export interface Options {
-    /** CirCI address. Default: `CIRCI_API_URL`. */
-    apiUrl?: string
-    /** Project CI token. Default: `CIRCI_TOKEN`. */
-    token?: string
-    /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
-    name?: string
-    /** Where captures are written, relative to the project root. Default `.circi/screenshots`. */
-    dir?: string
-    /** Empty `dir` when the run starts, so a build holds only this run's captures. Default false. */
-    clean?: boolean
-    /** Project root to look in. Default: the root of the Vitest run. */
-    root?: string
-    /** Wait for the result and fail the run when changes need review. Default false. */
-    wait?: boolean
-    /** Fail the Vitest run if the upload fails. Default false: tests passed or failed on their own. */
-    strict?: boolean
-    /** This process's shard, if not given by `--shard`. */
-    shard?: Shard
+  /** `name` defaults to `vitest`; give each browser project its own (`vitest-chromium`). */
+  export interface Options extends CirciOptions.Common {
     /** For tests. */
     uploadImpl?: (options: upload.Options) => Promise<Pick<upload.Result, 'exitCode'>>
     collectImpl?: (options: CirciReporter.Options) => Promise<CollectedScreenshot[]>
-    log?: (line: string) => void
   }
 }
 

@@ -86,6 +86,19 @@
       "outputs": [],
       "dependsOn": ["@circi/vitest#build"]
     },
+    "//#test:storybook": {
+      "inputs": [
+        "$TURBO_ROOT$/packages/{storybook,cli}/**",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/package.json",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.vitest/**",
+        "!**/.turbo/**",
+        "!$TURBO_ROOT$/packages/storybook/test/fixtures/.run-*/**"
+      ],
+      "outputs": []
+    },
     "//#test:ui": {
       "inputs": [
         "$TURBO_ROOT$/packages/ui/**",

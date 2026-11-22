@@ -30,6 +30,12 @@
   },
   "overrides": [
     {
+      // Runs inside the Storybook preview page: Storybook's own globals are named `__STORYBOOK_*__`,
+      // and Playwright serializes each function, so none may use anything from outside itself.
+      "files": ["packages/storybook/src/page.js"],
+      "rules": { "no-underscore-dangle": "off", "unicorn/consistent-function-scoping": "off" }
+    },
+    {
       "files": ["**/test/**/*.ts"],
       "env": {
         "vitest": true
