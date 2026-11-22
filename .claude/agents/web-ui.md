@@ -22,10 +22,10 @@ UI rules on top of CLAUDE.md:
   - no unsafe type assertions or unused imports.
 - Commit on your branch only once the checks pass. End the message with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 - Every package is versioned by Changesets, private ones included: the post-commit hook writes a changeset for a changed package; reword it into a short release note for the people who use what changed. A change that releases nothing (tests, `perf/`, comments) takes `pnpm changeset --empty` instead. CI's `changeset status` fails a branch without one.
-- The repository is github.com/cir-ci/repo (`origin`). When the brief asks for it, push your branch (`git push -u origin <branch>`) and open a pull request to `main` with `gh pr create`, saying what changed, why, and how it was checked. Never push to `main` and never force-push.
+- The repository is github.com/cir-ci/repo (`origin`). Always push your branch (`git push -u origin <branch>`) and open a pull request to `main` with `gh pr create` once the checks pass, saying what changed, why, and how it was checked. Never push to `main` and never force-push.
 - Released versions of the app run on people's servers now: never edit, squash or regenerate a migration that is on `main`; add a new one. A breaking change (a CLI flag, an HTTP API, a setting, a job's name or payload) needs a migration path, and its changeset says so (`[minor]` while below 1.0).
 - Report back:
-  - the commit hash, and the pull request's URL if you opened one;
+  - the commit hash and the pull request's URL;
   - what changed per item;
   - the tests added or changed;
   - what you chose differently and why;
