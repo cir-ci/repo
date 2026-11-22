@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -124,10 +124,17 @@ describe('deploy/helm/circi', () => {
       additionalProperties: z.boolean(),
       properties: z.record(
         z.string(),
-        z.object({ additionalProperties: z.boolean().optional() }).loose(),
+        z
+          .object({
+            additionalProperties: z.boolean().optional(),
+            properties: z.record(z.string(), z.unknown()).optional(),
+          })
+          .loose(),
       ),
     })
     .parse(JSON.parse(deploy('helm/circi/values.schema.json')))
+  /** The keys the schema allows in a group of values. */
+  const schemaGroup = (group: string) => schema.properties[group]?.properties ?? {}
   /** The body of a named template, and the `include "circi.set"` lines in it as name -> expression. */
   const define = (name: string) => {
     const body = helpers.split('\n{{- define "').find((block) => block.startsWith(`${name}" -}}`))
@@ -163,12 +170,14 @@ describe('deploy/helm/circi', () => {
       .map((file) => deploy(`helm/circi/templates/${file}`))
       .join('\n')
     const paths = new Set(
-      [...templates.matchAll(/\.Values\.([A-Za-z0-9]+)\.([A-Za-z0-9]+)/g)].map((m) =>
+      [...templates.matchAll(/\.Values\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)/g)].map((m) =>
         [m[1], m[2]].join('.'),
       ),
     )
+    // caddy_aws_credentials is null unless given, an object the schema closes (access_key_id, secret_access_key).
     const missing = [...paths].filter((path) => {
       const [group = '', key = ''] = path.split('.')
+      if (group === 'caddy_aws_credentials') return false
       const section = new RegExp(`^${group}:.*\\n((?:[ #].*\\n|\\n)*)`, 'm').exec(values)?.[1] ?? ''
       return !new RegExp(`^ {2}${key}:`, 'm').test(section)
     })
@@ -181,6 +190,120 @@ describe('deploy/helm/circi', () => {
       ([, group]) => group.additionalProperties === undefined && 'properties' in group,
     )
     expect(open.map(([name]) => name)).toEqual([])
+  })
+
+  it('has a top-level default for every top-level value the templates read', () => {
+    const templates = readdirSync(join(root, 'deploy/helm/circi/templates'))
+      .map((file) => deploy(`helm/circi/templates/${file}`))
+      .join('\n')
+    const read = new Set([...templates.matchAll(/\.Values\.([A-Za-z0-9_]+)/g)].map((m) => m[1]))
+    const top = new Set([...values.matchAll(/^([A-Za-z0-9_]+):/gm)].map((m) => m[1]))
+    expect([...read].filter((key) => !top.has(key))).toEqual([])
+  })
+
+  it("names every CirCI setting like the Terraform module's inputs", () => {
+    const variables = deploy('terraform/variables.tf').split('\nvariable "').slice(1)
+    const tf = new Map(variables.map((text) => [text.slice(0, text.indexOf('"')), text] as const))
+    /** A group's keys in variables.tf: the list its validation allows. */
+    const tfKeys = (group: string) => {
+      const list = /setsubtract\(keys\(var\.\w+\), \[([^\]]*)\]\)/.exec(tf.get(group) ?? '')?.[1]
+      return [...(list ?? '').matchAll(/"(\w+)"/g)].map((m) => m[1] ?? '')
+    }
+    // The chart's values: the top-level keys, and each map's keys one level down.
+    const top: string[] = []
+    const chart = new Map<string, string[]>()
+    let current: string[] = []
+    for (const line of values.split('\n')) {
+      const key = /^([A-Za-z0-9_]+):/.exec(line)?.[1]
+      if (key) {
+        top.push(key)
+        current = []
+        chart.set(key, current)
+      } else {
+        const inner = /^ {2}([A-Za-z0-9_]+):/.exec(line)?.[1]
+        if (inner) current.push(inner)
+      }
+    }
+    const chartKeys = (group: string) => sorted(chart.get(group) ?? [])
+
+    const scalars = [
+      'public_url',
+      'previous_public_urls',
+      'trusted_proxies',
+      'log_level',
+      'workspace_creation',
+    ]
+    const groups = [
+      'smtp',
+      's3',
+      'sign_in',
+      'sso',
+      'github_app',
+      'slack',
+      'vapid',
+      'sites',
+      'jobs',
+      'webhooks',
+      'tuning',
+    ]
+    expect(scalars.filter((name) => !tf.has(name))).toEqual([])
+    for (const group of groups) {
+      expect({ [group]: chartKeys(group) }).toEqual({ [group]: sorted(tfKeys(group)) })
+      expect(tfKeys(group)).not.toEqual([])
+    }
+    // `database` has the module's keys and the chart-only existing_ca_config_map; `caddy` has the
+    // module's keys and Kubernetes plumbing.
+    expect(sorted(tfKeys('database'))).toEqual([
+      'ca_certificate',
+      'host',
+      'name',
+      'port',
+      'tls',
+      'user',
+    ])
+    expect(chartKeys('database')).toEqual(sorted([...tfKeys('database'), 'existing_ca_config_map']))
+    expect(sorted(tfKeys('caddy'))).toEqual(['aws_region', 'dashboard_host', 'sites_host'])
+    expect(chartKeys('caddy')).toEqual(
+      sorted([
+        ...tfKeys('caddy'),
+        'enabled',
+        'image',
+        'serviceAccount',
+        'service',
+        'persistence',
+        'resources',
+        'nodeSelector',
+        'tolerations',
+        'affinity',
+        'podAnnotations',
+      ]),
+    )
+
+    // Secrets: the module's sensitive variables, but its Postgres password (the module runs its own
+    // Postgres) and the Route53 keys (an object, caddy_aws_credentials), are the chart's secret keys.
+    const sensitive = [...tf]
+      .filter(([, text]) => /sensitive\s+= true/.test(text))
+      .map(([name]) => name)
+    const secrets = sensitive.filter(
+      (name) => name !== 'postgres_password' && name !== 'caddy_aws_credentials',
+    )
+    const named = [
+      'database_password',
+      ...SECRET_SETTINGS.filter((name) => name !== 'DATABASE_URL').map((name) =>
+        name.toLowerCase(),
+      ),
+    ]
+    expect(sorted(secrets)).toEqual(sorted(named))
+    expect(sensitive).toContain('caddy_aws_credentials')
+    const expected = [...scalars, ...groups, ...secrets, 'caddy_aws_credentials']
+    expect(expected.filter((name) => !top.includes(name))).toEqual([])
+    expect(top).not.toContain('secrets')
+    // The schema allows the same keys, so a misspelled one is refused.
+    for (const group of [...groups, 'database']) {
+      expect({ [group]: sorted(Object.keys(schemaGroup(group))) }).toEqual({
+        [group]: chartKeys(group),
+      })
+    }
   })
 
   it("carries the Caddyfile of deploy/ and the app's version", () => {

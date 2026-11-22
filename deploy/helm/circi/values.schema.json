@@ -5,34 +5,79 @@
   "type": "object",
   "additionalProperties": false,
   "definitions": {
-    "string": { "type": ["string", "null"] },
-    "bool": { "type": ["boolean", "null"] },
-    "number": { "type": ["number", "null"] },
-    "int": { "type": ["integer", "null"] },
-    "object": { "type": "object" },
-    "stringList": { "type": "array", "items": { "type": "string" } },
+    "string": {
+      "type": ["string", "null"]
+    },
+    "bool": {
+      "type": ["boolean", "null"]
+    },
+    "number": {
+      "type": ["number", "null"]
+    },
+    "int": {
+      "type": ["integer", "null"]
+    },
+    "object": {
+      "type": "object"
+    },
+    "stringList": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "pod": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "replicas": { "type": "integer", "minimum": 0 },
-        "resources": { "type": "object" },
-        "nodeSelector": { "type": "object" },
-        "tolerations": { "type": "array" },
-        "affinity": { "type": "object" },
-        "podAnnotations": { "type": "object" },
-        "podLabels": { "type": "object" }
+        "replicas": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resources": {
+          "type": "object"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "podAnnotations": {
+          "type": "object"
+        },
+        "podLabels": {
+          "type": "object"
+        }
       }
     },
     "probe": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "initialDelaySeconds": { "type": "integer", "minimum": 0 },
-        "periodSeconds": { "type": "integer", "minimum": 1 },
-        "timeoutSeconds": { "type": "integer", "minimum": 1 },
-        "successThreshold": { "type": "integer", "minimum": 1 },
-        "failureThreshold": { "type": "integer", "minimum": 1 }
+        "initialDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "successThreshold": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     }
   },
@@ -41,300 +86,599 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "tag": { "type": "string" },
-        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
       }
     },
-    "imagePullSecrets": { "type": "array" },
-    "nameOverride": { "type": "string" },
-    "fullnameOverride": { "type": "string" },
-    "mode": { "enum": ["all", "split"] },
-    "all": { "$ref": "#/definitions/pod" },
-    "serve": { "$ref": "#/definitions/pod" },
-    "worker": { "$ref": "#/definitions/pod" },
+    "imagePullSecrets": {
+      "type": "array"
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": ["all", "split"]
+    },
+    "all": {
+      "$ref": "#/definitions/pod"
+    },
+    "serve": {
+      "$ref": "#/definitions/pod"
+    },
+    "worker": {
+      "$ref": "#/definitions/pod"
+    },
     "probes": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "startup": { "$ref": "#/definitions/probe" },
-        "liveness": { "$ref": "#/definitions/probe" },
-        "readiness": { "$ref": "#/definitions/probe" }
+        "startup": {
+          "$ref": "#/definitions/probe"
+        },
+        "liveness": {
+          "$ref": "#/definitions/probe"
+        },
+        "readiness": {
+          "$ref": "#/definitions/probe"
+        }
       }
     },
-    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 0 },
-    "podSecurityContext": { "type": "object" },
-    "securityContext": { "type": "object" },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
     "serviceAccount": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "create": { "type": "boolean" },
-        "name": { "type": "string" },
-        "annotations": { "type": "object" }
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        }
       }
     },
-    "publicUrl": { "type": "string", "pattern": "^https?://" },
-    "previousPublicUrls": { "$ref": "#/definitions/stringList" },
-    "trustedProxies": {
-      "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/stringList" }]
+    "public_url": {
+      "type": "string",
+      "pattern": "^https?://"
     },
-    "logLevel": {
+    "previous_public_urls": {
+      "$ref": "#/definitions/stringList"
+    },
+    "trusted_proxies": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/stringList"
+        }
+      ]
+    },
+    "log_level": {
       "enum": [null, "fatal", "error", "warn", "info", "debug", "trace"]
     },
-    "workspaceCreation": { "enum": [null, "admin", "anyone"] },
+    "workspace_creation": {
+      "enum": [null, "admin", "anyone"]
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "annotations": { "type": "object" }
+        "type": {
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "annotations": {
+          "type": "object"
+        }
       }
     },
     "ingress": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "className": { "type": "string" },
-        "annotations": { "type": "object" },
-        "hosts": { "$ref": "#/definitions/stringList" },
-        "tls": { "type": "array" }
+        "enabled": {
+          "type": "boolean"
+        },
+        "className": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "hosts": {
+          "$ref": "#/definitions/stringList"
+        },
+        "tls": {
+          "type": "array"
+        }
       }
     },
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "ingressNamespaceSelector": { "type": "object" }
+        "enabled": {
+          "type": "boolean"
+        },
+        "ingressNamespaceSelector": {
+          "type": "object"
+        }
       }
     },
     "caddy": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "type": "boolean"
+        },
         "image": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "repository": { "type": "string", "minLength": 1 },
-            "tag": { "type": "string" },
-            "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
           }
         },
-        "dashboardHost": { "$ref": "#/definitions/string" },
-        "sitesHost": { "$ref": "#/definitions/string" },
-        "awsRegion": { "type": "string", "minLength": 1 },
+        "dashboard_host": {
+          "$ref": "#/definitions/string"
+        },
+        "sites_host": {
+          "$ref": "#/definitions/string"
+        },
+        "aws_region": {
+          "type": "string",
+          "minLength": 1
+        },
         "serviceAccount": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "create": { "type": "boolean" },
-            "name": { "type": "string" },
-            "annotations": { "type": "object" }
+            "create": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "annotations": {
+              "type": "object"
+            }
           }
         },
-        "awsCredentialsSecret": { "type": "string" },
         "service": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": { "enum": ["LoadBalancer", "NodePort", "ClusterIP"] },
-            "annotations": { "type": "object" },
-            "loadBalancerClass": { "type": "string" },
-            "loadBalancerSourceRanges": { "$ref": "#/definitions/stringList" },
-            "externalTrafficPolicy": { "enum": ["", "Cluster", "Local"] },
-            "http3": { "type": "boolean" }
+            "type": {
+              "enum": ["LoadBalancer", "NodePort", "ClusterIP"]
+            },
+            "annotations": {
+              "type": "object"
+            },
+            "loadBalancerClass": {
+              "type": "string"
+            },
+            "loadBalancerSourceRanges": {
+              "$ref": "#/definitions/stringList"
+            },
+            "externalTrafficPolicy": {
+              "enum": ["", "Cluster", "Local"]
+            },
+            "http3": {
+              "type": "boolean"
+            }
           }
         },
         "persistence": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "size": { "type": "string" },
-            "storageClass": { "type": "string" }
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
           }
         },
-        "resources": { "type": "object" },
-        "nodeSelector": { "type": "object" },
-        "tolerations": { "type": "array" },
-        "affinity": { "type": "object" },
-        "podAnnotations": { "type": "object" }
+        "resources": {
+          "type": "object"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "podAnnotations": {
+          "type": "object"
+        }
       }
     },
     "s3": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "bucket": { "$ref": "#/definitions/string" },
-        "region": { "$ref": "#/definitions/string" },
-        "endpoint": { "$ref": "#/definitions/string" },
-        "forcePathStyle": { "$ref": "#/definitions/bool" },
-        "accessKeyId": { "$ref": "#/definitions/string" },
-        "connectTimeoutSeconds": { "type": ["number", "null"], "minimum": 1, "maximum": 600 },
-        "requestTimeoutSeconds": { "type": ["number", "null"], "minimum": 1, "maximum": 3600 }
+        "bucket": {
+          "$ref": "#/definitions/string"
+        },
+        "region": {
+          "$ref": "#/definitions/string"
+        },
+        "endpoint": {
+          "$ref": "#/definitions/string"
+        },
+        "force_path_style": {
+          "$ref": "#/definitions/bool"
+        },
+        "access_key_id": {
+          "$ref": "#/definitions/string"
+        },
+        "connect_timeout_seconds": {
+          "type": ["number", "null"],
+          "minimum": 1,
+          "maximum": 600
+        },
+        "request_timeout_seconds": {
+          "type": ["number", "null"],
+          "minimum": 1,
+          "maximum": 3600
+        }
       }
     },
     "persistence": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "size": { "type": "string" },
-        "storageClass": { "type": "string" },
-        "existingClaim": { "type": "string" }
+        "size": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "existingClaim": {
+          "type": "string"
+        }
       }
     },
     "database": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "host": { "$ref": "#/definitions/string" },
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "name": { "type": "string", "minLength": 1 },
-        "user": { "$ref": "#/definitions/string" },
-        "tls": { "type": "boolean" },
-        "caCertificate": { "$ref": "#/definitions/string" },
-        "existingCaConfigMap": { "type": "string" }
-      }
-    },
-    "secrets": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "existingSecret": { "type": "string" },
-        "existingSecretKeys": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "S3_SECRET_ACCESS_KEY",
-              "SMTP_PASSWORD",
-              "GITHUB_APP_PRIVATE_KEY",
-              "GITHUB_APP_WEBHOOK_SECRET",
-              "SLACK_CLIENT_SECRET",
-              "VAPID_PRIVATE_KEY",
-              "AUTH_GITHUB_CLIENT_SECRET",
-              "AUTH_GOOGLE_CLIENT_SECRET",
-              "AUTH_GITLAB_CLIENT_SECRET",
-              "AUTH_OIDC_CLIENT_SECRET",
-              "BETTER_AUTH_SECRET",
-              "DATABASE_URL"
-            ]
-          }
+        "host": {
+          "$ref": "#/definitions/string"
         },
-        "betterAuthSecret": { "$ref": "#/definitions/string" },
-        "databasePassword": { "$ref": "#/definitions/string" },
-        "databaseUrl": { "$ref": "#/definitions/string" },
-        "s3SecretAccessKey": { "$ref": "#/definitions/string" },
-        "smtpPassword": { "$ref": "#/definitions/string" },
-        "githubAppPrivateKey": { "$ref": "#/definitions/string" },
-        "githubAppWebhookSecret": { "$ref": "#/definitions/string" },
-        "slackClientSecret": { "$ref": "#/definitions/string" },
-        "vapidPrivateKey": { "$ref": "#/definitions/string" },
-        "authGithubClientSecret": { "$ref": "#/definitions/string" },
-        "authGoogleClientSecret": { "$ref": "#/definitions/string" },
-        "authGitlabClientSecret": { "$ref": "#/definitions/string" },
-        "authOidcClientSecret": { "$ref": "#/definitions/string" }
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user": {
+          "$ref": "#/definitions/string"
+        },
+        "tls": {
+          "type": "boolean"
+        },
+        "ca_certificate": {
+          "$ref": "#/definitions/string"
+        },
+        "existing_ca_config_map": {
+          "type": "string"
+        }
       }
     },
     "smtp": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "host": { "$ref": "#/definitions/string" },
-        "port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },
-        "secure": { "$ref": "#/definitions/bool" },
-        "user": { "$ref": "#/definitions/string" },
-        "from": { "$ref": "#/definitions/string" }
+        "host": {
+          "$ref": "#/definitions/string"
+        },
+        "port": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "secure": {
+          "$ref": "#/definitions/bool"
+        },
+        "user": {
+          "$ref": "#/definitions/string"
+        },
+        "from": {
+          "$ref": "#/definitions/string"
+        }
       }
     },
-    "signIn": {
+    "sign_in": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "email": { "$ref": "#/definitions/bool" },
-        "password": { "$ref": "#/definitions/bool" },
-        "sso": { "$ref": "#/definitions/bool" }
+        "email": {
+          "$ref": "#/definitions/bool"
+        },
+        "password": {
+          "$ref": "#/definitions/bool"
+        },
+        "sso": {
+          "$ref": "#/definitions/bool"
+        }
       }
     },
     "sso": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "githubClientId": { "$ref": "#/definitions/string" },
-        "googleClientId": { "$ref": "#/definitions/string" },
-        "gitlabClientId": { "$ref": "#/definitions/string" },
-        "gitlabUrl": { "$ref": "#/definitions/string" },
-        "oidcIssuer": { "$ref": "#/definitions/string" },
-        "oidcClientId": { "$ref": "#/definitions/string" },
-        "oidcName": { "$ref": "#/definitions/string" },
-        "oidcTrustedForEmail": { "$ref": "#/definitions/bool" }
+        "github_client_id": {
+          "$ref": "#/definitions/string"
+        },
+        "google_client_id": {
+          "$ref": "#/definitions/string"
+        },
+        "gitlab_client_id": {
+          "$ref": "#/definitions/string"
+        },
+        "gitlab_url": {
+          "$ref": "#/definitions/string"
+        },
+        "oidc_issuer": {
+          "$ref": "#/definitions/string"
+        },
+        "oidc_client_id": {
+          "$ref": "#/definitions/string"
+        },
+        "oidc_name": {
+          "$ref": "#/definitions/string"
+        },
+        "oidc_trusted_for_email": {
+          "$ref": "#/definitions/bool"
+        }
       }
     },
-    "githubApp": {
+    "github_app": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "id": { "type": ["string", "integer", "null"] },
-        "apiUrl": { "$ref": "#/definitions/string" },
-        "apiTimeoutSeconds": { "type": ["number", "null"], "minimum": 0.1, "maximum": 600 }
+        "id": {
+          "type": ["string", "integer", "null"]
+        },
+        "api_url": {
+          "$ref": "#/definitions/string"
+        },
+        "api_timeout_seconds": {
+          "type": ["number", "null"],
+          "minimum": 0.1,
+          "maximum": 600
+        }
       }
     },
     "slack": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "clientId": { "$ref": "#/definitions/string" },
-        "apiUrl": { "$ref": "#/definitions/string" }
+        "client_id": {
+          "$ref": "#/definitions/string"
+        },
+        "api_url": {
+          "$ref": "#/definitions/string"
+        }
       }
     },
     "vapid": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "publicKey": { "$ref": "#/definitions/string" },
-        "subject": { "$ref": "#/definitions/string" }
+        "public_key": {
+          "$ref": "#/definitions/string"
+        },
+        "subject": {
+          "$ref": "#/definitions/string"
+        }
       }
     },
     "sites": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "host": { "$ref": "#/definitions/string" },
-        "maxMb": { "type": ["integer", "null"], "minimum": 1, "maximum": 5000 }
+        "host": {
+          "$ref": "#/definitions/string"
+        },
+        "max_mb": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 5000
+        }
       }
     },
     "jobs": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "uploadTimeoutMinutes": { "type": ["integer", "null"], "minimum": 0 },
-        "gcGraceHours": { "type": ["number", "null"], "minimum": 0 },
-        "retentionDays": { "type": ["number", "null"], "minimum": 0 },
-        "retryBaseSeconds": { "type": ["number", "null"], "minimum": 0.01, "maximum": 3600 },
-        "retryMaxSeconds": { "type": ["number", "null"], "minimum": 0.01, "maximum": 86400 }
+        "upload_timeout_minutes": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "gc_grace_hours": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "retention_days": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "retry_base_seconds": {
+          "type": ["number", "null"],
+          "minimum": 0.01,
+          "maximum": 3600
+        },
+        "retry_max_seconds": {
+          "type": ["number", "null"],
+          "minimum": 0.01,
+          "maximum": 86400
+        }
       }
     },
     "webhooks": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "timeoutSeconds": { "type": ["number", "null"], "minimum": 0.1, "maximum": 600 },
-        "allowPrivateAddresses": { "$ref": "#/definitions/bool" }
+        "timeout_seconds": {
+          "type": ["number", "null"],
+          "minimum": 0.1,
+          "maximum": 600
+        },
+        "allow_private_addresses": {
+          "$ref": "#/definitions/bool"
+        }
       }
     },
     "tuning": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "databasePoolMax": { "type": ["integer", "null"], "minimum": 1 },
-        "diffEngine": { "enum": [null, "native", "js-workers", "js"] },
-        "diffThreads": { "type": ["integer", "null"], "minimum": 1, "maximum": 256 },
-        "liveMaxStreams": { "type": ["integer", "null"], "minimum": 1, "maximum": 100000 }
+        "database_pool_max": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "diff_engine": {
+          "enum": [null, "native", "js-workers", "js"]
+        },
+        "diff_threads": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 256
+        },
+        "live_max_streams": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 100000
+        }
       }
     },
-    "extraEnv": { "type": "array" }
+    "extraEnv": {
+      "type": "array"
+    },
+    "existing_secret": {
+      "type": "string"
+    },
+    "existing_secret_keys": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "S3_SECRET_ACCESS_KEY",
+          "SMTP_PASSWORD",
+          "GITHUB_APP_PRIVATE_KEY",
+          "GITHUB_APP_WEBHOOK_SECRET",
+          "SLACK_CLIENT_SECRET",
+          "VAPID_PRIVATE_KEY",
+          "AUTH_GITHUB_CLIENT_SECRET",
+          "AUTH_GOOGLE_CLIENT_SECRET",
+          "AUTH_GITLAB_CLIENT_SECRET",
+          "AUTH_OIDC_CLIENT_SECRET",
+          "BETTER_AUTH_SECRET",
+          "DATABASE_URL"
+        ]
+      }
+    },
+    "better_auth_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "database_password": {
+      "$ref": "#/definitions/string"
+    },
+    "s3_secret_access_key": {
+      "$ref": "#/definitions/string"
+    },
+    "smtp_password": {
+      "$ref": "#/definitions/string"
+    },
+    "github_app_private_key": {
+      "$ref": "#/definitions/string"
+    },
+    "github_app_webhook_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "slack_client_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "vapid_private_key": {
+      "$ref": "#/definitions/string"
+    },
+    "auth_github_client_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "auth_google_client_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "auth_gitlab_client_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "auth_oidc_client_secret": {
+      "$ref": "#/definitions/string"
+    },
+    "caddy_aws_credentials": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["access_key_id", "secret_access_key"],
+          "properties": {
+            "access_key_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "secret_access_key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
   }
 }

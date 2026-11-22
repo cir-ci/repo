@@ -11,6 +11,23 @@ data:
   # deploy/Caddyfile, with its upstream (circi:3000) named after this release's Service.
   Caddyfile: |
     {{- $caddyfile | nindent 4 }}
+{{- if .Values.caddy_aws_credentials }}
+---
+# Route53's keys as a shared credentials file (AWS_SHARED_CREDENTIALS_FILE), like the Terraform module.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "circi.fullname" . }}-caddy-aws
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+    circi.dev/workload: caddy
+type: Opaque
+stringData:
+  credentials: |
+    [default]
+    aws_access_key_id = {{ .Values.caddy_aws_credentials.access_key_id }}
+    aws_secret_access_key = {{ .Values.caddy_aws_credentials.secret_access_key }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -74,6 +91,9 @@ spec:
         circi.dev/workload: caddy
       annotations:
         checksum/caddyfile: {{ $caddyfile | sha256sum }}
+        {{- if .Values.caddy_aws_credentials }}
+        checksum/aws-credentials: {{ .Values.caddy_aws_credentials | toYaml | sha256sum }}
+        {{- end }}
         {{- with .Values.caddy.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -99,12 +119,12 @@ spec:
             {{- end }}
           env:
             - name: DASHBOARD_HOST
-              value: {{ .Values.caddy.dashboardHost | quote }}
+              value: {{ .Values.caddy.dashboard_host | quote }}
             - name: SITES_HOST
-              value: {{ .Values.caddy.sitesHost | quote }}
+              value: {{ .Values.caddy.sites_host | quote }}
             - name: AWS_REGION
-              value: {{ .Values.caddy.awsRegion | quote }}
-            {{- if .Values.caddy.awsCredentialsSecret }}
+              value: {{ .Values.caddy.aws_region | quote }}
+            {{- if .Values.caddy_aws_credentials }}
             - name: AWS_SHARED_CREDENTIALS_FILE
               value: /run/caddy/aws/credentials
             {{- end }}
@@ -122,7 +142,7 @@ spec:
               mountPath: /data
             - name: config
               mountPath: /config
-            {{- if .Values.caddy.awsCredentialsSecret }}
+            {{- if .Values.caddy_aws_credentials }}
             - name: aws-credentials
               mountPath: /run/caddy/aws
               readOnly: true
@@ -133,10 +153,10 @@ spec:
             name: {{ include "circi.fullname" . }}-caddy
         - name: config
           emptyDir: {}
-        {{- if .Values.caddy.awsCredentialsSecret }}
+        {{- if .Values.caddy_aws_credentials }}
         - name: aws-credentials
           secret:
-            secretName: {{ .Values.caddy.awsCredentialsSecret }}
+            secretName: {{ include "circi.fullname" . }}-caddy-aws
             items:
               - key: credentials
                 path: credentials

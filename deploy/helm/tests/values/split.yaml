@@ -8,13 +8,12 @@ serviceAccount:
 s3:
   bucket: acme-circi
   region: eu-west-1
-secrets:
-  betterAuthSecret: 0123456789abcdef0123456789abcdef
-  databasePassword: secret
+better_auth_secret: 0123456789abcdef0123456789abcdef
+database_password: secret
 database:
   host: circi.abc.eu-west-1.rds.amazonaws.com
   user: circi
-  caCertificate: |
+  ca_certificate: |
     -----BEGIN CERTIFICATE-----
     MIIB
     -----END CERTIFICATE-----

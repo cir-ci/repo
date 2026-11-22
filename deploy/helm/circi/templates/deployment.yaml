@@ -90,7 +90,7 @@ spec:
             - name: secrets
               mountPath: /run/circi/secrets
               readOnly: true
-            {{- if or $.Values.database.caCertificate $.Values.database.existingCaConfigMap }}
+            {{- if or $.Values.database.ca_certificate $.Values.database.existing_ca_config_map }}
             - name: database-ca
               mountPath: /run/circi/database-ca.pem
               subPath: ca.pem
@@ -110,10 +110,10 @@ spec:
               - key: {{ $name }}
                 path: {{ $name }}
               {{- end }}
-        {{- if or $.Values.database.caCertificate $.Values.database.existingCaConfigMap }}
+        {{- if or $.Values.database.ca_certificate $.Values.database.existing_ca_config_map }}
         - name: database-ca
           configMap:
-            name: {{ default (printf "%s-database-ca" (include "circi.fullname" $)) $.Values.database.existingCaConfigMap }}
+            name: {{ default (printf "%s-database-ca" (include "circi.fullname" $)) $.Values.database.existing_ca_config_map }}
         {{- end }}
         {{- if include "circi.usesFiles" $ }}
         - name: files

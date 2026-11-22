@@ -1,11 +1,11 @@
 # Hosted sites: Caddy in front, S3, every optional group set.
-publicUrl: http://ignored.example.com
+public_url: http://ignored.example.com
 fullnameOverride: ci
 mode: split
 caddy:
   enabled: true
-  dashboardHost: ci.acme.io
-  sitesHost: acme-sites.com
+  dashboard_host: ci.acme.io
+  sites_host: acme-sites.com
   service:
     http3: true
     annotations: { service.beta.kubernetes.io/aws-load-balancer-type: external }
@@ -15,53 +15,54 @@ networkPolicy: { enabled: true }
 s3:
   {
     bucket: acme-circi,
-    accessKeyId: AKIA,
+    access_key_id: AKIA,
     endpoint: 'https://s3.example.com',
-    forcePathStyle: true,
-    connectTimeoutSeconds: 5,
-    requestTimeoutSeconds: 120,
+    force_path_style: true,
+    connect_timeout_seconds: 5,
+    request_timeout_seconds: 120,
   }
 smtp: { host: smtp.example.com, port: 587, secure: false, user: mailer, from: 'CirCI <ci@acme.io>' }
-signIn: { email: true, password: false, sso: true }
+sign_in: { email: true, password: false, sso: true }
 sso:
   {
-    githubClientId: gh,
-    googleClientId: g,
-    gitlabClientId: gl,
-    gitlabUrl: 'https://gitlab.acme.io',
-    oidcIssuer: 'https://idp.acme.io',
-    oidcClientId: oidc,
-    oidcName: Acme,
-    oidcTrustedForEmail: true,
+    github_client_id: gh,
+    google_client_id: g,
+    gitlab_client_id: gl,
+    gitlab_url: 'https://gitlab.acme.io',
+    oidc_issuer: 'https://idp.acme.io',
+    oidc_client_id: oidc,
+    oidc_name: Acme,
+    oidc_trusted_for_email: true,
   }
-githubApp: { id: '123', apiUrl: 'https://github.acme.io/api/v3', apiTimeoutSeconds: 20 }
-slack: { clientId: slack, apiUrl: 'https://slack.example.com/api' }
-vapid: { publicKey: pub, subject: 'mailto:ci@acme.io' }
-sites: { maxMb: 300 }
+github_app: { id: '123', api_url: 'https://github.acme.io/api/v3', api_timeout_seconds: 20 }
+slack: { client_id: slack, api_url: 'https://slack.example.com/api' }
+vapid: { public_key: pub, subject: 'mailto:ci@acme.io' }
+sites: { max_mb: 300 }
 jobs:
   {
-    uploadTimeoutMinutes: 30,
-    gcGraceHours: 12,
-    retentionDays: 7,
-    retryBaseSeconds: 0.5,
-    retryMaxSeconds: 600,
+    upload_timeout_minutes: 30,
+    gc_grace_hours: 12,
+    retention_days: 7,
+    retry_base_seconds: 0.5,
+    retry_max_seconds: 600,
   }
-webhooks: { timeoutSeconds: 5, allowPrivateAddresses: true }
-tuning: { databasePoolMax: 5, diffEngine: js-workers, diffThreads: 2, liveMaxStreams: 500 }
-logLevel: debug
-workspaceCreation: anyone
-previousPublicUrls: [https://old.acme.io]
-trustedProxies: [10.42.0.0/16]
-secrets:
-  betterAuthSecret: 0123456789abcdef0123456789abcdef
-  databaseUrl: postgres://circi:pw@db.example.com:5432/circi?sslmode=verify-full
-  s3SecretAccessKey: s3secret
-  smtpPassword: smtppw
-  githubAppPrivateKey: key
-  githubAppWebhookSecret: whsec
-  slackClientSecret: slacksecret
-  vapidPrivateKey: vapidpriv
-  authGithubClientSecret: ghs
-  authGoogleClientSecret: gs
-  authGitlabClientSecret: gls
-  authOidcClientSecret: oidcs
+webhooks: { timeout_seconds: 5, allow_private_addresses: true }
+tuning: { database_pool_max: 5, diff_engine: js-workers, diff_threads: 2, live_max_streams: 500 }
+log_level: debug
+workspace_creation: anyone
+previous_public_urls: [https://old.acme.io]
+trusted_proxies: [10.42.0.0/16]
+database: { host: db.example.com, user: circi }
+caddy_aws_credentials: { access_key_id: AKIAROUTE53, secret_access_key: route53secret }
+better_auth_secret: 0123456789abcdef0123456789abcdef
+database_password: pw
+s3_secret_access_key: s3secret
+smtp_password: smtppw
+github_app_private_key: key
+github_app_webhook_secret: whsec
+slack_client_secret: slacksecret
+vapid_private_key: vapidpriv
+auth_github_client_secret: ghs
+auth_google_client_secret: gs
+auth_gitlab_client_secret: gls
+auth_oidc_client_secret: oidcs

@@ -43,19 +43,22 @@ refused() {
 echo "== refused"
 refused 'a misspelled key' --set smtp.hots=smtp.example.com
 refused 'a misspelled group' --set smptp.host=smtp.example.com
-refused 'a wrong type' --set tuning.databasePoolMax=lots
+refused 'a wrong type' --set tuning.database_pool_max=lots
 refused 'a mode that does not exist' --set mode=both
-refused 'a secret that is too short' --set secrets.betterAuthSecret=short
+refused 'a secret that is too short' --set better_auth_secret=short
 refused 'half of a group (smtp.user without its password)' --set smtp.user=mailer
 refused 'smtp.host without smtp.from' --set smtp.host=smtp.example.com
 refused 'split mode without S3' --set mode=split
 refused 'two pods without S3' --set all.replicas=2
 refused 's3 settings without a bucket' --set s3.region=eu-west-1
 refused 'Caddy without its hosts' --set caddy.enabled=true
-refused 'Caddy and sites.host' --set caddy.enabled=true --set caddy.dashboardHost=ci.acme.io --set caddy.sitesHost=acme-sites.com --set sites.host=acme-sites.com
-refused 'Caddy and an Ingress' --set caddy.enabled=true --set caddy.dashboardHost=ci.acme.io --set caddy.sitesHost=acme-sites.com --set ingress.enabled=true
+refused 'Caddy and sites.host' --set caddy.enabled=true --set caddy.dashboard_host=ci.acme.io --set caddy.sites_host=acme-sites.com --set sites.host=acme-sites.com
+refused 'Caddy and an Ingress' --set caddy.enabled=true --set caddy.dashboard_host=ci.acme.io --set caddy.sites_host=acme-sites.com --set ingress.enabled=true
 refused 'a network policy with nothing in front' --set networkPolicy.enabled=true
 refused 'no database' --set database.host=null
+refused 'a secret under the old secrets block' --set secrets.better_auth_secret=0123456789abcdef0123456789abcdef
+refused 'a camelCase setting key' --set publicUrl=https://ci.acme.io
+refused "half of Caddy's Route53 keys" --set caddy_aws_credentials.access_key_id=AKIA
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures check(s) failed." >&2
