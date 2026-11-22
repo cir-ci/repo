@@ -391,7 +391,7 @@ describe('serving the default branch on the custom domain', () => {
       .where(eq(schema.projectSites.slug, slug))
     // Not verified: not a site host any more, so the request reaches the ordinary routes.
     const gone = await siteGet('/healthz', { cookie: siteCookie })
-    expect(gone.json()).toEqual({ status: 'ok' })
+    expect(gone.json()).toMatchObject({ status: 'ok' })
     await api('POST', `${domainPath()}/verify`, ownerCookie, {})
     expect((await siteGet('/', { cookie: siteCookie })).statusCode).toBe(200)
 
@@ -399,7 +399,7 @@ describe('serving the default branch on the custom domain', () => {
     expect((await siteGet('/api/projects', { cookie: siteCookie })).statusCode).toBe(404)
     expect((await siteGet('/healthz', { cookie: siteCookie })).statusCode).toBe(404)
     const dash = await siteGet('/healthz', {}, 'ci.acme.io')
-    expect(dash.json()).toEqual({ status: 'ok' })
+    expect(dash.json()).toMatchObject({ status: 'ok' })
     expect((await siteGet('/healthz', {}, 'circi:3000')).statusCode).toBe(200)
   })
 
@@ -408,7 +408,9 @@ describe('serving the default branch on the custom domain', () => {
     expect(post.statusCode).toBe(405)
     const { siteCookie } = await openDomain()
     await api('DELETE', domainPath(), ownerCookie)
-    expect((await siteGet('/healthz', { cookie: siteCookie })).json()).toEqual({ status: 'ok' })
+    expect((await siteGet('/healthz', { cookie: siteCookie })).json()).toMatchObject({
+      status: 'ok',
+    })
     expect((await tlsAsk(DOMAIN)).statusCode).toBe(404)
   })
 })

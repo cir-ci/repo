@@ -25,12 +25,12 @@
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@circi/core": "workspace:*",
+    "@circi/core": "catalog:",
     "drizzle-orm": "catalog:",
     "pg": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*",
+    "@circi/testing": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",

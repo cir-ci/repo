@@ -57,10 +57,12 @@ describe('Button', () => {
     )
     const button = page.getByRole('button', { name: 'Create' })
     await expect.element(button).toHaveAttribute('aria-busy', 'true')
-    await button.click({ force: true })
-    expect(onClick).not.toHaveBeenCalled()
+    // Tab before clicking: Chromium 159 makes a clicked element the starting point of the next Tab,
+    // so a Tab after the click would move past the button.
     await userEvent.tab()
     await expect.element(button).toHaveFocus()
+    await button.click({ force: true })
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('submits its form when type is submit', async () => {

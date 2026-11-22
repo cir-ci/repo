@@ -16,6 +16,10 @@ services:
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    networks:
+      default:
+        # The one proxy the app trusts (TRUSTED_PROXIES below).
+        ipv4_address: ${CADDY_ADDRESS:-192.168.250.10}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -26,9 +30,17 @@ services:
   circi:
     environment:
       PUBLIC_URL: https://${DASHBOARD_HOST}
-      # Caddy reaches the app over the compose network: believe the client address it forwards.
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,192.168.0.0/16}
+      # Believe the client address Caddy forwards, and no one else's.
+      TRUSTED_PROXIES: ${CADDY_ADDRESS:-192.168.250.10}
       STATIC_SITES_HOST: ${SITES_HOST}
+
+# A fixed subnet, so Caddy's address is known. It must not overlap a network the host reaches (an AWS
+# default VPC is 172.31.0.0/16); change both CIRCI_SUBNET and CADDY_ADDRESS (an address in it) if it does.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${CIRCI_SUBNET:-192.168.250.0/24}
 
 volumes:
   caddy-data:

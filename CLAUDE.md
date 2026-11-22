@@ -25,8 +25,11 @@ no browser) and `//#e2e:browser` (also the dashboard and the design system); bot
 variable is empty. They share one `docker build` of `circi:e2e` through a lock (`e2e/src/stack/build-lock.ts`). End-to-end files are named `*.browser.e2e.test.ts` when they drive Chromium (checked by
 `e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs are never
 cached.
+The deploys: `pnpm test:compose` brings up `deploy/docker-compose.yml` (Docker); `pnpm test:terraform` runs `deploy/terraform`'s
+`terraform test` (a mocked Docker provider; the CI job `terraform`). Both are held to `@circi/config`'s lists of settings
+(`packages/config/src/settings.ts`: the secrets, what the image sets, what goes together) by `packages/config/test/deploy-settings.test.ts`.
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
-`@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published to npm, `dist`; the only non-private packages, versioned with Changesets: a change to either needs a changeset, which the husky post-commit hook (`scripts/auto-changeset.mjs`) writes from the commit message when none is added (patch, or `[minor]`/`[major]` in the message), checked in CI, released by `.github/workflows/release.yml`) and `apps/server`
+`@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published to npm, `dist`; the only non-private packages, versioned with Changesets: a change to either needs a changeset, which the husky post-commit hook (`scripts/auto-changeset.mjs`) writes from the commit message when none is added (patch, or `[minor]`/`[major]` in the message), checked in CI, released by `.github/workflows/release.yml`; the app is versioned the same way as `@circi/server`, whose release publishes `ghcr.io/cir-ci/circi:<version>`, the version `deploy/terraform` runs, see `deploy/README.md`) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
 `pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from

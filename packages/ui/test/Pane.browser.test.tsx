@@ -26,7 +26,10 @@ describe('Pane', () => {
     )
     const open = page.getByRole('button', { name: 'Open' }).element()
     const footer = open.parentElement!
-    expect(getComputedStyle(footer).justifyContent).toBe('flex-end')
+    // Measured, not read from `justify-content`: Chromium 159 reports `flex-end` as `flow-end`.
+    const footerRight =
+      footer.getBoundingClientRect().right - parseFloat(getComputedStyle(footer).paddingRight)
+    expect(open.getBoundingClientRect().right).toBeCloseTo(footerRight, 0)
     const body = page.getByText('Body').element()
     expect(body.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })

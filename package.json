@@ -32,6 +32,7 @@
     "e2e:browser": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:browser",
     "e2e:fingerprint": "node e2e/src/stack/env-fingerprint.ts",
     "test:compose": "turbo run build --filter=@circi/vitest && COMPOSE_SMOKE=1 vitest run --project compose",
+    "test:terraform": "terraform -chdir=deploy/terraform init -backend=false -input=false >/dev/null && terraform -chdir=deploy/terraform test",
     "db:generate": "pnpm --filter @circi/db generate",
     "db:auth-schema": "pnpm --filter @circi/auth schema",
     "icons:generate": "pnpm --filter @circi/ui exec node scripts/generate-lucide-icon-names.mjs",
@@ -45,15 +46,15 @@
     "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest && changeset publish"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^1.0.1",
-    "@changesets/cli": "^3.0.3",
-    "@circi/testing": "workspace:*",
-    "@circi/ui": "workspace:*",
-    "@circi/vitest": "workspace:*",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@circi/testing": "catalog:",
+    "@circi/ui": "catalog:",
+    "@circi/vitest": "catalog:",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "husky": "^9.1.7",
+    "husky": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
@@ -65,7 +66,7 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "^26",
+      "version": "^26.13.1",
       "onFail": "download"
     }
   },

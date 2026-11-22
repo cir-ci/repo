@@ -13,6 +13,7 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { errorCode } from '@circi/core'
 
 import { assertSha256Hex, assertValidKey, base64ToHex, hexToBase64 } from './keys.ts'
 import { ChecksumMismatchError, ObjectNotFoundError, type StorageDriver } from './types.ts'
@@ -192,7 +193,7 @@ export class S3Storage implements StorageDriver {
 /** A sentence the operator can act on, instead of the SDK's "UnknownError". */
 export function describeS3Failure(err: unknown, bucket: string): string {
   const status = err instanceof S3ServiceException ? err.$metadata.httpStatusCode : undefined
-  const code = err instanceof Error && 'code' in err ? err.code : undefined
+  const code = errorCode(err)
   if (status === 404) {
     return `S3 bucket "${bucket}" does not exist (or S3_ENDPOINT points at the wrong service). Create it, or fix S3_BUCKET / S3_REGION.`
   }
@@ -213,7 +214,7 @@ function isTimeout(err: unknown): boolean {
   let e: unknown = err
   for (let i = 0; i < 4 && e instanceof Error; i++) {
     if (e.name === 'TimeoutError' || /timed out|timeout/i.test(e.message)) return true
-    if ('code' in e && e.code === 'ETIMEDOUT') return true
+    if (errorCode(e) === 'ETIMEDOUT') return true
     e = e.cause
   }
   return false

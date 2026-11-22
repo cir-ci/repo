@@ -6,6 +6,22 @@
 
 Files: `Dockerfile` (the app), `docker-compose.yml`, `docker-compose.s3.yml` (local S3 with SeaweedFS), `docker-compose.caddy.yml` + `Caddyfile` + `caddy/Dockerfile` (TLS with Route53 DNS-01, plus on-demand certificates for sites' custom domains, which Caddy confirms with CirCI's `/internal/tls-ask`), `.env.example`.
 
+## Versions and updates
+
+CirCI's version is `@circi/server`'s. Changesets versions it like the npm packages: a change to the app (any package
+in the image, the dashboard, or `deploy/`) gets a changeset from the post-commit hook, and merging the "Version
+Packages" pull request releases it. Each release has a GitHub release (`@circi/server@<version>`, with the
+changelog) and images on GitHub's registry, published once per version by the release workflow:
+
+```
+ghcr.io/cir-ci/circi:<version>        also :<major>.<minor> and :latest
+ghcr.io/cir-ci/circi-caddy:<version>  deploy/caddy, built with the same release
+```
+
+To update a server, run the new version: change `circi_version` in [the Terraform module](terraform/README.md) and
+apply, or `docker pull` the tag and restart the container. Migrations run as the server starts. `circi --version`
+and `/healthz` report the version a server runs. The images are `linux/amd64`.
+
 ## What the image runs
 
 The image runs **one bundle**, `/app/dist/main.mjs` (tsdown, `apps/server/tsdown.config.ts`; not minified, with source maps), plus the files the bundle can't carry:

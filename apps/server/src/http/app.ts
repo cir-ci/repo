@@ -1,5 +1,6 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
+import { VERSION } from '../version.ts'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import type { Deps } from './lib/deps.ts'
 import { argosRoutes } from './routes/argos/routes.ts'
@@ -90,6 +91,7 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
   }
   void app.register(healthRoutes, {
     checks: options.checks,
+    version: VERSION,
     ...(options.checkTimeoutMs ? { checkTimeoutMs: options.checkTimeoutMs } : {}),
   })
   // Each scope is registered inside a wrapper that carries its `prefix`, so the plugin itself

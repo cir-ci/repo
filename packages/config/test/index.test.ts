@@ -381,3 +381,40 @@ describe('BETTER_AUTH_SECRET', () => {
     })
   })
 })
+
+describe('<NAME>_FILE', () => {
+  const files: Record<string, string> = {
+    '/run/secrets/auth': 'secret-from-a-file-that-is-long-enough\n',
+    '/run/secrets/smtp': 'p"a\'s`s#$\\w\nord\n',
+  }
+  const readFile = (path: string) => {
+    const content = files[path]
+    if (content === undefined) throw Object.assign(new Error('missing'), { code: 'ENOENT' })
+    return content
+  }
+
+  it('reads a setting from the file it names, dropping one trailing newline', () => {
+    const c = loadConfig(
+      {
+        DATABASE_URL: 'postgres://localhost/circi',
+        BETTER_AUTH_SECRET_FILE: '/run/secrets/auth',
+        SMTP_HOST: 'smtp.acme.io',
+        SMTP_FROM: 'ci@acme.io',
+        SMTP_USER: 'ci',
+        SMTP_PASSWORD_FILE: '/run/secrets/smtp',
+      },
+      readFile,
+    )
+    expect(c.authSecret).toBe('secret-from-a-file-that-is-long-enough')
+    expect(c.smtp?.auth).toEqual({ user: 'ci', password: 'p"a\'s`s#$\\w\nord' })
+  })
+
+  it("refuses both the setting and its file, and a file it can't read", () => {
+    expect(() =>
+      loadConfig({ ...base, BETTER_AUTH_SECRET_FILE: '/run/secrets/auth' }, readFile),
+    ).toThrow('BETTER_AUTH_SECRET / BETTER_AUTH_SECRET_FILE: set one, not both')
+    expect(() =>
+      loadConfig({ ...base, SMTP_PASSWORD_FILE: '/run/secrets/nope' }, readFile),
+    ).toThrow("SMTP_PASSWORD_FILE: couldn't read /run/secrets/nope (ENOENT)")
+  })
+})

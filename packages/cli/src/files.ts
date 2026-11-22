@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs'
 import { readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 
+import { mapLimit } from './concurrency.ts'
 import { UsageError } from './errors.ts'
 
 export namespace collectScreenshots {
@@ -71,25 +72,6 @@ async function walk(dir: string, ancestors: string[]): Promise<string[]> {
     }),
   )
   return nested.flat()
-}
-
-/** `fn` over `items`, at most `limit` at a time; results keep the order of `items`. */
-async function mapLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = Array.from<R>({ length: items.length })
-  // One iterator shared by the lanes: each pulls the next item when it is free.
-  const pending = items.entries()
-  const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    for (const [index, item] of pending) {
-      // oxlint-disable-next-line no-await-in-loop -- each lane takes one item at a time
-      results[index] = await fn(item)
-    }
-  })
-  await Promise.all(lanes)
-  return results
 }
 
 async function hashFile(path: string): Promise<string> {

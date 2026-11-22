@@ -8,6 +8,8 @@ export namespace healthRoutes {
 
   export interface Options {
     checks: healthRoutes.Check[]
+    /** The app's version, in `/healthz`: which release a server runs, without signing in. */
+    version: string
     /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
     checkTimeoutMs?: number
   }
@@ -20,7 +22,10 @@ export namespace healthRoutes {
 export const healthRoutes: FastifyPluginAsync<healthRoutes.Options> = async (app, options) => {
   const timeout = options.checkTimeoutMs ?? 2_000
 
-  app.get('/healthz', { logLevel: 'silent' }, async () => ({ status: 'ok' }))
+  app.get('/healthz', { logLevel: 'silent' }, async () => ({
+    status: 'ok',
+    version: options.version,
+  }))
 
   app.get('/readyz', { logLevel: 'silent' }, async (_req, reply) => {
     const results = await Promise.all(

@@ -12,6 +12,6 @@
     "tar": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*"
+    "@circi/testing": "catalog:"
   }
 }

@@ -9,7 +9,7 @@
     "#src/*": "./src/*"
   },
   "dependencies": {
-    "@circi/diff": "workspace:*",
+    "@circi/diff": "catalog:",
     "sharp": "catalog:"
   },
   "devDependencies": {

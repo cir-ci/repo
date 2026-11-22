@@ -3,7 +3,8 @@
 #   gate  every push and pull request: `pnpm gate` (format check, lint, typecheck, the Node, UI and web
 #         browser tests, build). No Docker. Required status check: `gate`.
 #         The `changeset` job (branches other than main) fails when a published package changed without a
-#         changeset.
+#         changeset. The `terraform` job checks and tests deploy/terraform (`terraform test`, a mocked
+#         Docker provider: no Docker).
 #   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
 #         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
 #
@@ -14,6 +15,7 @@ version: 2.1
 
 orbs:
   node: circleci/node@7.2.1
+  terraform: circleci/terraform@3.7.0
 
 parameters:
   nightly:
@@ -180,11 +182,29 @@ jobs:
       - store_test_results:
           path: test-results
 
+  terraform:
+    executor:
+      name: terraform/default
+      tag: '1.15'
+    steps:
+      - checkout
+      - terraform/fmt:
+          path: deploy/terraform
+          recursive: true
+      - terraform/init:
+          path: deploy/terraform
+          backend: false
+      # The orb has no command for `terraform test`.
+      - run:
+          name: terraform test
+          command: terraform -chdir=deploy/terraform test
+
 workflows:
   gate:
     unless: << pipeline.parameters.nightly >>
     jobs:
       - gate
+      - terraform
       - changeset:
           filters:
             branches:
