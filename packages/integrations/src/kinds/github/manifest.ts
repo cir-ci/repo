@@ -8,7 +8,7 @@
  * What the GitHub App needs, and nothing more: checks (the CirCI check run with its buttons),
  * pull requests (the summary comment and its reactions), actions (read-only: the artifacts a
  * workflow uploads, for sites published from GitHub Actions) and metadata (always read-only).
- * The same list the manual setup in the README names. An App created before `actions` was added
+ * The same list the manual setup names (https://circi.dev/integrations/github/). An App created before `actions` was added
  * keeps working; only "Sites from GitHub Actions" needs it (see the GitHub integration docs).
  */
 export const GITHUB_APP_PERMISSIONS = {

@@ -25,43 +25,8 @@
 > [!NOTE]
 > CirCI is in active development. See the [roadmap](https://circi.dev/roadmap/) for what's planned.
 
-## What it does
-
-- **Upload from any CI.** `circi upload`, the [Vitest plugin](https://circi.dev/ci/vitest/), or the [Argos-compatible API](https://circi.dev/ci/argos-compatible-api/) for the Argos SDKs.
-- **Compare against the right baseline.** The worker pairs each screenshot with its baseline and diffs the pixels.
-- **Review as a team.** An inbox, review requests, comments on regions, live updates, and triage of flaky screenshots.
-- **Gate the merge.** Checks and comments on GitHub, GitLab and Bitbucket, plus Slack, Linear, Jira, Figma and webhooks.
-- **Host Storybook and reports** next to the builds, behind your workspace's sign-in.
-- **Run it yourself.** One Docker image and Postgres. Screenshots go on local disk or S3-compatible storage.
-
-## Quick start
-
-Self-host with Docker Compose ([full guide](https://circi.dev/self-hosting/docker-compose/)):
-
-```sh
-cd deploy
-cp .env.example .env    # set POSTGRES_PASSWORD, PUBLIC_URL and BETTER_AUTH_SECRET
-docker compose up -d --build
-```
-
-Then upload from CI ([CLI reference](https://circi.dev/ci/cli/), [CI examples](https://circi.dev/ci/ci-examples/)):
-
-```sh
-CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screenshots --wait
-```
-
-## Documentation
-
-Everything else is on **[circi.dev](https://circi.dev)**:
-
-| | |
-|---|---|
-| [Introduction](https://circi.dev/introduction/what-is-circi/) | How a build flows, key concepts, how screenshots are compared |
-| [Self-hosting](https://circi.dev/self-hosting/requirements/) | Install, [configuration](https://circi.dev/self-hosting/configuration/), [authentication](https://circi.dev/self-hosting/authentication/), [storage](https://circi.dev/self-hosting/storage/), upgrades, backups |
-| [Using CirCI](https://circi.dev/using/reviewing-a-build/) | Reviewing, baselines, flaky screenshots, settings |
-| [Upload from CI](https://circi.dev/ci/cli/) | The CLI, Vitest, CI examples, the Argos-compatible API |
-| [Integrations](https://circi.dev/integrations/overview/) | GitHub, GitLab, Bitbucket, Slack, Linear, Jira, Figma, webhooks |
-| [Reference](https://circi.dev/reference/http-api/) | [Environment variables](https://circi.dev/reference/environment-variables/), [admin CLI](https://circi.dev/reference/admin-cli/), HTTP API, exit codes |
+Using and running CirCI (installing it, uploading from CI, reviewing, configuration, the API) is documented on
+**[circi.dev](https://circi.dev)**. This repository's READMEs are about the code.
 
 ## Development
 
@@ -74,7 +39,22 @@ pnpm dev                                # Postgres, Mailpit, the server and the 
 pnpm gate                               # format check, lint, typecheck, tests and build
 ```
 
-[Local development](https://circi.dev/contributing/local-development/) and the [repository layout](https://circi.dev/contributing/repo-layout/) are on the website. [CONTRIBUTING.md](CONTRIBUTING.md) covers how to contribute, and [CLAUDE.md](CLAUDE.md) has the code conventions.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers how to contribute, and [CLAUDE.md](CLAUDE.md) has the layers and code
+conventions. [Local development](https://circi.dev/contributing/local-development/) is on the website.
+
+## The code
+
+| Folder | |
+| --- | --- |
+| `apps/server` | The HTTP server and the admin CLI (`circi`), bundled into the image |
+| `apps/worker` | The job runner (builds, notifications, webhooks); the server bundle inlines it |
+| `apps/web` | The dashboard (React, Vite) |
+| `packages/` | `core` (rules, no I/O), `services` (use cases), `db` (Drizzle schema, queries, queue), `config`, `auth`, `api` (wire types), `diff`, `storage`, `sites`, [`integrations`](packages/integrations/README.md), `ui` (the design system, with [its visual tests](packages/ui/visual/README.md)), `testing` |
+| `packages/cli`, `packages/vitest` | The npm packages: [`@circi/cli`](packages/cli/README.md) and [`@circi/vitest`](packages/vitest/README.md) |
+| [`deploy/`](deploy/README.md) | The image, the Compose files, Caddy and [the Terraform module](deploy/terraform/README.md) |
+| `dev/` | `pnpm dev`, the local environment and its seed |
+| [`e2e/`](e2e/README.md) | End-to-end tests against the real Docker stack |
+| [`perf/`](perf/README.md) | The k6 load tests and the diff benchmark |
 
 ## License
 

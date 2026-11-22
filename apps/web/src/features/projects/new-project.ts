@@ -37,7 +37,7 @@ export interface CiExample {
 }
 
 /**
- * The CI examples of `docs/reference/ci-examples.md`, one per CI system. The token itself is only written
+ * The CI examples of https://circi.dev/ci/ci-examples/, one per CI system. The token itself is only written
  * where it can't live in a secret store (a shell session, "Other"); the others read it from the
  * secret named `CIRCI_TOKEN`.
  */

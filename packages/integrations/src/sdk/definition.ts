@@ -11,7 +11,7 @@ import { type IssueTracker } from '#src/tracker/tracker.ts'
  * which domain events it handles, what a project maps to, and the typed capabilities (chat, git,
  * tracker, design) it implements. The registry (`registry.ts`) is the only list of definitions;
  * the catalog, the server routes, the worker job and (as plain data, never code) the dashboard
- * all read it. See docs/integration-sdk.md.
+ * all read it. See the package's README.md.
  */
 
 export namespace IntegrationDefinition {

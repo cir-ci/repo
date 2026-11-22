@@ -55,7 +55,7 @@ export class IntegrationRegistry {
 
 /**
  * THE registry. Adding an integration is one line here, next to its import: the definition file is
- * the only other thing to write (docs/integration-sdk.md).
+ * the only other thing to write (the package's README.md).
  */
 export const integrationRegistry = new IntegrationRegistry([
   github,

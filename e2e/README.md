@@ -37,7 +37,7 @@ E2E_KEEP=1 pnpm test:e2e e2e/test/platform/smoke.browser.e2e.test.ts   # leave t
 E2E_HEADED=1 pnpm test:e2e ...                  # watch the browser
 E2E_WORKERS=1 pnpm test:e2e                     # one file at a time (default 3 in parallel)
 pnpm test:e2e --sequence.shuffle.files          # random file order (add --sequence.seed=N to repeat one)
-pnpm test:e2e --shard=1/3                       # a third of the files, for CI (docs/reference/ci-examples.md)
+pnpm test:e2e --shard=1/3                       # a third of the files, for CI (see Sharding)
 ```
 
 Without Docker the run fails within seconds with a message saying so. The image is rebuilt on
@@ -52,10 +52,28 @@ Turbo hashes `E2E_ENV_FINGERPRINT` (Playwright, its pinned Chromium and the Dock
 
 Parallel runs are safe: every stack gets its own compose project (`circi-e2e-<run>-<n>-<rand>`),
 host ports that Docker assigns itself (published as `127.0.0.1::<port>` and read back with `docker compose port`, so there is no window between picking a free port and binding it) and its own volumes. CirCI's port must be known before CirCI starts (`PUBLIC_URL`), so a small `edge` container, a TCP forwarder started first, owns it. Inside one run test files run in parallel on
-`E2E_WORKERS` Vitest workers (default 3; about 2.4 GB at the measured peak, see Timings). The image
+`E2E_WORKERS` Vitest workers (default 3; about 2.4 GB at peak). The image
 is built once in `global-setup.ts` before any worker starts. The run always removes its stacks
 (`docker compose down -v`), also on failure and Ctrl-C (`global-setup.ts`, which finds them by
 compose project-name prefix). Do not use ports 3000 or 5432 for anything here: they are the dev stack's.
+
+### Sharding
+
+The suite shards across machines with Vitest's `--shard`: every job builds the image (or loads one built earlier
+and sets `E2E_SKIP_BUILD=1`) and runs its slice with its own workers.
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix: { shard: [1, 2, 3] }
+steps:
+  - uses: actions/checkout@v4
+  - run: pnpm install --frozen-lockfile && pnpm build && pnpm exec playwright install --with-deps chromium
+  - run: E2E_WORKERS=3 pnpm test:e2e --shard=${{ matrix.shard }}/3
+```
+
+Vitest deals the files out by name, not by duration, so the shards are not equally long; use as many shards as you
+have runners and expect the slowest to set the time. Each job needs a Docker daemon and about 3 GB for three workers.
 
 ### Real Postgres from the test process
 
@@ -229,49 +247,10 @@ prints one line when it is removed: `[e2e] <project>: compose up 7.4s, healthy 0
 teardown 0.8s`. Peak memory of a run: `docker stats --no-stream` sampled every few seconds, summed
 over the `circi-e2e-*` containers.
 
-Baseline, measured 2026-11-06 on the dev machine (Docker Desktop VM: 12 CPUs, 7.75 GB), serial, before
-the Step 1 changes (rate-limit sleeps, `testTimeout` 180 s), worker already woken by LISTEN/NOTIFY,
-`E2E_SKIP_BUILD=1`: **668 s total**, 147 tests, 1 failure (a test that raced the now faster worker).
-
-| Phase | Measured |
-| --- | --- |
-| Stack boot (`compose up --wait`) | 7.4 s default stack, about 12 s with LocalStack; `healthy` wait about 0 s |
-| First-run setup through the API | 0.7 s |
-| Teardown (`down -v`) | 0.7 s default, 2 to 4 s with LocalStack |
-| Stacks per run | 22 (about 3.3 min of boot and teardown in all) |
-| Peak memory | about 620 MB for all containers of one stack at a time (default stack about 450 MB; with LocalStack about 620 MB) |
-
-Per file (seconds, baseline): webhooks 90, storage-s3 65, merge-gate 59, github-approve 58,
-flaky 54, sites 43, invitations 42, email-login 40, storage-cli 40, sso 32, retention 23, smoke 23,
-s3 18, github-app 17, review 17, webhooks-ssrf 15, host-fakes 14, sites-security 13.
-
 Worker wake-up (`LISTEN/NOTIFY`) on the real stack: a queued job is picked up in a median of 73 ms
 (69 to 77 ms), against a median of 768 ms when the job is inserted without a NOTIFY, which is what
 the old 1 s poll saw. `circi upload --wait` polls the build status at 500 ms, backing off by half
 each time to 2 s (`pollDelay` in `packages/cli/src/upload.ts`).
-
-After steps 1 to 5 (shared stacks, 3 workers), same machine:
-
-| Run | Wall time | Stack boots | Peak memory |
-| --- | --- | --- | --- |
-| Baseline, serial, one stack per file | 598 to 611 s (668 s on 2026-11-06) | 22 | about 620 MB |
-| Shared stacks, 1 worker (`E2E_WORKERS=1`) | 436 s | 15 (pool cap 2 evicts) | 1.07 GB |
-| Shared stacks, 3 workers, plain | 154.5 s | 16 | 2.49 GB |
-| Shared stacks, 3 workers, shuffled files (2 seeds) | 172 s and 169 s | 15 and 16 | 2.37 and 2.40 GB |
-
-All runs: 19 files, 147 of 147 tests passed. The Docker VM has 7.75 GB.
-
-Peak memory is the sum over the `circi-e2e-*` containers, sampled by the reporter with
-`docker stats` every 4 s. Stack boots are per worker: a profile is booted once by each worker that
-needs it, so the count depends on how files land on workers (15 to 17 in the runs above). The
-critical path is now the longest files (storage-s3, webhooks), whose time is mostly real waiting
-(LocalStack stopped and restarted, the webhook backoff schedule).
-
-After the speed-ups of 2026-11-09 (retry clocks scaled by `JOB_RETRY_BASE_SECONDS`,
-`WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS`; the S3 outage test given a repository
-of its own, 37 s to 6 s; two groups): `pnpm test:e2e` 205 s (from 218 s), 23 files, 156 of 156
-tests; `pnpm gate:full` cold 198 s with both groups at 2 workers in parallel. The remaining time
-is mostly stack boots (about 12 s each, 18 to 21 per run).
 
 ## The fakes (all on the host, reachable from the container as `host.docker.internal`)
 
@@ -308,11 +287,3 @@ Close fakes in `afterAll`. Only the edge is fake: say so in a test that depends 
   `docker compose -p <project> down -v`.
 - `docker ps --filter name=circi-e2e` lists live stacks; leftovers from a killed run can be
   removed with `docker compose -p <project> down -v`.
-
-## Paste into the main docs (README "Development" / CLAUDE.md "Tests")
-
-> **End-to-end tests** (`e2e/`, `pnpm test:e2e`): run against the real Docker stack (Postgres,
-> the image from `deploy/Dockerfile`, Mailpit, LocalStack for S3) driven by the real CLI,
-> Playwright and `/api/auth`; not part of `pnpm test`. Needs Docker and Chromium; see
-> `e2e/README.md`. Fakes (GitHub, OIDC, webhook receiver) live in `e2e/src/fakes` and have their own
-> Node tests. A bug found only by the real stack gets a regression test in its owning package.

@@ -12,7 +12,7 @@ const body = z.object({ domain: z.string().min(1).max(260) })
 
 /**
  * A site's custom domain (owners and admins): set, check its DNS, remove. The domain serves the
- * project's default branch version of the site, once verified. See docs/reference/static-sites.md.
+ * project's default branch version of the site, once verified. See https://circi.dev/self-hosting/site-domains/.
  */
 export const dashboardSiteDomainRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const base = '/projects/:workspace/:project/sites/:site/domain'
