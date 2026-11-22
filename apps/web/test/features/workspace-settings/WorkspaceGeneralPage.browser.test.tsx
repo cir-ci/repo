@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { WorkspaceGeneralPage } from '#features/workspace-settings/WorkspaceGeneralPage.tsx'
@@ -322,8 +322,10 @@ describe('WorkspaceGeneralPage', () => {
       expect(merge().getByRole('link').elements()).toHaveLength(8)
       const more = merge().getByText('+3')
       await expect.element(more).toBeVisible()
-      // Hovering the stack spreads it, which moves the chip: settle that first, then hover the chip.
+      // Hovering the stack spreads it (a 0.28 s transition that overshoots), which moves the chip: wait until
+      // the chip stops moving, or on a slow machine the pointer lands where it was and no tooltip opens.
       await merge().getByRole('link').first().hover()
+      await stopsMoving(more.element())
       await more.hover()
       await expect
         .element(page.getByRole('tooltip'))
@@ -718,3 +720,19 @@ describe('WorkspaceGeneralPage on a phone', () => {
     await expect.element(save()).toBeEnabled()
   })
 })
+
+/** Resolves once the element's position is the same on two checks a frame apart (its transition is over). */
+async function stopsMoving(element: Element): Promise<void> {
+  let last = ''
+  await vi.waitFor(
+    async () => {
+      await new Promise(requestAnimationFrame)
+      const { x, y } = element.getBoundingClientRect()
+      const now = `${x},${y}`
+      const settled = now === last
+      last = now
+      if (!settled) throw new Error('still moving')
+    },
+    { timeout: 2000, interval: 50 },
+  )
+}
