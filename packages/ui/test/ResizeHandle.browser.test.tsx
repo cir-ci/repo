@@ -108,7 +108,8 @@ describe('ResizeHandle semantics', () => {
     const el = separator().element()
     const idle = getComputedStyle(el, '::after').backgroundColor
     await drag(20, false)
-    expect(getComputedStyle(el, '::after').backgroundColor).not.toBe(idle)
+    // The highlight fades in (a 120 ms transition): on a slow machine the first frame still has the idle color.
+    await expect.poll(() => getComputedStyle(el, '::after').backgroundColor).not.toBe(idle)
     expect(el.hasAttribute('data-active')).toBe(true)
   })
 })
