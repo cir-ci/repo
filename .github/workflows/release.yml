@@ -152,30 +152,39 @@ jobs:
           else
             echo "::notice::TERRAFORM_MIRROR_DEPLOY_KEY is not set, so the Terraform module was not mirrored."
           fi
+      # Asks the mirror (public, so no key) whether this version is there, whatever its newest commit is.
       - if: steps.key.outputs.set
+        id: tag
+        run: |
+          if git ls-remote --exit-code --tags "https://github.com/${{ github.repository_owner }}/terraform-docker-circi.git" "refs/tags/v$VERSION" > /dev/null; then
+            echo "The mirror already has v$VERSION."
+          else
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          fi
+      # The module as it was released, from the release's tag, not as it is on this commit of main.
+      - if: steps.tag.outputs.missing
         uses: actions/checkout@v7
         with:
+          ref: refs/tags/@circi/server@${{ env.VERSION }}
           persist-credentials: false
-      - if: steps.key.outputs.set
+      - if: steps.tag.outputs.missing
         uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/terraform-docker-circi
           ssh-key: ${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY }}
           path: mirror
-          fetch-tags: true
-      - if: steps.key.outputs.set
+      - if: steps.tag.outputs.missing
         working-directory: mirror
         run: |
-          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
-            echo "The mirror already has v$VERSION."
-            exit 0
-          fi
-          # Every file of the module (the Caddyfile symlink becomes the file), and the registry page's README instead of
-          # the module's README, which is about the code.
-          rsync -aL --delete --exclude=.git --exclude=README.md ../deploy/terraform/ ./
+          # Every file of the module; the registry page's README instead of the module's own (which is about the code);
+          # the Caddyfile the module runs (deploy/Caddyfile, which the module reads from ../ in this repository); and
+          # the license.
+          rsync -a --delete --exclude=/.git --exclude=/README.md --exclude=/Caddyfile --exclude=/LICENSE ../deploy/terraform/ ./
           cp ../deploy/terraform-mirror/README.md README.md
+          cp ../deploy/Caddyfile Caddyfile
+          cp ../LICENSE LICENSE
           git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}@${{ github.sha }}."
+            commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}, release @circi/server@$VERSION."
           git tag "v$VERSION"
-          git push --quiet origin HEAD:main "v$VERSION"
+          git push --quiet --atomic origin HEAD:main "v$VERSION"
