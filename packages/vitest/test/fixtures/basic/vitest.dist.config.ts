@@ -5,7 +5,12 @@ import { circi } from '../../../dist/index.mjs'
 
 /** The same project, with the plugin as it is published (the built package). */
 export default defineConfig({
-  plugins: [circi({ local: process.env['FIXTURE_LOCAL'] === '1' })],
+  plugins: [
+    circi({
+      local: process.env['FIXTURE_LOCAL'] === '1',
+      site: process.env['FIXTURE_SITE'] === '1',
+    }),
+  ],
   test: {
     include: ['*.fixture.mjs'],
     browser: {

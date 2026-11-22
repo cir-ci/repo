@@ -308,6 +308,9 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: 5.1.1
       version: 5.1.1
+    '@vitest/ui':
+      specifier: 5.1.1
+      version: 5.1.1
     auth:
       specifier: 1.7.25
       version: 1.7.25
@@ -1025,6 +1028,9 @@ importers:
       '@circi/cli':
         specifier: 'catalog:'
         version: link:../cli
+      '@vitest/ui':
+        specifier: 'catalog:'
+        version: 5.1.1(vitest@5.1.1)
       publint:
         specifier: 'catalog:'
         version: 0.3.25

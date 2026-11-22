@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { uploadCaptures, writeCapture } from '#src/captures.ts'
+import { uploadCaptures, uploadSiteAfter, writeCapture } from '#src/captures.ts'
+import type { uploadSite } from '#src/site.ts'
 import type { upload } from '#src/upload.ts'
 
 const ok = { exitCode: 0 } as const
@@ -136,5 +137,79 @@ describe('writeCapture', () => {
     const file = join(root, 'plain.png')
     await writeCapture(file, Buffer.from('x'))
     await expect(readFile(`${file}.json`)).rejects.toThrow(/ENOENT/)
+  })
+})
+
+async function site(
+  options: Partial<uploadSiteAfter.Options> = {},
+  reply: () => Promise<unknown> = async () => ({}),
+) {
+  const lines: string[] = []
+  const calls: uploadSite.Options[] = []
+  const result = await uploadSiteAfter({
+    dir: '/site',
+    name: 'vitest-report',
+    kind: 'vitest-report',
+    capturesUploaded: true,
+    apiUrl: 'https://ci.acme.io',
+    token: 'circi_t',
+    env: {},
+    log: (line) => void lines.push(line),
+    uploadSiteImpl: async (o) => {
+      calls.push(o)
+      return reply()
+    },
+    ...options,
+  })
+  return { result, lines, calls }
+}
+
+const tooBig = async (): Promise<never> => {
+  throw new Error('That site is too big')
+}
+
+describe('uploadSiteAfter', () => {
+  it('hosts the folder under the name and kind given, with the credentials', async () => {
+    const { result, calls } = await site()
+    expect(result).toEqual({ status: 'uploaded', exitCode: 0 })
+    expect(calls[0]).toMatchObject({
+      dir: '/site',
+      name: 'vitest-report',
+      kind: 'vitest-report',
+      apiUrl: 'https://ci.acme.io',
+      token: 'circi_t',
+    })
+  })
+
+  it('takes the credentials from the environment', async () => {
+    const { calls } = await site({
+      apiUrl: undefined,
+      token: undefined,
+      env: { CIRCI_API_URL: 'https://e', CIRCI_TOKEN: 't' },
+    })
+    expect(calls[0]).toMatchObject({ apiUrl: 'https://e', token: 't' })
+  })
+
+  it("does nothing when the screenshots weren't uploaded, without credentials, or on a later shard", async () => {
+    const runs = await Promise.all([
+      site({ capturesUploaded: false }),
+      site({ token: undefined }),
+      site({ apiUrl: undefined }),
+      site({ shard: { index: 1, total: 3 } }),
+    ])
+    for (const { result, calls, lines } of runs) {
+      expect(result).toEqual({ status: 'skipped', exitCode: 0 })
+      expect(calls).toHaveLength(0)
+      expect(lines).toEqual([])
+    }
+    expect((await site({ shard: { index: 0, total: 3 } })).calls).toHaveLength(1)
+  })
+
+  it('reports a failed site upload, and fails the run only with strict', async () => {
+    const lenient = await site({}, tooBig)
+    expect(lenient.result).toEqual({ status: 'failed', exitCode: 0 })
+    expect(lenient.lines).toEqual(['[circi] site upload failed: That site is too big'])
+    expect((await site({ strict: true }, tooBig)).result.exitCode).toBe(2)
+    expect((await site({ strict: true, strictExitCode: 1 }, tooBig)).result.exitCode).toBe(1)
   })
 })

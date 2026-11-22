@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
-import { errorLine, mapLimit, UsageError, uploadCaptures, uploadSite } from '@circi/cli'
+import { errorLine, mapLimit, UsageError, uploadCaptures, uploadSiteAfter } from '@circi/cli'
 
 import { captureStory, launch, StoryError } from './capture.ts'
 import { loadAddonOptions, type Resolved, resolveOptions } from './config.ts'
@@ -115,32 +115,21 @@ export async function uploadStorybook(
   })
   result.uploaded = sent.status === 'uploaded'
   result.exitCode = sent.exitCode
-  // One site is enough: the first shard hosts it. Only with somewhere to send it.
-  const apiUrl = options.apiUrl ?? env.CIRCI_API_URL
-  const token = options.token ?? env.CIRCI_TOKEN
-  if (
-    sent.status === 'uploaded' &&
-    options.site &&
-    apiUrl &&
-    token &&
-    (options.shard?.index ?? 0) === 0
-  ) {
-    const site = options.site
-    try {
-      await uploadSite({
-        dir: options.staticDir,
-        apiUrl,
-        token,
-        name: site.name,
-        kind: 'storybook',
-        cwd,
-        env,
-        log,
-      })
-    } catch (err) {
-      log(`[circi] site upload failed: ${errorLine(err)}`)
-      if (options.strict) result.exitCode = 2
-    }
+  if (options.site) {
+    const site = await uploadSiteAfter({
+      dir: options.staticDir,
+      name: options.site.name,
+      kind: 'storybook',
+      capturesUploaded: sent.status === 'uploaded',
+      apiUrl: options.apiUrl,
+      token: options.token,
+      strict: options.strict,
+      shard: options.shard,
+      cwd,
+      env,
+      log,
+    })
+    if (site.exitCode !== 0) result.exitCode = site.exitCode
   }
   return result
 }
