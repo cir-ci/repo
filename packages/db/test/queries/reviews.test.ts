@@ -1,13 +1,12 @@
 import {
-  addTestMember,
   createTestDb,
-  seedFlipFlops,
   seedBuild,
   seedDiff,
+  seedFlipFlops,
+  seedMember,
   seedProject,
   seedReview,
   seedReviewRequest,
-  seedUser,
 } from '@circi/db/testing'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -29,8 +28,7 @@ const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3_600_000)
 /** A workspace with an owner (the reviewer), a teammate who asks, and one build to review. */
 async function setup() {
   const { project, workspace, owner } = await seedProject(t.db)
-  const teammate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
+  const teammate = await seedMember(t.db, workspace.id)
   const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
   return { project, workspace, owner, teammate, build }
 }

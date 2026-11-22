@@ -10,6 +10,7 @@ import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { createInstanceConfig } from '@circi/services'
 import { FsStorage } from '@circi/storage'
+import { fakeMailer, TEST_AUTH_SECRET } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -20,7 +21,7 @@ import { runDoctor } from '#composition/doctor.ts'
 import { instanceEnvOf } from '#composition/instance-env.ts'
 import { buildServer } from '#http/app.ts'
 import { hidePath } from '#http/routes/dashboard/instance/health.ts'
-import { caller } from '#test/support/client.ts'
+import { caller, JSON_HEADERS } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -30,17 +31,17 @@ let adminCookie: string
 let memberCookie: string
 const admin = { email: 'root@acme.test', password: 'root-password-long-1' }
 const member = { email: 'plain@acme.test', password: 'plain-password-long-1' }
-const sent: Mailer.Mail[] = []
+const fake = fakeMailer()
 let mailFails = false
 const mailer: Mailer = {
   send: async (mail) => {
     if (mailFails) throw new Error('connection refused')
-    sent.push(mail)
+    await fake.send(mail)
   },
 }
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',
-  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-1234',
+  BETTER_AUTH_SECRET: TEST_AUTH_SECRET,
   PUBLIC_URL: ORIGIN,
   SMTP_HOST: 'smtp.acme.test',
   SMTP_USER: 'mailer-login',
@@ -100,7 +101,7 @@ const signInStatus = async (email: string, password: string) =>
     await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: { email, password },
     })
   ).statusCode
@@ -348,11 +349,11 @@ describe('settings and mail', () => {
   })
 
   it('sends a test mail to the admin, and reports failures as text', async () => {
-    sent.length = 0
+    fake.sent.length = 0
     const ok = (await asAdmin('POST', '/api/instance/mail/test')).json<InstanceAdmin.MailTest>()
     expect(ok).toMatchObject({ ok: true, to: admin.email })
-    expect(sent).toHaveLength(1)
-    expect(sent[0]?.to).toBe(admin.email)
+    expect(fake.sent).toHaveLength(1)
+    expect(fake.sent[0]?.to).toBe(admin.email)
 
     mailFails = true
     try {

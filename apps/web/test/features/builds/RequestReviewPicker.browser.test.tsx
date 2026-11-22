@@ -1,15 +1,11 @@
+import { Button } from '@circi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
-import { Button } from '@circi/ui'
 
 import { RequestReviewPicker } from '#features/builds/RequestReviewPicker.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { settled } from '#test/support/settled.ts'
 import { toastNamed } from '#test/support/toast.ts'
 
 mockAuthClient()
@@ -150,7 +146,7 @@ describe('RequestReviewPicker', () => {
     await expect.element(person('Alan Turing')).toHaveFocus()
     // Clicking the row asks no one.
     await picker().getByText('Grace Hopper').click()
-    await new Promise((r) => setTimeout(r, 100))
+    await settled()
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0)
     expect(onOpenChange).not.toHaveBeenCalled()
   })

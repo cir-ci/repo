@@ -10,6 +10,7 @@ import {
 import type { Database } from '@circi/db'
 import { listProjects } from '@circi/db/queries'
 import { addTestProjectMember } from '@circi/db/testing'
+import { type fakeMailer, TEST_AUTH_SECRET } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { expect } from 'vitest'
 
@@ -23,7 +24,7 @@ export function createTestAuth(
 ): Auth {
   return createAuth({
     db,
-    secret: 'test-secret-that-is-long-enough-1234',
+    secret: TEST_AUTH_SECRET,
     baseURL: ORIGIN,
     ...(mailer ? { mailer } : {}),
     ...extra,
@@ -108,4 +109,42 @@ export async function signIn(
     .filter((c): c is string => typeof c === 'string')
   expect(cookies.length).toBeGreaterThan(0)
   return cookies.map((c) => c.split(';')[0]).join('; ')
+}
+
+/** The six-digit sign-in code in a mail from the email-code plugin. */
+export function otpFrom(mail: { text: string } | undefined): string | undefined {
+  return /sign-in code is (\d{6})/.exec(mail?.text ?? '')?.[1]
+}
+
+/**
+ * Asks for an email sign-in code and signs in with the one that was mailed. `status` is the
+ * sign-in's status and `cookie` the session; `status` is 0 when no mail was sent (an address
+ * the server doesn't know).
+ */
+export async function signInWithEmailCode(
+  app: FastifyInstance,
+  mailer: fakeMailer.Result,
+  email: string,
+): Promise<{ status: number; cookie: string }> {
+  mailer.sent.length = 0
+  await app.inject({
+    method: 'POST',
+    url: '/api/auth/email-otp/send-verification-otp',
+    headers: { origin: ORIGIN, 'content-type': 'application/json' },
+    payload: { email, type: 'sign-in' },
+  })
+  await mailer.idle()
+  const otp = otpFrom(mailer.sent[0])
+  if (!otp) return { status: 0, cookie: '' }
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/sign-in/email-otp',
+    headers: { origin: ORIGIN, 'content-type': 'application/json' },
+    payload: { email, otp },
+  })
+  const cookie = [res.headers['set-cookie']]
+    .flat()
+    .map((c) => String(c).split(';')[0])
+    .join('; ')
+  return { status: res.statusCode, cookie }
 }

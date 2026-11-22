@@ -1,3 +1,4 @@
+import { pngBytes } from '@circi/testing'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 
@@ -10,28 +11,20 @@ import {
 } from '#src/index.ts'
 
 /** A solid-colour PNG, optionally with a filled rectangle on top. */
-async function png(
+const png = (
   width: number,
   height: number,
   options: {
     color?: string
     rect?: { x: number; y: number; w: number; h: number; color: string }
   } = {},
-): Promise<Buffer> {
-  let img = sharp({
-    create: { width, height, channels: 4, background: options.color ?? '#ffffff' },
+): Promise<Buffer> =>
+  pngBytes({
+    width,
+    height,
+    ...(options.color ? { color: options.color } : {}),
+    ...(options.rect ? { mark: options.rect } : {}),
   })
-  if (options.rect) {
-    const r = options.rect
-    const patch = await sharp({
-      create: { width: r.w, height: r.h, channels: 4, background: r.color },
-    })
-      .png()
-      .toBuffer()
-    img = sharp(await img.png().toBuffer()).composite([{ input: patch, left: r.x, top: r.y }])
-  }
-  return img.png().toBuffer()
-}
 
 describe('readPngInfo', () => {
   it('reads PNG dimensions', async () => {

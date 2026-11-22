@@ -8,9 +8,9 @@ import { createBuild, markFileVerified, planUploads } from '@circi/db/repositori
 import { createTestDb } from '@circi/db/testing'
 import { finalizeBuild, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
+import { pngBytes } from '@circi/testing'
 import { processBuild } from '@circi/worker'
 import { pino } from 'pino'
-import sharp from 'sharp'
 
 import { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
@@ -28,11 +28,7 @@ import {
 const logger = pino({ level: 'silent' })
 export const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 
-export async function png(color: string): Promise<Buffer> {
-  return sharp({ create: { width: 60, height: 40, channels: 4, background: color } })
-    .png()
-    .toBuffer()
-}
+export const png = (color: string): Promise<Buffer> => pngBytes({ color })
 
 /**
  * The dashboard server the dashboard route tests share: two unrelated workspaces (`acme` has

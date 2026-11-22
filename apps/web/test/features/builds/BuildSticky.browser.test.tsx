@@ -1,5 +1,5 @@
 import { AppFrame } from '@circi/ui'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
@@ -7,10 +7,6 @@ import { validateBuildSearch } from '#features/builds/search.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { detail, fakeBuildApi, shot } from './fake-build-api.tsx'
-
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 const box = (el: Element) => el.getBoundingClientRect()
 

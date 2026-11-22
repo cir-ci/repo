@@ -1,21 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { isInstalled } from '#lib/document-title.ts'
-
-/** Full screen and nothing else, as the app opens now that the manifest prefers it. */
-function fullScreenOnly() {
-  const real = window.matchMedia.bind(window)
-  vi.stubGlobal('matchMedia', (query: string) =>
-    query.includes('display-mode')
-      ? Object.create(real(query), { matches: { value: query.includes('fullscreen') } })
-      : real(query),
-  )
-}
+import { fullScreenOnly } from '#test/support/display-mode.ts'
 
 const start = window.location.href
 
 afterEach(() => {
-  vi.unstubAllGlobals()
   window.history.replaceState(null, '', start)
   window.sessionStorage.clear()
 })

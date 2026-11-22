@@ -128,6 +128,24 @@ export async function seedUser(db: Database, email?: string): Promise<User> {
 }
 
 /**
+ * A new user who is a member of the workspace (`seedUser` and `addTestMember` in one): a member
+ * of every project it has now, with a unique email unless one is given. Pass `{ role, projects }`
+ * for what `addTestMember` takes.
+ */
+export async function seedMember(
+  db: Database,
+  workspaceId: string,
+  options:
+    | string
+    | { email?: string; role?: 'owner' | 'admin' | 'member'; projects?: string[] } = {},
+): Promise<User> {
+  const { email, ...rest } = typeof options === 'string' ? { email: options } : options
+  const user = await seedUser(db, email)
+  await addTestMember(db, { workspaceId, userId: user.id, ...rest })
+  return user
+}
+
+/**
  * Adds a user to a workspace. They join every
  * project the workspace has now (pass `projects: []` to join none, or the project ids to join only
  * those); a project made later has to be joined on purpose.

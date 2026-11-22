@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
 import { ORIGIN, signIn } from '#test/support/helpers.ts'
 
@@ -23,7 +24,7 @@ describe('signing in', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: { email: acme.owner.email, password: acme.owner.password },
     })
     const cookies = [res.headers['set-cookie']]
@@ -43,7 +44,7 @@ describe('signing in', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: { email: acme.owner.email, password: 'definitely-the-wrong-one' },
     })
     expect(res.statusCode).toBe(401)
@@ -54,7 +55,7 @@ describe('signing in', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      headers: JSON_HEADERS,
       payload: {
         email: 'stranger@example.com',
         name: 'Stranger',

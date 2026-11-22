@@ -4,6 +4,8 @@ import { page } from 'vitest/browser'
 
 import { STATUS_LABEL, type Status, StatusIcon } from '#src/index.ts'
 
+import { emulateMotion } from './support/motion.ts'
+
 const STATUSES: Status[] = [
   'approved',
   'auto-approved',
@@ -120,6 +122,7 @@ describe('StatusIcon', () => {
   })
 
   it('draws uploading as a ring with a rising arrow in the processing color', async () => {
+    await emulateMotion()
     await render(<StatusIcon status="uploading" size={20} />)
     const svg = page.getByRole('img', { name: 'Uploading' })
     expect(svg.element().querySelectorAll('circle')).toHaveLength(1)
@@ -131,11 +134,11 @@ describe('StatusIcon', () => {
     document.body.append(probe)
     expect(getComputedStyle(svg.element()).color).toBe(getComputedStyle(probe).color)
     probe.remove()
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    expect(arrow ? getComputedStyle(arrow).animationName !== 'none' : null).toBe(!reduced)
+    expect(arrow ? getComputedStyle(arrow).animationName !== 'none' : null).toBe(true)
   })
 
   it('draws processing as eight arcs that swell one after the other, clockwise', async () => {
+    await emulateMotion()
     await render(<StatusIcon status="processing" />)
     const icon = page.getByRole('img', { name: 'Processing' }).element()
     const arcs = [...icon.querySelectorAll('path')]

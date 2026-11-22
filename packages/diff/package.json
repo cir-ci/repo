@@ -14,5 +14,8 @@
   "dependencies": {
     "pixelmatch": "catalog:",
     "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/testing": "catalog:"
   }
 }

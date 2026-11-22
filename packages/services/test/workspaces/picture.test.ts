@@ -1,30 +1,24 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { ValidationError, WORKSPACE_PICTURE_MAX_BYTES, workspacePictureSha } from '@circi/core'
 import { getWorkspacePicture } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { readPngInfo } from '@circi/diff'
 import { FsStorage } from '@circi/storage'
-import { imageBytes } from '@circi/testing'
+import { imageBytes, useTempDir } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { runRetention, storeWorkspacePicture } from '#src/index.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-picture')
 let storage: FsStorage
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-picture-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 beforeEach(async () => {
   await t.reset()

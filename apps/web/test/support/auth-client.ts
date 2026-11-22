@@ -7,13 +7,16 @@ type Fn = (arg: unknown) => Promise<unknown>
 /** The parts of better-auth's browser client the dashboard calls. */
 export interface AuthClientFake {
   useSession: () => {
-    data: { user: SessionUser } | null
+    data: { user: SessionUser; session: { id: string; token: string } } | null
     isPending: boolean
     error: { status: number } | null
   }
   signOut: ReturnType<typeof vi.fn<() => Promise<unknown>>>
   /** The session re-check after a 401 (`sessionEnded`); answers "no session" unless a test says otherwise. */
   getSession: ReturnType<typeof vi.fn<(arg?: unknown) => Promise<unknown>>>
+  listSessions: Fn
+  listAccounts: Fn
+  signIn: { email: Fn }
   $store: { notify: (signal?: string) => void }
   organization: {
     getFullOrganization: ReturnType<typeof vi.fn<Fn>>
@@ -39,7 +42,7 @@ let sessionError: { status: number } | null = null
 
 const defaults = {
   useSession: () => ({
-    data: user ? { user } : null,
+    data: user ? { user, session: { id: 's1', token: 't' } } : null,
     isPending: pending,
     error: sessionError,
   }),
@@ -47,6 +50,9 @@ const defaults = {
   getSession: vi.fn<(arg?: unknown) => Promise<unknown>>(() =>
     Promise.resolve({ data: null, error: null }),
   ),
+  listSessions: async () => ({ data: [], error: null }),
+  listAccounts: async () => ({ data: [], error: null }),
+  signIn: { email: async () => ({ data: null, error: new Error('no') }) },
   $store: { notify: () => {} },
   organization: {
     getFullOrganization: vi.fn<Fn>(),
@@ -59,7 +65,7 @@ const defaults = {
 } satisfies AuthClientFake
 const fake: AuthClientFake = { ...defaults }
 
-/** The module `#lib/auth-client.ts` is replaced by: `vi.mock('#lib/auth-client.ts', () => import('#test/support/auth-client.ts').then((m) => m.authClientModule))`. */
+/** The module `#lib/auth-client.ts` is replaced by (`setup.ts` mocks it for every test file). */
 export const authClientModule = { authClient: fake }
 
 /** Signs the fake client in as `next`, or out with `null`. */

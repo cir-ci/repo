@@ -12,6 +12,7 @@ import {
   imageSha,
   seedBuild,
   seedDiff,
+  seedMember,
   seedProject,
   seedUser,
 } from '@circi/db/testing'
@@ -132,8 +133,7 @@ async function flakyProject() {
     userId: outsider.id,
     projects: [],
   })
-  const teammate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: seeded.workspace.id, userId: teammate.id })
+  const teammate = await seedMember(t.db, seeded.workspace.id)
   const build = async (image: string, changed: boolean, status: 'complete' | 'processing') => {
     const b = await seedBuild(t.db, seeded.project.id, { branch: 'main', status })
     await t.db

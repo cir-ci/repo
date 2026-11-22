@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { acmeCookie } = fx
@@ -11,7 +11,7 @@ const rename = (name: unknown) =>
   fx.app.inject({
     method: 'POST',
     url: '/api/auth/update-user',
-    headers: { origin: ORIGIN, 'content-type': 'application/json', cookie: acmeCookie },
+    headers: { ...JSON_HEADERS, cookie: acmeCookie },
     payload: { name },
   })
 

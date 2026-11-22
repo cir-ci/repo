@@ -1,18 +1,11 @@
 import { QUEUES } from '@circi/db/queue'
 import {
-  createBuild,
   createIntegration,
   setIntegrationAttention,
   setIntegrationProject,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedUser,
-  seedChangedSnapshots,
-} from '@circi/db/testing'
+import { createTestDb, seedBuild, seedMember, seedProject } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -44,18 +37,14 @@ const typeOf = (event: unknown) =>
 async function setup(options: { events?: string[] } = {}) {
   await t.db.delete(schema.jobs)
   const { project, workspace, owner } = await seedProject(t.db)
-  const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const reviewer = await seedMember(t.db, workspace.id)
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: 'f',
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['home'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
-  await seedChangedSnapshots(t.db, build.id)
   const integration = await createIntegration(t.db, {
     workspaceId: workspace.id,
     kind: 'slack',

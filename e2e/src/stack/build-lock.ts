@@ -2,6 +2,8 @@ import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { sleep } from '#fakes/http.ts'
+
 function alive(pid: number): boolean {
   try {
     process.kill(pid, 0)
@@ -51,7 +53,7 @@ export async function withBuildLock<T>(
       }
       if (Date.now() > deadline)
         throw new Error(`timed out waiting for the build lock ${dir}`, { cause: error })
-      await new Promise((resolve) => setTimeout(resolve, options.pollMs ?? 500))
+      await sleep(options.pollMs ?? 500)
     }
   }
   try {

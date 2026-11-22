@@ -14,7 +14,7 @@ import {
   seedNotification,
   seedProject,
   seedUser,
-  seedChangedSnapshots,
+  seedBuild,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
@@ -63,17 +63,14 @@ async function setup() {
     // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
     await addTestMember(t.db, { workspaceId: workspace.id, userId: u.id })
   }
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: 'feature',
     author: { login: 'ann', userId: ann.id },
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['home'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
-  await seedChangedSnapshots(t.db, build.id)
   return { project, workspace, owner, ann, bob, build }
 }
 
@@ -230,16 +227,13 @@ describe('build approved or rejected', () => {
 
   it('has nobody to tell when the build has no known author', async () => {
     const { project, owner } = await seedProject(t.db)
-    const build = await createBuild(t.db, {
-      projectId: project.id,
+    const build = await seedBuild(t.db, project.id, {
       commitSha: 'abc9999',
       branch: 'x',
+      status: 'complete',
+      conclusion: 'changes_detected',
+      changedSnapshots: ['home'],
     })
-    await t.db
-      .update(schema.builds)
-      .set({ status: 'complete', conclusion: 'changes_detected' })
-      .where(eq(schema.builds.id, build.id))
-    await seedChangedSnapshots(t.db, build.id)
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
     expect(
       await t.db

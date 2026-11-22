@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { expectEmptyState } from '#test/support/empty-state.ts'
@@ -8,10 +8,6 @@ import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-
 
 beforeEach(async () => {
   await page.viewport(1400, 900)
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 const viewerTitle = () => page.getByRole('heading', { level: 2, name: 'checkout / payment' })

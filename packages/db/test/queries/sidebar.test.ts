@@ -3,12 +3,12 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
+  seedMember,
   seedNotification,
   seedPinnedProject,
   seedProject,
   seedReviewRequest,
   seedSavedView,
-  seedUser,
 } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -36,8 +36,7 @@ describe('getSidebar', () => {
     const { workspace, owner } = first
     const zeta = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'zeta' })
     const alpha = await seedProject(t.db, { workspace: { workspace, owner }, slug: 'alpha' })
-    const mate = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const mate = await seedMember(t.db, workspace.id)
 
     await seedPinnedProject(t.db, { userId: owner.id, projectId: zeta.project.id, position: 0 })
     // Triage: two errored default-branch builds with nothing after them in `mid`.
@@ -92,8 +91,7 @@ describe('getSidebar', () => {
   it("counts the awake triage items assigned to the person, not those asleep or someone else's", async () => {
     const one = await seedProject(t.db, { slug: 'queue' })
     const { workspace, owner } = one
-    const mate = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const mate = await seedMember(t.db, workspace.id)
     const failed = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })
     const failed2 = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })
     const failed3 = await seedBuild(t.db, one.project.id, { branch: 'main', status: 'error' })

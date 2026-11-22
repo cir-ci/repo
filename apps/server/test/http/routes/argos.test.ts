@@ -1,12 +1,10 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { sha256, pngBytes } from '@circi/testing'
+import { pngBytes, sha256, useTempDir } from '@circi/testing'
 import { processBuild } from '@circi/worker'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -23,7 +21,7 @@ import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '#test/support/h
  */
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-argos')
 let storage: FsStorage
 let app: FastifyInstance
 let tenant: Tenant
@@ -31,8 +29,7 @@ const auth = () => ({ authorization: `Bearer ${tenant.token}` })
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-argos-'))
-  storage = new FsStorage({ path: join(dir, 'files') })
+  storage = new FsStorage({ path: join(tempDir.path, 'files') })
   const betterAuth = createTestAuth(t.db)
   app = buildServer({
     logger: pino({ level: 'silent' }),
@@ -45,7 +42,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const png = (color: string) => pngBytes({ width: 40, height: 30, color })

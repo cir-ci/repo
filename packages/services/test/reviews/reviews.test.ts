@@ -2,12 +2,13 @@ import { ValidationError } from '@circi/core'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
-  addTestMember,
   createTestDb,
+  seedBuild,
+  seedChangedSnapshots,
+  seedMember,
   seedProject,
   seedReviewRequest,
   seedUser,
-  seedChangedSnapshots,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
@@ -40,18 +41,14 @@ const requestsOf = async (buildId: string) =>
 /** A project whose owner asks a teammate to review a finished build with changes. */
 async function setup(options: { branch?: string } = {}) {
   const { project, workspace, owner } = await seedProject(t.db)
-  const teammate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
-  const build = await createBuild(t.db, {
-    projectId: project.id,
+  const teammate = await seedMember(t.db, workspace.id)
+  const build = await seedBuild(t.db, project.id, {
     commitSha: 'abc1234',
     branch: options.branch ?? 'feature',
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['home'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, build.id))
-  await seedChangedSnapshots(t.db, build.id)
   return { project, workspace, owner, teammate, build }
 }
 
@@ -141,8 +138,7 @@ describe('requestReview', () => {
 
   it('returns the open request when asked again, whoever asks', async () => {
     const { owner, workspace, teammate, build } = await setup()
-    const third = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: third.id })
+    const third = await seedMember(t.db, workspace.id)
     const first = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
@@ -200,19 +196,15 @@ describe('requestReview', () => {
 
 async function several() {
   const { project, workspace, owner, teammate, build } = await setup()
-  const second = await createBuild(t.db, {
-    projectId: project.id,
+  const second = await seedBuild(t.db, project.id, {
     commitSha: 'def5678',
     branch: 'x',
+    status: 'complete',
+    conclusion: 'changes_detected',
+    changedSnapshots: ['home'],
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'complete', conclusion: 'changes_detected' })
-    .where(eq(schema.builds.id, second.id))
-  await seedChangedSnapshots(t.db, second.id)
   await t.db.delete(schema.notifications)
-  const third = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: third.id })
+  const third = await seedMember(t.db, workspace.id)
   return { project, owner, teammate, third, builds: [build, second] }
 }
 const notices = () => t.db.select().from(schema.notifications)

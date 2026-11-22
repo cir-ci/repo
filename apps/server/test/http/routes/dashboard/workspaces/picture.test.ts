@@ -1,12 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import type { Workspace } from '@circi/api'
 import { createUser } from '@circi/auth'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { imageBytes } from '@circi/testing'
+import { imageBytes, useTempDir } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,7 +12,7 @@ import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-picture-route')
 let app: FastifyInstance
 let slug: string
 let ownerCookie: string
@@ -26,9 +22,13 @@ let outsiderCookie: string
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-picture-route-'))
   const auth = createTestAuth(t.db)
-  const deps = { db: t.db, auth, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN }
+  const deps = {
+    db: t.db,
+    auth,
+    storage: new FsStorage({ path: tempDir.path }),
+    publicOrigin: ORIGIN,
+  }
   app = buildServer({ logger: pino({ level: 'silent' }), checks: [], dashboard: deps, api: deps })
   await app.ready()
   const tenant = await seedTenant(auth, t.db)
@@ -48,7 +48,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const call = caller(() => app)

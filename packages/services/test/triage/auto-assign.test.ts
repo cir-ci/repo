@@ -1,8 +1,8 @@
 import { listTriage } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/db/testing'
+import { createTestDb, seedBuild, seedMember, seedProject } from '@circi/db/testing'
 import { and, eq } from 'drizzle-orm'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   assignTriage,
@@ -17,12 +17,15 @@ import {
 } from '#src/index.ts'
 
 let t: createTestDb.Result
-// A database each: the sweep looks at every project, so projects of other tests would change its counts.
-beforeEach(async () => {
+beforeAll(async () => {
   t = await createTestDb()
 })
-afterEach(async () => {
+afterAll(async () => {
   await t.close()
+})
+// Emptied for each test: the sweep looks at every project, so projects of other tests would change its counts.
+beforeEach(async () => {
+  await t.reset()
 })
 
 const WEEK = 7 * 24 * 3600_000
@@ -33,8 +36,7 @@ const WEEK = 7 * 24 * 3600_000
  */
 async function setup(options: { rotation?: boolean } = {}) {
   const { project, workspace, owner } = await seedProject(t.db)
-  const mate = await seedUser(t.db)
-  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+  const mate = await seedMember(t.db, workspace.id)
   const first = await seedBuild(t.db, project.id, { branch: 'main', status: 'error' })
   const second = await seedBuild(t.db, project.id, { branch: 'main', status: 'error' })
   const startsOn = new Date()

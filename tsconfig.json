@@ -21,6 +21,7 @@
     "packages/cli/tsdown.config.ts",
     "packages/storybook/tsdown.config.ts",
     "packages/vitest/tsdown.config.ts",
+    "scripts/retry-reporter.ts",
     "vitest.config.ts"
   ],
   "exclude": [

@@ -8,6 +8,7 @@ import { defineConfig, type TestProjectInlineConfiguration } from 'vitest/config
 
 import { browserEnv } from './e2e/src/clients/no-netlink.ts'
 import { E2eTimingReporter } from './e2e/src/reporting/timing-reporter.ts'
+import RetryReporter from './scripts/retry-reporter.ts'
 
 /**
  * One Vitest run, several projects:
@@ -73,12 +74,20 @@ const iconDeps = ['boring-avatars', 'lucide-react', 'lucide-react/dynamic.mjs']
 // Base UI and lucide are installed under @circi/ui; projects rooted elsewhere go through it.
 const viaUi = (ids: string[]) => ids.map((id) => `@circi/ui > ${id}`)
 
-/** Headless Chromium at a desktop size unless a test says otherwise (the phone layout starts below 820px). */
-function chromium(env?: Record<string, string>) {
+/**
+ * Headless Chromium at a desktop size unless a test says otherwise (the phone layout starts below
+ * 820px). Component tests run with `prefers-reduced-motion: reduce`, which every motion rule in
+ * the design system and the dashboard honors: no test waits out a transition. A test of the motion
+ * itself switches it off for its own page with `emulateMotion()` (packages/ui/test/support).
+ */
+function chromium(env?: Record<string, string>, reducedMotion = false) {
   return {
     enabled: true,
     headless: true,
-    provider: playwright(env ? { launchOptions: { env } } : {}),
+    provider: playwright({
+      ...(env ? { launchOptions: { env } } : {}),
+      ...(reducedMotion ? { contextOptions: { reducedMotion: 'reduce' as const } } : {}),
+    }),
     viewport: { width: 1000, height: 700 },
     instances: [{ browser: 'chromium' as const }],
   }
@@ -157,12 +166,18 @@ function components(
       // ("Frame was detached", "Cannot find vitest-iframe"), a different test each time and never
       // an assertion. A retried test is still listed in the report, so a real flake stays visible.
       retry: 1,
-      browser: chromium(),
+      browser: chromium(undefined, true),
     },
   }
 }
 
-const ui = components('ui', 'packages/ui', [...baseUiDeps, ...iconDeps, ...reactDeps])
+// Fails a test on an unexpected console.error or unhandled rejection (relative to packages/ui).
+const ui = components(
+  'ui',
+  'packages/ui',
+  [...baseUiDeps, ...iconDeps, ...reactDeps],
+  ['test/setup.ts'],
+)
 
 const webBrowser = components(
   'web-browser',
@@ -306,7 +321,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     expect: { poll: { timeout: 5_000, interval: 50 } },
     // End-to-end runs also write e2e/.artifacts/timings.json and print a timing summary.
-    ...(E2E ? { reporters: ['default', new E2eTimingReporter()] } : {}),
+    // Component runs also list the tests that passed only on their retry (.vitest/retried-tests.txt).
+    reporters: ['default', E2E ? new E2eTimingReporter() : new RetryReporter()],
     // Stopping an end-to-end stack (docker compose down -v) happens in global teardown.
     teardownTimeout: 120_000,
     // `pnpm test:coverage` (Node project only: browser projects need their own provider setup).

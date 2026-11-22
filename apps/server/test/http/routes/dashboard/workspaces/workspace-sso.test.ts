@@ -1,13 +1,11 @@
-import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 
 import { createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import * as schema from '@circi/db/schema'
 import { addTestMember, createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { useTempDir } from '@circi/testing'
 import { fakeIdp, type FakeIdp } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -20,7 +18,7 @@ import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-orgsso')
 let app: FastifyInstance
 let auth: Auth
 let idp: FakeIdp
@@ -32,7 +30,6 @@ let reset: () => Promise<void>
 beforeAll(async () => {
   t = await createTestDb()
   idp = await fakeIdp('client-1')
-  dir = await mkdtemp(join(tmpdir(), 'circi-orgsso-'))
   auth = createTestAuth(t.db)
   app = buildServer({
     logger: pino({ level: 'silent' }),
@@ -40,7 +37,7 @@ beforeAll(async () => {
     dashboard: {
       db: t.db,
       auth,
-      storage: new FsStorage({ path: dir }),
+      storage: new FsStorage({ path: tempDir.path }),
       publicOrigin: ORIGIN,
       // The stand-in provider listens on 127.0.0.1.
       webhookAllowPrivate: true,
@@ -57,7 +54,6 @@ afterAll(async () => {
   await app.close()
   await idp.close()
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const base = () => `/api/workspaces/${acme.workspaceSlug}/sso`

@@ -1,14 +1,11 @@
 import { AppFrame } from '@circi/ui'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { WorkspaceStoragePage } from '#features/workspace-settings/WorkspaceStoragePage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const ROUTE = {
@@ -197,7 +194,7 @@ describe('WorkspaceStoragePage in the app frame', () => {
     await renderPage(framed(width), { ...ROUTE, viewport: [width, height] })
     await expect.element(page.getByRole('heading', { name: 'Storage used 4 MB' })).toBeVisible()
     expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 
   it('ends at the pinned Save bar on a phone: scrolled to the bottom, the bar has not moved', async () => {
@@ -214,7 +211,7 @@ describe('WorkspaceStoragePage in the app frame', () => {
     await expect.poll(() => panel.scrollTop + panel.clientHeight).toBe(panel.scrollHeight)
     // Nothing is left to scroll past the bar, so it stays on the panel's (the window's) bottom edge.
     expect(Math.round(bar().bottom)).toBe(window.innerHeight)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 })
 

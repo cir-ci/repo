@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake signs Ada in.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { TriagePage } from '#features/triage/TriagePage.tsx'
 import { PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'

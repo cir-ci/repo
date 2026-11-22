@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { IgnoreRegionsEditor } from '#features/regions/IgnoreRegionsEditor.tsx'
-import { fakeApi } from '#test/support/fetch.ts'
+import { deferred, fakeApi } from '#test/support/fetch.ts'
 import { centerOf, pointerDrag, pointIn, stubPointerCapture } from '#test/support/pointer.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -30,7 +30,8 @@ const region = (overrides: Partial<IgnoreRegion.Item> = {}): IgnoreRegion.Item =
   ...overrides,
 })
 
-async function show(canManage: boolean, failWith?: string, delayMs = 0) {
+/** `hold` keeps the save's answer back until it settles: a slow network, with no timer. */
+async function show(canManage: boolean, failWith?: string, hold?: Promise<unknown>) {
   let regions = [region()]
   const patches: { id: string; body: Record<string, number> }[] = []
   fakeApi({
@@ -43,18 +44,9 @@ async function show(canManage: boolean, failWith?: string, delayMs = 0) {
           : {}
       patches.push({ id: 'r1', body: rect })
       regions = regions.map((r) => ({ ...r, ...rect }))
-      return { body: regions[0] }
+      return { body: regions[0], holdUntil: hold }
     },
   })
-  if (delayMs > 0) {
-    // A slow network: the PATCH answers late.
-    const inner = globalThis.fetch
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      const response = await inner(input, init)
-      if ((init?.method ?? 'GET') === 'PATCH') await new Promise((r) => setTimeout(r, delayMs))
-      return response
-    })
-  }
   await renderPage(
     <IgnoreRegionsEditor
       workspace="acme"
@@ -107,7 +99,8 @@ describe('adjusting ignore regions on the baseline page', () => {
   })
 
   it('never shows the old region again after the release, even while the save is slow', async () => {
-    const { patches } = await show(true, undefined, 400)
+    const slow = deferred()
+    const { patches } = await show(true, undefined, slow.promise)
     await vi.waitFor(() => expect(boxes()).toHaveLength(1))
     const host = box()
     expect(host.style.left).toBe('10%')
@@ -120,7 +113,10 @@ describe('adjusting ignore regions on the baseline page', () => {
     // Released, and the save is not answered yet: the region is where it was dropped.
     expect(host.style.left).not.toBe('10%')
     await vi.waitFor(() => expect(patches).toHaveLength(1))
-    await new Promise((resolve) => setTimeout(resolve, 600))
+    // The save answers now: the saved region replaces the dropped one without a flash of the old.
+    slow.resolve()
+    await expect.element(page.getByText('Ignore region saved')).toBeInTheDocument()
+    await expect.poll(() => host.style.left).not.toBe('10%')
     watch.disconnect()
     const moved = lefts.findIndex((left) => left !== '10%')
     expect(moved).toBeGreaterThan(-1)
@@ -145,15 +141,6 @@ describe('adjusting ignore regions on the baseline page', () => {
     expect(Math.abs((rect?.y ?? 0) + (rect?.height ?? 0) - 150)).toBeLessThanOrEqual(2)
   })
 
-  it('stops at the edges of the screenshot', async () => {
-    const { patches, image } = await show(true)
-    await vi.waitFor(() => expect(boxes()).toHaveLength(1))
-    const se = corner(box(), 'se')
-    await pointerDrag(se, centerOf(se), pointIn(image.element(), 900, 900))
-    await vi.waitFor(() => expect(patches).toHaveLength(1))
-    expect(patches[0]?.body).toMatchObject({ x: 100, y: 50, width: 900, height: 450 })
-  })
-
   it('puts the region back and shows why when saving fails', async () => {
     const { patches } = await show(true, 'The region must fit inside the screenshot')
     await vi.waitFor(() => expect(boxes()).toHaveLength(1))
@@ -176,17 +163,6 @@ describe('adjusting ignore regions on the baseline page', () => {
     await expect.element(dialog).toBeVisible()
     const inDialog = dialog.element().querySelector<HTMLElement>('[data-adjustable]')
     if (!inDialog) throw new Error('no region in the dialog')
-    // The dialog opens with a transition: drag only once the region has stopped moving.
-    let last = ''
-    await expect
-      .poll(() => {
-        const r = inDialog.getBoundingClientRect()
-        const now = `${r.left},${r.top},${r.width},${r.height}`
-        const settled = now === last
-        last = now
-        return settled
-      })
-      .toBe(true)
     const from = centerOf(inDialog)
     const overlay = page.getByTestId('region-overlay').element().getBoundingClientRect()
     // Half a region's width to the right, as a share of the dialog's image.

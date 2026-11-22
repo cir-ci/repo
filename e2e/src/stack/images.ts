@@ -1,3 +1,4 @@
+import { pngBytes } from '@circi/testing'
 import sharp from 'sharp'
 
 export interface ScreenshotSpec {
@@ -9,28 +10,15 @@ export interface ScreenshotSpec {
 }
 
 /** A deterministic PNG: a plain page with an optional marker. */
-export async function screenshot(spec: ScreenshotSpec = {}): Promise<Buffer> {
-  const base = sharp({
-    create: {
-      width: spec.width ?? 400,
-      height: spec.height ?? 300,
-      channels: 4,
-      background: spec.background ?? '#f8fafc',
-    },
+export function screenshot(spec: ScreenshotSpec = {}): Promise<Buffer> {
+  return pngBytes({
+    width: spec.width ?? 400,
+    height: spec.height ?? 300,
+    color: spec.background ?? '#f8fafc',
+    ...(spec.dot
+      ? { mark: { x: spec.dot.x, y: spec.dot.y, w: 20, h: 20, color: spec.dot.color ?? '#2563eb' } }
+      : {}),
   })
-  let out = await base.png().toBuffer()
-  if (spec.dot) {
-    const mark = await sharp({
-      create: { width: 20, height: 20, channels: 4, background: spec.dot.color ?? '#2563eb' },
-    })
-      .png()
-      .toBuffer()
-    out = await sharp(out)
-      .composite([{ input: mark, left: spec.dot.x, top: spec.dot.y }])
-      .png()
-      .toBuffer()
-  }
-  return out
 }
 
 export async function imageSize(png: Buffer): Promise<{ width: number; height: number }> {

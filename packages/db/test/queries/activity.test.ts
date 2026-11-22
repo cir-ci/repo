@@ -1,12 +1,11 @@
 import {
-  addTestMember,
   createTestDb,
   seedBuild,
   seedComment,
+  seedMember,
   seedProject,
   seedReview,
   seedReviewRequest,
-  seedUser,
 } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -29,8 +28,7 @@ const at = (minute: number) => new Date(Date.UTC(2026, 2, 10, 12, minute))
 describe('listBuildActivity', () => {
   it('merges every source into one list, oldest first, whatever order it was written in', async () => {
     const { project, workspace, owner } = await seedProject(t.db)
-    const bob = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: bob.id })
+    const bob = await seedMember(t.db, workspace.id)
     const build = await seedBuild(t.db, project.id, {
       status: 'complete',
       conclusion: 'changes_detected',

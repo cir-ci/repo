@@ -1,19 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { decision, detail, fakeBuildApi, image, renderBuild, shot } from './fake-build-api.tsx'
 import { toggleCheckerboard, viewOptions } from './view-options.ts'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 beforeEach(async () => {
   await page.viewport(1280, 900)
-})
-
-afterEach(() => {
-  vi.unstubAllGlobals()
 })
 
 const HOUR = 3_600_000

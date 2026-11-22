@@ -10,6 +10,7 @@ import { recordPublicUrl } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -18,7 +19,7 @@ import { buildServer } from '#http/app.ts'
 import { clientFor } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, signIn } from '#test/support/helpers.ts'
 
-const SECRET = 'test-secret-that-is-long-enough-1234'
+const SECRET = TEST_AUTH_SECRET
 const PASSWORD = 'first-admin-password-1'
 
 let t: createTestDb.Result

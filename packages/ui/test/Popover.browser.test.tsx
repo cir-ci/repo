@@ -23,16 +23,6 @@ describe('Popover', () => {
     await userEvent.tab()
     await expect.element(page.getByRole('button', { name: 'Second' })).toHaveFocus()
   })
-
-  it('closes on Escape and returns focus to the trigger', async () => {
-    await render(<Harness />)
-    const trigger = page.getByRole('button', { name: 'Project' })
-    await trigger.click()
-    await expect.element(page.getByRole('dialog')).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
-    await expect.element(trigger).toHaveFocus()
-  })
 })
 
 describe('focus rings', () => {

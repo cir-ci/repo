@@ -4,6 +4,7 @@ import { getProjectLink } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { integrationRegistry } from '@circi/integrations'
+import { TEST_AUTH_SECRET } from '@circi/testing'
 import { fakeGithubInstallationsHost } from '@circi/testing/hosts'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -38,7 +39,7 @@ beforeAll(async () => {
   t = await createTestDb()
   world.db = t.db
   vi.stubEnv('DATABASE_URL', 'postgres://localhost:1/unused')
-  vi.stubEnv('BETTER_AUTH_SECRET', 'test-secret-that-is-long-enough-123')
+  vi.stubEnv('BETTER_AUTH_SECRET', TEST_AUTH_SECRET)
   vi.stubEnv('PUBLIC_URL', 'https://ci.acme.io')
   vi.stubEnv('STORAGE_PATH', '/tmp/circi-github-link-unused')
   vi.stubEnv('GITHUB_APP_ID', '1')

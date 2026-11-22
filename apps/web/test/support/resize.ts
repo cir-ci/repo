@@ -4,6 +4,7 @@ import { page as browserPage, type Locator } from 'vitest/browser'
 import { type PaneId, paneLimits, PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 
+import { expectNoSidewaysScroll } from './overflow.ts'
 import { centerOf, pointerDrag } from './pointer.ts'
 
 /** The width of an element, 0 for none. */
@@ -91,7 +92,7 @@ export async function expectLimitedToSpace(
   const checkSpace = () => {
     expect(paneWidth()).toBeLessThanOrEqual(Math.floor(widthOf(container()) * spec.maxShare) + 1)
     expect(main()).toBeGreaterThanOrEqual(spec.minMain - gap - 1)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   }
 
   expect(usePaneStore.getState().widths[id]).toBe(spec.max)

@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
 import { useCopy } from '#lib/use-copy.ts'
+import { stubClipboard } from '#test/support/clipboard.ts'
 
 function Probe() {
   const { copy, state, reset } = useCopy()
@@ -19,19 +20,9 @@ function Probe() {
   )
 }
 
-const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
-afterEach(() => {
-  if (original) Object.defineProperty(navigator, 'clipboard', original)
-})
-
-function stub(writeText: (text: string) => Promise<void>) {
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-}
-
 describe('useCopy', () => {
   it('goes idle, copied, then idle again on reset', async () => {
-    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve())
-    stub(writeText)
+    const writeText = stubClipboard()
     await render(<Probe />)
     await expect.element(page.getByRole('status')).toHaveTextContent('idle')
     await page.getByRole('button', { name: 'Copy' }).click()
@@ -42,7 +33,7 @@ describe('useCopy', () => {
   })
 
   it('is failed when the browser refuses the clipboard', async () => {
-    stub(() => Promise.reject(new Error('denied')))
+    stubClipboard(() => Promise.reject(new Error('denied')))
     await render(<Probe />)
     await page.getByRole('button', { name: 'Copy' }).click()
     await expect.element(page.getByRole('status')).toHaveTextContent('failed')

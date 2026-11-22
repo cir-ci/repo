@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { ProfilePage } from '#features/account/ProfilePage.tsx'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
+
+// This file drives the real better-auth client over the faked network, not the fake client `setup.ts` installs.
+vi.unmock('#lib/auth-client.ts')
 
 const now = Date.now()
 const session = (id: string, agent: string, minutesAgo: number) => ({

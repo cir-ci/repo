@@ -1,28 +1,23 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { getFile } from '@circi/db/queries'
 import { createTestDb, seedFile } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { sha256 } from '@circi/testing'
+import { sha256, useTempDir } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createLoader, readAll, storeServerFile } from '#lib/files.ts'
 
 let t: createTestDb.Result
-let dir: string
+const tempDir = useTempDir('circi-worker-files')
 let storage: FsStorage
 
 beforeAll(async () => {
   t = await createTestDb()
-  dir = await mkdtemp(join(tmpdir(), 'circi-worker-files-'))
-  storage = new FsStorage({ path: dir })
+  storage = new FsStorage({ path: tempDir.path })
 })
 afterAll(async () => {
   await t.close()
-  await rm(dir, { recursive: true, force: true })
 })
 
 const meta = { kind: 'thumbnail', contentType: 'image/png', width: 2, height: 3 } as const

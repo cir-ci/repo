@@ -1,10 +1,13 @@
 import { AnnouncerProvider, SettingsSection } from '@circi/ui'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspaceSso } from '#features/workspace-settings/WorkspaceSso.tsx'
 import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+
+// This file drives the real better-auth client over the faked network, not the fake client `setup.ts` installs.
+vi.unmock('#lib/auth-client.ts')
 
 const BASE = '/api/workspaces/acme/sso'
 const provider = {

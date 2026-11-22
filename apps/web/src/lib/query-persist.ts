@@ -74,10 +74,15 @@ channel?.addEventListener('message', () => {
   forgetLocalPrivate(false)
 })
 
-function persisterFor(userId: string, state: Active) {
+export interface PersistOptions {
+  /** The least time between two writes to storage, in milliseconds (2000 unless a test says otherwise). */
+  throttleMs?: number
+}
+
+function persisterFor(userId: string, state: Active, throttleMs: number) {
   return createAsyncStoragePersister({
     key: `user:${userId}`,
-    throttleTime: 2000,
+    throttleTime: throttleMs,
     storage: {
       getItem: (key) => get<string>(key, idb()),
       setItem: async (key, value) => {
@@ -99,10 +104,15 @@ function persisterFor(userId: string, state: Active) {
   })
 }
 
-function options(queryClient: QueryClient, userId: string, state: Active) {
+function options(
+  queryClient: QueryClient,
+  userId: string,
+  state: Active,
+  { throttleMs = 2000 }: PersistOptions,
+) {
   return {
     queryClient,
-    persister: persisterFor(userId, state),
+    persister: persisterFor(userId, state, throttleMs),
     maxAge: PERSIST_MAX_AGE,
     buster: BUILD_ID,
     dehydrateOptions: {
@@ -114,13 +124,17 @@ function options(queryClient: QueryClient, userId: string, state: Active) {
 }
 
 /** Fills `queryClient` from this person's stored cache, then keeps storing it. Never rejects. */
-export function restorePersisted(queryClient: QueryClient, userId: string): Promise<void> {
+export function restorePersisted(
+  queryClient: QueryClient,
+  userId: string,
+  persist: PersistOptions = {},
+): Promise<void> {
   if (active?.userId === userId) return active.ready
   stopActive()
   const state: Active = { userId, dead: false, stop: () => {}, ready: Promise.resolve() }
   active = state
   activeClient = queryClient
-  const setup = options(queryClient, userId, state)
+  const setup = options(queryClient, userId, state, persist)
   state.ready = (async () => {
     try {
       await persistQueryClientRestore(setup)
@@ -142,13 +156,17 @@ export function restorePersisted(queryClient: QueryClient, userId: string): Prom
 }
 
 /** Starts keeping this person's cache without reading one (a first sign-in); a no-op if already doing so. */
-export function startPersisting(queryClient: QueryClient, userId: string): void {
+export function startPersisting(
+  queryClient: QueryClient,
+  userId: string,
+  persist: PersistOptions = {},
+): void {
   if (active?.userId === userId) return
   stopActive()
   const state: Active = { userId, dead: false, stop: () => {}, ready: Promise.resolve() }
   active = state
   activeClient = queryClient
-  keepStoring(options(queryClient, userId, state), state)
+  keepStoring(options(queryClient, userId, state, persist), state)
 }
 
 /**

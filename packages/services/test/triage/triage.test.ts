@@ -1,6 +1,6 @@
 import { listIgnoreRegions, listTriage } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/db/testing'
+import { createTestDb, seedBuild, seedMember, seedProject, seedUser } from '@circi/db/testing'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -35,8 +35,7 @@ async function setup() {
 describe('assignTriage', () => {
   it('assigns an item to a member, and to nobody', async () => {
     const { workspace, ref, queue } = await setup()
-    const mate = await seedUser(t.db)
-    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const mate = await seedMember(t.db, workspace.id)
     await assignTriage(t.db, { ...ref, assigneeId: mate.id })
     expect((await queue()).items[0]?.assignee).toEqual({
       id: mate.id,
