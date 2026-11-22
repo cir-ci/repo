@@ -30,18 +30,27 @@ describe('deploy/Dockerfile', () => {
   })
 })
 
+/** `NAME = expression` lines of a block, by name. */
+const entries = (block: string | undefined, what: string) => {
+  if (!block) throw new Error(`no ${what} in main.tf`)
+  return new Map(
+    [...block.matchAll(/^ {4}([A-Z0-9_]+)\s+= (.+)$/gm)].map((m) => [m[1] ?? '', m[2] ?? '']),
+  )
+}
+
 describe('deploy/terraform', () => {
   const main = deploy('terraform/main.tf')
   const variables = deploy('terraform/variables.tf').split('\nvariable "').slice(1)
-  const map = (name: string) => {
-    const match = new RegExp(`\\n  ${name} = \\{\\n([\\s\\S]*?)\\n  \\}`).exec(main)
-    if (!match?.[1]) throw new Error(`no ${name} map in main.tf`)
-    return [...match[1].matchAll(/^ {4}([A-Z0-9_]+)\s+=/gm)].map((m) => m[1] ?? '')
-  }
+  // The container's environment (the settings that are set) and the secrets' map (passed as files).
+  const environment = entries(
+    /env = concat\(\[for name, value in \{\n([\s\S]*?)\n {4}\} :/.exec(main)?.[1],
+    "the circi container's env",
+  )
+  const secretFiles = entries(/\n {2}secrets = \{\n([\s\S]*?)\n {2}\}/.exec(main)?.[1], 'secrets')
 
   it('passes every setting, the secrets as files', () => {
-    expect(sorted([...map('settings'), ...map('secrets')])).toEqual(sorted(passed))
-    expect(sorted(map('secrets'))).toEqual(sorted(SECRET_SETTINGS))
+    expect(sorted([...environment.keys(), ...secretFiles.keys()])).toEqual(sorted(passed))
+    expect(sorted(secretFiles.keys())).toEqual(sorted(SECRET_SETTINGS))
   })
 
   it('marks exactly the secrets sensitive', () => {
@@ -57,9 +66,17 @@ describe('deploy/terraform', () => {
   })
 
   it('checks the same groups of settings that go together in the plan', () => {
-    const block = /\n {2}setting_groups = \[\n([\s\S]*?)\n {2}\]/.exec(main)?.[1] ?? ''
-    const groups = [...block.matchAll(/\[(.*)\]/g)].map((m) =>
-      [...(m[1] ?? '').matchAll(/"([A-Z0-9_]+)"/g)].map((n) => n[1]).join(' / '),
+    // Each group lists the values it checks (`local.smtp.user`, `var.smtp_password`): the setting
+    // each one is passed as, from the environment and the secrets' map above.
+    const settingOf = new Map(
+      [...environment, ...secretFiles].map(([name, expression]) => [expression, name]),
+    )
+    const block = /\n {2}setting_groups = \{\n([\s\S]*?)\n {2}\}/.exec(main)?.[1] ?? ''
+    const groups = [...block.matchAll(/= \[(.*)\]$/gm)].map((m) =>
+      (m[1] ?? '')
+        .split(', ')
+        .map((expression) => settingOf.get(expression) ?? `(not passed: ${expression})`)
+        .join(' / '),
     )
     expect(sorted(groups)).toEqual(sorted(Object.values(SETTING_GROUPS).map((g) => g.join(' / '))))
   })

@@ -254,7 +254,7 @@ variable "smtp" {
       from    string  SMTP_FROM, e.g. "CirCI <ci@acme.io>"; required with host
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.smtp == null || try(length(setsubtract(keys(var.smtp), ["host", "port", "secure", "user", "from"])) == 0, false)
     error_message = "smtp takes host, port, secure, user, from: ${join(", ", try(setsubtract(keys(var.smtp), ["host", "port", "secure", "user", "from"]), ["it must be an object"]))} isn't one."
@@ -285,7 +285,7 @@ variable "s3" {
       request_timeout_seconds  number  S3_REQUEST_TIMEOUT_SECONDS: silence allowed on an open request (default 60)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.s3 == null || try(length(setsubtract(keys(var.s3), ["bucket", "region", "endpoint", "force_path_style", "access_key_id", "connect_timeout_seconds", "request_timeout_seconds"])) == 0, false)
     error_message = "s3 takes bucket, region, endpoint, force_path_style, access_key_id, connect_timeout_seconds, request_timeout_seconds: ${join(", ", try(setsubtract(keys(var.s3), ["bucket", "region", "endpoint", "force_path_style", "access_key_id", "connect_timeout_seconds", "request_timeout_seconds"]), ["it must be an object"]))} isn't one."
@@ -312,7 +312,7 @@ variable "sign_in" {
       sso       bool    AUTH_SSO_ENABLED: the providers in sso (default on)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.sign_in == null || try(length(setsubtract(keys(var.sign_in), ["email", "password", "sso"])) == 0, false)
     error_message = "sign_in takes email, password, sso: ${join(", ", try(setsubtract(keys(var.sign_in), ["email", "password", "sso"]), ["it must be an object"]))} isn't one."
@@ -336,7 +336,7 @@ variable "sso" {
       oidc_trusted_for_email  bool    AUTH_OIDC_TRUSTED_FOR_EMAIL: true only if the provider verifies every address (default false)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.sso == null || try(length(setsubtract(keys(var.sso), ["github_client_id", "google_client_id", "gitlab_client_id", "gitlab_url", "oidc_issuer", "oidc_client_id", "oidc_name", "oidc_trusted_for_email"])) == 0, false)
     error_message = "sso takes github_client_id, google_client_id, gitlab_client_id, gitlab_url, oidc_issuer, oidc_client_id, oidc_name, oidc_trusted_for_email: ${join(", ", try(setsubtract(keys(var.sso), ["github_client_id", "google_client_id", "gitlab_client_id", "gitlab_url", "oidc_issuer", "oidc_client_id", "oidc_name", "oidc_trusted_for_email"]), ["it must be an object"]))} isn't one."
@@ -359,7 +359,7 @@ variable "github_app" {
       api_timeout_seconds  number  GITHUB_API_TIMEOUT_SECONDS (default 15)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.github_app == null || try(length(setsubtract(keys(var.github_app), ["id", "api_url", "api_timeout_seconds"])) == 0, false)
     error_message = "github_app takes id, api_url, api_timeout_seconds: ${join(", ", try(setsubtract(keys(var.github_app), ["id", "api_url", "api_timeout_seconds"]), ["it must be an object"]))} isn't one."
@@ -381,7 +381,7 @@ variable "slack" {
       api_url    string  SLACK_API_URL (default https://slack.com/api)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.slack == null || try(length(setsubtract(keys(var.slack), ["client_id", "api_url"])) == 0, false)
     error_message = "slack takes client_id, api_url: ${join(", ", try(setsubtract(keys(var.slack), ["client_id", "api_url"]), ["it must be an object"]))} isn't one."
@@ -399,7 +399,7 @@ variable "vapid" {
       subject     string  VAPID_SUBJECT: mailto: or https: contact (default public_url)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.vapid == null || try(length(setsubtract(keys(var.vapid), ["public_key", "subject"])) == 0, false)
     error_message = "vapid takes public_key, subject: ${join(", ", try(setsubtract(keys(var.vapid), ["public_key", "subject"]), ["it must be an object"]))} isn't one."
@@ -417,7 +417,7 @@ variable "sites" {
       max_mb  number  STATIC_SITES_MAX_MB: the largest upload (default 200; locks the dashboard setting)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.sites == null || try(length(setsubtract(keys(var.sites), ["host", "max_mb"])) == 0, false)
     error_message = "sites takes host, max_mb: ${join(", ", try(setsubtract(keys(var.sites), ["host", "max_mb"]), ["it must be an object"]))} isn't one."
@@ -442,7 +442,7 @@ variable "jobs" {
       retry_max_seconds       number  JOB_RETRY_MAX_SECONDS: the longest wait between attempts (default 300)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.jobs == null || try(length(setsubtract(keys(var.jobs), ["upload_timeout_minutes", "gc_grace_hours", "retention_days", "retry_base_seconds", "retry_max_seconds"])) == 0, false)
     error_message = "jobs takes upload_timeout_minutes, gc_grace_hours, retention_days, retry_base_seconds, retry_max_seconds: ${join(", ", try(setsubtract(keys(var.jobs), ["upload_timeout_minutes", "gc_grace_hours", "retention_days", "retry_base_seconds", "retry_max_seconds"]), ["it must be an object"]))} isn't one."
@@ -460,7 +460,7 @@ variable "webhooks" {
       allow_private_addresses  bool    WEBHOOK_ALLOW_PRIVATE_ADDRESSES: only if your receivers live on your own network (default false)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.webhooks == null || try(length(setsubtract(keys(var.webhooks), ["timeout_seconds", "allow_private_addresses"])) == 0, false)
     error_message = "webhooks takes timeout_seconds, allow_private_addresses: ${join(", ", try(setsubtract(keys(var.webhooks), ["timeout_seconds", "allow_private_addresses"]), ["it must be an object"]))} isn't one."
@@ -484,7 +484,7 @@ variable "tuning" {
       live_max_streams   number  LIVE_MAX_STREAMS: live dashboard streams one server keeps open (default 2000)
   EOT
   type        = any
-  default     = null
+  default     = {}
   validation {
     condition     = var.tuning == null || try(length(setsubtract(keys(var.tuning), ["database_pool_max", "diff_engine", "diff_threads", "live_max_streams"])) == 0, false)
     error_message = "tuning takes database_pool_max, diff_engine, diff_threads, live_max_streams: ${join(", ", try(setsubtract(keys(var.tuning), ["database_pool_max", "diff_engine", "diff_threads", "live_max_streams"]), ["it must be an object"]))} isn't one."

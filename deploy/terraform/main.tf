@@ -3,30 +3,111 @@
 # overlay), managed by Terraform. Changing circi_version pulls that image and replaces the container.
 
 locals {
-  bundled_postgres = var.database == null
+  # The settings' groups as the server gets them: every key, unset (null) unless the input sets it.
+  # null leaves the setting out of the container's environment, so the server's default applies.
+  smtp = merge({
+    host   = null
+    port   = null
+    secure = null
+    user   = null
+    from   = null
+  }, var.smtp)
+  s3 = merge({
+    bucket                  = null
+    region                  = null
+    endpoint                = null
+    force_path_style        = null
+    access_key_id           = null
+    connect_timeout_seconds = null
+    request_timeout_seconds = null
+  }, var.s3)
+  sign_in = merge({
+    email    = null
+    password = null
+    sso      = null
+  }, var.sign_in)
+  sso = merge({
+    github_client_id       = null
+    google_client_id       = null
+    gitlab_client_id       = null
+    gitlab_url             = null
+    oidc_issuer            = null
+    oidc_client_id         = null
+    oidc_name              = null
+    oidc_trusted_for_email = null
+  }, var.sso)
+  github_app = merge({
+    id                  = null
+    api_url             = null
+    api_timeout_seconds = null
+  }, var.github_app)
+  slack = merge({
+    client_id = null
+    api_url   = null
+  }, var.slack)
+  vapid = merge({
+    public_key = null
+    subject    = null
+  }, var.vapid)
+  sites = merge({
+    host   = null
+    max_mb = null
+  }, var.sites)
+  jobs = merge({
+    upload_timeout_minutes = null
+    gc_grace_hours         = null
+    retention_days         = null
+    retry_base_seconds     = null
+    retry_max_seconds      = null
+  }, var.jobs)
+  webhooks = merge({
+    timeout_seconds         = null
+    allow_private_addresses = null
+  }, var.webhooks)
+  tuning = merge({
+    database_pool_max = null
+    diff_engine       = null
+    diff_threads      = null
+    live_max_streams  = null
+  }, var.tuning)
+
+  caddy = var.caddy == null ? null : merge({
+    dashboard_host = null
+    sites_host     = null
+    aws_region     = "us-east-1"
+  }, var.caddy)
+
+  # Your own Postgres, or null for the bundled one.
+  database = var.database == null ? null : merge({
+    host           = null
+    port           = 5432
+    name           = "circi"
+    user           = null
+    tls            = true
+    ca_certificate = null
+  }, var.database)
+
+  bundled_postgres = local.database == null
   caddy_address    = cidrhost(var.network_subnet, 10)
   secrets_dir      = "/run/circi/secrets"
   database_ca_path = "/run/circi/database-ca.pem"
+  public_url       = local.caddy == null ? var.public_url : "https://${local.caddy.dashboard_host}"
 
-  database_ca = try(var.database.ca_certificate, null)
-
-  # The bundled Postgres, or yours.
-  bundled_db = {
+  db = local.bundled_postgres ? {
     host     = "postgres"
     port     = 5432
     name     = "circi"
     user     = "circi"
     password = var.postgres_password
     query    = ""
-  }
-  db = local.bundled_postgres ? local.bundled_db : {
-    host     = var.database.host
-    port     = tonumber(coalesce(try(var.database.port, null), 5432))
-    name     = coalesce(try(var.database.name, null), "circi")
-    user     = var.database.user
+    } : {
+    host     = local.database.host
+    port     = tonumber(local.database.port)
+    name     = local.database.name
+    user     = local.database.user
     password = var.database_password
-    query = try(var.database.tls, null) == false ? "?sslmode=disable" : (
-      "?sslmode=verify-full${local.database_ca == null ? "" : "&sslrootcert=${local.database_ca_path}"}"
+    query = !local.database.tls ? "?sslmode=disable" : (
+      "?sslmode=verify-full${local.database.ca_certificate == null ? "" : "&sslrootcert=${local.database_ca_path}"}"
     )
   }
   # URL-encoded: urlencode writes a space as +, which a URL's user part reads as a plus sign.
@@ -38,65 +119,8 @@ locals {
     local.encoded.user, local.encoded.password, local.db.host, local.db.port, local.encoded.name, local.db.query,
   )
 
-  public_url = var.caddy == null ? var.public_url : "https://${var.caddy.dashboard_host}"
-
-  # Every setting the server reads, by name (packages/config/src/schema.ts), from its group's key. The
-  # image sets NODE_ENV, HOST, PORT, STORAGE_PATH, CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the port, the
-  # volume and the files below depend on them, so they are not inputs. A null value is left unset.
-  settings = {
-    PUBLIC_URL                      = local.public_url
-    PREVIOUS_PUBLIC_URLS            = length(var.previous_public_urls) == 0 ? null : join(",", var.previous_public_urls)
-    TRUSTED_PROXIES                 = var.caddy != null ? local.caddy_address : length(var.trusted_proxies) == 0 ? null : join(",", var.trusted_proxies)
-    LOG_LEVEL                       = var.log_level
-    WORKSPACE_CREATION              = var.workspace_creation
-    STORAGE_DRIVER                  = var.s3 == null ? null : "s3"
-    S3_BUCKET                       = try(var.s3.bucket, null)
-    S3_REGION                       = try(var.s3.region, null)
-    S3_ENDPOINT                     = try(var.s3.endpoint, null)
-    S3_FORCE_PATH_STYLE             = try(var.s3.force_path_style, null)
-    S3_ACCESS_KEY_ID                = try(var.s3.access_key_id, null)
-    S3_CONNECT_TIMEOUT_SECONDS      = try(var.s3.connect_timeout_seconds, null)
-    S3_REQUEST_TIMEOUT_SECONDS      = try(var.s3.request_timeout_seconds, null)
-    SMTP_HOST                       = try(var.smtp.host, null)
-    SMTP_PORT                       = try(var.smtp.port, null)
-    SMTP_SECURE                     = try(var.smtp.secure, null)
-    SMTP_USER                       = try(var.smtp.user, null)
-    SMTP_FROM                       = try(var.smtp.from, null)
-    AUTH_EMAIL_ENABLED              = try(var.sign_in.email, null)
-    AUTH_PASSWORD_ENABLED           = try(var.sign_in.password, null)
-    AUTH_SSO_ENABLED                = try(var.sign_in.sso, null)
-    AUTH_GITHUB_CLIENT_ID           = try(var.sso.github_client_id, null)
-    AUTH_GOOGLE_CLIENT_ID           = try(var.sso.google_client_id, null)
-    AUTH_GITLAB_CLIENT_ID           = try(var.sso.gitlab_client_id, null)
-    AUTH_GITLAB_URL                 = try(var.sso.gitlab_url, null)
-    AUTH_OIDC_ISSUER                = try(var.sso.oidc_issuer, null)
-    AUTH_OIDC_CLIENT_ID             = try(var.sso.oidc_client_id, null)
-    AUTH_OIDC_NAME                  = try(var.sso.oidc_name, null)
-    AUTH_OIDC_TRUSTED_FOR_EMAIL     = try(var.sso.oidc_trusted_for_email, null)
-    GITHUB_APP_ID                   = try(var.github_app.id, null)
-    GITHUB_API_URL                  = try(var.github_app.api_url, null)
-    GITHUB_API_TIMEOUT_SECONDS      = try(var.github_app.api_timeout_seconds, null)
-    SLACK_CLIENT_ID                 = try(var.slack.client_id, null)
-    SLACK_API_URL                   = try(var.slack.api_url, null)
-    VAPID_PUBLIC_KEY                = try(var.vapid.public_key, null)
-    VAPID_SUBJECT                   = try(var.vapid.subject, null)
-    STATIC_SITES_HOST               = var.caddy != null ? var.caddy.sites_host : try(var.sites.host, null)
-    STATIC_SITES_MAX_MB             = try(var.sites.max_mb, null)
-    UPLOAD_TIMEOUT_MINUTES          = try(var.jobs.upload_timeout_minutes, null)
-    GC_GRACE_HOURS                  = try(var.jobs.gc_grace_hours, null)
-    JOB_RETENTION_DAYS              = try(var.jobs.retention_days, null)
-    JOB_RETRY_BASE_SECONDS          = try(var.jobs.retry_base_seconds, null)
-    JOB_RETRY_MAX_SECONDS           = try(var.jobs.retry_max_seconds, null)
-    WEBHOOK_TIMEOUT_SECONDS         = try(var.webhooks.timeout_seconds, null)
-    WEBHOOK_ALLOW_PRIVATE_ADDRESSES = try(var.webhooks.allow_private_addresses, null)
-    DATABASE_POOL_MAX               = try(var.tuning.database_pool_max, null)
-    CIRCI_DIFF_ENGINE               = try(var.tuning.diff_engine, null)
-    CIRCI_DIFF_THREADS              = try(var.tuning.diff_threads, null)
-    LIVE_MAX_STREAMS                = try(var.tuning.live_max_streams, null)
-  }
-
-  # Secrets go into the container as files, named by <NAME>_FILE, so the environment above stays
-  # readable in plan output. Which ones are set isn't secret, only their values.
+  # Secrets go into the container as files, named by <NAME>_FILE, so its environment stays readable in
+  # plan output. Which ones are set isn't secret, only their values.
   secrets = {
     BETTER_AUTH_SECRET        = var.better_auth_secret
     DATABASE_URL              = local.database_url
@@ -111,31 +135,24 @@ locals {
     SLACK_CLIENT_SECRET       = var.slack_client_secret
     VAPID_PRIVATE_KEY         = var.vapid_private_key
   }
-  caddy_aws_keys = nonsensitive(var.caddy_aws_credentials != null)
   secret_names   = toset(nonsensitive([for name, value in local.secrets : name if value != null]))
+  caddy_aws_keys = nonsensitive(var.caddy_aws_credentials != null)
 
-  environment = concat(
-    [for name, value in local.settings : "${name}=${tostring(value)}" if value != null],
-    [for name in local.secret_names : "${name}_FILE=${local.secrets_dir}/${name}"],
-  )
-
-  # Settings that go together: all set, or none (SETTING_GROUPS in packages/config/src/settings.ts,
-  # which the server checks too, but only once the container starts).
-  setting_groups = [
-    ["SMTP_USER", "SMTP_PASSWORD"],
-    ["S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"],
-    ["GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_WEBHOOK_SECRET"],
-    ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET"],
-    ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
-    ["AUTH_GITHUB_CLIENT_ID", "AUTH_GITHUB_CLIENT_SECRET"],
-    ["AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET"],
-    ["AUTH_GITLAB_CLIENT_ID", "AUTH_GITLAB_CLIENT_SECRET"],
-    ["AUTH_OIDC_ISSUER", "AUTH_OIDC_CLIENT_ID", "AUTH_OIDC_CLIENT_SECRET"],
-  ]
-  every_setting = merge(local.settings, local.secrets)
+  # Settings that go together: all set, or none (SETTING_GROUPS in packages/config/src/settings.ts;
+  # the server checks them too, but only once the container starts).
+  setting_groups = {
+    "smtp.user / smtp_password"                                          = [local.smtp.user, var.smtp_password]
+    "s3.access_key_id / s3_secret_access_key"                            = [local.s3.access_key_id, var.s3_secret_access_key]
+    "github_app.id / github_app_private_key / github_app_webhook_secret" = [local.github_app.id, var.github_app_private_key, var.github_app_webhook_secret]
+    "slack.client_id / slack_client_secret"                              = [local.slack.client_id, var.slack_client_secret]
+    "vapid.public_key / vapid_private_key"                               = [local.vapid.public_key, var.vapid_private_key]
+    "sso.github_client_id / auth_github_client_secret"                   = [local.sso.github_client_id, var.auth_github_client_secret]
+    "sso.google_client_id / auth_google_client_secret"                   = [local.sso.google_client_id, var.auth_google_client_secret]
+    "sso.gitlab_client_id / auth_gitlab_client_secret"                   = [local.sso.gitlab_client_id, var.auth_gitlab_client_secret]
+    "sso.oidc_issuer / sso.oidc_client_id / auth_oidc_client_secret"     = [local.sso.oidc_issuer, local.sso.oidc_client_id, var.auth_oidc_client_secret]
+  }
   half_set_groups = nonsensitive([
-    for group in local.setting_groups : join(" / ", group)
-    if length(distinct([for name in group : local.every_setting[name] != null])) > 1
+    for name, values in local.setting_groups : name if length(distinct([for v in values : v != null])) > 1
   ])
 }
 
@@ -222,7 +239,62 @@ resource "docker_container" "circi" {
   image   = docker_image.circi.image_id
   command = ["all"]
   restart = "unless-stopped"
-  env     = local.environment
+  # Every setting the server reads (packages/config/src/schema.ts) that is set, then a <NAME>_FILE for
+  # each secret. The image sets NODE_ENV, HOST, PORT, STORAGE_PATH, CIRCI_MIGRATIONS and CIRCI_WEB_DIST:
+  # the port, the volume and the files here depend on them, so they are not inputs.
+  env = concat([for name, value in {
+    PUBLIC_URL                      = local.public_url
+    PREVIOUS_PUBLIC_URLS            = length(var.previous_public_urls) == 0 ? null : join(",", var.previous_public_urls)
+    TRUSTED_PROXIES                 = local.caddy != null ? local.caddy_address : length(var.trusted_proxies) == 0 ? null : join(",", var.trusted_proxies)
+    LOG_LEVEL                       = var.log_level
+    WORKSPACE_CREATION              = var.workspace_creation
+    STORAGE_DRIVER                  = local.s3.bucket == null ? null : "s3"
+    S3_BUCKET                       = local.s3.bucket
+    S3_REGION                       = local.s3.region
+    S3_ENDPOINT                     = local.s3.endpoint
+    S3_FORCE_PATH_STYLE             = local.s3.force_path_style
+    S3_ACCESS_KEY_ID                = local.s3.access_key_id
+    S3_CONNECT_TIMEOUT_SECONDS      = local.s3.connect_timeout_seconds
+    S3_REQUEST_TIMEOUT_SECONDS      = local.s3.request_timeout_seconds
+    SMTP_HOST                       = local.smtp.host
+    SMTP_PORT                       = local.smtp.port
+    SMTP_SECURE                     = local.smtp.secure
+    SMTP_USER                       = local.smtp.user
+    SMTP_FROM                       = local.smtp.from
+    AUTH_EMAIL_ENABLED              = local.sign_in.email
+    AUTH_PASSWORD_ENABLED           = local.sign_in.password
+    AUTH_SSO_ENABLED                = local.sign_in.sso
+    AUTH_GITHUB_CLIENT_ID           = local.sso.github_client_id
+    AUTH_GOOGLE_CLIENT_ID           = local.sso.google_client_id
+    AUTH_GITLAB_CLIENT_ID           = local.sso.gitlab_client_id
+    AUTH_GITLAB_URL                 = local.sso.gitlab_url
+    AUTH_OIDC_ISSUER                = local.sso.oidc_issuer
+    AUTH_OIDC_CLIENT_ID             = local.sso.oidc_client_id
+    AUTH_OIDC_NAME                  = local.sso.oidc_name
+    AUTH_OIDC_TRUSTED_FOR_EMAIL     = local.sso.oidc_trusted_for_email
+    GITHUB_APP_ID                   = local.github_app.id
+    GITHUB_API_URL                  = local.github_app.api_url
+    GITHUB_API_TIMEOUT_SECONDS      = local.github_app.api_timeout_seconds
+    SLACK_CLIENT_ID                 = local.slack.client_id
+    SLACK_API_URL                   = local.slack.api_url
+    VAPID_PUBLIC_KEY                = local.vapid.public_key
+    VAPID_SUBJECT                   = local.vapid.subject
+    STATIC_SITES_HOST               = local.caddy != null ? local.caddy.sites_host : local.sites.host
+    STATIC_SITES_MAX_MB             = local.sites.max_mb
+    UPLOAD_TIMEOUT_MINUTES          = local.jobs.upload_timeout_minutes
+    GC_GRACE_HOURS                  = local.jobs.gc_grace_hours
+    JOB_RETENTION_DAYS              = local.jobs.retention_days
+    JOB_RETRY_BASE_SECONDS          = local.jobs.retry_base_seconds
+    JOB_RETRY_MAX_SECONDS           = local.jobs.retry_max_seconds
+    WEBHOOK_TIMEOUT_SECONDS         = local.webhooks.timeout_seconds
+    WEBHOOK_ALLOW_PRIVATE_ADDRESSES = local.webhooks.allow_private_addresses
+    DATABASE_POOL_MAX               = local.tuning.database_pool_max
+    CIRCI_DIFF_ENGINE               = local.tuning.diff_engine
+    CIRCI_DIFF_THREADS              = local.tuning.diff_threads
+    LIVE_MAX_STREAMS                = local.tuning.live_max_streams
+    } : "${name}=${tostring(value)}" if value != null],
+    [for name in local.secret_names : "${name}_FILE=${local.secrets_dir}/${name}"],
+  )
 
   dynamic "upload" {
     for_each = local.secret_names
@@ -232,7 +304,7 @@ resource "docker_container" "circi" {
     }
   }
   dynamic "upload" {
-    for_each = local.database_ca == null ? [] : [local.database_ca]
+    for_each = local.bundled_postgres ? [] : compact([local.database.ca_certificate])
     content {
       file    = local.database_ca_path
       content = upload.value
@@ -248,7 +320,7 @@ resource "docker_container" "circi" {
     container_path = "/var/lib/circi/files"
   }
   dynamic "ports" {
-    for_each = var.caddy == null ? [var.port] : []
+    for_each = local.caddy == null ? [var.port] : []
     content {
       internal = 3000
       external = ports.value
@@ -270,18 +342,18 @@ resource "docker_container" "circi" {
     }
     precondition {
       condition     = length(local.half_set_groups) == 0
-      error_message = "These settings go together, set all of each or none: ${join("; ", local.half_set_groups)}. (A secret's variable is its name in lower case, e.g. smtp_password; the others are keys of their group, e.g. smtp.user.)"
+      error_message = "These settings go together, set all of each or none: ${join("; ", local.half_set_groups)}."
     }
     precondition {
-      condition     = try(var.smtp.host, null) == null || try(var.smtp.from, null) != null
+      condition     = local.smtp.host == null || local.smtp.from != null
       error_message = "smtp.from is required with smtp.host."
     }
     precondition {
-      condition     = var.s3 == null || try(var.s3.bucket, null) != null
+      condition     = local.s3.bucket != null || alltrue([for v in values(local.s3) : v == null])
       error_message = "s3 needs a bucket."
     }
     precondition {
-      condition     = var.caddy == null || (try(var.sites.host, null) == null && length(var.trusted_proxies) == 0)
+      condition     = local.caddy == null || (local.sites.host == null && length(var.trusted_proxies) == 0)
       error_message = "With caddy, sites.host is caddy.sites_host and trusted_proxies is Caddy's address: leave both unset."
     }
   }
@@ -290,31 +362,31 @@ resource "docker_container" "circi" {
 # --- Caddy --------------------------------------------------------------------------------------
 
 resource "docker_volume" "caddy_data" {
-  count = var.caddy == null ? 0 : 1
+  count = local.caddy == null ? 0 : 1
   name  = "${var.name_prefix}-caddy-data"
 }
 
 resource "docker_volume" "caddy_config" {
-  count = var.caddy == null ? 0 : 1
+  count = local.caddy == null ? 0 : 1
   name  = "${var.name_prefix}-caddy-config"
 }
 
 resource "docker_image" "caddy" {
-  count        = var.caddy == null ? 0 : 1
+  count        = local.caddy == null ? 0 : 1
   name         = "${var.image_repository}-caddy:${var.circi_version}"
   keep_locally = true
 }
 
 resource "docker_container" "caddy" {
-  count   = var.caddy == null ? 0 : 1
+  count   = local.caddy == null ? 0 : 1
   name    = "${var.name_prefix}-caddy"
   image   = docker_image.caddy[0].image_id
   restart = "unless-stopped"
   env = concat(
     [
-      "DASHBOARD_HOST=${var.caddy.dashboard_host}",
-      "SITES_HOST=${var.caddy.sites_host}",
-      "AWS_REGION=${coalesce(try(var.caddy.aws_region, null), "us-east-1")}",
+      "DASHBOARD_HOST=${local.caddy.dashboard_host}",
+      "SITES_HOST=${local.caddy.sites_host}",
+      "AWS_REGION=${local.caddy.aws_region}",
     ],
     local.caddy_aws_keys ? ["AWS_SHARED_CREDENTIALS_FILE=/run/caddy/aws-credentials"] : [],
   )
