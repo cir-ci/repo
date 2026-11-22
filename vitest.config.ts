@@ -13,6 +13,7 @@ import { E2eTimingReporter } from './e2e/src/reporting/timing-reporter.ts'
  * One Vitest run, several projects:
  *
  *   node         logic (`*.test.ts`), including the web app's render-free tests     `pnpm test:node`
+ *   deploy       the deploys (deploy/) against @circi/config's lists of settings     `pnpm test:deploy`
  *   ui           @circi/ui's components in headless Chromium                         `pnpm test:ui`
  *   web-browser  the dashboard's components in headless Chromium                     `pnpm test:web-browser`
  *   e2e-api      end-to-end, over HTTP and the CLI, against the Docker stack (E2E=1)  `pnpm test:e2e:api`
@@ -82,6 +83,8 @@ function chromium(env?: Record<string, string>) {
   }
 }
 
+const DEPLOY_SETTINGS_TEST = 'packages/config/test/deploy-settings.test.ts'
+
 const node: TestProjectInlineConfiguration = {
   extends: true,
   test: {
@@ -97,7 +100,19 @@ const node: TestProjectInlineConfiguration = {
       // The e2e harness's own fakes: plain Node tests, no Docker.
       'e2e/test/fakes/**/*.test.ts',
     ],
+    // Its own project (below), so a change to deploy/ reruns that one file, not every Node test.
+    exclude: [DEPLOY_SETTINGS_TEST],
   },
+}
+
+/**
+ * The deploys against @circi/config's lists of settings: reads deploy/ (the image, Compose, the
+ * Terraform module, the Helm chart) and packages/config, nothing else. No database, so no PGlite
+ * setup. Turbo caches it on those inputs alone (`//#test:deploy`).
+ */
+const deploy: TestProjectInlineConfiguration = {
+  extends: true,
+  test: { name: 'deploy', include: [DEPLOY_SETTINGS_TEST] },
 }
 
 /**
@@ -285,6 +300,7 @@ export default defineConfig({
     },
     projects: [
       node,
+      deploy,
       ui,
       webBrowser,
       ...(E2E ? [e2e('api'), e2e('browser')] : []),

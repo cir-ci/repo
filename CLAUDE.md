@@ -27,7 +27,9 @@ variable is empty. They share one `docker build` of `circi:e2e` through a lock (
 cached.
 The deploys: `pnpm test:compose` brings up `deploy/docker-compose.yml` (Docker); `pnpm test:terraform` runs `deploy/terraform`'s
 `terraform test` (a mocked Docker provider; the CI job `terraform`). Both are held to `@circi/config`'s lists of settings
-(`packages/config/src/settings.ts`: the secrets, what the image sets, what goes together) by `packages/config/test/deploy-settings.test.ts`.
+(`packages/config/src/settings.ts`: the secrets, what the image sets, what goes together) by `packages/config/test/deploy-settings.test.ts`,
+its own Vitest project and root task (`pnpm test:deploy`, `//#test:deploy`, in `pnpm gate`), cached on `packages/config` and `deploy/` only, so a
+change under `deploy/` reruns it and not the Node tests (`//#test:node` doesn't read `deploy/`).
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
 `@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published to npm, `dist`; the only non-private packages, versioned with Changesets like every package, private ones included (`privatePackages.version` in `.changeset/config.json`): a change to any package needs a changeset, which the husky post-commit hook (`scripts/auto-changeset.mjs`) writes from the commit message when none is added (patch, or `[minor]`/`[major]` in the message), checked in CI by `changeset status`; every changeset carries a written release note, even for a private package or a change to tests, `perf/` or docs (never `pnpm changeset --empty`): rewrite the hook's note, which is only the commit message, into one or two sentences for the people who use what changed, released by `.github/workflows/release.yml`; the app is versioned the same way as `@circi/server`, whose release publishes `ghcr.io/cir-ci/circi:<version>`, the version `deploy/terraform` runs; how a release is used: circi.dev/self-hosting/upgrades-and-migrations/) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
