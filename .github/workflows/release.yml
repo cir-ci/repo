@@ -11,6 +11,7 @@
 # the `image` job publishes ghcr.io/<owner>/circi:<version> and circi-caddy:<version> the first time a version is on main.
 # deploy/terraform runs a given version (circi_version); the `terraform-mirror` job copies the module to its registry repository.
 # The `helm-chart` job publishes deploy/helm/circi as oci://ghcr.io/<owner>/charts/circi:<version> next to the image.
+# The `docs` job asks cir-ci/documentation to rebuild circi.dev after a release, so its changelog is current.
 #
 # Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
 # approve pull requests".
@@ -30,6 +31,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,7 +46,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # v2: v1 read what was published from the CLI's output, which Changesets v3 changed, so it skipped the
       # tags and GitHub releases. v2 reads the file CHANGESETS_OUTPUT names, which `pnpm release` passes down.
-      - uses: changesets/action@v2
+      - id: changesets
+        uses: changesets/action@v2
         with:
           version-script: pnpm version-packages
           publish-script: pnpm release
@@ -188,3 +192,37 @@ jobs:
             commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}, release @circi/server@$VERSION."
           git tag "v$VERSION"
           git push --quiet --atomic origin HEAD:main "v$VERSION"
+
+  # circi.dev (cir-ci/documentation) builds its changelog from this repository's CHANGELOG.md files: after a release
+  # (npm packages published, or a new app version), send it a `circi-release` event, which its Pages workflow deploys on.
+  # A workflow's own GITHUB_TOKEN can't reach another repository, so the token comes from the organization's `cir-ci`
+  # GitHub App, installed on cir-ci/documentation with Contents: write: its client ID is the CIRCI_APP_CLIENT_ID
+  # variable, its private key the CIRCI_APP_PRIVATE_KEY secret. Without the key the job only says so.
+  docs:
+    needs: [release, image]
+    if: ${{ !cancelled() && (needs.release.outputs.published == 'true' || needs.image.outputs.publish == 'true') }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - id: app
+        run: |
+          if [ "${{ secrets.CIRCI_APP_PRIVATE_KEY != '' }}" = true ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CIRCI_APP_PRIVATE_KEY is not set, so circi.dev was not asked to rebuild."
+          fi
+      - if: steps.app.outputs.set
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CIRCI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CIRCI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: documentation
+          permission-contents: write
+      - if: steps.app.outputs.set
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          gh api "repos/${{ github.repository_owner }}/documentation/dispatches" \
+            -f event_type=circi-release -f "client_payload[sha]=${{ github.sha }}"
