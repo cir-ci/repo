@@ -85,6 +85,18 @@ describe('uploadCaptures', () => {
     expect(calls).toHaveLength(0)
   })
 
+  it('still reports an empty shard, so the parallel build is not left waiting for it', async () => {
+    const { result, lines, calls } = await run({
+      isEmpty: async () => true,
+      shard: { index: 1, total: 2 },
+    })
+    expect(result).toEqual({ status: 'uploaded', exitCode: 0 })
+    expect(lines).toEqual([
+      '[circi] no screenshots found in this shard; reporting it so the build can complete',
+    ])
+    expect(calls).toHaveLength(1)
+  })
+
   it("lets the build's result decide the exit code only with wait", async () => {
     expect((await run({}, review)).result).toEqual({ status: 'uploaded', exitCode: 0 })
     expect((await run({ wait: true }, review)).result).toEqual({ status: 'uploaded', exitCode: 1 })

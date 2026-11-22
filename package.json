@@ -47,7 +47,7 @@
     "perf:bench": "node perf/bench/diff.ts",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-chart-version.mjs && pnpm install --lockfile-only && pnpm format",
-    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest --filter=@circi/cypress && changeset publish"
+    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest --filter=@circi/storybook --filter=@circi/cypress && changeset publish"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

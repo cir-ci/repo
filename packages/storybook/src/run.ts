@@ -58,18 +58,23 @@ export async function uploadStorybook(
 
   if (options.build) await buildStorybook(options, flags.configDir, log)
   const stories = await readStories(options)
-  const mine = shardStories(filterStories(stories, options.include, options.exclude), options.shard)
-  if (mine.length === 0) {
+  const wanted = filterStories(stories, options.include, options.exclude)
+  if (wanted.length === 0) {
     throw new UsageError(
       stories.length === 0
         ? `${options.staticDir} has no stories`
-        : 'No stories left to screenshot: check include, exclude and shard',
+        : 'No stories match include and exclude',
     )
   }
+  const mine = shardStories(wanted, options.shard)
+  // A shard with no stories still reports in, empty (more shards than stories, or every story
+  // skipped): the build waits for every shard.
   if (options.clean) await rm(options.outDir, { recursive: true, force: true })
   await mkdir(options.outDir, { recursive: true })
 
-  const { screenshots, skipped, failures } = await captureAll(mine, stories, options)
+  const { screenshots, skipped, failures } = mine.length
+    ? await captureAll(mine, stories, options)
+    : { screenshots: 0, skipped: 0, failures: [] }
   const result: uploadStorybook.Result = {
     exitCode: 0,
     screenshots,
@@ -89,7 +94,9 @@ export async function uploadStorybook(
     )
     return { ...result, exitCode: 2 }
   }
-  if (screenshots === 0) throw new UsageError('Every story skipped itself: nothing to upload')
+  if (screenshots === 0 && !options.shard) {
+    throw new UsageError('Every story skipped itself: nothing to upload')
+  }
 
   const sent = await uploadCaptures({
     dir: options.outDir,
@@ -146,8 +153,7 @@ async function captureAll(
 ): Promise<{ screenshots: number; skipped: number; failures: uploadStorybook.Failure[] }> {
   const names = storyNames(stories)
   const failures: uploadStorybook.Failure[] = []
-  let screenshots = 0
-  let skipped = 0
+  const perBrowser: Shots[][] = []
   const server = await serveStatic(options.staticDir)
   try {
     for (const browserName of options.browsers) {
@@ -180,10 +186,7 @@ async function captureAll(
             return undefined
           }
         })
-        for (const shots of results) {
-          if (shots?.length === 0) skipped += 1
-          screenshots += shots?.length ?? 0
-        }
+        perBrowser.push(results)
       } finally {
         // oxlint-disable-next-line no-await-in-loop
         await browser.close()
@@ -192,7 +195,29 @@ async function captureAll(
   } finally {
     await server.close()
   }
-  return { screenshots, skipped, failures }
+  return { ...tally(mine, perBrowser), failures }
+}
+
+/** What one story's capture gave: its shots (none when it skips itself), or undefined when it failed. */
+type Shots = { name: string }[] | undefined
+
+/**
+ * Screenshots taken, and stories that skipped themselves. A story skips itself in every browser, so
+ * it counts once however many browsers there are.
+ */
+export function tally(
+  stories: readonly { id: string }[],
+  perBrowser: readonly (readonly Shots[])[],
+): { screenshots: number; skipped: number } {
+  const skipped = new Set<string>()
+  let screenshots = 0
+  for (const results of perBrowser) {
+    for (const [index, shots] of results.entries()) {
+      if (shots?.length === 0) skipped.add(stories[index]?.id ?? '')
+      screenshots += shots?.length ?? 0
+    }
+  }
+  return { screenshots, skipped: skipped.size }
 }
 
 async function readStories(options: Resolved): Promise<Story[]> {

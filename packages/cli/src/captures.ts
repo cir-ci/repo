@@ -51,7 +51,7 @@ export namespace uploadCaptures {
 
   export interface Result {
     /**
-     * `skipped`: no `CIRCI_API_URL` or `CIRCI_TOKEN`. `empty`: no captures. `uploaded`.
+     * `skipped`: no `CIRCI_API_URL` or `CIRCI_TOKEN`. `empty`: no captures (and no shard to report). `uploaded`.
      * `failed`: the upload threw (reported, not thrown).
      */
     status: 'skipped' | 'empty' | 'uploaded' | 'failed'
@@ -82,8 +82,12 @@ export async function uploadCaptures(
     return { status: 'skipped', exitCode: 0 }
   }
   if (await options.isEmpty?.()) {
-    log('[circi] no screenshots found, nothing to upload')
-    return { status: 'empty', exitCode: 0 }
+    // One shard of a parallel build still reports in, empty: the build waits for every shard.
+    if (!options.shard) {
+      log('[circi] no screenshots found, nothing to upload')
+      return { status: 'empty', exitCode: 0 }
+    }
+    log('[circi] no screenshots found in this shard; reporting it so the build can complete')
   }
   try {
     const result = await (options.uploadImpl ?? upload)({

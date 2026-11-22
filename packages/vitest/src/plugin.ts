@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
+import { toolDir } from '@circi/cli/names'
+
 import { type BrowserSettings, PROVIDE_KEY } from './options.ts'
 import { CirciReporter } from './reporter.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
@@ -34,12 +36,12 @@ const setupFile = fileURLToPath(
  * The Vitest plugin: add it to `plugins` in `vitest.config.ts`.
  *
  * Tests keep Vitest's `await expect(locator).toMatchScreenshot('name')`. The plugin writes each
- * capture to `.circi/screenshots/<test file>/<name>.png` and the reporter it registers uploads
+ * capture to `.circi/screenshots/vitest/<test file>/<name>.png` and the reporter it registers uploads
  * them to CirCI when the run ends.
  */
 export function circi(options: circi.Options = {}) {
   const { local = false, ...reporterOptions } = options
-  const settings: BrowserSettings = { local, dir: options.dir ?? DEFAULT_DIR }
+  const settings: BrowserSettings = { local, dir: toolDir(options.dir ?? DEFAULT_DIR, 'vitest') }
   // One reporter for the plugin, however many projects inherit it.
   const reporter = new CirciReporter({ ...reporterOptions, clean: true })
   return {

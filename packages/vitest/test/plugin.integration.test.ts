@@ -82,8 +82,8 @@ describe('circi() with local: false (the default)', () => {
       expect({ passed: first.passed, tail: first.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      // `.circi/screenshots/<test file>/<name>.png`; the unnamed call is `<describe> <test> <n>`.
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      // `.circi/screenshots/vitest/<test file>/<name>.png`; the unnamed call is `<describe> <test> <n>`.
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
       // Nothing is stored locally.
       expect(await fixture.list('__screenshots__')).toEqual([])
       expect(await fixture.list('.vitest')).toEqual([])
@@ -94,14 +94,14 @@ describe('circi() with local: false (the default)', () => {
     'passes again, with the same names, even when the pixels changed',
     { timeout: RUN_TIMEOUT },
     async () => {
-      const before = await fixture.read('.circi/screenshots/shots.fixture.mjs/box.png')
+      const before = await fixture.read('.circi/screenshots/vitest/shots.fixture.mjs/box.png')
       const second = await fixture.vitest({ VITE_FIXTURE_COLOR: 'blue' })
       expect({ passed: second.passed, tail: second.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
       expect(
-        (await fixture.read('.circi/screenshots/shots.fixture.mjs/box.png')).equals(before),
+        (await fixture.read('.circi/screenshots/vitest/shots.fixture.mjs/box.png')).equals(before),
       ).toBe(false)
       expect(await fixture.list('__screenshots__')).toEqual([])
     },
@@ -119,7 +119,7 @@ describe('circi() as published', () => {
       expect({ passed: outcome.passed, tail: outcome.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
     },
   )
 })
@@ -145,7 +145,7 @@ describe('circi() with local: true', () => {
       expect({ passed: third.passed, tail: third.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
     },
   )
 
@@ -156,7 +156,7 @@ describe('circi() with local: true', () => {
       const changed = await fixture.vitest({ ...env, VITE_FIXTURE_COLOR: 'blue' })
       expect(changed.passed).toBe(false)
       expect(changed.output).toContain('does not match the stored reference')
-      expect(await fixture.list('.circi/screenshots')).toContain('shots.fixture.mjs/box.png')
+      expect(await fixture.list('.circi/screenshots/vitest')).toContain('shots.fixture.mjs/box.png')
     },
   )
 })

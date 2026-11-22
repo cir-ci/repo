@@ -305,7 +305,7 @@ export default defineConfig({
   plugins: [
     // Fills the token variables into @circi/ui's global.css, as the real builds do.
     circiTokensCss(),
-    // Visual runs: `toMatchScreenshot` captures go to .circi/screenshots and are sent to CirCI when
+    // Visual runs: `toMatchScreenshot` captures go to .circi/screenshots/vitest and are sent to CirCI when
     // CIRCI_API_URL and CIRCI_TOKEN are set.
     ...(VISUAL ? [circi({ name: 'ui-chromium', wait: true })] : []),
   ],

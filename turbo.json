@@ -88,7 +88,7 @@
     },
     "//#test:storybook": {
       "inputs": [
-        "$TURBO_ROOT$/packages/{storybook,cli}/**",
+        "$TURBO_ROOT$/packages/{storybook,cli,testing}/**",
         "$TURBO_ROOT$/vitest.config.ts",
         "$TURBO_ROOT$/package.json",
         "!**/node_modules/**",

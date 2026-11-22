@@ -189,6 +189,25 @@ describe('upload', () => {
     }
   })
 
+  it('lets a shard with no screenshots report in, so the parallel build can complete', async () => {
+    const empty = await mkdtemp(join(tmpdir(), 'circi-cli-empty-shard-'))
+    try {
+      const result = await run({ dir: empty, shard: { index: 2, total: 3 } })
+      expect(result.uploaded).toBe(0)
+      expect(fake.json(fake.to('/v1/builds')[0]!)).toMatchObject({
+        parallel: { nonce: 'run-1', total: 3 },
+        files: [],
+      })
+      expect(fake.json(fake.to('/v1/builds/b1/finalize')[0]!)).toMatchObject({
+        shardIndex: '2',
+        screenshots: [],
+      })
+      expect(lines.join('\n')).toContain('This shard has no screenshots')
+    } finally {
+      await rm(empty, { recursive: true, force: true })
+    }
+  })
+
   it('refuses to guess the commit outside a checkout', async () => {
     await expect(run({ env: {} })).rejects.toThrow(/Could not determine the commit/)
   })
