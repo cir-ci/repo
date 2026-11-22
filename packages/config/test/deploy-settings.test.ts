@@ -2,14 +2,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
 import { IMAGE_SETTINGS, SECRET_SETTINGS, SETTING_GROUPS, SETTING_NAMES } from '#src/settings.ts'
 
 /**
- * The deploys (the image, deploy/terraform, deploy/docker-compose.yml with deploy/.env.example)
- * against the settings' lists in src/settings.ts: a new setting, secret or group fails here until
- * every deploy has it. That each one is wired to the right name is checked by running the tools:
- * `terraform test` (deploy/terraform/tests) and e2e/test/deploy/compose-settings.deploy.test.ts.
+ * The deploys (the image, deploy/terraform, deploy/helm/circi, deploy/docker-compose.yml with
+ * deploy/.env.example) against the settings' lists in src/settings.ts: a new setting, secret or
+ * group fails here until every deploy has it. That each one is wired to the right name is checked
+ * by running the tools: `terraform test` (deploy/terraform/tests), `pnpm test:helm` (the chart's
+ * schema and renders) and e2e/test/deploy/compose-settings.deploy.test.ts.
  */
 const root = join(import.meta.dirname, '../../..')
 const deploy = (path: string) => readFileSync(join(root, 'deploy', path), 'utf8')
@@ -103,5 +105,91 @@ describe('deploy/docker-compose.yml', () => {
     const named = new Set([...example.matchAll(/^#? ?([A-Z0-9_]+)=/gm)].map((m) => m[1]))
     // Compose builds DATABASE_URL from POSTGRES_PASSWORD.
     expect(passed.filter((name) => !named.has(name) && name !== 'DATABASE_URL')).toEqual([])
+  })
+})
+
+/** The `include "circi.set"` lines of a Helm template's body, as setting name -> expression. */
+const sets = (body: string) =>
+  new Map(
+    [...body.matchAll(/include "circi\.set" \(list \$\w+ "([A-Z0-9_]+)" (.+)\) -}}$/gm)].map(
+      (m) => [m[1] ?? '', m[2] ?? ''],
+    ),
+  )
+
+describe('deploy/helm/circi', () => {
+  const helpers = deploy('helm/circi/templates/_helpers.tpl')
+  const values = deploy('helm/circi/values.yaml')
+  const schema = z
+    .object({
+      additionalProperties: z.boolean(),
+      properties: z.record(
+        z.string(),
+        z.object({ additionalProperties: z.boolean().optional() }).loose(),
+      ),
+    })
+    .parse(JSON.parse(deploy('helm/circi/values.schema.json')))
+  /** The body of a named template, and the `include "circi.set"` lines in it as name -> expression. */
+  const define = (name: string) => {
+    const body = helpers.split('\n{{- define "').find((block) => block.startsWith(`${name}" -}}`))
+    if (!body) throw new Error(`no ${name} template in _helpers.tpl`)
+    return body
+  }
+  const environment = sets(define('circi.settings'))
+  // The branch of circi.secrets that makes the Secret (the other one lists an existing Secret's keys).
+  const secretFiles = sets(define('circi.secrets'))
+
+  it('passes every setting, the secrets as files', () => {
+    expect(sorted(environment.keys())).toEqual(
+      sorted(passed.filter((name) => !SECRET_SETTINGS.some((secret) => secret === name))),
+    )
+    expect(sorted(secretFiles.keys())).toEqual(sorted(SECRET_SETTINGS))
+    // A Secret's keys reach the pods as <NAME>_FILE, never as values in the environment.
+    expect(deploy('helm/circi/templates/deployment.yaml')).toContain('- name: {{ $name }}_FILE')
+  })
+
+  it('checks the same groups of settings that go together', () => {
+    const block = /\$groups := dict\n([\s\S]*?)\n-\}\}/.exec(define('circi.validate'))?.[1] ?? ''
+    const groups = Object.fromEntries(
+      [...block.matchAll(/^ *"(\w+)" \(list (.+)\)$/gm)].map((m) => [
+        m[1],
+        [...(m[2] ?? '').matchAll(/"([A-Z0-9_]+)"/g)].map((n) => n[1]),
+      ]),
+    )
+    expect(groups).toEqual(SETTING_GROUPS)
+  })
+
+  it('has a default and a place in the schema for every value the templates read', () => {
+    const templates = ['_helpers.tpl', 'deployment.yaml', 'caddy.yaml', 'ingress.yaml']
+      .map((file) => deploy(`helm/circi/templates/${file}`))
+      .join('\n')
+    const paths = new Set(
+      [...templates.matchAll(/\.Values\.([A-Za-z0-9]+)\.([A-Za-z0-9]+)/g)].map((m) =>
+        [m[1], m[2]].join('.'),
+      ),
+    )
+    const missing = [...paths].filter((path) => {
+      const [group = '', key = ''] = path.split('.')
+      const section = new RegExp(`^${group}:.*\\n((?:[ #].*\\n|\\n)*)`, 'm').exec(values)?.[1] ?? ''
+      return !new RegExp(`^ {2}${key}:`, 'm').test(section)
+    })
+    expect(missing).toEqual([])
+  })
+
+  it('closes every group of values in the schema', () => {
+    expect(schema.additionalProperties).toBe(false)
+    const open = Object.entries(schema.properties).filter(
+      ([, group]) => group.additionalProperties === undefined && 'properties' in group,
+    )
+    expect(open.map(([name]) => name)).toEqual([])
+  })
+
+  it("carries the Caddyfile of deploy/ and the app's version", () => {
+    expect(deploy('helm/circi/files/Caddyfile')).toBe(deploy('Caddyfile'))
+    const chart = deploy('helm/circi/Chart.yaml')
+    const { version } = z
+      .object({ version: z.string() })
+      .parse(JSON.parse(readFileSync(join(root, 'apps/server/package.json'), 'utf8')))
+    expect(/^version: (.+)$/m.exec(chart)?.[1]).toBe(version)
+    expect(/^appVersion: (.+)$/m.exec(chart)?.[1]).toBe(version)
   })
 })

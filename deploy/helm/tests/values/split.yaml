@@ -1,0 +1,20 @@
+# serve and worker apart, on S3 through an IAM role (IRSA), a database with its CA bundle.
+mode: split
+serve: { replicas: 3 }
+worker: { replicas: 2 }
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/circi
+s3:
+  bucket: acme-circi
+  region: eu-west-1
+secrets:
+  betterAuthSecret: 0123456789abcdef0123456789abcdef
+  databasePassword: secret
+database:
+  host: circi.abc.eu-west-1.rds.amazonaws.com
+  user: circi
+  caCertificate: |
+    -----BEGIN CERTIFICATE-----
+    MIIB
+    -----END CERTIFICATE-----

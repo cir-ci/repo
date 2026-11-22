@@ -1,0 +1,9 @@
+CirCI {{ .Chart.AppVersion }} is installing. The dashboard is at {{ include "circi.publicUrl" . }}.
+{{- if .Values.caddy.enabled }}
+
+Point DNS at Caddy's load balancer: {{ .Values.caddy.dashboardHost }}, {{ .Values.caddy.sitesHost }} and *.{{ .Values.caddy.sitesHost }} (and each project's custom domain).
+
+  kubectl --namespace {{ .Release.Namespace }} get service {{ include "circi.fullname" . }}-caddy
+{{- end }}
+
+Check it: kubectl --namespace {{ .Release.Namespace }} rollout status deployment/{{ include "circi.fullname" . }}{{ if eq .Values.mode "split" }}-serve{{ end }}

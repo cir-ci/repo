@@ -1,0 +1,67 @@
+# Hosted sites: Caddy in front, S3, every optional group set.
+publicUrl: http://ignored.example.com
+fullnameOverride: ci
+mode: split
+caddy:
+  enabled: true
+  dashboardHost: ci.acme.io
+  sitesHost: acme-sites.com
+  service:
+    http3: true
+    annotations: { service.beta.kubernetes.io/aws-load-balancer-type: external }
+  serviceAccount:
+    annotations: { eks.amazonaws.com/role-arn: 'arn:aws:iam::111122223333:role/circi-caddy' }
+networkPolicy: { enabled: true }
+s3:
+  {
+    bucket: acme-circi,
+    accessKeyId: AKIA,
+    endpoint: 'https://s3.example.com',
+    forcePathStyle: true,
+    connectTimeoutSeconds: 5,
+    requestTimeoutSeconds: 120,
+  }
+smtp: { host: smtp.example.com, port: 587, secure: false, user: mailer, from: 'CirCI <ci@acme.io>' }
+signIn: { email: true, password: false, sso: true }
+sso:
+  {
+    githubClientId: gh,
+    googleClientId: g,
+    gitlabClientId: gl,
+    gitlabUrl: 'https://gitlab.acme.io',
+    oidcIssuer: 'https://idp.acme.io',
+    oidcClientId: oidc,
+    oidcName: Acme,
+    oidcTrustedForEmail: true,
+  }
+githubApp: { id: '123', apiUrl: 'https://github.acme.io/api/v3', apiTimeoutSeconds: 20 }
+slack: { clientId: slack, apiUrl: 'https://slack.example.com/api' }
+vapid: { publicKey: pub, subject: 'mailto:ci@acme.io' }
+sites: { maxMb: 300 }
+jobs:
+  {
+    uploadTimeoutMinutes: 30,
+    gcGraceHours: 12,
+    retentionDays: 7,
+    retryBaseSeconds: 0.5,
+    retryMaxSeconds: 600,
+  }
+webhooks: { timeoutSeconds: 5, allowPrivateAddresses: true }
+tuning: { databasePoolMax: 5, diffEngine: js-workers, diffThreads: 2, liveMaxStreams: 500 }
+logLevel: debug
+workspaceCreation: anyone
+previousPublicUrls: [https://old.acme.io]
+trustedProxies: [10.42.0.0/16]
+secrets:
+  betterAuthSecret: 0123456789abcdef0123456789abcdef
+  databaseUrl: postgres://circi:pw@db.example.com:5432/circi?sslmode=verify-full
+  s3SecretAccessKey: s3secret
+  smtpPassword: smtppw
+  githubAppPrivateKey: key
+  githubAppWebhookSecret: whsec
+  slackClientSecret: slacksecret
+  vapidPrivateKey: vapidpriv
+  authGithubClientSecret: ghs
+  authGoogleClientSecret: gs
+  authGitlabClientSecret: gls
+  authOidcClientSecret: oidcs

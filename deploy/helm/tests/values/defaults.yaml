@@ -1,0 +1,7 @@
+# The least a release needs: the secret, and a database. One pod, the files on a volume.
+secrets:
+  betterAuthSecret: 0123456789abcdef0123456789abcdef
+  databasePassword: 'p@ss word'
+database:
+  host: postgres.example.internal
+  user: circi

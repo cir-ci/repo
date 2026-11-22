@@ -1,0 +1,278 @@
+# CirCI's Helm chart. The chart creates nothing outside the cluster: Postgres, the S3 bucket and
+# the IAM role are yours. Settings come in the groups of the Terraform module (smtp, s3, sso, ...),
+# each key named after its setting: smtp.host is SMTP_HOST. A key left null leaves the setting
+# unset, so the server's default applies and settings the dashboard can change (Instance >
+# Settings) stay changeable there; a setting that is set is locked in the dashboard.
+# Docs: https://circi.dev/self-hosting/kubernetes/
+
+image:
+  repository: ghcr.io/cir-ci/circi
+  tag: '' # default: the chart's appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+nameOverride: ''
+fullnameOverride: ''
+
+# --- What runs ------------------------------------------------------------------------------------
+
+# "all": one Deployment running `circi all` (the HTTP server and the worker in one process).
+# "split": a `serve` Deployment and a `worker` Deployment, scaled separately.
+# Every pod migrates the database on start, under an advisory lock, so pods starting together is fine.
+mode: all
+
+# The pods: `all` in "all" mode, `serve` and `worker` in "split" mode.
+all:
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 2Gi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+serve:
+  replicas: 1
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { memory: 1Gi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+worker:
+  replicas: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { memory: 2Gi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+
+# The probes' timings. The checks are /healthz (liveness) and /readyz (readiness: the database and
+# storage); the startup probe gives a first start time for the migrations. A worker pod serves no
+# HTTP, so it has none: Kubernetes restarts it if its process exits.
+probes:
+  startup: { periodSeconds: 5, failureThreshold: 60 }
+  liveness: { periodSeconds: 10, timeoutSeconds: 3, failureThreshold: 3 }
+  readiness: { periodSeconds: 10, timeoutSeconds: 3, failureThreshold: 3 }
+
+terminationGracePeriodSeconds: 30
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000 # the image's `node` user
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile: { type: RuntimeDefault }
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities: { drop: [ALL] }
+
+serviceAccount:
+  create: true
+  name: '' # default: the release's name
+  # On EKS, the IAM role that reads and writes the bucket (IRSA), so no S3 keys are needed:
+  # { eks.amazonaws.com/role-arn: "arn:aws:iam::111122223333:role/circi" }
+  annotations: {}
+
+# --- Address and network --------------------------------------------------------------------------
+
+# The dashboard's address (PUBLIC_URL). Ignored with caddy.enabled: it becomes https://<caddy.dashboardHost>.
+publicUrl: http://localhost:3000
+# Old dashboard addresses (PREVIOUS_PUBLIC_URLS), redirected to publicUrl.
+previousPublicUrls: []
+# The addresses or CIDR ranges of the proxy in front of CirCI (TRUSTED_PROXIES), believed when they say
+# who the client is. Null: with caddy.enabled or ingress.enabled, the private ranges (10.0.0.0/8,
+# 172.16.0.0/12, 192.168.0.0/16), which hold the pod and VPC addresses of any cluster; otherwise unset.
+# Narrow it to your pod CIDR, and set networkPolicy.enabled so that only the proxy can reach CirCI.
+trustedProxies: null
+logLevel: null # fatal, error, warn, info (default), debug, trace
+workspaceCreation: null # "admin" (default) or "anyone"
+
+service:
+  type: ClusterIP
+  port: 3000 # the Service is named like the release; the container always listens on 3000
+  annotations: {}
+
+# An Ingress for the dashboard, for a cluster without hosted sites (with them, use caddy: it needs
+# wildcard and on-demand certificates). The host is publicUrl's.
+ingress:
+  enabled: false
+  className: ''
+  annotations: {}
+  hosts: [] # more hostnames to route to CirCI, e.g. a sites domain behind your own controller
+  tls: [] # [{ secretName: circi-tls, hosts: [ci.acme.io] }]
+
+# Only the proxy (Caddy, or the pods of the ingress controller's namespace) may reach the pods' port
+# 3000, which makes a wide trustedProxies range safe. Needs a CNI that enforces NetworkPolicy.
+networkPolicy:
+  enabled: false
+  # With ingress.enabled: the ingress controller's namespace, e.g. { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+  ingressNamespaceSelector: {}
+
+# --- Caddy: TLS and hosted sites -------------------------------------------------------------------
+
+# deploy/Caddyfile in the cluster: the dashboard's certificate, the wildcard certificate of the sites
+# domain (DNS-01 through Route53) and on-demand certificates for custom domains, which Caddy confirms
+# with CirCI's /internal/tls-ask. A LoadBalancer Service exposes it. Read
+# https://circi.dev/self-hosting/site-domains/ first. One pod: its certificates are on a volume.
+caddy:
+  enabled: false
+  image:
+    repository: ghcr.io/cir-ci/circi-caddy
+    tag: '' # default: the chart's appVersion
+    pullPolicy: IfNotPresent
+  dashboardHost: null # e.g. ci.acme.io
+  sitesHost: null # e.g. acme-sites.com: a separate domain used for nothing else. Becomes STATIC_SITES_HOST.
+  awsRegion: us-east-1 # Route53's region
+  # Route53 credentials come from the AWS credential chain: an IAM role (IRSA: annotate this account)
+  # or a Secret of yours with the keys as a shared credentials file under the key `credentials`.
+  serviceAccount:
+    create: true
+    name: ''
+    annotations: {}
+  awsCredentialsSecret: ''
+  service:
+    type: LoadBalancer
+    annotations: {} # e.g. service.beta.kubernetes.io/aws-load-balancer-type: external
+    loadBalancerClass: ''
+    loadBalancerSourceRanges: []
+    externalTrafficPolicy: ''
+    http3: false # also publish 443/UDP: a Service with both protocols, which needs a load balancer that supports it
+  persistence:
+    size: 1Gi # /data: the certificates and their keys, which Caddy keeps between restarts
+    storageClass: ''
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+# --- Storage --------------------------------------------------------------------------------------
+
+# Screenshots in S3 (STORAGE_DRIVER=s3) when bucket is set. Required for more than one pod and for
+# "split" mode, because pods can't share the files volume. Without keys the server uses the pod's IAM
+# role (IRSA); the secret key is secrets.s3SecretAccessKey.
+s3:
+  bucket: null # S3_BUCKET
+  region: null # S3_REGION (default us-east-1)
+  endpoint: null # S3_ENDPOINT: an S3-compatible store (MinIO, R2, ...)
+  forcePathStyle: null # S3_FORCE_PATH_STYLE (default: true with endpoint)
+  accessKeyId: null # S3_ACCESS_KEY_ID, set with secrets.s3SecretAccessKey
+  connectTimeoutSeconds: null # S3_CONNECT_TIMEOUT_SECONDS (default 10)
+  requestTimeoutSeconds: null # S3_REQUEST_TIMEOUT_SECONDS: silence allowed on an open request (default 60)
+
+# The files volume, used when s3.bucket is not set: one pod only.
+persistence:
+  size: 10Gi
+  storageClass: ''
+  existingClaim: ''
+
+# --- Database -------------------------------------------------------------------------------------
+
+# Your Postgres (Amazon RDS, ...), reached directly: not through a transaction pooler (the server
+# uses LISTEN/NOTIFY and session advisory locks). The URL is built into a Secret from these and
+# secrets.databasePassword, or give secrets.databaseUrl whole.
+database:
+  host: null
+  port: 5432
+  name: circi
+  user: null
+  tls: true # verify the server's certificate (sslmode=verify-full); false is sslmode=disable
+  # The CA bundle that signed the server's certificate (RDS: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem),
+  # mounted at /run/circi/database-ca.pem and named by sslrootcert. Or the name of a ConfigMap of yours with the key ca.pem.
+  caCertificate: null
+  existingCaConfigMap: ''
+
+# --- Secrets --------------------------------------------------------------------------------------
+
+# Secrets reach the pods as files under /run/circi/secrets, named by <NAME>_FILE (read by the server),
+# so they stay out of the pods' environment. Give them here (the chart makes a Secret) or point at a
+# Secret of your own (an external secrets operator, sealed secrets, ...).
+secrets:
+  # A Secret that holds the values under the settings' names (BETTER_AUTH_SECRET, DATABASE_URL, ...).
+  existingSecret: ''
+  # With existingSecret: the optional keys it holds, e.g. [SMTP_PASSWORD]. BETTER_AUTH_SECRET and
+  # DATABASE_URL are always read.
+  existingSecretKeys: []
+  betterAuthSecret: null # BETTER_AUTH_SECRET: at least 32 characters (openssl rand -base64 32)
+  databasePassword: null # the password of database.user (any characters), part of DATABASE_URL
+  databaseUrl: null # DATABASE_URL whole, instead of database.* and databasePassword
+  s3SecretAccessKey: null # S3_SECRET_ACCESS_KEY, with s3.accessKeyId
+  smtpPassword: null # SMTP_PASSWORD, with smtp.user
+  githubAppPrivateKey: null # GITHUB_APP_PRIVATE_KEY: the App's PEM key
+  githubAppWebhookSecret: null # GITHUB_APP_WEBHOOK_SECRET
+  slackClientSecret: null # SLACK_CLIENT_SECRET, with slack.clientId
+  vapidPrivateKey: null # VAPID_PRIVATE_KEY, with vapid.publicKey
+  authGithubClientSecret: null # AUTH_GITHUB_CLIENT_SECRET, with sso.githubClientId
+  authGoogleClientSecret: null # AUTH_GOOGLE_CLIENT_SECRET, with sso.googleClientId
+  authGitlabClientSecret: null # AUTH_GITLAB_CLIENT_SECRET, with sso.gitlabClientId
+  authOidcClientSecret: null # AUTH_OIDC_CLIENT_SECRET, with sso.oidcIssuer and sso.oidcClientId
+
+# --- Settings, by area ----------------------------------------------------------------------------
+
+smtp: # outgoing mail, for email sign-in codes and invitations; the password is secrets.smtpPassword
+  host: null # SMTP_HOST
+  port: null # SMTP_PORT (default 465 with secure, else 587)
+  secure: null # SMTP_SECURE: implicit TLS (default: true on port 465)
+  user: null # SMTP_USER, set with secrets.smtpPassword
+  from: null # SMTP_FROM, e.g. "CirCI <ci@acme.io>"; required with host
+
+signIn:
+  email: null # AUTH_EMAIL_ENABLED: email codes (default on when SMTP is set)
+  password: null # AUTH_PASSWORD_ENABLED (default on)
+  sso: null # AUTH_SSO_ENABLED: the providers in sso (default on)
+
+sso: # each client ID goes with its secret under secrets; callbacks: <publicUrl>/api/auth/callback/<github|google|gitlab|oidc>
+  githubClientId: null # AUTH_GITHUB_CLIENT_ID
+  googleClientId: null # AUTH_GOOGLE_CLIENT_ID
+  gitlabClientId: null # AUTH_GITLAB_CLIENT_ID
+  gitlabUrl: null # AUTH_GITLAB_URL: a self-managed GitLab (default gitlab.com)
+  oidcIssuer: null # AUTH_OIDC_ISSUER: any OpenID Connect provider
+  oidcClientId: null # AUTH_OIDC_CLIENT_ID
+  oidcName: null # AUTH_OIDC_NAME: the button's label (default "Single sign-on")
+  oidcTrustedForEmail: null # AUTH_OIDC_TRUSTED_FOR_EMAIL: true only if the provider verifies every address
+
+githubApp: # the private key and the webhook secret are in secrets
+  id: null # GITHUB_APP_ID
+  apiUrl: null # GITHUB_API_URL: GitHub Enterprise Server
+  apiTimeoutSeconds: null # GITHUB_API_TIMEOUT_SECONDS (default 15)
+
+slack: # the client secret is secrets.slackClientSecret
+  clientId: null # SLACK_CLIENT_ID
+  apiUrl: null # SLACK_API_URL
+
+vapid: # web push keys; the private key is secrets.vapidPrivateKey
+  publicKey: null # VAPID_PUBLIC_KEY
+  subject: null # VAPID_SUBJECT: mailto: or https: (default the dashboard's address)
+
+sites: # hosted sites; with caddy.enabled, STATIC_SITES_HOST is caddy.sitesHost: leave host unset
+  host: null # STATIC_SITES_HOST
+  maxMb: null # STATIC_SITES_MAX_MB (default 200)
+
+jobs:
+  uploadTimeoutMinutes: null # UPLOAD_TIMEOUT_MINUTES (default 60)
+  gcGraceHours: null # GC_GRACE_HOURS (default 24)
+  retentionDays: null # JOB_RETENTION_DAYS (default 14)
+  retryBaseSeconds: null # JOB_RETRY_BASE_SECONDS (default 2)
+  retryMaxSeconds: null # JOB_RETRY_MAX_SECONDS (default 300)
+
+webhooks:
+  timeoutSeconds: null # WEBHOOK_TIMEOUT_SECONDS (default 10)
+  allowPrivateAddresses: null # WEBHOOK_ALLOW_PRIVATE_ADDRESSES
+
+tuning:
+  databasePoolMax: null # DATABASE_POOL_MAX (default 10): per pod, so replicas x this must stay under the database's max_connections
+  diffEngine: null # CIRCI_DIFF_ENGINE: native (default), js-workers or js
+  diffThreads: null # CIRCI_DIFF_THREADS
+  liveMaxStreams: null # LIVE_MAX_STREAMS (default 2000)
+
+# Anything else a pod needs, e.g. HTTPS_PROXY, as Kubernetes env entries. Not for the server's own
+# settings: those have keys above.
+extraEnv: []

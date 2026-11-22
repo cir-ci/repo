@@ -1,0 +1,18 @@
+# No hosted sites: an Ingress, a Secret of your own, a CA from a ConfigMap of your own.
+publicUrl: https://ci.acme.io
+ingress:
+  enabled: true
+  className: alb
+  annotations: { alb.ingress.kubernetes.io/scheme: internet-facing }
+  tls: [{ secretName: circi-tls, hosts: [ci.acme.io] }]
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+s3: { bucket: acme-circi }
+all: { replicas: 2 }
+secrets:
+  existingSecret: circi-secrets
+  existingSecretKeys: [SMTP_PASSWORD]
+smtp: { host: smtp.example.com, user: mailer, from: ci@acme.io }
+database:
+  existingCaConfigMap: rds-ca

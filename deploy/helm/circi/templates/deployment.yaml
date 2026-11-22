@@ -1,0 +1,135 @@
+{{- include "circi.validate" . -}}
+{{- $settings := include "circi.settings" . | fromYaml -}}
+{{- $secrets := include "circi.secrets" . | fromYaml -}}
+{{- $workloads := ternary (list "serve" "worker") (list "all") (eq .Values.mode "split") -}}
+{{- range $workload := $workloads }}
+{{- $pod := index $.Values $workload }}
+{{- $http := ne $workload "worker" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "circi.fullname" $ }}{{ if eq $.Values.mode "split" }}-{{ $workload }}{{ end }}
+  labels:
+    {{- include "circi.labels" $ | nindent 4 }}
+    circi.dev/workload: {{ $workload }}
+spec:
+  replicas: {{ $pod.replicas }}
+  {{- if include "circi.usesFiles" $ }}
+  # One pod on a ReadWriteOnce volume: the old pod must let go of it before the new one starts.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "circi.selectorLabels" $ | nindent 6 }}
+      circi.dev/workload: {{ $workload }}
+  template:
+    metadata:
+      labels:
+        {{- include "circi.labels" $ | nindent 8 }}
+        circi.dev/workload: {{ $workload }}
+        {{- if $http }}
+        circi.dev/http: "true"
+        {{- end }}
+        {{- with $pod.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # A changed Secret or CA bundle restarts the pods: they read them at start.
+        checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") $ | sha256sum }}
+        checksum/database-ca: {{ include (print $.Template.BasePath "/database-ca.yaml") $ | sha256sum }}
+        {{- with $pod.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "circi.serviceAccountName" $ }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: circi
+          image: {{ $.Values.image.repository }}:{{ default $.Chart.AppVersion $.Values.image.tag }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          args: [{{ $workload }}]
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          {{- if $http }}
+          ports:
+            - name: http
+              containerPort: 3000
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            {{- toYaml $.Values.probes.startup | nindent 12 }}
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            {{- toYaml $.Values.probes.liveness | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            {{- toYaml $.Values.probes.readiness | nindent 12 }}
+          {{- end }}
+          env:
+            {{- range $name, $value := $settings }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $name, $_ := $secrets }}
+            - name: {{ $name }}_FILE
+              value: /run/circi/secrets/{{ $name }}
+            {{- end }}
+            {{- with $.Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml $pod.resources | nindent 12 }}
+          volumeMounts:
+            - name: secrets
+              mountPath: /run/circi/secrets
+              readOnly: true
+            {{- if or $.Values.database.caCertificate $.Values.database.existingCaConfigMap }}
+            - name: database-ca
+              mountPath: /run/circi/database-ca.pem
+              subPath: ca.pem
+              readOnly: true
+            {{- end }}
+            {{- if include "circi.usesFiles" $ }}
+            - name: files
+              mountPath: /var/lib/circi/files
+            {{- end }}
+      volumes:
+        - name: secrets
+          secret:
+            secretName: {{ include "circi.secretName" $ }}
+            defaultMode: 0440
+            items:
+              {{- range $name, $_ := $secrets }}
+              - key: {{ $name }}
+                path: {{ $name }}
+              {{- end }}
+        {{- if or $.Values.database.caCertificate $.Values.database.existingCaConfigMap }}
+        - name: database-ca
+          configMap:
+            name: {{ default (printf "%s-database-ca" (include "circi.fullname" $)) $.Values.database.existingCaConfigMap }}
+        {{- end }}
+        {{- if include "circi.usesFiles" $ }}
+        - name: files
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-files" (include "circi.fullname" $)) $.Values.persistence.existingClaim }}
+        {{- end }}
+      {{- with $pod.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pod.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $pod.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  # Caddy's upstream: deploy/Caddyfile says circi:3000, and the chart's copy says this name.
+  name: {{ include "circi.fullname" . }}
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+  selector:
+    {{- include "circi.selectorLabels" . | nindent 4 }}
+    circi.dev/http: "true"
