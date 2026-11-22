@@ -9,7 +9,7 @@
 #
 # The app is released the same way: its version is @circi/server's (Changesets versions it like the npm packages), and
 # the `image` job publishes ghcr.io/<owner>/circi:<version> and circi-caddy:<version> the first time a version is on main.
-# deploy/terraform runs a given version (circi_version).
+# deploy/terraform runs a given version (circi_version); the `terraform-mirror` job copies the module to its registry repository.
 #
 # Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
 # approve pull requests".
@@ -108,3 +108,28 @@ jobs:
           tags: ${{ env.IMAGE }}-caddy:${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
+
+  # The Terraform module on the Terraform Registry (cir-ci/circi/docker): the registry needs a repository of its own with
+  # the module at its root and `vX.Y.Z` tags, so each app version is mirrored to cir-ci/terraform-docker-circi after its
+  # image is up (scripts/sync-terraform-mirror.sh; a version already tagged there is skipped). Needs the
+  # TERRAFORM_MIRROR_TOKEN secret, a fine-grained token with contents: write on the mirror; without it the job only says so.
+  terraform-mirror:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      MIRROR_TOKEN: ${{ secrets.TERRAFORM_MIRROR_TOKEN }}
+    steps:
+      - if: env.MIRROR_TOKEN == ''
+        run: echo "::notice::TERRAFORM_MIRROR_TOKEN is not set, so the Terraform module was not mirrored to the registry's repository."
+      - if: env.MIRROR_TOKEN != ''
+        uses: actions/checkout@v7
+      - if: env.MIRROR_TOKEN != ''
+        run: |
+          version=$(node -p "require('./apps/server/package.json').version")
+          if [ "$version" = 0.0.0 ]; then
+            echo "Version 0.0.0 has never been released; nothing to mirror."
+            exit 0
+          fi
+          scripts/sync-terraform-mirror.sh "$version" "https://x-access-token:${MIRROR_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/terraform-docker-circi.git"

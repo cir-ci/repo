@@ -409,7 +409,7 @@ resource "docker_container" "caddy" {
   }
   upload {
     file    = "/etc/caddy/Caddyfile"
-    content = file("${path.module}/../Caddyfile")
+    content = file("${path.module}/Caddyfile")
   }
   volumes {
     volume_name    = docker_volume.caddy_data[0].name

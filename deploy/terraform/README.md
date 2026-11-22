@@ -44,3 +44,20 @@ A new server setting therefore needs a key in a group (validation, description, 
 module against a mocked Docker provider, so no Docker is needed, and checks what reaches the containers. One case sets
 every setting and expects each under its own name; others cover the bundled and external Postgres, TLS, Caddy, the
 groups that go together, misspelled keys and wrong types.
+
+## The registry mirror
+
+The Terraform Registry wants a repository of its own with the module at its root and `vX.Y.Z` tags, so
+[cir-ci/terraform-docker-circi](https://github.com/cir-ci/terraform-docker-circi) (registry address `cir-ci/circi/docker`)
+is a generated mirror of this folder, and nothing is edited there. The `terraform-mirror` job of
+`.github/workflows/release.yml` runs `scripts/sync-terraform-mirror.sh <version> <remote>` after each app release's image
+is published. The script clones the mirror, replaces its contents with the module's files (`main.tf`, `variables.tf`,
+`outputs.tf`, `versions.tf`, `Caddyfile`, `tests/`), writes its README from `deploy/terraform-mirror/README.md` (the
+registry page: a usage example and a link to the website), commits as github-actions, pushes `main` and tags
+`v<version>`. A version whose tag exists is skipped, so a rerun does nothing. Without the `TERRAFORM_MIRROR_TOKEN`
+secret (a fine-grained token with contents: write on the mirror) the job only prints a notice.
+
+`Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts. The module reads a
+file inside its own folder (`file("${path.module}/Caddyfile")`), so it works from the monorepo's Git source too, and the
+sync copies the file dereferenced, so the mirror holds a real one. To try the script, pass a local bare repository as the
+remote, then run `terraform init -backend=false` and `terraform test` in a clone of it.
