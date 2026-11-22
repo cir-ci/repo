@@ -2,11 +2,6 @@ import { AppFrame } from '@circi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { validateReviewsSearch } from '#features/reviews/api.ts'
 import { ReviewsPage } from '#features/reviews/ReviewsPage.tsx'
 import { PANES } from '#lib/panes.ts'
@@ -16,6 +11,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { pageHeader } from '#test/support/header.ts'
 import { menuItemNames } from '#test/support/menu.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
@@ -102,7 +98,7 @@ describe('ReviewsPage list header', () => {
     for (const tab of tabs) expect(tab.getBoundingClientRect().height).toBeLessThanOrEqual(30)
     // The short names show on a phone; the full one is the desktop's.
     await expect.element(group.getByRole('button', { name: /^For you/ })).toBeVisible()
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 
   it('has the find field in the page header on a desktop', async () => {
@@ -977,6 +973,6 @@ describe('ReviewsPage scrolling and layout', () => {
     expect(
       Math.abs(middle(go.getBoundingClientRect()) - middle(title.getBoundingClientRect())),
     ).toBeLessThan(4)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 })

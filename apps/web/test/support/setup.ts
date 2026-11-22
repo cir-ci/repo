@@ -5,7 +5,15 @@ import { setPushEnv } from '#features/pwa/push-client.ts'
 import { resetStores } from '#lib/stores/index.ts'
 
 import { resetAuthClient } from './auth-client.ts'
+import { guardConsole } from './console-guard.ts'
 import { installDefaultFetch, takeUnfakedRequests } from './fetch.ts'
+
+// The auth client is the edge to better-auth: a fake stands in for it in every test file (nothing
+// here talks to a server). Tests sign in as someone else with `setSignedInUser` / `mockAuthClient`.
+vi.mock('#lib/auth-client.ts', () => import('./auth-client.ts').then((m) => m.authClientModule))
+
+// A test fails on a console.error it didn't expect or a promise rejected without a handler.
+guardConsole()
 
 // Every browser test file starts from the same clean page: no leftover fake, mock, timer, store
 // state or stored value from the test before it.

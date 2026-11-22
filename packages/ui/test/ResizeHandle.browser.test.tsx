@@ -5,11 +5,11 @@ import { page, userEvent } from 'vitest/browser'
 
 import { clampSize, ResizeHandle } from '#src/index.ts'
 
+import { frame } from './support/dom.ts'
+
 beforeEach(async () => {
   await page.viewport(1200, 800)
 })
-
-const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
 /** A pane beside its handle, the way the app lays them out: the width is a custom property on the container. */
 function Split(props: {

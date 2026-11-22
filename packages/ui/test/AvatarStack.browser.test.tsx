@@ -4,6 +4,8 @@ import { page } from 'vitest/browser'
 
 import { Avatar, AvatarStack } from '#src/index.ts'
 
+import { emulateMotion } from './support/motion.ts'
+
 const people = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing']
 
 function People({ more }: { more?: AvatarStack.More }) {
@@ -21,7 +23,6 @@ function People({ more }: { more?: AvatarStack.More }) {
 const stack = () => page.getByTestId('stack')
 const items = () => Array.from(stack().element().children)
 const lefts = () => items().map((el) => el.getBoundingClientRect().left)
-const settle = () => new Promise((resolve) => setTimeout(resolve, 600))
 
 describe('AvatarStack', () => {
   it('overlaps its items by 4px at rest, each with a 2px ring', async () => {
@@ -36,7 +37,6 @@ describe('AvatarStack', () => {
     await render(<People />)
     const box = stack().element().getBoundingClientRect()
     await page.getByRole('img', { name: 'Ada Lovelace' }).hover()
-    await settle()
     const rects = items().map((el) => el.getBoundingClientRect())
     // 20px items, 2px apart.
     expect(rects[1]!.left - rects[0]!.right).toBeCloseTo(2, 0)
@@ -49,9 +49,7 @@ describe('AvatarStack', () => {
     await render(<People />)
     const rest = lefts()
     await page.getByRole('img', { name: 'Ada Lovelace' }).hover()
-    await settle()
     await page.getByRole('img', { name: 'Ada Lovelace' }).unhover()
-    await settle()
     expect(lefts()).toEqual(rest)
   })
 
@@ -69,7 +67,6 @@ describe('AvatarStack', () => {
     const link = page.getByRole('link', { name: 'Grace Hopper' })
     const el = link.element()
     if (el instanceof HTMLElement) el.focus()
-    await settle()
     expect(lefts()[2]! - rest[2]!).toBeGreaterThan(0)
     const slot = link.element().parentElement!
     expect(getComputedStyle(slot).zIndex).toBe('1')
@@ -98,11 +95,11 @@ describe('AvatarStack', () => {
     )
     const rest = lefts()
     await page.getByRole('img', { name: 'Ada Lovelace' }).hover()
-    await settle()
     expect(lefts()).toEqual(rest)
   })
 
   it('animates the spread with an overshoot curve, and without any under reduced motion', async () => {
+    await emulateMotion()
     await render(<People />)
     const transition = getComputedStyle(items()[1]!)
     expect(transition.transitionProperty).toBe('margin-inline-start')

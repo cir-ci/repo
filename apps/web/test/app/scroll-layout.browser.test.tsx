@@ -1,24 +1,19 @@
-import { CirciTheme } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  RouterProvider,
 } from '@tanstack/react-router'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
-
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 
 import { Shell } from '#app/Shell.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { installedAs } from '#test/support/display-mode.ts'
+import { fakeFetch, getRoutes } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const API: Record<string, unknown> = {
   '/api/workspaces/acme/sidebar': {
@@ -37,20 +32,6 @@ const API: Record<string, unknown> = {
   '/api/instance/notices': {},
   '/api/setup': { needed: false },
   '/api/auth-methods': { password: true, email: false, sso: [] },
-}
-
-/** Runs the dashboard as the installed app by faking the display-mode media queries. */
-function installed() {
-  const real = window.matchMedia.bind(window)
-  vi.stubGlobal('matchMedia', (query: string) => {
-    if (!query.includes('display-mode')) return real(query)
-    const overlayOnly = query.includes('window-controls-overlay') && !query.includes('standalone')
-    return Object.create(real(query), {
-      matches: { value: !overlayOnly },
-      addEventListener: { value: () => {} },
-      removeEventListener: { value: () => {} },
-    })
-  })
 }
 
 /** Space-taking scrollbars, as on Windows and Linux: headless Chromium draws overlay ones. */
@@ -77,14 +58,7 @@ async function renderApp() {
     routeTree: root.addChildren([route]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await render(
-    <CirciTheme>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  await renderPage(null, { router })
   await expect.element(page.getByRole('heading', { name: 'Long page' })).toBeVisible()
 }
 
@@ -102,30 +76,17 @@ let injected: HTMLStyleElement | undefined
 
 beforeEach(async () => {
   await page.viewport(1280, 800)
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: string | URL | Request) => {
-      const path = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-        .pathname
-      const answer = API[path]
-      return Promise.resolve(
-        new Response(JSON.stringify(answer ?? { error: 'not found' }), {
-          status: answer === undefined ? 404 : 200,
-        }),
-      )
-    }),
-  )
+  fakeFetch(getRoutes(API))
 })
 
 afterEach(() => {
   injected?.remove()
   injected = undefined
-  vi.unstubAllGlobals()
 })
 
 describe('the installed app on a long page at 1280x800', () => {
   it('starts the scroller under the tab row and the header, and moves neither when it scrolls', async () => {
-    installed()
+    installedAs('standalone')
     await renderApp()
     await expect.element(page.getByRole('tab')).toBeVisible()
     grow(3000)
@@ -158,7 +119,7 @@ describe('classic, space-taking scrollbars at 1280x800', () => {
     expect(long.header.left).toBe(short.header.left)
     expect(long.content).toBe(short.content)
     expect(box(main()).right).toBeLessThanOrEqual(window.innerWidth)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
     expect(window.scrollX).toBe(0)
   })
 })

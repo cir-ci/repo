@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+
+// This file drives the real better-auth client over the faked network, not the fake client `setup.ts` installs.
+vi.unmock('#lib/auth-client.ts')
 
 afterEach(() => {
   window.history.replaceState(null, '', '/')

@@ -16,16 +16,17 @@ describe('Stack', () => {
         </Stack>
       </>,
     )
-    const col = getComputedStyle(page.getByTestId('col').element())
-    expect(col.display).toBe('flex')
-    expect(col.flexDirection).toBe('column')
+    // The stylesheet's rules for these attributes are read from the CSS in layout-rules.test.ts;
+    // here the component sets the attributes and the stylesheet applies in a page.
+    expect(getComputedStyle(page.getByTestId('col').element()).display).toBe('flex')
     const row = page.getByTestId('row').element()
+    expect(row.dataset['direction']).toBe('row')
+    expect(row.dataset['gap']).toBe('3')
+    expect(row.dataset['align']).toBe('center')
+    expect(row.dataset['justify']).toBe('between')
+    expect(row).toHaveAttribute('data-wrap')
     const style = getComputedStyle(row)
-    expect(style.flexDirection).toBe('row')
-    expect(style.columnGap).toBe('12px')
-    expect(style.alignItems).toBe('center')
-    expect(style.justifyContent).toBe('space-between')
-    expect(style.flexWrap).toBe('wrap')
+    expect([style.flexDirection, style.columnGap, style.flexWrap]).toEqual(['row', '12px', 'wrap'])
   })
 
   it('renders the element named by `as`', async () => {

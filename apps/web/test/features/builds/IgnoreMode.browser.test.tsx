@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
 import { chooseDrawing, viewOptions } from './view-options.ts'
 

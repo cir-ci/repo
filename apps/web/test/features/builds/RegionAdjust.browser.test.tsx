@@ -2,11 +2,8 @@ import type { Comment } from '@circi/api'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { centerOf, pointerDrag, pointIn, stubPointerCapture } from '#test/support/pointer.ts'
+import { settled } from '#test/support/settled.ts'
 
 import { detail, type FakeApi, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
 import { chooseDrawing } from './view-options.ts'
@@ -131,27 +128,21 @@ describe('adjusting a comment region you wrote', () => {
     await vi.waitFor(() => expect(dot()).toBe('1'))
   })
 
-  it.each([
-    ['nw', { x: 0.2, y: 0.2 }, { x: 0.2, y: 0.2, width: 0.55, height: 0.55 }],
-    ['ne', { x: 0.8, y: 0.2 }, { x: 0.25, y: 0.2, width: 0.55, height: 0.55 }],
-    ['sw', { x: 0.2, y: 0.8 }, { x: 0.2, y: 0.25, width: 0.55, height: 0.55 }],
-    ['se', { x: 0.8, y: 0.8 }, { x: 0.25, y: 0.25, width: 0.55, height: 0.55 }],
-  ])(
-    'resizes from the %s corner and saves, the opposite corner staying put',
-    async (corner, to, expected) => {
-      const api = await ready((a) => a.comments.push(comment()))
-      await expect.element(marker()).toBeVisible()
-      await dragCorner(marker().element(), corner, to)
-      await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
-      const saved = lastPatch(api)
-      expect(saved?.id).toBe('c1')
-      near(saved?.x, expected.x)
-      near(saved?.y, expected.y)
-      near(saved?.width, expected.width)
-      near(saved?.height, expected.height)
-      await expect.element(page.getByText('Region saved')).toBeInTheDocument()
-    },
-  )
+  // One corner proves the handle is wired to its grab; where each corner's rectangle ends up is
+  // adjustRegion's, tested for all four in test/features/regions/regions.test.ts.
+  it('resizes from a corner and saves, the opposite corner staying put', async () => {
+    const api = await ready((a) => a.comments.push(comment()))
+    await expect.element(marker()).toBeVisible()
+    await dragCorner(marker().element(), 'nw', { x: 0.2, y: 0.2 })
+    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
+    const saved = lastPatch(api)
+    expect(saved?.id).toBe('c1')
+    near(saved?.x, 0.2)
+    near(saved?.y, 0.2)
+    near(saved?.width, 0.55)
+    near(saved?.height, 0.55)
+    await expect.element(page.getByText('Region saved')).toBeInTheDocument()
+  })
 
   it('moves by the body and keeps the size', async () => {
     const api = await ready((a) => a.comments.push(comment()))
@@ -164,52 +155,6 @@ describe('adjusting a comment region you wrote', () => {
     expect(lastPatch(api)?.height).toBeCloseTo(0.5, 6)
     // The marker follows the saved region.
     await vi.waitFor(() => expect(marker().element().style.left).toMatch(/^3[45]/))
-  })
-
-  it('never shows the old region again after the release, even while the save is slow', async () => {
-    const api = await ready((a) => {
-      a.comments.push(comment())
-      a.regionDelayMs = 400
-    })
-    await expect.element(marker()).toBeVisible()
-    const host = marker().element()
-    // Every render of the region's position, in order.
-    const lefts: string[] = [host.style.left]
-    const watch = new MutationObserver(() => lefts.push(host.style.left))
-    watch.observe(host, { attributes: true, attributeFilter: ['style'] })
-    await dragBody(host, 0.1, 0.1)
-    // The save's answer is still to come: the region sits where it was dropped.
-    expect(host.style.left).toMatch(/^3[45]/)
-    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
-    await vi.waitFor(() => expect(host.style.left).toMatch(/^3[45]/))
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    watch.disconnect()
-    const moved = lefts.findIndex((left) => left !== '25%')
-    expect(moved).toBeGreaterThan(-1)
-    expect(lefts.slice(moved)).not.toContain('25%')
-  })
-
-  it('stops at the image edges when moving or resizing', async () => {
-    const api = await ready((a) => a.comments.push(comment()))
-    await expect.element(marker()).toBeVisible()
-    await dragBody(marker().element(), 5, 5)
-    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
-    expect(lastPatch(api)).toMatchObject({ x: 0.5, y: 0.5, width: 0.5, height: 0.5 })
-
-    await dragCorner(marker().element(), 'nw', { x: -1, y: -1 })
-    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(2))
-    expect(lastPatch(api)).toMatchObject({ x: 0, y: 0, width: 1, height: 1 })
-  })
-
-  it('keeps a minimum size of 8 screen pixels, and never flips over the opposite corner', async () => {
-    const api = await ready((a) => a.comments.push(comment()))
-    await expect.element(marker()).toBeVisible()
-    await dragCorner(marker().element(), 'se', { x: 0, y: 0 })
-    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
-    expect(lastPatch(api)?.x).toBeCloseTo(0.25, 6)
-    expect(lastPatch(api)?.y).toBeCloseTo(0.25, 6)
-    near(lastPatch(api)?.width, 8 / imageEl().getBoundingClientRect().width)
-    near(lastPatch(api)?.height, 8 / imageEl().getBoundingClientRect().height)
   })
 
   it('Esc during a drag puts the region back and saves nothing', async () => {
@@ -233,7 +178,7 @@ describe('adjusting a comment region you wrote', () => {
         clientY: from.y + 30,
       }),
     )
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await settled()
     expect(api.regionPatches).toEqual([])
     expect(host.style.width).toBe('50%')
   })

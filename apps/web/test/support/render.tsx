@@ -39,6 +39,8 @@ export interface RenderPageOptions {
   viewport?: [number, number]
   /** A ready router (e.g. the app's own) to render instead of a single route for `ui`. */
   router?: AnyRouter
+  /** The theme's color scheme; follows the system (dark in this browser unless it says otherwise) when left out. */
+  mode?: 'light' | 'dark'
   /** Runs after the stores are reset and before the page renders: seed a store or its storage. */
   beforeRender?: () => void | Promise<void>
 }
@@ -83,7 +85,7 @@ export async function renderPage(ui: ReactNode, options: RenderPageOptions = {})
     </QueryClientProvider>
   )
   const screen = await render(
-    <CirciTheme>
+    <CirciTheme {...(options.mode ? { mode: options.mode } : {})}>
       {options.announcer ? <AnnouncerProvider>{routed}</AnnouncerProvider> : routed}
       <ToastHost />
     </CirciTheme>,

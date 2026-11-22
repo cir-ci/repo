@@ -1,6 +1,6 @@
 import type { Triage } from '@circi/api'
 import { QueryClient } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   blockingText,
@@ -20,6 +20,7 @@ import {
   withAssignee,
   withoutItem,
 } from '#features/triage/api.ts'
+import { fakeApi, restoreFetch } from '#test/support/fetch.ts'
 
 const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   kind: 'flaky',
@@ -143,14 +144,16 @@ describe('optimistic updates', () => {
 
 describe('snapshotHistoryQuery', () => {
   it("asks for the history anchored on the item's build, with the name escaped", async () => {
-    let asked = ''
-    vi.stubGlobal('fetch', async (path: string) => {
-      asked = path
-      return Response.json({ defaultBranch: 'main', default: [], branch: null })
+    const fake = fakeApi({
+      'GET /api/projects/acme/web/snapshots/checkout%2Fhome/history': {
+        body: { defaultBranch: 'main', default: [], branch: null },
+      },
     })
     await new QueryClient().fetchQuery(snapshotHistoryQuery('acme', 'web', 'checkout/home', 12))
-    expect(asked).toBe('/api/projects/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12')
-    vi.unstubAllGlobals()
+    expect(fake.urls).toEqual([
+      '/api/projects/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12',
+    ])
+    restoreFetch()
   })
 })
 

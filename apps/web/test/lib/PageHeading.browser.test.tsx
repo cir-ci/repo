@@ -5,6 +5,7 @@ import { page, userEvent } from 'vitest/browser'
 import { PageHeading, PageTitle, projectCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
 import { sidebarModel } from '#test/support/fixtures.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 describe('PageHeading', () => {
@@ -147,7 +148,7 @@ describe('PageHeading with a long trail at 390px', () => {
     const add = page.getByRole('button', { name: 'Add rule' })
     await expect.element(add).toBeVisible()
     expect(add.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(trailEnd)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+    expectNoSidewaysScroll()
   })
 })
 
@@ -325,7 +326,7 @@ describe('PageHeading on a phone, in the app frame with classic scrollbars', () 
       main.scrollTop = 600
       await expect.poll(() => main.scrollTop).toBe(600)
       expect(row()).toEqual(before)
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+      expectNoSidewaysScroll()
       expect(window.scrollY).toBe(0)
     } finally {
       style.remove()

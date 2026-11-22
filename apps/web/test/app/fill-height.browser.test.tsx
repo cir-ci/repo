@@ -3,10 +3,6 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { BuildPage } from '#features/builds/BuildPage.tsx'
 import { validateBuildSearch } from '#features/builds/search.ts'
 import { validateInboxSearch } from '#features/inbox/api.ts'

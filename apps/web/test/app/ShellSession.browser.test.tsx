@@ -1,22 +1,14 @@
-import { CirciTheme } from '@circi/ui'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
   createRoute,
   createRouter,
-  RouterProvider,
 } from '@tanstack/react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
 import type * as QueryPersist from '#lib/query-persist.ts'
 
-// The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
 // The stored cache is IndexedDB: what the shell asks of it is the point here, not the storage.
 vi.mock('#lib/query-persist.ts', async (importOriginal) => ({
   // The in-memory part is real: the tests check what is left in the client.
@@ -33,35 +25,25 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { purgePersisted, startPersisting } from '#lib/query-persist.ts'
 import { readSessionHint, SESSION_HINT_KEY, writeSessionHint } from '#lib/session-hint.ts'
 import { ADA, mockAuthClient, setSessionCheck, setSignedInUser } from '#test/support/auth-client.ts'
-import { installDefaultFetch } from '#test/support/fetch.ts'
+import { fakeFetch } from '#test/support/fetch.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const BOB = { id: 'u2', name: 'Bob', email: 'bob@example.test', image: null }
 
 const auth = mockAuthClient()
 
 beforeEach(() => {
-  installDefaultFetch()
   vi.mocked(purgePersisted).mockClear()
   vi.mocked(startPersisting).mockClear()
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: string | URL | Request) => {
-      const path = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-        .pathname
-      const bodies: Record<string, unknown> = {
-        '/api/capabilities': {
-          canCreateWorkspace: false,
-          instanceAdmin: false,
-          manageableWorkspaces: [],
-          refusingWorkspaces: [],
-        },
-        '/api/setup': { needed: false },
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify(bodies[path] ?? {}), { status: path in bodies ? 200 : 404 }),
-      )
-    }),
-  )
+  fakeFetch({
+    'GET /api/capabilities': {
+      canCreateWorkspace: false,
+      instanceAdmin: false,
+      manageableWorkspaces: [],
+      refusingWorkspaces: [],
+    },
+    'GET /api/setup': { needed: false },
+  })
 })
 
 async function renderShell() {
@@ -82,14 +64,7 @@ async function renderShell() {
     routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  await render(
-    <CirciTheme>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CirciTheme>,
-  )
+  const { queryClient } = await renderPage(null, { router })
   return { router, queryClient }
 }
 

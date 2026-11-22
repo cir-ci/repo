@@ -3,7 +3,9 @@ import { page, userEvent } from 'vitest/browser'
 
 import { BaselinePage } from '#features/baselines/BaselinePage.tsx'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { settled } from '#test/support/settled.ts'
 import { openDialogs } from '#test/support/toast.ts'
 
 const API = '/api/projects/acme/web'
@@ -248,7 +250,7 @@ describe('BaselinePage', () => {
       at('pointermove', 300, 120)
       await userEvent.keyboard('{Escape}')
       at('pointerup', 300, 120)
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await settled()
       expect(fake.of('POST')).toHaveLength(0)
       expect(openDialogs()).toHaveLength(0)
     } finally {
@@ -396,6 +398,6 @@ describe('BaselinePage on a phone', () => {
     expect(
       page.getByRole('button', { name: 'Mark a region with the keyboard' }).elements(),
     ).toHaveLength(0)
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
   })
 })

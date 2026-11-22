@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it.
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { parseBuildsSearch } from '#features/builds/list/builds-filters.ts'
 import { ProjectPage } from '#features/projects/ProjectPage.tsx'
 import { ViewPage } from '#features/views/ViewPage.tsx'
@@ -36,21 +31,14 @@ function deferred<T = void>() {
 
 const sidebar = (pinned = false) => sidebarModel({ projects: [sidebarProject({ pinned })] })
 
-/** The faked API, plus every URL requested (the fake keeps only paths, and filters live in the query). */
+/** The faked API; `urls` lists every address requested, queries included (the filters live there). */
 function api(builds: unknown[], extra: Parameters<typeof fakeApi>[0] = {}) {
-  const fake = fakeApi({
+  return fakeApi({
     'GET /api/projects/acme/web': { body: { project: info, builds, gitAttention: null } },
     'GET /api/projects/acme/web/flaky': { body: { builds: 10, flaky: [] } },
     'GET /api/workspaces/acme/sidebar': { body: sidebar() },
     ...extra,
   })
-  const urls: string[] = []
-  const inner = globalThis.fetch
-  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-    urls.push(input instanceof Request ? input.url : String(input))
-    return inner(input, init)
-  })
-  return { ...fake, urls }
 }
 
 const show = (url = '/acme/web', beforeRender?: () => Promise<void>) =>
@@ -589,7 +577,6 @@ describe('ViewPage', () => {
 
   it("lists every project's builds for a view with no project, and pages with a cursor", async () => {
     const wide = { ...view, filters: { review: 'pending' }, project: null }
-    const urls: string[] = []
     const fake = fakeApi({
       'GET /api/workspaces/acme/views': { body: { views: [wide] } },
       'GET /api/workspaces/acme/builds': {
@@ -600,11 +587,6 @@ describe('ViewPage', () => {
         },
       },
       'GET /api/workspaces/acme/sidebar': { body: sidebar() },
-    })
-    const inner = globalThis.fetch
-    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-      urls.push(input instanceof Request ? input.url : String(input))
-      return inner(input, init)
     })
     await showView()
     const docs = page.getByRole('link', { name: /Build #9/ })
@@ -617,10 +599,10 @@ describe('ViewPage', () => {
         .getAttribute('href'),
     ).toBe('/acme/web/builds/8')
     await expect.element(page.getByText('DOCS')).toBeVisible()
-    expect(urls).toContain('/api/workspaces/acme/builds?review=pending')
+    expect(fake.urls).toContain('/api/workspaces/acme/builds?review=pending')
     await page.getByRole('button', { name: 'Older builds' }).click()
     await expect
-      .poll(() => urls)
+      .poll(() => fake.urls)
       .toContain('/api/workspaces/acme/builds?review=pending&before=cursor-1')
     // Bulk selection belongs to one project, so X selects nothing here.
     await userEvent.keyboard('x')
@@ -647,8 +629,7 @@ describe('ViewPage', () => {
       error: null,
     })
     const wide = { ...view, filters: {}, project: null }
-    const asked: string[] = []
-    fakeApi({
+    const fake = fakeApi({
       'GET /api/workspaces/acme/views': { body: { views: [wide] } },
       'GET /api/workspaces/acme/builds': {
         body: {
@@ -667,28 +648,23 @@ describe('ViewPage', () => {
       },
       'GET /api/workspaces/acme/sidebar': { body: sidebar() },
     })
-    const inner = globalThis.fetch
-    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-      asked.push(input instanceof Request ? input.url : String(input))
-      return inner(input, init)
-    })
     await showView()
     await page.getByRole('button', { name: 'Author' }).click()
     const list = page.getByRole('listbox', { name: 'Suggestions' })
     await expect.element(list.getByRole('option', { name: 'octocat' })).toBeVisible()
     await page.getByRole('combobox', { name: 'Author' }).fill('ada')
     await expect
-      .poll(() => asked.some((u) => u.includes('field=author') && u.includes('q=ada')))
+      .poll(() => fake.urls.some((u) => u.includes('field=author') && u.includes('q=ada')))
       .toBe(true)
     await list.getByRole('option', { name: 'Ada Lovelace' }).click()
     await expect.element(page.getByRole('button', { name: 'Author: Ada Lovelace' })).toBeVisible()
-    await expect.poll(() => asked.some((u) => u.includes('builds?author=u1'))).toBe(true)
+    await expect.poll(() => fake.urls.some((u) => u.includes('builds?author=u1'))).toBe(true)
     // By keyboard: arrows to a suggestion and Enter picks it (the user ID, not the text).
     await page.getByRole('button', { name: 'Author: Ada Lovelace' }).click()
     await page.getByRole('combobox', { name: 'Author' }).fill('')
     await expect.element(page.getByRole('option', { name: 'octocat' })).toBeVisible()
     await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
-    await expect.poll(() => asked.some((u) => u.includes('builds?author=octocat'))).toBe(true)
+    await expect.poll(() => fake.urls.some((u) => u.includes('builds?author=octocat'))).toBe(true)
   })
 
   it('says when the view does not exist', async () => {

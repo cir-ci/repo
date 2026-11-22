@@ -1,17 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-// The auth client is the edge to better-auth: a fake stands in for it (the admin is signed in).
-vi.mock('#lib/auth-client.ts', () =>
-  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
-)
-
 import { Shell } from '#app/Shell.tsx'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import type { ReplyHandler } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { settled } from '#test/support/settled.ts'
 
 const caps = (setupPending: boolean) => ({
   canCreateWorkspace: true,
@@ -187,7 +184,7 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
       name: 'Checkout flows',
     })
     // The server's setup is over, but the page stays: the token is shown once.
-    await new Promise((r) => setTimeout(r, 300))
+    await settled()
     await expect.element(page.getByText('circi_secret_token_value').first()).toBeVisible()
     expect(useSetupStore.getState().project?.slug).toBe('checkout-flows')
 
@@ -214,7 +211,7 @@ describe('first-run setup after the account exists (steps 3 and 4)', () => {
       .element(page.getByRole('status').filter({ hasText: 'The CI token is shown only once' }))
       .toBeInTheDocument()
     // The snippet scrolls inside its box; the page itself stays as wide as the window.
-    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    expectNoSidewaysScroll()
     const snippet = document.querySelector('pre')
     expect(snippet?.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
   })
