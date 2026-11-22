@@ -89,7 +89,7 @@ describe('circi()', () => {
     const { cypress } = setup()
     await screenshot(cypress, { name: 'a', viewport: { width: 1, height: 2 } })
     const first = join(temp.root(), '.circi/screenshots/home.cy.ts/a.png.json')
-    expect(JSON.parse(await readFile(first, 'utf8')).viewport).toEqual({ width: 1, height: 2 })
+    expect(JSON.parse(await readFile(first, 'utf8')).viewport).toBe('1x2')
 
     const withConfig = fakeCypress()
     circi({ root: temp.root() })(withConfig.on, {
@@ -99,10 +99,7 @@ describe('circi()', () => {
     })
     await screenshot(withConfig, { name: 'b' })
     const second = join(temp.root(), '.circi/screenshots/home.cy.ts/b.png.json')
-    expect(JSON.parse(await readFile(second, 'utf8')).viewport).toEqual({
-      width: 1000,
-      height: 660,
-    })
+    expect(JSON.parse(await readFile(second, 'utf8')).viewport).toBe('1000x660')
   })
 
   it("skips Cypress's automatic failure screenshot and unnamed ones", async () => {

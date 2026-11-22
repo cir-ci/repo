@@ -3,9 +3,8 @@ import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { FakeCirci } from '@circi/testing/hosts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-
-import { FakeCirci } from './support/fake-circi.ts'
 
 /**
  * `circi()` and `@circi/cypress/support` against real Cypress (headless Electron), as published:
@@ -122,13 +121,17 @@ const SHOTS = [
 
 describe('circi() with real Cypress', () => {
   const fixture = useFixture()
-  const fake = new FakeCirci()
+  const fake = new FakeCirci({ outcome: 'fail' })
   let outcome: Outcome
   let ratio = 1
 
   beforeAll(async () => {
     await fake.start()
-    outcome = await fixture.cypress('cypress/e2e/shots.cy.js', ciEnv(fake))
+    // `wait` with a build that needs review: the run's own exit code carries it.
+    outcome = await fixture.cypress('cypress/e2e/shots.cy.js', {
+      ...ciEnv(fake),
+      FIXTURE_WAIT: '1',
+    })
     const home = await fixture
       .read('.circi/screenshots/shots.cy.js/home.png')
       .catch(() => undefined)
@@ -138,16 +141,15 @@ describe('circi() with real Cypress', () => {
   afterAll(() => fake.stop())
 
   it(
-    'passes and leaves the named screenshots, by spec file and name, with sidecars',
+    'leaves the named screenshots, by spec file and name, with sidecars',
     { timeout: RUN_TIMEOUT },
     async () => {
-      expect({ code: outcome.code, tail: outcome.output.slice(-1500) }).toMatchObject({ code: 0 })
       // Unnamed ones (and failure screenshots) are not part of the review.
       expect(await fixture.list('.circi/screenshots')).toEqual(SHOTS)
       const sidecar = JSON.parse(
         (await fixture.read('.circi/screenshots/shots.cy.js/home.png.json')).toString('utf8'),
       )
-      expect(sidecar).toEqual({ spec: 'shots.cy.js', browser: 'electron', viewport: VIEWPORT })
+      expect(sidecar).toEqual({ spec: 'shots.cy.js', browser: 'electron', viewport: '800x600' })
     },
   )
 
@@ -164,6 +166,14 @@ describe('circi() with real Cypress', () => {
   it('takes a short page at the height of its content, not of the viewport', async () => {
     const home = pngSize(await fixture.read('.circi/screenshots/shots.cy.js/home.png'))
     expect(home).toEqual({ width: VIEWPORT.width * ratio, height: CONTENT_HEIGHT * ratio })
+  })
+
+  it('fails the run (non-zero exit) with wait while changes need review', () => {
+    // The spec itself passes: only the throw in after:run can make the exit code non-zero.
+    expect(outcome.output).toMatch(/Passing:\s+3\b/)
+    expect(outcome.output).toMatch(/Failing:\s+0\b/)
+    expect(outcome.output).toContain('Changes found')
+    expect(outcome.code).not.toBe(0)
   })
 
   it('refuses an element with nothing to show instead of saving a blank image', () => {
@@ -184,8 +194,11 @@ describe('circi() with real Cypress', () => {
       'shots.cy.js/parts/card',
     ])
     // Their sidecar's metadata travels with them.
-    expect(files[0]).toMatchObject({ metadata: { spec: 'shots.cy.js', browser: 'electron' } })
-    expect(fake.uploads().size).toBe(3)
+    expect(files[0]).toMatchObject({
+      metadata: { spec: 'shots.cy.js', browser: 'electron', viewport: '800x600' },
+    })
+    // The fake already has the first file of a build with several, so it asks for the other two.
+    expect(fake.uploads()).toHaveLength(2)
   })
 })
 
@@ -217,42 +230,6 @@ describe('circi() when a test fails', () => {
       expect(screenshotsOf(fake).map((f) => f.name)).toEqual(['failing.cy.js/before-failure'])
     },
   )
-})
-
-describe('circi() without a token', () => {
-  const fixture = useFixture()
-
-  it(
-    'skips the upload with a warning and the run is unaffected',
-    { timeout: RUN_TIMEOUT },
-    async () => {
-      const outcome = await fixture.cypress('cypress/e2e/shots.cy.js')
-      expect({ code: outcome.code, tail: outcome.output.slice(-1500) }).toMatchObject({ code: 0 })
-      expect(outcome.output).toContain(
-        '[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots',
-      )
-    },
-  )
-})
-
-describe('circi() with wait: true', () => {
-  const fixture = useFixture()
-  const fake = new FakeCirci()
-
-  beforeAll(async () => {
-    await fake.start()
-    fake.outcome = 'fail'
-  })
-  afterAll(() => fake.stop())
-
-  it('fails the run while changes need review', { timeout: RUN_TIMEOUT }, async () => {
-    const outcome = await fixture.cypress('cypress/e2e/shots.cy.js', {
-      ...ciEnv(fake),
-      FIXTURE_WAIT: '1',
-    })
-    expect(outcome.output).toContain('Changes found')
-    expect(outcome.code).not.toBe(0)
-  })
 })
 
 describe('circi() in component testing', () => {

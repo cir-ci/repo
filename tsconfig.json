@@ -19,6 +19,7 @@
     "perf/bench/**/*.ts",
     "apps/server/tsdown.config.ts",
     "packages/cli/tsdown.config.ts",
+    "packages/storybook/tsdown.config.ts",
     "packages/vitest/tsdown.config.ts",
     "packages/cypress/tsdown.config.ts",
     "vitest.config.ts"
@@ -30,6 +31,7 @@
     "packages/cypress/src/support.ts",
     "packages/cypress/src/page.ts",
     "packages/cypress/test/types",
-    "packages/cypress/test/fixtures"
+    "packages/cypress/test/fixtures",
+    "packages/storybook/test/fixtures"
   ]
 }

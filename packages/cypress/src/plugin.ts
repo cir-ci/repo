@@ -1,40 +1,22 @@
-import { copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
+import { readFile, rm } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
-import { errorLine, parseShard, upload } from '@circi/cli'
-
-import { capturePath, DEFAULT_DIR } from './names.ts'
-
-/** A shard of a parallel run: `index` is 0-based. */
-export interface Shard {
-  index: number
-  total: number
-}
+import {
+  type CirciOptions,
+  shardFromEnv,
+  type upload,
+  uploadCaptures,
+  writeCapture,
+} from '@circi/cli'
+import { capturePath, DEFAULT_DIR } from '@circi/cli/names'
 
 export namespace circi {
-  /** The same options, names and defaults as `CirciReporter.Options` in @circi/vitest. */
-  export interface Options {
-    /** CirCI address. Default: `CIRCI_API_URL`. */
-    apiUrl?: string
-    /** Project CI token. Default: `CIRCI_TOKEN`. */
-    token?: string
-    /** Build name; give each browser project its own (`cypress-chrome`). Default `cypress`. */
-    name?: string
-    /** Where captures are written, relative to the project root. Default `.circi/screenshots`. */
-    dir?: string
-    /** Empty `dir` when the run starts, so a build holds only this run's captures. Default true. */
+  /** `name` defaults to `cypress`; give each browser project its own (`cypress-chrome`). */
+  export interface Options extends CirciOptions.Common {
+    /** Empty `dir` when a run starts, so a build holds only this run's captures. Default true. */
     clean?: boolean
-    /** Project root to look in. Default: Cypress's `projectRoot`. */
-    root?: string
-    /** Wait for the result and fail the run when changes need review. Default false. */
-    wait?: boolean
-    /** Fail the Cypress run if the upload fails. Default false: tests passed or failed on their own. */
-    strict?: boolean
-    /** This machine's shard, if not given by `CIRCI_SHARD` (`2/4`, 1-based). */
-    shard?: Shard
     /** For tests. */
     uploadImpl?: (options: upload.Options) => Promise<Pick<upload.Result, 'exitCode'>>
-    log?: (line: string) => void
     env?: Record<string, string | undefined>
   }
 }
@@ -75,11 +57,6 @@ interface Config {
   viewportHeight?: number
 }
 
-async function countPngs(dir: string): Promise<number> {
-  const entries = await readdir(dir, { recursive: true }).catch(() => [])
-  return entries.filter((e) => e.endsWith('.png')).length
-}
-
 /**
  * The Cypress plugin: `setupNodeEvents: circi({ name: 'cypress-chrome' })` in `cypress.config.ts`.
  *
@@ -91,14 +68,16 @@ async function countPngs(dir: string): Promise<number> {
  */
 export function circi(options: circi.Options = {}) {
   return function setupNodeEvents<C extends Config>(on: Events, config: C): C {
-    const log = options.log ?? ((line: string) => console.log(line))
     const env = options.env ?? process.env
     const root = resolve(options.root ?? config.projectRoot)
-    const dir = resolve(root, options.dir ?? DEFAULT_DIR)
+    const dirOption = options.dir ?? DEFAULT_DIR
+    const dir = resolve(root, dirOption)
     let browser: string | undefined
+    let taken = 0
 
     on('before:run', async (details) => {
       browser = details.browser?.name
+      taken = 0
       // A run uploads only its own captures.
       if (options.clean ?? true) await rm(dir, { recursive: true, force: true })
     })
@@ -108,24 +87,20 @@ export function circi(options: circi.Options = {}) {
       if (details.testFailure || !details.name) return {}
       const file = resolve(
         root,
-        capturePath(options.dir ?? DEFAULT_DIR, details.specName, details.name),
+        capturePath(dirOption, details.specName || 'unknown-spec', details.name),
       )
-      await mkdir(dirname(file), { recursive: true })
-      // The last one wins: a retried test takes the same screenshot again.
-      await copyFile(details.path, file)
       const viewport =
         details.viewport ??
         (config.viewportWidth && config.viewportHeight
           ? { width: config.viewportWidth, height: config.viewportHeight }
           : undefined)
-      await writeFile(
-        `${file}.json`,
-        JSON.stringify({
-          spec: details.specName,
-          ...(browser ? { browser } : {}),
-          ...(viewport ? { viewport } : {}),
-        }),
-      )
+      // The last one wins: a retried test takes the same screenshot again.
+      await writeCapture(file, await readFile(details.path), {
+        spec: details.specName,
+        ...(browser ? { browser } : {}),
+        ...(viewport ? { viewport: `${viewport.width}x${viewport.height}` } : {}),
+      })
+      taken += 1
       // Nothing changes for Cypress: the screenshot stays where it was written.
       return {}
     })
@@ -133,36 +108,23 @@ export function circi(options: circi.Options = {}) {
     on('after:run', async (results) => {
       // The run itself failed to start: there is nothing to upload.
       if (results.status === 'failed') return
-      const apiUrl = options.apiUrl ?? env.CIRCI_API_URL
-      const token = options.token ?? env.CIRCI_TOKEN
-      if (!apiUrl || !token) {
-        log('[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots')
-        return
-      }
-      if ((await countPngs(dir)) === 0) {
-        log('[circi] no screenshots found, nothing to upload')
-        return
-      }
-      const fromEnv = env.CIRCI_SHARD ? parseShard(env.CIRCI_SHARD) : undefined
-      const shard = options.shard ?? fromEnv
-      let exitCode = 0
-      try {
-        const result = await (options.uploadImpl ?? upload)({
-          dir,
-          apiUrl,
-          token,
-          name: options.name ?? 'cypress',
-          wait: options.wait ?? false,
-          ...(shard ? { shard } : {}),
-          cwd: root,
-          env,
-          log,
-        })
-        if (result.exitCode !== 0 && options.wait) exitCode = result.exitCode
-      } catch (err) {
-        log(`[circi] upload failed: ${errorLine(err)}`)
-        if (options.strict) exitCode = 1
-      }
+      const { exitCode } = await uploadCaptures({
+        dir,
+        defaultName: 'cypress',
+        name: options.name,
+        apiUrl: options.apiUrl,
+        token: options.token,
+        wait: options.wait,
+        strict: options.strict,
+        strictExitCode: 1,
+        shard: options.shard ?? shardFromEnv(env),
+        isEmpty: () => Promise.resolve(taken === 0),
+        cwd: root,
+        env,
+        log: options.log,
+        uploadImpl: options.uploadImpl,
+      })
+      // Cypress turns a throw in `after:run` into a non-zero exit code.
       if (exitCode !== 0) throw new Error(`[circi] exit code ${exitCode}`)
     })
     return config

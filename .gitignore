@@ -32,5 +32,9 @@ test-results/
 
 # copies of packages/vitest/test/fixtures/basic made by its integration test
 packages/vitest/test/fixtures/.run-*/
+
 # the same for packages/cypress (and the screenshots Cypress writes next to its config)
 packages/cypress/test/fixtures/.run-*/
+
+# copies of packages/storybook/test/fixtures/basic made by its integration test
+packages/storybook/test/fixtures/.run-*/

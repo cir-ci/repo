@@ -1,10 +1,15 @@
 {
   "name": "@circi/vitest",
   "version": "0.3.0",
-  "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
+  "description": "Vitest plugin for CirCI: uploads every toMatchScreenshot screenshot for self-hosted visual regression review",
   "keywords": [
+    "browser-testing",
+    "screenshot-testing",
     "screenshots",
+    "self-hosted",
+    "toMatchScreenshot",
     "visual-regression",
+    "visual-regression-testing",
     "visual-testing",
     "vitest",
     "vitest-plugin"

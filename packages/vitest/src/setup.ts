@@ -1,3 +1,4 @@
+import { capturePath } from '@circi/cli/names'
 /**
  * The browser setup file the `circi()` plugin adds to a project's `setupFiles`. It replaces
  * `toMatchScreenshot` so that every call writes a stabilized capture to
@@ -12,7 +13,6 @@
 import { chai, expect, inject, type MatcherState } from 'vitest'
 import type { page as Page } from 'vitest/browser'
 
-import { capturePath } from './names.ts'
 import { type BrowserSettings, PROVIDE_KEY } from './options.ts'
 import { settlePage } from './screenshot.ts'
 

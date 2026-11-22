@@ -71,7 +71,7 @@
         "!**/.turbo/**"
       ],
       "outputs": [],
-      "dependsOn": ["@circi/vitest#build", "@circi/cypress#build"]
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#test:deploy": {
       "inputs": [
@@ -85,6 +85,34 @@
       ],
       "outputs": [],
       "dependsOn": ["@circi/vitest#build"]
+    },
+    "//#test:storybook": {
+      "inputs": [
+        "$TURBO_ROOT$/packages/{storybook,cli}/**",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/package.json",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.vitest/**",
+        "!**/.turbo/**",
+        "!$TURBO_ROOT$/packages/storybook/test/fixtures/.run-*/**"
+      ],
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
+    },
+    "//#test:cypress": {
+      "inputs": [
+        "$TURBO_ROOT$/packages/{cypress,cli,testing}/**",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/package.json",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.vitest/**",
+        "!**/.turbo/**",
+        "!$TURBO_ROOT$/packages/cypress/test/fixtures/.run-*/**"
+      ],
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build", "@circi/cypress#build"]
     },
     "//#test:ui": {
       "inputs": [

@@ -3,18 +3,9 @@
  * picture is of so that it holds the thing and nothing around it. Runs inside the page, so it uses
  * the DOM; Node never imports it.
  */
+import { STABILIZE_CSS } from '@circi/cli/names'
 
 export const STABILIZE_ID = 'circi-stabilize'
-
-/** CSS that stops what blinks or moves (Cypress's own option covers animations and timers too). */
-export const STABILIZE_CSS = `
-*, *::before, *::after {
-  animation: none !important;
-  transition: none !important;
-  caret-color: transparent !important;
-  scroll-behavior: auto !important;
-}
-`
 
 const frame = (win: Window): Promise<void> =>
   new Promise((r) => win.requestAnimationFrame(() => r()))
