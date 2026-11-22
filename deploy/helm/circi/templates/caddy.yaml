@@ -1,0 +1,187 @@
+{{- if .Values.caddy.enabled }}
+{{- $caddyfile := .Files.Get "files/Caddyfile" | replace "circi:3000" (printf "%s:%d" (include "circi.fullname" .) (int .Values.service.port)) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "circi.fullname" . }}-caddy
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+    circi.dev/workload: caddy
+data:
+  # deploy/Caddyfile, with its upstream (circi:3000) named after this release's Service.
+  Caddyfile: |
+    {{- $caddyfile | nindent 4 }}
+{{- if .Values.caddy_aws_credentials }}
+---
+# Route53's keys as a shared credentials file (AWS_SHARED_CREDENTIALS_FILE), like the Terraform module.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "circi.fullname" . }}-caddy-aws
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+    circi.dev/workload: caddy
+type: Opaque
+stringData:
+  credentials: |
+    [default]
+    aws_access_key_id = {{ .Values.caddy_aws_credentials.access_key_id }}
+    aws_secret_access_key = {{ .Values.caddy_aws_credentials.secret_access_key }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "circi.fullname" . }}-caddy
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+    circi.dev/workload: caddy
+  {{- with .Values.caddy.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.caddy.service.type }}
+  {{- with .Values.caddy.service.loadBalancerClass }}
+  loadBalancerClass: {{ . }}
+  {{- end }}
+  {{- with .Values.caddy.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ . }}
+  {{- end }}
+  {{- with .Values.caddy.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
+    {{- if .Values.caddy.service.http3 }}
+    - name: http3
+      port: 443
+      protocol: UDP
+      targetPort: http3
+    {{- end }}
+  selector:
+    {{- include "circi.selectorLabels" . | nindent 4 }}
+    circi.dev/workload: caddy
+---
+# One pod: its certificates are on a volume, and two Caddy instances would each ask for them.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "circi.fullname" . }}-caddy
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+    circi.dev/workload: caddy
+spec:
+  replicas: 1
+  serviceName: {{ include "circi.fullname" . }}-caddy
+  selector:
+    matchLabels:
+      {{- include "circi.selectorLabels" . | nindent 6 }}
+      circi.dev/workload: caddy
+  template:
+    metadata:
+      labels:
+        {{- include "circi.labels" . | nindent 8 }}
+        circi.dev/workload: caddy
+      annotations:
+        checksum/caddyfile: {{ $caddyfile | sha256sum }}
+        {{- if .Values.caddy_aws_credentials }}
+        checksum/aws-credentials: {{ .Values.caddy_aws_credentials | toYaml | sha256sum }}
+        {{- end }}
+        {{- with .Values.caddy.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "circi.caddyServiceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: caddy
+          image: {{ .Values.caddy.image.repository }}:{{ default .Chart.AppVersion .Values.caddy.image.tag }}
+          imagePullPolicy: {{ .Values.caddy.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+            - name: https
+              containerPort: 443
+            {{- if .Values.caddy.service.http3 }}
+            - name: http3
+              containerPort: 443
+              protocol: UDP
+            {{- end }}
+          env:
+            - name: DASHBOARD_HOST
+              value: {{ .Values.caddy.dashboard_host | quote }}
+            - name: SITES_HOST
+              value: {{ .Values.caddy.sites_host | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.caddy.aws_region | quote }}
+            {{- if .Values.caddy_aws_credentials }}
+            - name: AWS_SHARED_CREDENTIALS_FILE
+              value: /run/caddy/aws/credentials
+            {{- end }}
+          readinessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.caddy.resources | nindent 12 }}
+          volumeMounts:
+            - name: caddyfile
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+            {{- if .Values.caddy_aws_credentials }}
+            - name: aws-credentials
+              mountPath: /run/caddy/aws
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: caddyfile
+          configMap:
+            name: {{ include "circi.fullname" . }}-caddy
+        - name: config
+          emptyDir: {}
+        {{- if .Values.caddy_aws_credentials }}
+        - name: aws-credentials
+          secret:
+            secretName: {{ include "circi.fullname" . }}-caddy-aws
+            items:
+              - key: credentials
+                path: credentials
+        {{- end }}
+      {{- with .Values.caddy.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.caddy.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.caddy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.caddy.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.caddy.persistence.size }}
+{{- end }}

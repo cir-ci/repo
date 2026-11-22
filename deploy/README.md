@@ -1,7 +1,7 @@
 # deploy/
 
 The image and the files that run it. Installing, configuring and updating CirCI with them is on the website:
-[Docker Compose](https://circi.dev/self-hosting/docker-compose/), [Terraform](https://circi.dev/self-hosting/terraform/),
+[Docker Compose](https://circi.dev/self-hosting/docker-compose/), [Terraform](https://circi.dev/self-hosting/terraform/), [Kubernetes](https://circi.dev/self-hosting/kubernetes/),
 [TLS and reverse proxy](https://circi.dev/self-hosting/tls-and-reverse-proxy/), [Upgrades](https://circi.dev/self-hosting/upgrades-and-migrations/).
 
 | File | |
@@ -11,9 +11,10 @@ The image and the files that run it. Installing, configuring and updating CirCI 
 | `docker-compose.s3.yml` | Overlay: a local SeaweedFS for S3 storage, for development and the live S3 tests |
 | `docker-compose.caddy.yml`, `Caddyfile`, `caddy/Dockerfile` | Overlay: Caddy with the Route53 DNS module, TLS for the dashboard and the sites domain, on-demand certificates for custom domains (confirmed with `/internal/tls-ask`) |
 | [`terraform/`](terraform/README.md) | The Terraform module that runs a released image |
+| [`helm/`](helm/README.md) | The Helm chart that runs a released image (and Caddy, optionally) on a Kubernetes cluster |
 
 The release workflow (`.github/workflows/release.yml`) builds `Dockerfile` and `caddy/Dockerfile` once per app
-version and publishes them as `ghcr.io/cir-ci/circi` and `circi-caddy`. `pnpm test:compose` brings the Compose files up
+version and publishes them as `ghcr.io/cir-ci/circi` and `circi-caddy`, and the chart as `oci://ghcr.io/cir-ci/charts/circi`. `pnpm test:compose` brings the Compose files up
 for real (`e2e/test/deploy/`).
 
 ## What the image runs

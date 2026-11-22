@@ -1,0 +1,12 @@
+apiVersion: v2
+name: circi
+description: CirCI, self-hosted visual regression testing, on Kubernetes. Bring your own Postgres and S3 bucket.
+type: application
+# Both are the app's version (apps/server/package.json): `pnpm version-packages` copies it here
+# (scripts/sync-chart-version.mjs), and the release workflow publishes the chart under it.
+version: 0.1.0
+appVersion: 0.1.0
+kubeVersion: '>=1.27.0-0'
+home: https://circi.dev/self-hosting/kubernetes/
+sources:
+  - https://github.com/cir-ci/repo

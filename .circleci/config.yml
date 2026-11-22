@@ -4,7 +4,8 @@
 #         browser tests, build). No Docker. Required status check: `gate`.
 #         The `changeset` job (branches other than main) fails when a published package changed without a
 #         changeset. The `terraform` job checks and tests deploy/terraform (`terraform test`, a mocked
-#         Docker provider: no Docker).
+#         Docker provider: no Docker); the `helm` job lints deploy/helm/circi and checks its renders
+#         with kubeconform (`pnpm test:helm`, no cluster).
 #   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
 #         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
 #
@@ -203,12 +204,27 @@ jobs:
           name: terraform test
           command: terraform -chdir=deploy/terraform test
 
+  helm:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Install helm and kubeconform
+          command: |
+            curl -fsSL https://get.helm.sh/helm-v4.3.2-linux-amd64.tar.gz | sudo tar -xz --strip-components=1 -C /usr/local/bin linux-amd64/helm
+            curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz | sudo tar -xz -C /usr/local/bin kubeconform
+      - run:
+          name: helm lint, template and kubeconform
+          command: deploy/helm/test.sh
+
 workflows:
   gate:
     unless: << pipeline.parameters.nightly >>
     jobs:
       - gate
       - terraform
+      - helm
       - changeset:
           filters:
             branches:

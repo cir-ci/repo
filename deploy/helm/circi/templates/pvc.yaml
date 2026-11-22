@@ -1,0 +1,18 @@
+{{- if and (include "circi.usesFiles" .) (not .Values.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "circi.fullname" . }}-files
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep # the screenshots outlive an uninstall
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}

@@ -5,5 +5,12 @@
   "singleQuote": true,
   "trailingComma": "all",
   "sortImports": true,
-  "ignorePatterns": [".claude/**", "**/*.md", "packages/db/migrations/**", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    ".claude/**",
+    "**/*.md",
+    "packages/db/migrations/**",
+    "deploy/helm/circi/templates/**",
+    "deploy/helm/circi/files/**",
+    "pnpm-lock.yaml"
+  ]
 }

@@ -1,0 +1,30 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "circi.fullname" . }}
+  labels:
+    {{- include "circi.labels" . | nindent 4 }}
+spec:
+  # The pods that answer HTTP: only the proxy in front of them may reach port 3000 (the node's own
+  # health probes are not blocked by NetworkPolicy).
+  podSelector:
+    matchLabels:
+      {{- include "circi.selectorLabels" . | nindent 6 }}
+      circi.dev/http: "true"
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - port: 3000
+      from:
+        {{- if .Values.caddy.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "circi.selectorLabels" . | nindent 14 }}
+              circi.dev/workload: caddy
+        {{- end }}
+        {{- if .Values.ingress.enabled }}
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 12 }}
+        {{- end }}
+{{- end }}

@@ -10,6 +10,7 @@
 # The app is released the same way: its version is @circi/server's (Changesets versions it like the npm packages), and
 # the `image` job publishes ghcr.io/<owner>/circi:<version> and circi-caddy:<version> the first time a version is on main.
 # deploy/terraform runs a given version (circi_version); the `terraform-mirror` job copies the module to its registry repository.
+# The `helm-chart` job publishes deploy/helm/circi as oci://ghcr.io/<owner>/charts/circi:<version> next to the image.
 #
 # Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
 # approve pull requests".
@@ -57,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
     permissions:
       contents: read
       packages: write # push to ghcr.io with the job's GITHUB_TOKEN
@@ -110,6 +112,25 @@ jobs:
           tags: ${{ env.IMAGE }}-caddy:${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
+
+  # The Helm chart (deploy/helm/circi) as an OCI chart, once per version, when the image job has just published that
+  # version: the chart runs that image (its appVersion is the app's version, which `pnpm version-packages` keeps in
+  # step), so a version never has a chart without an image. Needs no secret beyond the job's GITHUB_TOKEN.
+  helm-chart:
+    needs: image
+    if: needs.image.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io with the job's GITHUB_TOKEN
+    env:
+      VERSION: ${{ needs.image.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - run: helm package deploy/helm/circi --destination chart
+      - run: helm push "chart/circi-$VERSION.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
 
   # The Terraform module on the Terraform Registry (cir-ci/circi/docker), which needs a repository of its own with the
   # module at its root and `vX.Y.Z` tags: each app version is copied to cir-ci/terraform-docker-circi once its image is
