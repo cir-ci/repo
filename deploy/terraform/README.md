@@ -52,8 +52,11 @@ The Terraform Registry wants a repository of its own with the module at its root
 is a copy of this folder, made by the `terraform-mirror` job of `.github/workflows/release.yml` on each app release and
 never edited by hand. Its README is `deploy/terraform-mirror/README.md` (the registry page), not this file.
 
-`Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts: the module reads a
-file in its own folder, which works from the monorepo's Git source, and the job's `rsync -L` gives the mirror a real file.
+The module applies `deploy/Caddyfile`, the one file the Docker Compose overlay also mounts: it reads a `Caddyfile` in its
+own folder when there is one (the mirror's) and `../Caddyfile` otherwise (this repository's). No symlink: a Windows
+checkout without `core.symlinks` would turn one into a text file. The job copies the module from the release's tag, so a
+version's mirror matches what was released, adds the Caddyfile and the repository's LICENSE, checks the mirror for the
+tag with `git ls-remote` (so a later commit there can't hide it), and pushes `main` and the tag together (`--atomic`).
 
 Setting it up once (or rotating the key):
 
