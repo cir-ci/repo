@@ -65,8 +65,10 @@ settings and defaults.
   of the wrong type. The groups are typed `any` and checked key by key for that: an object type would drop a
   misspelled key without a word.
 - **Settings that go together are checked in the plan**: `smtp.user` with `smtp_password`, each client ID with its
-  secret, the three GitHub App values, the three OIDC values.
-- **A key left out, or null, leaves the setting unset**: the server's default applies, and the settings the dashboard
+  secret, the three GitHub App values, the three OIDC values. The message names the variables
+  (`These settings go together, set all of each or none: smtp.user / smtp_password.`).
+- **A key left out, or null, leaves the setting unset**: each group defaults to `{}`, and `main.tf` lists every key with
+  its default (null, which keeps the setting out of the container's environment). The server's default applies, and the settings the dashboard
   can change (Instance > Settings: SMTP, sign-in methods, Slack, retention, timeouts) stay changeable there. Setting one
   here locks it in the dashboard.
 - A change to any setting shows in the plan.
@@ -135,11 +137,11 @@ The main ones; `variables.tf` describes every input.
 | `circi_version` | (required) | The release to run, e.g. `0.1.0`. |
 | `better_auth_secret` | (required) | `BETTER_AUTH_SECRET`, 32+ characters. |
 | `postgres_password` | `null` | For the bundled Postgres; required unless `database` is set. Changing it later: `ALTER USER` first. |
-| `database`, `database_password` | `null` | Your own Postgres (`host`, `port`, `name`, `user`, `tls`, `ca_certificate`). |
+| `database`, `database_password` | `null` | Your own Postgres (`host`, `user`; `port` 5432, `name` `circi`, `tls` true, `ca_certificate` null). |
 | `public_url`, `previous_public_urls` | `http://localhost:3000`, `[]` | `public_url` is ignored with `caddy` (it becomes `https://<dashboard_host>`). |
-| `caddy`, `caddy_aws_credentials` | `null` | `dashboard_host`, `sites_host`, `aws_region`; Route53 keys when there's no instance role. |
+| `caddy`, `caddy_aws_credentials` | `null` | `dashboard_host`, `sites_host`, `aws_region` (`us-east-1`); Route53 keys when there's no instance role. |
 | `port`, `trusted_proxies` | `3000`, `[]` | Without `caddy`: the host port, and your proxy's addresses. |
-| `smtp`, `s3`, `sign_in`, `sso`, `github_app`, `slack`, `vapid`, `sites`, `jobs`, `webhooks`, `tuning` | `null` | The server's settings, by area (above). |
+| `smtp`, `s3`, `sign_in`, `sso`, `github_app`, `slack`, `vapid`, `sites`, `jobs`, `webhooks`, `tuning` | `{}` | The server's settings, by area (above); a key you don't give is `null`. |
 | `log_level`, `workspace_creation` | `null` | |
 | `smtp_password`, `s3_secret_access_key`, `github_app_private_key`, `github_app_webhook_secret`, `slack_client_secret`, `vapid_private_key`, `auth_*_client_secret` | `null` | The secrets, as files. |
 | `network_subnet` | `192.168.250.0/24` | The Docker network; outside any range the host must reach. |
