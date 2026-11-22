@@ -97,7 +97,8 @@
         "!**/.turbo/**",
         "!$TURBO_ROOT$/packages/storybook/test/fixtures/.run-*/**"
       ],
-      "outputs": []
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
     },
     "//#test:ui": {
       "inputs": [
