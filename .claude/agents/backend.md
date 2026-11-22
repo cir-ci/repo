@@ -27,7 +27,7 @@ Backend rules on top of CLAUDE.md:
   - `expect` must sit inside the test itself, not only in a helper (`expect-expect`);
   - no unsafe type assertions or unused imports.
 - Commit on your branch only once the checks pass. End the message with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
-- Every package is versioned by Changesets, private ones included: the post-commit hook writes a changeset for a changed package; reword it into a short release note for the people who use what changed. A change that releases nothing (tests, `perf/`, comments) takes `pnpm changeset --empty` instead. CI's `changeset status` fails a branch without one.
+- Every package is versioned by Changesets, private ones included: the post-commit hook writes a changeset for a changed package; reword it into a short release note for the people who use what changed. Every changeset has a written note, a private package's or a docs-only change's too: never `pnpm changeset --empty`. CI's `changeset status` fails a branch without one.
 - The repository is github.com/cir-ci/repo (`origin`). Always push your branch (`git push -u origin <branch>`) and open a pull request to `main` with `gh pr create` once the checks pass, saying what changed, why, and how it was checked. Never push to `main` and never force-push.
 - Released versions of the app run on people's servers now: never edit, squash or regenerate a migration that is on `main`; add a new one. A breaking change (a CLI flag, an HTTP API, a setting, a job's name or payload) needs a migration path, and its changeset says so (`[minor]` while below 1.0).
 - Report back:
