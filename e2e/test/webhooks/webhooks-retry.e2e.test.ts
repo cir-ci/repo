@@ -156,11 +156,11 @@ describe('webhook retries (scaled clock: 0.5 s base, 2 s receiver timeout)', () 
       .poll(async () => (await failures(stack, slow.webhook.id))[0], { timeout: 30_000 })
       .toMatch(/timeout|aborted/i)
     expect(hits).toBeGreaterThanOrEqual(1)
-    // Both are still waiting for another attempt, not abandoned after one.
-    expect((await hookJobs(stack, refused.webhook.id))[0]).toMatchObject({
-      status: 'pending',
-      attempts: expect.any(Number),
-    })
+    // Both are still being retried, not abandoned after one: waiting for the next attempt, or (on this
+    // fast clock) in the middle of it. Only `failed` would mean it gave up; `done` can't happen here.
+    const job = (await hookJobs(stack, refused.webhook.id))[0]
+    expect(job?.attempts).toBeGreaterThanOrEqual(2)
+    expect(['pending', 'running']).toContain(job?.status)
     await disableWebhooks(stack, refused.webhook.id, slow.webhook.id)
   })
 })
