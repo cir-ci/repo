@@ -374,7 +374,7 @@ export async function runDoctor(
       level: 'info',
       label: 'Reminder',
       detail:
-        "This check only sees the hosts above. Also make sure nothing else on the dashboard's parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).",
+        "This check only sees the hosts above. Also make sure nothing else on the dashboard's parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (https://circi.dev/self-hosting/site-domains/).",
     }),
   )
   return findings

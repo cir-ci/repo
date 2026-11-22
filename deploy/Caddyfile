@@ -1,4 +1,4 @@
-# Two hosts, two certificates (see docs/reference/static-sites.md).
+# Two hosts, two certificates (see https://circi.dev/self-hosting/site-domains/).
 #
 #   DASHBOARD_HOST  e.g. ci.acme.io          the dashboard and API (HTTP-01 is enough)
 #   SITES_HOST      e.g. acme-sites.com      hosted sites, a SEPARATE domain used for nothing else

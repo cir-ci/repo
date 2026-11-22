@@ -2,7 +2,7 @@
 
 `docker compose up -d --build` runs the app and Postgres (see the top-level README). For TLS and hosted sites, add Caddy: `docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build`.
 
-> ⚠️ **If you host sites, read [docs/reference/static-sites.md](../docs/reference/static-sites.md) first.** The sites domain must be a separate domain used for nothing else, and nothing on the dashboard's parent domain may set cookies for the whole domain: uploaded sites run arbitrary JavaScript. `circi admin doctor` checks what it can.
+> ⚠️ **If you host sites, read [Site domains](https://circi.dev/self-hosting/site-domains/) first.** The sites domain must be a separate domain used for nothing else, and nothing on the dashboard's parent domain may set cookies for the whole domain: uploaded sites run arbitrary JavaScript. `circi admin doctor` checks what it can.
 
 Files: `Dockerfile` (the app), `docker-compose.yml`, `docker-compose.s3.yml` (local S3 with SeaweedFS), `docker-compose.caddy.yml` + `Caddyfile` + `caddy/Dockerfile` (TLS with Route53 DNS-01, plus on-demand certificates for sites' custom domains, which Caddy confirms with CirCI's `/internal/tls-ask`), `.env.example`.
 

@@ -29,7 +29,7 @@ module "circi" {
 
   caddy = {
     dashboard_host = "ci.acme.io"
-    sites_host     = "acme-sites.com" # a domain used for nothing else: read docs/reference/static-sites.md
+    sites_host     = "acme-sites.com" # a domain used for nothing else: read circi.dev/self-hosting/site-domains
   }
 
   smtp = {
