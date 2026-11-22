@@ -3,9 +3,8 @@ import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { FakeCirci } from '@circi/testing/hosts'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-
-import { FakeCirci } from './support/fake-circi.ts'
 
 /**
  * The `circi-storybook` CLI end to end: a real Storybook 10 (React and Vite) in `fixtures/basic` is
@@ -289,26 +288,5 @@ describe('upload', () => {
       name: 'storybook',
       kind: 'storybook',
     })
-  })
-
-  it('builds Storybook first with --build', async () => {
-    const out = join(dir, 'shots-built')
-    const built = join(dir, 'built-by-cli')
-    const { exitCode, output } = await cli(
-      ['upload', built, '--build', '--dir', out, '--include', 'Components/Badge/Default'],
-      { NODE_OPTIONS: SOURCE_CONDITION },
-    )
-    expect(output).toContain('storybook build')
-    expect(exitCode).toBe(0)
-    expect(await pngNames(out)).toEqual(['storybook/components/badge/default'])
-  })
-
-  it('stops with one line when there is no built Storybook', async () => {
-    const { exitCode, output } = await cli(['upload', 'no-such-folder'])
-    expect(exitCode).toBe(2)
-    expect(output.trim()).toMatch(
-      /^error: No built Storybook at .*no-such-folder\. Run storybook build/,
-    )
-    expect(output).not.toContain('    at ')
   })
 })

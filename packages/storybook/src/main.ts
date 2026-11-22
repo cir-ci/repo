@@ -1,17 +1,12 @@
 #!/usr/bin/env node
-import { debugOn, parseShard, reportError, UsageError } from '@circi/cli'
+import { debugOn, ignoreBrokenPipe, reportError, shardFlag, UsageError } from '@circi/cli'
 import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
 import { uploadStorybook } from './run.ts'
 import type { circi } from './types.ts'
 
-// If whoever reads our output goes away (`… | head -1`), keep going quietly instead of dying with EPIPE.
-for (const stream of [process.stdout, process.stderr]) {
-  stream.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code !== 'EPIPE') throw err
-  })
-}
+ignoreBrokenPipe()
 
 const program = new Command()
   .name('circi-storybook')
@@ -159,14 +154,4 @@ program.parseAsync(process.argv).catch((err: unknown) => {
 function browserFlag(name: string): circi.Browser {
   if (name === 'chromium' || name === 'firefox' || name === 'webkit') return name
   throw new UsageError(`Unknown browser "${name}": use chromium, firefox or webkit`)
-}
-
-function shardFlag(text: string, nonce: string | undefined) {
-  const shard = parseShard(text)
-  if (!shard) {
-    throw new UsageError(
-      "--shard must look like 1/4: this job's number, then how many jobs there are",
-    )
-  }
-  return { ...shard, ...(nonce ? { nonce } : {}) }
 }

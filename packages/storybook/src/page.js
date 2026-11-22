@@ -5,11 +5,11 @@
  * rest of the package, which runs in Node, must not see the DOM's global types.
  */
 
-/** Runs before the story's own code: no animations, transitions or caret to catch halfway. */
-export function disableMotion() {
-  const css =
-    '*, *::before, *::after { animation: none !important; transition: none !important; ' +
-    'caret-color: transparent !important; scroll-behavior: auto !important; }'
+/**
+ * Runs before the story's own code: no animations, transitions or caret to catch halfway.
+ * @param {string} css `STABILIZE_CSS` of `@circi/cli/names`, which can't be imported in here
+ */
+export function disableMotion(css) {
   const add = () => {
     const style = document.createElement('style')
     style.textContent = css
@@ -24,6 +24,7 @@ export function disableMotion() {
  * function that throws doesn't stop the render (the phase still ends `finished` and no error screen
  * shows), so the channel's `playFunctionThrewException` is the only place that says it failed.
  */
+/* oxlint-disable no-underscore-dangle -- Storybook's own globals are named like this, and so is ours */
 export function trackErrors() {
   /** @type {any} */
   const w = window
@@ -58,6 +59,7 @@ export function trackErrors() {
   })
   hook(preview)
 }
+/* oxlint-enable no-underscore-dangle */
 
 /**
  * Storybook's own signal that the story is done: the preview's render phase reaches `completed`
@@ -66,6 +68,7 @@ export function trackErrors() {
  * and the error screen's class on the body is the other signal. The body class `sb-show-main` is
  * the fallback for a preview that doesn't expose its render. Undefined: not yet.
  */
+/* oxlint-disable no-underscore-dangle -- Storybook's own globals */
 export function readRenderState() {
   const body = document.body
   if (!body) return undefined
@@ -87,8 +90,10 @@ export function readRenderState() {
   if (phase === undefined && body.classList.contains('sb-show-main')) return { state: 'done' }
   return undefined
 }
+/* oxlint-enable no-underscore-dangle */
 
 /** What the story says about itself: its parameters and globals, as plain JSON. */
+/* oxlint-disable no-underscore-dangle -- Storybook's own globals */
 export function readStoryContext() {
   /** @type {any} */
   const w = window
@@ -100,6 +105,7 @@ export function readStoryContext() {
     ...story?.storyGlobals,
   }
   /** @param {unknown} value */
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- it is serialized with the function and may capture nothing
   const plain = (value) => {
     try {
       return JSON.parse(JSON.stringify(value ?? null))
@@ -109,6 +115,7 @@ export function readStoryContext() {
   }
   return { parameters: plain(story?.parameters), globals: plain(globals) }
 }
+/* oxlint-enable no-underscore-dangle */
 
 /** Fonts, images and two frames: the page has stopped changing for reasons of its own. */
 export async function settle() {
@@ -148,6 +155,7 @@ export function measureStory(selector) {
     right = Math.max(right, r + scrollX)
     bottom = Math.max(bottom, b + scrollY)
   }
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- it is serialized with the function and may capture nothing
   const shown = (/** @type {Element} */ el) =>
     typeof el.checkVisibility === 'function'
       ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true })

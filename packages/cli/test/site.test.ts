@@ -3,12 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 
+import { FakeCirci, type FakeCirciOptions } from '@circi/testing/hosts'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { UsageError } from '#src/errors.ts'
 import { packSite, uploadSite } from '#src/site.ts'
-
-import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 
 let root: string
 let site: string

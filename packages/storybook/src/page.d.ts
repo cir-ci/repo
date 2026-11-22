@@ -12,7 +12,7 @@ export interface Measure {
   pageHeight: number
 }
 
-export function disableMotion(): void
+export function disableMotion(css: string): void
 export function trackErrors(): void
 export function readRenderState(): RenderState | undefined
 export function readStoryContext(): { parameters: unknown; globals: unknown }

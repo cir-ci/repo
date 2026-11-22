@@ -41,6 +41,11 @@
       "@circi/source": "./src/index.ts",
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./names": {
+      "@circi/source": "./src/names.ts",
+      "types": "./dist/names.d.mts",
+      "default": "./dist/names.mjs"
     }
   },
   "publishConfig": {
@@ -48,6 +53,10 @@
       ".": {
         "types": "./dist/index.d.mts",
         "default": "./dist/index.mjs"
+      },
+      "./names": {
+        "types": "./dist/names.d.mts",
+        "default": "./dist/names.mjs"
       }
     },
     "access": "public",

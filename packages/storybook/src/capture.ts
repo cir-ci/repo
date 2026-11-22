@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
+import { writeCapture } from '@circi/cli'
+import { STABILIZE_CSS } from '@circi/cli/names'
 import type * as Playwright from 'playwright'
 import type { Browser, Page } from 'playwright'
 
@@ -95,7 +96,7 @@ export async function captureStory(
   })
   try {
     const page = await context.newPage()
-    await page.addInitScript(disableMotion)
+    await page.addInitScript(disableMotion, STABILIZE_CSS)
     await page.addInitScript(trackErrors)
     const url = `${settings.baseUrl}/iframe.html?id=${encodeURIComponent(story.id)}&viewMode=story`
     await render(page, url, settings.timeout)
@@ -115,7 +116,6 @@ export async function captureStory(
         : settings.viewports
     const layout = record(seen.parameters)?.layout
     const shots: Shot[] = []
-    /* oxlint-disable no-await-in-loop -- one page, its viewports one after the other */
     let current: Size = first
     /* oxlint-disable no-await-in-loop -- one page, its viewports one after the other */
     for (const size of sizes) {
@@ -139,12 +139,11 @@ export async function captureStory(
         .join('')
       const shotName = `${name}${suffix}`
       const file = join(settings.outDir, `${shotName}.png`)
-      await mkdir(dirname(file), { recursive: true })
-      await writeFile(file, png)
-      await writeFile(
-        `${file}.json`,
-        `${JSON.stringify({ storyId: story.id, browser: browserName, viewport: viewportLabel(size) }, null, 2)}\n`,
-      )
+      await writeCapture(file, png, {
+        storyId: story.id,
+        browser: browserName,
+        viewport: viewportLabel(size),
+      })
       shots.push({ name: shotName, file })
     }
     /* oxlint-enable no-await-in-loop */

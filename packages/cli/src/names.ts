@@ -38,3 +38,16 @@ export function capturePath(dir: string, testFile: string, name: string): string
     .join('/')
   return `${dir.replace(/\/+$/, '')}/${file}/${captureName(name)}.png`
 }
+
+/** Where captures go unless told otherwise, relative to the project root. */
+export const DEFAULT_DIR = '.circi/screenshots'
+
+/** CSS that stops everything that moves or blinks, so a screenshot doesn't catch a frame halfway. */
+export const STABILIZE_CSS = `
+*, *::before, *::after {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
+  scroll-behavior: auto !important;
+}
+`

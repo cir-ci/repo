@@ -3,9 +3,10 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { UsageError } from '@circi/cli'
+import { DEFAULT_DIR } from '@circi/cli/names'
 
 import type { circi } from './types.ts'
-import { parseViewport, record } from './viewports.ts'
+import { asViewports, parseViewport, record, type Size } from './viewports.ts'
 
 /** The addon's package name: how `.storybook/main.ts` lists it. */
 export const ADDON = '@circi/storybook'
@@ -150,6 +151,7 @@ export interface Resolved {
   outDir: string
   name: string
   browsers: circi.Browser[]
+  viewports: Size[]
   concurrency: number
   include: string[]
   exclude: string[]
@@ -157,6 +159,13 @@ export interface Resolved {
   delay: number
   timeout: number
   site: { name: string } | undefined
+  build: boolean
+  clean: boolean
+  wait: boolean
+  strict: boolean
+  shard: circi.Options['shard']
+  apiUrl: string | undefined
+  token: string | undefined
 }
 
 const BROWSERS = new Set(['chromium', 'firefox', 'webkit'])
@@ -181,9 +190,10 @@ export function resolveOptions(options: circi.Options, cwd: string): Resolved {
   return {
     root,
     staticDir: resolve(root, options.staticDir ?? 'storybook-static'),
-    outDir: join(resolve(root, options.dir ?? '.circi/screenshots'), 'storybook'),
+    outDir: join(resolve(root, options.dir ?? DEFAULT_DIR), 'storybook'),
     name: options.name ?? 'storybook',
     browsers: [...browsers],
+    viewports: asViewports(options.viewports?.length ? options.viewports : ['1280x720']),
     concurrency: Math.floor(number(options.concurrency, 4, 'concurrency', 1)),
     include: options.include ?? [],
     exclude: options.exclude ?? [],
@@ -193,5 +203,12 @@ export function resolveOptions(options: circi.Options, cwd: string): Resolved {
     site: site
       ? { name: typeof site === 'object' && site.name ? site.name : 'storybook' }
       : undefined,
+    build: options.build ?? false,
+    clean: options.clean ?? false,
+    wait: options.wait ?? false,
+    strict: options.strict ?? false,
+    shard: options.shard,
+    apiUrl: options.apiUrl,
+    token: options.token,
   }
 }

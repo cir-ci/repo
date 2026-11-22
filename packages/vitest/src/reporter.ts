@@ -1,11 +1,10 @@
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { type CirciOptions, errorLine, upload } from '@circi/cli'
+import { type CirciOptions, shardFromArgs, type upload, uploadCaptures } from '@circi/cli'
 
 import { type CollectedScreenshot, collectDirectory } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
-import { shardFromArgs } from './shard.ts'
 
 export namespace CirciReporter {
   /** `name` defaults to `vitest`; give each browser project its own (`vitest-chromium`). */
@@ -43,37 +42,27 @@ export class CirciReporter {
       }
     }
     this.onTestRunEnd = async () => {
-      const log = options.log ?? ((l: string) => console.log(l))
-      const apiUrl = options.apiUrl ?? process.env.CIRCI_API_URL
-      const token = options.token ?? process.env.CIRCI_TOKEN
-      if (!apiUrl || !token) {
-        log('[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots')
-        return
-      }
       const root = options.root ?? vitestRoot ?? process.cwd()
       const dir = resolve(root, options.dir ?? DEFAULT_DIR)
-      const shots = await (options.collectImpl?.({ ...options, root }) ?? collectDirectory(dir))
-      if (shots.length === 0) {
-        log('[circi] no screenshots found, nothing to upload')
-        return
-      }
-      const shard = options.shard ?? shardFromArgs(process.argv)
-      try {
-        const result = await (options.uploadImpl ?? upload)({
-          // The captures are already laid out by name, which is how the CLI names a directory's files.
-          dir,
-          apiUrl,
-          token,
-          name: options.name ?? 'vitest',
-          wait: options.wait ?? false,
-          ...(shard ? { shard } : {}),
-          log,
-        })
-        if (result.exitCode !== 0 && options.wait) process.exitCode = result.exitCode
-      } catch (err) {
-        log(`[circi] upload failed: ${errorLine(err)}`)
-        if (options.strict) process.exitCode = 1
-      }
+      const result = await uploadCaptures({
+        // The captures are already laid out by name, which is how the CLI names a directory's files.
+        dir,
+        defaultName: 'vitest',
+        name: options.name,
+        apiUrl: options.apiUrl,
+        token: options.token,
+        wait: options.wait,
+        strict: options.strict,
+        // What this reporter has always exited with when a strict upload fails.
+        strictExitCode: 1,
+        shard: options.shard ?? shardFromArgs(process.argv),
+        log: options.log,
+        isEmpty: async () =>
+          (await (options.collectImpl?.({ ...options, root }) ?? collectDirectory(dir))).length ===
+          0,
+        uploadImpl: options.uploadImpl,
+      })
+      if (result.exitCode !== 0) process.exitCode = result.exitCode
     }
   }
 }

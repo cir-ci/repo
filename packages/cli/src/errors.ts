@@ -53,3 +53,15 @@ export function debugOn(argv: string[], env: Record<string, string | undefined>)
   const value = env.DEBUG
   return argv.includes('--debug') || (!!value && value !== '0' && value !== 'false')
 }
+
+/**
+ * If whoever reads our output goes away (`circi upload … | head -1`), keep going quietly instead
+ * of dying halfway with EPIPE. Call once at the start of a command-line program.
+ */
+export function ignoreBrokenPipe(): void {
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code !== 'EPIPE') throw err
+    })
+  }
+}
