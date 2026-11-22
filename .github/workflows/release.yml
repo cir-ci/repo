@@ -9,7 +9,7 @@
 #
 # The app is released the same way: its version is @circi/server's (Changesets versions it like the npm packages), and
 # the `image` job publishes ghcr.io/<owner>/circi:<version> and circi-caddy:<version> the first time a version is on main.
-# deploy/terraform runs a given version (circi_version).
+# deploy/terraform runs a given version (circi_version); the `terraform-mirror` job copies the module to its registry repository.
 #
 # Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
 # approve pull requests".
@@ -55,6 +55,8 @@ jobs:
   image:
     needs: release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write # push to ghcr.io with the job's GITHUB_TOKEN
@@ -108,3 +110,51 @@ jobs:
           tags: ${{ env.IMAGE }}-caddy:${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
+
+  # The Terraform module on the Terraform Registry (cir-ci/circi/docker), which needs a repository of its own with the
+  # module at its root and `vX.Y.Z` tags: each app version is copied to cir-ci/terraform-docker-circi once its image is
+  # up (the module runs that image). A version already tagged there is skipped, so a rerun repairs a failed push.
+  # Pushes with a deploy key of the mirror (TERRAFORM_MIRROR_DEPLOY_KEY); without it the job only says so.
+  terraform-mirror:
+    needs: image
+    if: needs.image.outputs.version != '0.0.0'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.image.outputs.version }}
+    steps:
+      - id: key
+        run: |
+          if [ "${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY != '' }}" = true ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::TERRAFORM_MIRROR_DEPLOY_KEY is not set, so the Terraform module was not mirrored."
+          fi
+      - if: steps.key.outputs.set
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - if: steps.key.outputs.set
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/terraform-docker-circi
+          ssh-key: ${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY }}
+          path: mirror
+          fetch-tags: true
+      - if: steps.key.outputs.set
+        working-directory: mirror
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            echo "The mirror already has v$VERSION."
+            exit 0
+          fi
+          # Every file of the module (the Caddyfile symlink becomes the file), and the registry page's README instead of
+          # the module's README, which is about the code.
+          rsync -aL --delete --exclude=.git --exclude=README.md ../deploy/terraform/ ./
+          cp ../deploy/terraform-mirror/README.md README.md
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}@${{ github.sha }}."
+          git tag "v$VERSION"
+          git push --quiet origin HEAD:main "v$VERSION"

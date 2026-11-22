@@ -44,3 +44,23 @@ A new server setting therefore needs a key in a group (validation, description, 
 module against a mocked Docker provider, so no Docker is needed, and checks what reaches the containers. One case sets
 every setting and expects each under its own name; others cover the bundled and external Postgres, TLS, Caddy, the
 groups that go together, misspelled keys and wrong types.
+
+## The registry mirror
+
+The Terraform Registry wants a repository of its own with the module at its root and `vX.Y.Z` tags, so
+[cir-ci/terraform-docker-circi](https://github.com/cir-ci/terraform-docker-circi) (registry address `cir-ci/circi/docker`)
+is a copy of this folder, made by the `terraform-mirror` job of `.github/workflows/release.yml` on each app release and
+never edited by hand. Its README is `deploy/terraform-mirror/README.md` (the registry page), not this file.
+
+`Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts: the module reads a
+file in its own folder, which works from the monorepo's Git source, and the job's `rsync -L` gives the mirror a real file.
+
+Setting it up once (or rotating the key):
+
+1. The mirror needs one commit before the first release (`actions/checkout` can't check out an empty repository); the
+   first release replaces it.
+2. A deploy key: `ssh-keygen -t ed25519 -N '' -C terraform-mirror -f mirror_key`. Add `mirror_key.pub` to the mirror
+   (Settings › Deploy keys, Allow write access), save `mirror_key` as the `TERRAFORM_MIRROR_DEPLOY_KEY` Actions secret
+   here, and delete both files. Without the secret the job only prints a notice.
+3. Publish the mirror once at [registry.terraform.io](https://registry.terraform.io) (sign in with GitHub, Publish ›
+   Module, `cir-ci/terraform-docker-circi`); the registry then picks up every new `v*` tag.
