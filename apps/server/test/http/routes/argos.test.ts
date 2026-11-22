@@ -19,7 +19,7 @@ import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '#test/support/h
 /**
  * Plays the sequence `@argos-ci/core`'s `upload()` performs, from its source: GET /project,
  * POST /baseline, POST /builds, a multipart upload per file, PUT /builds/:id (in chunks, the
- * last one `final`). Not the real SDK: see the README's note on Argos compatibility.
+ * last one `final`). Not the real SDK: see https://circi.dev/ci/argos-compatible-api/ on what's verified.
  */
 
 let t: createTestDb.Result

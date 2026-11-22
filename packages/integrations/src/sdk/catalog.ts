@@ -6,7 +6,7 @@ import type { IntegrationCatalog } from '@circi/core'
  * registry (built, connectable, with its connect and mapping specs), then the entries below for what
  * has no definition. Static and pure.
  *
- * Building one means writing its definition (docs/integration-sdk.md) and DELETING its entry here;
+ * Building one means writing its definition (packages/integrations/README.md) and DELETING its entry here;
  * a kind in both is a mistake the registry test catches.
  */
 export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [

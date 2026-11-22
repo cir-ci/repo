@@ -7,7 +7,7 @@ import type { Database } from '#src/client.ts'
 /**
  * `integration_links`: what any integration attached to a project or a build (a Figma frame for a
  * snapshot pattern, an issue made from a build). What `kind`, `subject`, `external_ref` and
- * `payload` hold is the owning integration's business (see docs/integration-sdk.md); the two
+ * `payload` hold is the owning integration's business (see packages/integrations/README.md); the two
  * kinds written today are `figma-frame` (project-wide: `subject` is the snapshot pattern,
  * `external_ref` `fileKey:nodeId`, `payload` `{ fileKey, nodeId, source, scope }`) and `issue`
  * (per build: `external_ref` is the issue key, `payload` `{ snapshotName }`).

@@ -1,7 +1,7 @@
 /**
  * The integration SDK: one `IntegrationDefinition` per integration, one registry, and the generic
  * pieces (catalog, mapping rules, errors) the server, the worker and the services build on.
- * See docs/integration-sdk.md.
+ * See the package's README.md.
  */
 export { defineIntegration, definitionProblems } from '#src/sdk/define.ts'
 export type { EventsField, IntegrationDefinition } from '#src/sdk/definition.ts'

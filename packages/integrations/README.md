@@ -1,4 +1,7 @@
-# Integration SDK
+# Integration SDK (`@circi/integrations`)
+
+How integrations are built, for working on this package. The step-by-step guide for writing a new one is on the
+website: [Writing an integration](https://circi.dev/contributing/writing-an-integration/).
 
 An integration is declared once, as an `IntegrationDefinition`, and listed once in a registry. The
 catalog, the HTTP routes, the worker job, the dashboard's connect form and its mapping page all read
