@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
@@ -110,13 +110,22 @@ function screenshotsOf(fake: FakeCirci): { name: string; metadata?: unknown }[] 
 
 // A real Cypress run starts Electron; slow on a loaded machine.
 const RUN_TIMEOUT = 300_000
+// This plugin's own folder under the shared one: `<dir>/cypress/<spec path from the project root>/<name>`.
+const TOOL = '.circi/screenshots/cypress'
+const SPEC = 'cypress/e2e/shots.cy.js'
 const SHOTS = [
-  'shots.cy.js/home.png',
-  'shots.cy.js/home.png.json',
-  'shots.cy.js/padded.png',
-  'shots.cy.js/padded.png.json',
-  'shots.cy.js/parts/card.png',
-  'shots.cy.js/parts/card.png.json',
+  'cypress/e2e/admin/home.cy.js/hero.png',
+  'cypress/e2e/admin/home.cy.js/hero.png.json',
+  'cypress/e2e/public/home.cy.js/hero.png',
+  'cypress/e2e/public/home.cy.js/hero.png.json',
+  `${SPEC}/home.png`,
+  `${SPEC}/home.png.json`,
+  `${SPEC}/padded.png`,
+  `${SPEC}/padded.png.json`,
+  `${SPEC}/parts/card.png`,
+  `${SPEC}/parts/card.png.json`,
+  `${SPEC}/tall.png`,
+  `${SPEC}/tall.png.json`,
 ]
 
 describe('circi() with real Cypress', () => {
@@ -128,13 +137,17 @@ describe('circi() with real Cypress', () => {
   beforeAll(async () => {
     await fake.start()
     // `wait` with a build that needs review: the run's own exit code carries it.
-    outcome = await fixture.cypress('cypress/e2e/shots.cy.js', {
-      ...ciEnv(fake),
-      FIXTURE_WAIT: '1',
-    })
-    const home = await fixture
-      .read('.circi/screenshots/shots.cy.js/home.png')
-      .catch(() => undefined)
+    // Another tool's folder under the same `dir`: neither emptied nor uploaded.
+    await mkdir(join(fixture.dir(), '.circi/screenshots/vitest'), { recursive: true })
+    await writeFile(join(fixture.dir(), '.circi/screenshots/vitest/other.png'), 'x')
+    outcome = await fixture.cypress(
+      [SPEC, 'cypress/e2e/admin/home.cy.js', 'cypress/e2e/public/home.cy.js'].join(','),
+      {
+        ...ciEnv(fake),
+        FIXTURE_WAIT: '1',
+      },
+    )
+    const home = await fixture.read(`${TOOL}/${SPEC}/home.png`).catch(() => undefined)
     // The display's pixel ratio: a Retina machine takes 2x images.
     if (home) ratio = pngSize(home).width / VIEWPORT.width
   }, RUN_TIMEOUT)
@@ -145,33 +158,58 @@ describe('circi() with real Cypress', () => {
     { timeout: RUN_TIMEOUT },
     async () => {
       // Unnamed ones (and failure screenshots) are not part of the review.
-      expect(await fixture.list('.circi/screenshots')).toEqual(SHOTS)
+      expect(await fixture.list(TOOL)).toEqual(SHOTS)
       const sidecar = JSON.parse(
-        (await fixture.read('.circi/screenshots/shots.cy.js/home.png.json')).toString('utf8'),
+        (await fixture.read(`${TOOL}/${SPEC}/home.png.json`)).toString('utf8'),
       )
-      expect(sidecar).toEqual({ spec: 'shots.cy.js', browser: 'electron', viewport: '800x600' })
+      expect(sidecar).toEqual({ spec: SPEC, browser: 'electron', viewport: '800x600' })
     },
   )
 
   it('crops an element to its own box, and to nothing more', async () => {
-    const card = pngSize(await fixture.read('.circi/screenshots/shots.cy.js/parts/card.png'))
+    const card = pngSize(await fixture.read(`${TOOL}/${SPEC}/parts/card.png`))
     expect(card).toEqual({ width: 200 * ratio, height: 100 * ratio })
   })
 
   it('adds the padding asked for, on purpose', async () => {
-    const padded = pngSize(await fixture.read('.circi/screenshots/shots.cy.js/padded.png'))
+    const padded = pngSize(await fixture.read(`${TOOL}/${SPEC}/padded.png`))
     expect(padded).toEqual({ width: 220 * ratio, height: 120 * ratio })
   })
 
   it('takes a short page at the height of its content, not of the viewport', async () => {
-    const home = pngSize(await fixture.read('.circi/screenshots/shots.cy.js/home.png'))
+    const home = pngSize(await fixture.read(`${TOOL}/${SPEC}/home.png`))
     expect(home).toEqual({ width: VIEWPORT.width * ratio, height: CONTENT_HEIGHT * ratio })
+  })
+
+  it('clamps padding on a long page to the end of the document', async () => {
+    const tall = pngSize(await fixture.read(`${TOOL}/${SPEC}/tall.png`))
+    // 5000px of padding asked for; the page is 1500px tall.
+    // A page that scrolls has a scrollbar, which takes some of the width.
+    expect(tall.height).toBe(1500 * ratio)
+    expect(tall.width).toBeGreaterThan((VIEWPORT.width - 30) * ratio)
+    expect(tall.width).toBeLessThanOrEqual(VIEWPORT.width * ratio)
+  })
+
+  it('names screenshots by the spec path, so two specs with one file name stay apart', async () => {
+    const admin = pngSize(await fixture.read(`${TOOL}/cypress/e2e/admin/home.cy.js/hero.png`))
+    const publicHero = pngSize(await fixture.read(`${TOOL}/cypress/e2e/public/home.cy.js/hero.png`))
+    expect(admin).toEqual({ width: VIEWPORT.width * ratio, height: 80 * ratio })
+    expect(publicHero).toEqual({ width: 200 * ratio, height: 100 * ratio })
+  })
+
+  it("leaves another tool's folder alone: not emptied, not uploaded", async () => {
+    expect(await fixture.list('.circi/screenshots/vitest')).toEqual(['other.png'])
+    expect(screenshotsOf(fake).some((f) => f.name.includes('other'))).toBe(false)
+  })
+
+  it('skips a screenshot named with nothing usable, with a notice and without failing the test', () => {
+    expect(outcome.output).toContain('[circi] skipped screenshot "!!"')
   })
 
   it('fails the run (non-zero exit) with wait while changes need review', () => {
     // The spec itself passes: only the throw in after:run can make the exit code non-zero.
-    expect(outcome.output).toMatch(/Passing:\s+3\b/)
-    expect(outcome.output).toMatch(/Failing:\s+0\b/)
+    expect(outcome.output).toMatch(/Passing:\s+5\b/)
+    expect(outcome.output).not.toMatch(/Failing:\s+[1-9]/)
     expect(outcome.output).toContain('Changes found')
     expect(outcome.code).not.toBe(0)
   })
@@ -188,17 +226,22 @@ describe('circi() with real Cypress', () => {
       commitSha: 'a'.repeat(40),
     })
     const files = screenshotsOf(fake)
+    // Named relative to the tool's folder, so the tool's name isn't in them.
     expect(files.map((f) => f.name).toSorted()).toEqual([
-      'shots.cy.js/home',
-      'shots.cy.js/padded',
-      'shots.cy.js/parts/card',
+      'cypress/e2e/admin/home.cy.js/hero',
+      'cypress/e2e/public/home.cy.js/hero',
+      `${SPEC}/home`,
+      `${SPEC}/padded`,
+      `${SPEC}/parts/card`,
+      `${SPEC}/tall`,
     ])
     // Their sidecar's metadata travels with them.
     expect(files[0]).toMatchObject({
-      metadata: { spec: 'shots.cy.js', browser: 'electron', viewport: '800x600' },
+      metadata: { browser: 'electron', viewport: '800x600' },
     })
-    // The fake already has the first file of a build with several, so it asks for the other two.
-    expect(fake.uploads()).toHaveLength(2)
+    // The fake already has the first file of a build with several, and the public hero is the same picture as the card,
+    // so four distinct files are sent.
+    expect(fake.uploads()).toHaveLength(4)
   })
 })
 
@@ -223,11 +266,13 @@ describe('circi() when a test fails', () => {
         'failing.cy.js/failing -- fails, and Cypress takes its own screenshot (failed).png',
       )
       // ...and only the named one is in the build.
-      expect(await fixture.list('.circi/screenshots')).toEqual([
-        'failing.cy.js/before-failure.png',
-        'failing.cy.js/before-failure.png.json',
+      expect(await fixture.list(TOOL)).toEqual([
+        'cypress/e2e/failing.cy.js/before-failure.png',
+        'cypress/e2e/failing.cy.js/before-failure.png.json',
       ])
-      expect(screenshotsOf(fake).map((f) => f.name)).toEqual(['failing.cy.js/before-failure'])
+      expect(screenshotsOf(fake).map((f) => f.name)).toEqual([
+        'cypress/e2e/failing.cy.js/before-failure',
+      ])
     },
   )
 })
@@ -245,12 +290,12 @@ describe('circi() in component testing', () => {
     { timeout: RUN_TIMEOUT },
     async () => {
       expect({ code: outcome.code, tail: outcome.output.slice(-1500) }).toMatchObject({ code: 0 })
-      expect(await fixture.list('.circi/screenshots')).toEqual([
-        'button.cy.js/button/primary.png',
-        'button.cy.js/button/primary.png.json',
+      expect(await fixture.list(TOOL)).toEqual([
+        'cypress/component/button.cy.js/button/primary.png',
+        'cypress/component/button.cy.js/button/primary.png.json',
       ])
       const button = pngSize(
-        await fixture.read('.circi/screenshots/button.cy.js/button/primary.png'),
+        await fixture.read(`${TOOL}/cypress/component/button.cy.js/button/primary.png`),
       )
       // The button is 120 by 40 with a 30px margin: the margin is outside its box.
       const ratio = button.width / 120

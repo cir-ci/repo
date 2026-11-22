@@ -35,3 +35,4 @@ export declare function writeCapture(
 export declare function shardFromEnv(
   env: Record<string, string | undefined>,
 ): { index: number; total: number } | undefined
+export declare function errorLine(err: unknown): string

@@ -37,11 +37,15 @@ function describe(el: Element): string {
   return `<${el.tagName.toLowerCase()}${id}${cls}>`
 }
 
+/** Not `display: none` or `visibility: hidden` (browsers without `checkVisibility` say yes). */
+function isShown(el: Element): boolean {
+  return typeof el.checkVisibility === 'function' ? el.checkVisibility() : true
+}
+
 /** An element with a box and not hidden: otherwise there is nothing to take a picture of. */
 export function assertCapturable(el: Element, what = describe(el)): void {
   const box = el.getBoundingClientRect()
-  const shown = typeof el.checkVisibility === 'function' ? el.checkVisibility() : true
-  if (box.width <= 0 || box.height <= 0 || !shown) {
+  if (box.width <= 0 || box.height <= 0 || !isShown(el)) {
     throw new Error(
       `cy.screenshot(): nothing to capture, ${what} has no size or isn't visible. ` +
         'Wait for it to render before taking the screenshot.',
@@ -68,8 +72,7 @@ export function contentBottom(win: Window): number {
   if (own.width > 0 || own.height > 0) bottom = own.bottom
   for (const el of body.querySelectorAll('*')) {
     const box = el.getBoundingClientRect()
-    if (box.width > 0 && box.height > 0 && el.checkVisibility())
-      bottom = Math.max(bottom, box.bottom)
+    if (box.width > 0 && box.height > 0 && isShown(el)) bottom = Math.max(bottom, box.bottom)
   }
   return Math.ceil(bottom + win.scrollY)
 }
@@ -105,7 +108,12 @@ export function pageTarget(win: Window, testingType: string, padding: unknown): 
       x: 0,
       y: 0,
       width: doc.documentElement.clientWidth,
-      height: content + bottomPadding(padding),
+      // Padding adds space below the content, but never past the end of the document: a capture
+      // can't show more page than there is.
+      height: Math.min(
+        content + bottomPadding(padding),
+        Math.max(doc.documentElement.scrollHeight, content),
+      ),
     },
   }
 }

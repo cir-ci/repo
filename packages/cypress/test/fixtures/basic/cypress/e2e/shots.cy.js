@@ -7,6 +7,15 @@ describe('shots', () => {
     cy.get('#card').screenshot('padded', { padding: 10 })
   })
 
+  it('clamps padding on a long page to the end of the document', () => {
+    cy.visit('app/tall.html')
+    cy.screenshot('tall', { padding: 5000 })
+  })
+
+  it('skips a screenshot whose name has nothing usable in it, without failing the test', () => {
+    cy.screenshot('!!')
+  })
+
   it('leaves unnamed screenshots out', () => {
     cy.screenshot()
   })

@@ -65,10 +65,51 @@ describe('circi()', () => {
     })
   }
 
-  it('registers the three events, and hands the config back for setupNodeEvents', () => {
+  it('registers its four events, and hands the config back for setupNodeEvents', () => {
     const { cypress, returned, config } = setup()
-    expect(cypress.registered()).toEqual(['after:run', 'after:screenshot', 'before:run'])
+    expect(cypress.registered()).toEqual([
+      'after:run',
+      'after:screenshot',
+      'before:run',
+      'before:spec',
+    ])
     expect(returned).toBe(config)
+  })
+
+  it("names a screenshot by its spec's path from the project root, not its base name", async () => {
+    const { cypress } = setup()
+    await cypress.fire('before:spec', { relative: 'cypress/e2e/admin/home.cy.ts' })
+    await screenshot(cypress, { name: 'hero', specName: 'home.cy.ts' })
+    await cypress.fire('before:spec', { relative: 'cypress/e2e/public/home.cy.ts' })
+    await screenshot(cypress, { name: 'hero', specName: 'home.cy.ts' })
+    const base = join(temp.root(), '.circi/screenshots/cypress/cypress/e2e')
+    expect(existsSync(join(base, 'admin/home.cy.ts/hero.png'))).toBe(true)
+    expect(existsSync(join(base, 'public/home.cy.ts/hero.png'))).toBe(true)
+    const sidecar = await readFile(join(base, 'admin/home.cy.ts/hero.png.json'), 'utf8')
+    expect(JSON.parse(sidecar).spec).toBe('cypress/e2e/admin/home.cy.ts')
+  })
+
+  it('skips a screenshot whose name has nothing usable, and says so', async () => {
+    const { cypress, lines } = setup()
+    await expect(screenshot(cypress, { name: '首页' })).resolves.toEqual({})
+    await expect(screenshot(cypress, { name: '!!' })).resolves.toEqual({})
+    expect(lines).toEqual([
+      '[circi] skipped screenshot "首页": "首页" is not a usable screenshot name',
+      '[circi] skipped screenshot "!!": "!!" is not a usable screenshot name',
+    ])
+    expect(existsSync(join(temp.root(), '.circi'))).toBe(false)
+  })
+
+  it("empties and uploads only its own folder, never another tool's under the same dir", async () => {
+    const other = join(temp.root(), '.circi/screenshots/vitest')
+    await mkdir(other, { recursive: true })
+    await writeFile(join(other, 'other.png'), 'x')
+    const { cypress, uploads } = setup()
+    await cypress.fire('before:run', {})
+    expect(existsSync(join(other, 'other.png'))).toBe(true)
+    await screenshot(cypress, { name: 'a' })
+    await cypress.fire('after:run', { runs: [] })
+    expect(uploads[0]?.dir).toBe(join(temp.root(), '.circi/screenshots/cypress'))
   })
 
   it('copies a named screenshot to <dir>/<spec>/<name>.png with a sidecar', async () => {
@@ -77,7 +118,7 @@ describe('circi()', () => {
     const result = await screenshot(cypress, { name: 'button/primary' })
     // Nothing is renamed or moved for Cypress.
     expect(result).toEqual({})
-    const file = join(temp.root(), '.circi/screenshots/home.cy.ts/button/primary.png')
+    const file = join(temp.root(), '.circi/screenshots/cypress/home.cy.ts/button/primary.png')
     expect(await readFile(file, 'utf8')).toBe('button/primary')
     expect(JSON.parse(await readFile(`${file}.json`, 'utf8'))).toEqual({
       spec: 'home.cy.ts',
@@ -88,7 +129,7 @@ describe('circi()', () => {
   it("takes the viewport from the screenshot's details, or else from the config", async () => {
     const { cypress } = setup()
     await screenshot(cypress, { name: 'a', viewport: { width: 1, height: 2 } })
-    const first = join(temp.root(), '.circi/screenshots/home.cy.ts/a.png.json')
+    const first = join(temp.root(), '.circi/screenshots/cypress/home.cy.ts/a.png.json')
     expect(JSON.parse(await readFile(first, 'utf8')).viewport).toBe('1x2')
 
     const withConfig = fakeCypress()
@@ -98,7 +139,7 @@ describe('circi()', () => {
       viewportHeight: 660,
     })
     await screenshot(withConfig, { name: 'b' })
-    const second = join(temp.root(), '.circi/screenshots/home.cy.ts/b.png.json')
+    const second = join(temp.root(), '.circi/screenshots/cypress/home.cy.ts/b.png.json')
     expect(JSON.parse(await readFile(second, 'utf8')).viewport).toBe('1000x660')
   })
 
@@ -116,12 +157,12 @@ describe('circi()', () => {
     await cypress.fire('after:screenshot', { path, specName: 'a.cy.ts', name: 'x' })
     await writeFile(path, 'second')
     await cypress.fire('after:screenshot', { path, specName: 'a.cy.ts', name: 'x' })
-    const file = join(temp.root(), '.circi/screenshots/a.cy.ts/x.png')
+    const file = join(temp.root(), '.circi/screenshots/cypress/a.cy.ts/x.png')
     expect(await readFile(file, 'utf8')).toBe('second')
   })
 
   it('empties the folder when a run starts, unless told not to', async () => {
-    const kept = join(temp.root(), '.circi/screenshots/old.cy.ts')
+    const kept = join(temp.root(), '.circi/screenshots/cypress/old.cy.ts')
     await mkdir(kept, { recursive: true })
     await writeFile(join(kept, 'old.png'), 'x')
     await setup().cypress.fire('before:run', {})
@@ -140,7 +181,7 @@ describe('circi()', () => {
       await cypress.fire('after:run', { runs: [] })
       expect(uploads).toHaveLength(1)
       expect(uploads[0]).toMatchObject({
-        dir: join(temp.root(), '.circi/screenshots'),
+        dir: join(temp.root(), '.circi/screenshots/cypress'),
         apiUrl: 'https://circi.test',
         token: 'circi_t',
         name: 'cypress',
@@ -159,12 +200,12 @@ describe('circi()', () => {
       await screenshot(cypress, { name: 'a' })
       await cypress.fire('after:run', { runs: [] })
       expect(uploads[0]).toMatchObject({
-        dir: join(temp.root(), 'shots'),
+        dir: join(temp.root(), 'shots/cypress'),
         apiUrl: 'https://other.test',
         token: 'circi_o',
         name: 'cypress-firefox',
       })
-      expect(existsSync(join(temp.root(), 'shots/home.cy.ts/a.png'))).toBe(true)
+      expect(existsSync(join(temp.root(), 'shots/cypress/home.cy.ts/a.png'))).toBe(true)
     })
 
     it('reads the shard from CIRCI_SHARD (1-based), or from the options', async () => {
