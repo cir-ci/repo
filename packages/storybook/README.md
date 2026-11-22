@@ -10,10 +10,10 @@ npx playwright install chromium
 List the addon in `.storybook/main.ts`, where its options live:
 
 ```ts
-import { circiStorybook } from '@circi/storybook'
+import { circi } from '@circi/storybook'
 
 export default {
-  addons: [circiStorybook({ name: 'storybook', browsers: ['chromium'], viewports: ['1280x720'] })],
+  addons: [circi({ name: 'storybook', browsers: ['chromium'], viewports: ['1280x720'] })],
 }
 ```
 
@@ -39,7 +39,7 @@ Before the screenshot the page has to be still: Storybook has reported the story
 
 ## Options
 
-All of them are optional. In `circiStorybook({ … })` they are `circiStorybook.Options`; `circi-storybook upload` takes them as flags, which override the config.
+All of them are optional. In `circi({ … })` they are `circi.Options`; `circi-storybook upload` takes them as flags, which override the config.
 
 | Option                                                                  | Flag                                          | Meaning                                                                                                                                  |
 | ----------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |

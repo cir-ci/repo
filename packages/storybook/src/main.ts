@@ -4,7 +4,7 @@ import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
 import { uploadStorybook } from './run.ts'
-import type { circiStorybook } from './types.ts'
+import type { circi } from './types.ts'
 
 // If whoever reads our output goes away (`… | head -1`), keep going quietly instead of dying with EPIPE.
 for (const stream of [process.stdout, process.stderr]) {
@@ -106,7 +106,7 @@ program
   .addHelpText(
     'after',
     `
-Options can also be set once, in .storybook/main.ts: addons: [circiStorybook({ browsers: ['chromium'] })].
+Options can also be set once, in .storybook/main.ts: addons: [circi({ browsers: ['chromium'] })].
 Flags override them. A story's own settings are parameters.circi (skip, viewports, delay, selector, padding).
 
 Environment:
@@ -156,7 +156,7 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   process.exitCode = 2
 })
 
-function browserFlag(name: string): circiStorybook.Browser {
+function browserFlag(name: string): circi.Browser {
   if (name === 'chromium' || name === 'firefox' || name === 'webkit') return name
   throw new UsageError(`Unknown browser "${name}": use chromium, firefox or webkit`)
 }

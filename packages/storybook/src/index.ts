@@ -1,4 +1,4 @@
-import type { circiStorybook as Types } from './types.ts'
+import type { circi as Types } from './types.ts'
 
 export type { CirciParameters } from './types.ts'
 export { uploadStorybook } from './run.ts'
@@ -8,17 +8,17 @@ export { uploadStorybook } from './run.ts'
  * `circi-storybook upload` command reads them from there; flags override them.
  *
  * ```ts
- * addons: [circiStorybook({ name: 'storybook', browsers: ['chromium'] })]
+ * addons: [circi({ name: 'storybook', browsers: ['chromium'] })]
  * ```
  */
-export function circiStorybook(options: Types.Options = {}): {
+export function circi(options: Types.Options = {}): {
   name: string
   options: Types.Options
 } {
   return { name: '@circi/storybook', options }
 }
 
-export namespace circiStorybook {
+export namespace circi {
   export type Options = Types.Options
   export type Browser = Types.Browser
   export type Viewport = Types.Viewport

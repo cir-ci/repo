@@ -1,13 +1,13 @@
 import type { CirciOptions } from '@circi/cli'
 
-export namespace circiStorybook {
+export namespace circi {
   export type Browser = 'chromium' | 'firefox' | 'webkit'
 
   /** `1280x720`, `mobile=390x844`, or an object. The name labels the screenshot. */
   export type Viewport = string | { name?: string; width: number; height: number }
 
   /**
-   * The addon's options, set in `.storybook/main.ts` (`addons: [circiStorybook({ … })]`) and
+   * The addon's options, set in `.storybook/main.ts` (`addons: [circi({ … })]`) and
    * overridden by `circi-storybook upload`'s flags. The shared ones (`apiUrl`, `token`, `name`,
    * `dir`, `clean`, `root`, `wait`, `strict`, `shard`) mean what they do in `@circi/vitest`; `name`
    * defaults to `storybook`, and captures are written to `<dir>/storybook`.
@@ -43,7 +43,7 @@ export interface CirciParameters {
   /** Don't screenshot this story. */
   skip?: boolean
   /** Screenshot at each of these instead of the configured viewports. */
-  viewports?: circiStorybook.Viewport[]
+  viewports?: circi.Viewport[]
   /** Milliseconds to wait after the story has rendered. */
   delay?: number
   /** Screenshot this element (a CSS selector) instead of the whole component. */

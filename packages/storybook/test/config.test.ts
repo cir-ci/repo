@@ -12,15 +12,15 @@ import {
   readOptions,
   resolveOptions,
 } from '#src/config.ts'
-import { circiStorybook } from '#src/index.ts'
+import { circi } from '#src/index.ts'
 
 describe('the addon entry', () => {
-  it('is what circiStorybook() returns: a Storybook addon with options', () => {
-    expect(circiStorybook({ name: 'x' })).toEqual({
+  it('is what circi() returns: a Storybook addon with options', () => {
+    expect(circi({ name: 'x' })).toEqual({
       name: '@circi/storybook',
       options: { name: 'x' },
     })
-    expect(circiStorybook()).toEqual({ name: '@circi/storybook', options: {} })
+    expect(circi()).toEqual({ name: '@circi/storybook', options: {} })
   })
 
   it('is found in `addons` by name, a subpath or a resolved path', () => {

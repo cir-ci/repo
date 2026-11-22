@@ -1,4 +1,4 @@
-import type { circiStorybook } from './types.ts'
+import type { circi } from './types.ts'
 
 export interface Size {
   name?: string
@@ -43,7 +43,7 @@ export function sameSize(a: Size, b: Size): boolean {
   return a.width === b.width && a.height === b.height
 }
 
-export function asViewports(list: readonly circiStorybook.Viewport[]): Size[] {
+export function asViewports(list: readonly circi.Viewport[]): Size[] {
   return list.map((viewport) => parseViewport(viewport))
 }
 

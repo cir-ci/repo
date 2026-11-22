@@ -1,4 +1,4 @@
-import type { CirciParameters, circiStorybook } from './types.ts'
+import type { CirciParameters, circi } from './types.ts'
 import { parseViewport, record } from './viewports.ts'
 
 const KNOWN = new Set(['skip', 'viewports', 'delay', 'selector', 'padding'])
@@ -37,7 +37,7 @@ export function parseCirciParameters(raw: unknown): CirciParameters {
     if (!Array.isArray(value.viewports) || value.viewports.length === 0) {
       throw new Error('parameters.circi.viewports must be a list of viewports, such as ["390x844"]')
     }
-    const list: circiStorybook.Viewport[] = []
+    const list: circi.Viewport[] = []
     for (const viewport of value.viewports) {
       const size = parseViewport(viewport)
       list.push(size.name ? { name: size.name, width: size.width, height: size.height } : size)

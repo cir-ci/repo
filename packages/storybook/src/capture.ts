@@ -14,7 +14,7 @@ import {
 } from './page.js'
 import { parseCirciParameters } from './params.ts'
 import type { Story } from './stories.ts'
-import type { CirciParameters, circiStorybook } from './types.ts'
+import type { CirciParameters, circi } from './types.ts'
 import {
   asViewports,
   record,
@@ -50,7 +50,7 @@ export class StoryError extends Error {
   }
 }
 
-export type BrowserName = circiStorybook.Browser
+export type BrowserName = circi.Browser
 
 /** Playwright's browsers, or a message that says what to install. */
 export async function launch(name: BrowserName): Promise<Browser> {

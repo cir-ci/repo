@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 
 import { UsageError } from '@circi/cli'
 
-import type { circiStorybook } from './types.ts'
+import type { circi } from './types.ts'
 import { parseViewport, record } from './viewports.ts'
 
 /** The addon's package name: how `.storybook/main.ts` lists it. */
@@ -20,7 +20,7 @@ export function isAddon(name: unknown): boolean {
 }
 
 /** The options of this addon in a Storybook main config's `addons`, or none. */
-export function addonOptions(main: unknown): circiStorybook.Options {
+export function addonOptions(main: unknown): circi.Options {
   const addons = record(main)?.addons
   if (!Array.isArray(addons)) return {}
   for (const entry of addons) {
@@ -46,8 +46,8 @@ function bad(key: string, expected: string): UsageError {
   return new UsageError(`Option "${key}" of ${ADDON} must be ${expected}`)
 }
 
-export function readOptions(value: Record<string, unknown>): circiStorybook.Options {
-  const out: circiStorybook.Options = {}
+export function readOptions(value: Record<string, unknown>): circi.Options {
+  const out: circi.Options = {}
   for (const key of STRINGS) {
     const v = value[key]
     if (v === undefined) continue
@@ -76,14 +76,14 @@ export function readOptions(value: Record<string, unknown>): circiStorybook.Opti
   }
   if (value.browsers !== undefined) {
     const v = value.browsers
-    if (!Array.isArray(v) || !v.every((b): b is circiStorybook.Browser => BROWSERS.has(b))) {
+    if (!Array.isArray(v) || !v.every((b): b is circi.Browser => BROWSERS.has(b))) {
       throw bad('browsers', 'a list of chromium, firefox or webkit')
     }
     out.browsers = v
   }
   if (value.viewports !== undefined) {
     if (!Array.isArray(value.viewports)) throw bad('viewports', 'a list of viewports')
-    const list: circiStorybook.Viewport[] = []
+    const list: circi.Viewport[] = []
     for (const viewport of value.viewports) {
       const size = parseViewport(viewport)
       list.push(size.name ? { name: size.name, width: size.width, height: size.height } : size)
@@ -118,7 +118,7 @@ export function readOptions(value: Record<string, unknown>): circiStorybook.Opti
 export async function loadAddonOptions(
   root: string,
   configDir = '.storybook',
-): Promise<circiStorybook.Options> {
+): Promise<circi.Options> {
   const dir = resolve(root, configDir)
   const file = MAIN_FILES.map((name) => join(dir, name)).find((path) => existsSync(path))
   if (!file) return {}
@@ -149,7 +149,7 @@ export interface Resolved {
   /** Where PNGs are written, and what is uploaded. */
   outDir: string
   name: string
-  browsers: circiStorybook.Browser[]
+  browsers: circi.Browser[]
   concurrency: number
   include: string[]
   exclude: string[]
@@ -167,7 +167,7 @@ function number(value: number | undefined, fallback: number, what: string, min: 
   return value
 }
 
-export function resolveOptions(options: circiStorybook.Options, cwd: string): Resolved {
+export function resolveOptions(options: circi.Options, cwd: string): Resolved {
   const root = resolve(cwd, options.root ?? '.')
   const browsers = options.browsers?.length
     ? [...new Set(options.browsers)]

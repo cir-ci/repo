@@ -9,11 +9,11 @@ import { captureStory, launch, StoryError } from './capture.ts'
 import { loadAddonOptions, type Resolved, resolveOptions } from './config.ts'
 import { serveStatic } from './server.ts'
 import { filterStories, parseIndex, shardStories, type Story, storyNames } from './stories.ts'
-import type { circiStorybook } from './types.ts'
+import type { circi } from './types.ts'
 import { asViewports } from './viewports.ts'
 
 export namespace uploadStorybook {
-  export interface Options extends circiStorybook.Options {
+  export interface Options extends circi.Options {
     /** Storybook's config folder, relative to the root. Default `.storybook`. */
     configDir?: string
     /** How long `wait` waits for the build, in seconds. Default 600. */
