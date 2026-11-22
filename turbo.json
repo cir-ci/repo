@@ -61,9 +61,6 @@
         "$TURBO_ROOT$/vitest.config.ts",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/{dev,perf}/package.json",
-        "$TURBO_ROOT$/deploy/{.env.example,docker-compose.yml,Dockerfile}",
-        "$TURBO_ROOT$/deploy/terraform/{main,variables}.tf",
-        "$TURBO_ROOT$/deploy/terraform/tests/*.hcl",
         "!$TURBO_ROOT$/e2e/.artifacts/**",
         "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**",
         "!**/node_modules/**",
@@ -71,6 +68,19 @@
         "!**/dist/**",
         "!**/coverage/**",
         "!**/.vitest/**",
+        "!**/.turbo/**"
+      ],
+      "outputs": [],
+      "dependsOn": ["@circi/vitest#build"]
+    },
+    "//#test:deploy": {
+      "inputs": [
+        "$TURBO_ROOT$/packages/config/**",
+        "$TURBO_ROOT$/deploy/**",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/package.json",
+        "!**/node_modules/**",
+        "!**/.terraform/**",
         "!**/.turbo/**"
       ],
       "outputs": [],
