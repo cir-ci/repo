@@ -64,9 +64,13 @@ commands:
   restore-turbo:
     steps:
       - restore_cache:
+          # This branch's last cache, else main's: a new pull request branch starts from main, so main's
+          # cache replays every task its changes don't touch. Any branch's cache comes last: one cut from
+          # an older main matches little and reran the whole gate.
           keys:
             - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
             - turbo-v1-{{ arch }}-{{ .Branch }}-
+            - turbo-v1-{{ arch }}-main-
             - turbo-v1-{{ arch }}-
 
   save-turbo:
