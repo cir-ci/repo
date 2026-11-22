@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { UsageError } from '@circi/cli'
-import { DEFAULT_DIR } from '@circi/cli/names'
+import { DEFAULT_DIR, toolDir } from '@circi/cli/names'
 
 import type { circi } from './types.ts'
 import { asViewports, parseViewport, record, type Size } from './viewports.ts'
@@ -190,7 +190,7 @@ export function resolveOptions(options: circi.Options, cwd: string): Resolved {
   return {
     root,
     staticDir: resolve(root, options.staticDir ?? 'storybook-static'),
-    outDir: join(resolve(root, options.dir ?? DEFAULT_DIR), 'storybook'),
+    outDir: resolve(root, toolDir(options.dir ?? DEFAULT_DIR, 'storybook')),
     name: options.name ?? 'storybook',
     browsers: [...browsers],
     viewports: asViewports(options.viewports?.length ? options.viewports : ['1280x720']),

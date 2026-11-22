@@ -1,6 +1,6 @@
 # @circi/vitest
 
-The [CirCI](https://circi.dev) plugin for Vitest browser mode. Your tests keep Vitest's own `toMatchScreenshot`; the plugin writes each screenshot to `.circi/screenshots/<test file>/<name>.png` and uploads them to your CirCI server when the run ends. CirCI compares and reviews them.
+The [CirCI](https://circi.dev) plugin for Vitest browser mode. Your tests keep Vitest's own `toMatchScreenshot`; the plugin writes each screenshot to `.circi/screenshots/vitest/<test file>/<name>.png` and uploads them to your CirCI server when the run ends. CirCI compares and reviews them.
 
 ```ts
 import { circi } from '@circi/vitest'

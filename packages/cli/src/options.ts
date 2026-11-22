@@ -20,9 +20,13 @@ export namespace CirciOptions {
     token?: string
     /** Build name; give each kind of build its own. Each integration has its own default. */
     name?: string
-    /** Where captures are written, relative to the project root. Default `.circi/screenshots`. */
+    /**
+     * The folder that holds the captures, relative to the project root. Default `.circi/screenshots`.
+     * Each tool writes, cleans and uploads only its own folder inside it: `<dir>/vitest`,
+     * `<dir>/storybook`, `<dir>/cypress`.
+     */
     dir?: string
-    /** Empty the captures' folder when the run starts, so a build holds only this run's captures. Default false. */
+    /** Empty this tool's folder in `dir` when the run starts, so a build holds only this run's captures. Default false. */
     clean?: boolean
     /** Project root to look in. Default: the working directory (Vitest: the root of the run). */
     root?: string

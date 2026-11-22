@@ -42,6 +42,17 @@ export function capturePath(dir: string, testFile: string, name: string): string
 /** Where captures go unless told otherwise, relative to the project root. */
 export const DEFAULT_DIR = '.circi/screenshots'
 
+/**
+ * The folder a tool owns inside the captures' folder: `.circi/screenshots/vitest`,
+ * `.circi/screenshots/storybook`, `.circi/screenshots/cypress`. `dir` is the parent, the same for
+ * every tool (`options.dir ?? DEFAULT_DIR`); a tool writes, cleans and uploads only its own
+ * folder, so two tools in one project never upload or delete each other's captures. Names in CirCI
+ * are relative to the tool's folder, so they don't carry the tool's name.
+ */
+export function toolDir(dir: string, tool: string): string {
+  return `${dir.replace(/\/+$/, '')}/${tool}`
+}
+
 /** CSS that stops everything that moves or blinks, so a screenshot doesn't catch a frame halfway. */
 export const STABILIZE_CSS = `
 *, *::before, *::after {

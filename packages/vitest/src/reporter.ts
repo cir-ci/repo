@@ -2,6 +2,7 @@ import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { type CirciOptions, shardFromArgs, type upload, uploadCaptures } from '@circi/cli'
+import { toolDir } from '@circi/cli/names'
 
 import { type CollectedScreenshot, collectDirectory } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
@@ -38,12 +39,15 @@ export class CirciReporter {
       vitestRoot = vitest.config.root
       // A run uploads only its own captures. Synchronous and at init, before any test can write one.
       if (options.clean) {
-        rmSync(resolve(vitestRoot, options.dir ?? DEFAULT_DIR), { recursive: true, force: true })
+        rmSync(resolve(vitestRoot, toolDir(options.dir ?? DEFAULT_DIR, 'vitest')), {
+          recursive: true,
+          force: true,
+        })
       }
     }
     this.onTestRunEnd = async () => {
       const root = options.root ?? vitestRoot ?? process.cwd()
-      const dir = resolve(root, options.dir ?? DEFAULT_DIR)
+      const dir = resolve(root, toolDir(options.dir ?? DEFAULT_DIR, 'vitest'))
       const result = await uploadCaptures({
         // The captures are already laid out by name, which is how the CLI names a directory's files.
         dir,

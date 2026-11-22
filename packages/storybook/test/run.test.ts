@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { errorLine, UsageError } from '@circi/cli'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildStorybook, uploadStorybook } from '#src/run.ts'
+import { buildStorybook, tally, uploadStorybook } from '#src/run.ts'
 
 let cwd = ''
 beforeAll(async () => {
@@ -46,6 +46,22 @@ describe('uploadStorybook, before a browser is needed', () => {
     await expect(uploadStorybook({ cwd, viewports: ['wide'], ...quiet })).rejects.toThrow(
       /must look like 1280x720/,
     )
+  })
+})
+
+describe('tally', () => {
+  it('counts a story that skips itself once, however many browsers skip it', () => {
+    const stories = [{ id: 'a' }, { id: 'b' }]
+    const chromium = [[], [{ name: 'b' }]]
+    const firefox = [[], [{ name: 'b' }]]
+    expect(tally(stories, [chromium, firefox])).toEqual({ screenshots: 2, skipped: 1 })
+  })
+
+  it('counts neither a skipped story nor a failed one as a screenshot', () => {
+    expect(tally([{ id: 'a' }, { id: 'b' }], [[undefined, []]])).toEqual({
+      screenshots: 0,
+      skipped: 1,
+    })
   })
 })
 

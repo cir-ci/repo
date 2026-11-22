@@ -247,6 +247,40 @@ describe('upload', () => {
     expect(await pngNames(out)).toEqual(['storybook/components/button/primary'])
   })
 
+  it('lets a shard with no stories report in empty, so the parallel build completes', async () => {
+    fake = await new FakeCirci().start()
+    const out = join(dir, 'shots-empty-shard')
+    // One story and two shards: the second has nothing to screenshot.
+    const { exitCode, output } = await cli(
+      [
+        'upload',
+        'storybook-static',
+        '--dir',
+        out,
+        '--include',
+        'Components/Button/Primary',
+        '--shard',
+        '2/2',
+        '--nonce',
+        'run-7',
+        '--no-fetch',
+      ],
+      toCirci(),
+    )
+    expect(exitCode).toBe(0)
+    expect(output).toContain('This shard has no screenshots')
+    expect(await pngNames(out)).toEqual([])
+    const create = fake.requests.find((r) => r.method === 'POST' && r.path === '/v1/builds')
+    expect(fake.json(first(create))).toMatchObject({
+      parallel: { nonce: 'run-7', total: 2 },
+      files: [],
+    })
+    expect(fake.json(first(fake.to('/v1/builds/b1/finalize')[0]))).toMatchObject({
+      shardIndex: '1',
+      screenshots: [],
+    })
+  })
+
   it('names screenshots by browser and viewport once more than one is configured, and uploads the site', async () => {
     fake = await new FakeCirci().start()
     const out = join(dir, 'shots-viewports')
