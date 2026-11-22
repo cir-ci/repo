@@ -1,12 +1,17 @@
 {
   "name": "@circi/cli",
   "version": "0.2.0",
-  "description": "Upload screenshots from CI to a CirCI server",
+  "description": "Upload screenshots from any CI to CirCI, the self-hosted visual regression testing server",
   "keywords": [
     "ci",
     "cli",
+    "playwright",
+    "screenshot-testing",
     "screenshots",
+    "self-hosted",
+    "storybook",
     "visual-regression",
+    "visual-regression-testing",
     "visual-testing"
   ],
   "homepage": "https://circi.dev/ci/cli/",
