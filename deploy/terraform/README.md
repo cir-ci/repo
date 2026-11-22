@@ -49,19 +49,18 @@ groups that go together, misspelled keys and wrong types.
 
 The Terraform Registry wants a repository of its own with the module at its root and `vX.Y.Z` tags, so
 [cir-ci/terraform-docker-circi](https://github.com/cir-ci/terraform-docker-circi) (registry address `cir-ci/circi/docker`)
-is a generated mirror of this folder, and nothing is edited there. The `terraform-mirror` job of
-`.github/workflows/release.yml` runs `scripts/sync-terraform-mirror.sh <version> <remote>` after each app release's image
-is published. The script clones the mirror, replaces its contents with the module's files (`main.tf`, `variables.tf`,
-`outputs.tf`, `versions.tf`, `Caddyfile`, `tests/`), writes its README from `deploy/terraform-mirror/README.md` (the
-registry page: a usage example and a link to the website), commits as github-actions, pushes `main` and tags
-`v<version>`. A version whose tag exists is skipped, so a rerun does nothing. The job pushes over SSH with a deploy key
-of the mirror: its public key is on the mirror with write access, and its private key is the `TERRAFORM_MIRROR_DEPLOY_KEY`
-secret here, so it can push to that one repository and is tied to no one's account. Without the secret the job only
-prints a notice. To set it up or rotate it: `ssh-keygen -t ed25519 -N '' -C terraform-mirror -f mirror_key`, add
-`mirror_key.pub` to the mirror (Settings › Deploy keys, Allow write access), save `mirror_key` as the secret, and
-delete both files.
+is a copy of this folder, made by the `terraform-mirror` job of `.github/workflows/release.yml` on each app release and
+never edited by hand. Its README is `deploy/terraform-mirror/README.md` (the registry page), not this file.
 
-`Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts. The module reads a
-file inside its own folder (`file("${path.module}/Caddyfile")`), so it works from the monorepo's Git source too, and the
-sync copies the file dereferenced, so the mirror holds a real one. To try the script, pass a local bare repository as the
-remote, then run `terraform init -backend=false` and `terraform test` in a clone of it.
+`Caddyfile` here is a symlink to `../Caddyfile`, the one file the Docker Compose overlay also mounts: the module reads a
+file in its own folder, which works from the monorepo's Git source, and the job's `rsync -L` gives the mirror a real file.
+
+Setting it up once (or rotating the key):
+
+1. The mirror needs one commit before the first release (`actions/checkout` can't check out an empty repository); the
+   first release replaces it.
+2. A deploy key: `ssh-keygen -t ed25519 -N '' -C terraform-mirror -f mirror_key`. Add `mirror_key.pub` to the mirror
+   (Settings › Deploy keys, Allow write access), save `mirror_key` as the `TERRAFORM_MIRROR_DEPLOY_KEY` Actions secret
+   here, and delete both files. Without the secret the job only prints a notice.
+3. Publish the mirror once at [registry.terraform.io](https://registry.terraform.io) (sign in with GitHub, Publish ›
+   Module, `cir-ci/terraform-docker-circi`); the registry then picks up every new `v*` tag.

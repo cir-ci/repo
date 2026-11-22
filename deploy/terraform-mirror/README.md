@@ -10,9 +10,9 @@ provider "docker" {
 
 module "circi" {
   source  = "cir-ci/circi/docker"
-  version = "{{version}}" # the CirCI release; also set circi_version to it
+  version = "X.Y.Z" # a CirCI release
 
-  circi_version      = "{{version}}"
+  circi_version      = "X.Y.Z" # the same release: the image the module runs
   better_auth_secret = var.better_auth_secret # openssl rand -base64 32; keep it stable
   postgres_password  = var.postgres_password
 }

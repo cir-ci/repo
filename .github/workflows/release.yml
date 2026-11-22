@@ -55,6 +55,8 @@ jobs:
   image:
     needs: release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write # push to ghcr.io with the job's GITHUB_TOKEN
@@ -109,37 +111,50 @@ jobs:
           cache-from: type=gha,scope=caddy
           cache-to: type=gha,scope=caddy,mode=max
 
-  # The Terraform module on the Terraform Registry (cir-ci/circi/docker): the registry needs a repository of its own with
-  # the module at its root and `vX.Y.Z` tags, so each app version is mirrored to cir-ci/terraform-docker-circi after its
-  # image is up (scripts/sync-terraform-mirror.sh; a version already tagged there is skipped). Pushes over SSH
-  # with the TERRAFORM_MIRROR_DEPLOY_KEY secret, the private key of a deploy key with write access on the mirror; without
-  # it the job only says so.
+  # The Terraform module on the Terraform Registry (cir-ci/circi/docker), which needs a repository of its own with the
+  # module at its root and `vX.Y.Z` tags: each app version is copied to cir-ci/terraform-docker-circi once its image is
+  # up (the module runs that image). A version already tagged there is skipped, so a rerun repairs a failed push.
+  # Pushes with a deploy key of the mirror (TERRAFORM_MIRROR_DEPLOY_KEY); without it the job only says so.
   terraform-mirror:
     needs: image
+    if: needs.image.outputs.version != '0.0.0'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
-      # The private half of a deploy key with write access on the mirror (cir-ci/terraform-docker-circi): it can
-      # push to that one repository and nothing else, and isn't tied to anyone's account.
-      MIRROR_DEPLOY_KEY: ${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY }}
+      VERSION: ${{ needs.image.outputs.version }}
     steps:
-      - if: env.MIRROR_DEPLOY_KEY == ''
-        run: echo "::notice::TERRAFORM_MIRROR_DEPLOY_KEY is not set, so the Terraform module was not mirrored to the registry's repository."
-      - if: env.MIRROR_DEPLOY_KEY != ''
-        uses: actions/checkout@v7
-      - if: env.MIRROR_DEPLOY_KEY != ''
+      - id: key
         run: |
-          version=$(node -p "require('./apps/server/package.json').version")
-          if [ "$version" = 0.0.0 ]; then
-            echo "Version 0.0.0 has never been released; nothing to mirror."
+          if [ "${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY != '' }}" = true ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::TERRAFORM_MIRROR_DEPLOY_KEY is not set, so the Terraform module was not mirrored."
+          fi
+      - if: steps.key.outputs.set
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - if: steps.key.outputs.set
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/terraform-docker-circi
+          ssh-key: ${{ secrets.TERRAFORM_MIRROR_DEPLOY_KEY }}
+          path: mirror
+          fetch-tags: true
+      - if: steps.key.outputs.set
+        working-directory: mirror
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            echo "The mirror already has v$VERSION."
             exit 0
           fi
-          # The key in a file only this job reads, and github.com's host keys from GitHub's own API, so ssh
-          # refuses any other host.
-          ssh_dir=$(mktemp -d)
-          install -m 600 /dev/null "$ssh_dir/key"
-          printf '%s\n' "$MIRROR_DEPLOY_KEY" > "$ssh_dir/key"
-          curl -fsSL https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com \(.)"' > "$ssh_dir/known_hosts"
-          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes"
-          scripts/sync-terraform-mirror.sh "$version" "git@github.com:${GITHUB_REPOSITORY_OWNER}/terraform-docker-circi.git"
+          # Every file of the module (the Caddyfile symlink becomes the file), and the registry page's README instead of
+          # the module's README, which is about the code.
+          rsync -aL --delete --exclude=.git --exclude=README.md ../deploy/terraform/ ./
+          cp ../deploy/terraform-mirror/README.md README.md
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}@${{ github.sha }}."
+          git tag "v$VERSION"
+          git push --quiet origin HEAD:main "v$VERSION"
