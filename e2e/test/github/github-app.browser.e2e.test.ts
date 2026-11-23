@@ -299,7 +299,9 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(await attention()).toBeNull()
     await page.goto(projectUrl)
     await page.getByRole('heading', { name: 'Builds' }).waitFor()
-    expect(await page.getByText(/can.t reach GitHub for this project/).count()).toBe(0)
+    // The page may first draw the project from the browser's stored cache (taken while the banner
+    // was up), then refetch it: wait for the banner to go rather than counting at the first paint.
+    await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
   })
 
   it('tokens and the private key never reach the logs', async () => {
