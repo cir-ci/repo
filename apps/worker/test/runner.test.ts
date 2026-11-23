@@ -38,6 +38,8 @@ async function enqueueProbe(queue = 'process-build', runAt?: Date) {
   return rows.at(-1)!.id
 }
 
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const attemptsOf = async (id: number) =>
   (await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, id)))[0]?.attempts
 
@@ -211,6 +213,35 @@ describe('worker wake-up by NOTIFY', () => {
       notify?.('process-build')
       expect(await untilClaimed(id, 1_000)).toBeGreaterThanOrEqual(0)
     } finally {
+      await worker.stop()
+    }
+  })
+
+  it('wakes when the listener first connects, for a job whose notification came before it listened', async () => {
+    let connected: (() => void) | undefined
+    const slow: ListenFn = async () => {
+      await new Promise<void>((resolve) => {
+        connected = resolve
+      })
+      return async () => {}
+    }
+    const worker = await startWorker({
+      db: t.db,
+      storage,
+      logger: silent,
+      pollIntervalMs: 10_000,
+      listen: slow,
+    })
+    try {
+      // The lanes find nothing and sleep for the poll; this enqueue's NOTIFY reaches nobody.
+      await pause(200)
+      const id = await enqueueProbe()
+      await pause(100)
+      expect(await attemptsOf(id)).toBe(0)
+      connected?.()
+      expect(await untilClaimed(id, 1_000)).toBeGreaterThanOrEqual(0)
+    } finally {
+      connected?.() // stop() waits for the first connection
       await worker.stop()
     }
   })
