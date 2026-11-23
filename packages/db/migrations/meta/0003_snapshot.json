@@ -1,5 +1,5 @@
 {
-  "id": "4a2889ef-29f4-4899-9b62-3803a5b50c1f",
+  "id": "6209d291-a6c8-41a4-9f92-792dd12f6808",
   "prevId": "a643b3b8-4b0f-411a-a0c4-71fefdf044df",
   "version": "7",
   "dialect": "postgresql",
@@ -1083,6 +1083,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'missing'"
+        },
+        "history_source": {
+          "name": "history_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'cli'"
         },
         "baseline_source": {
           "name": "baseline_source",

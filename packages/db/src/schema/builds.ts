@@ -51,6 +51,11 @@ export const builds = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     ancestryStatus: text('ancestry_status').$type<AncestryStatus>().notNull().default('missing'),
+    /**
+     * No longer read or written. Kept for one release because the previous release still inserts
+     * it, so a rolling deploy stays safe; drop it in a later migration.
+     */
+    historySource: text('history_source').notNull().default('cli'),
     baselineSource: text('baseline_source').$type<BaselineSource>(),
     baseBuildId: uuid('base_build_id').references((): AnyPgColumn => builds.id, {
       onDelete: 'set null',
