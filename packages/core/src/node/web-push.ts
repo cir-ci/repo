@@ -23,21 +23,34 @@ export interface VapidKeys {
 
 const b64 = (buf: Buffer | Uint8Array) => Buffer.from(buf).toString('base64url')
 
+/**
+ * The private scalar as its fixed 32 bytes. Node's `getPrivateKey()` drops leading zero bytes, so
+ * about 1 key in 256 comes out shorter; a JWK's `d` must be the full 32.
+ */
+function privateScalar(bytes: Buffer): Buffer {
+  return bytes.length < 32 ? Buffer.concat([Buffer.alloc(32 - bytes.length), bytes]) : bytes
+}
+
 export function generateVapidKeys(): VapidKeys {
   const ecdh = createECDH('prime256v1')
   ecdh.generateKeys()
-  return { publicKey: b64(ecdh.getPublicKey()), privateKey: b64(ecdh.getPrivateKey()) }
+  return {
+    publicKey: b64(ecdh.getPublicKey()),
+    privateKey: b64(privateScalar(ecdh.getPrivateKey())),
+  }
 }
 
-/** Whether a key pair is usable: a 65-byte public point and a 32-byte private scalar that belong together. */
+/**
+ * Whether a key pair is usable: a 65-byte public point and a private scalar of at most 32 bytes
+ * (a shorter one had its leading zeros dropped) that belong together.
+ */
 export function isValidVapidKeys(keys: VapidKeys): boolean {
   try {
     const ecdh = createECDH('prime256v1')
     const priv = Buffer.from(keys.privateKey, 'base64url')
-    ecdh.setPrivateKey(priv)
-    return (
-      priv.length === 32 && ecdh.getPublicKey().equals(Buffer.from(keys.publicKey, 'base64url'))
-    )
+    if (priv.length === 0 || priv.length > 32) return false
+    ecdh.setPrivateKey(privateScalar(priv))
+    return ecdh.getPublicKey().equals(Buffer.from(keys.publicKey, 'base64url'))
   } catch {
     return false
   }
@@ -64,7 +77,7 @@ export function vapidAuthorization(input: {
       crv: 'P-256',
       x: b64(publicBytes.subarray(1, 33)),
       y: b64(publicBytes.subarray(33, 65)),
-      d: keys.privateKey,
+      d: b64(privateScalar(Buffer.from(keys.privateKey, 'base64url'))),
     },
     format: 'jwk',
   })
