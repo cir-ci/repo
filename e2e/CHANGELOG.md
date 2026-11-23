@@ -1,5 +1,11 @@
 # @circi/e2e
 
+## 0.0.2
+
+### Patch Changes
+
+- [#49](https://github.com/cir-ci/repo/pull/49) [`ac0f3fe`](https://github.com/cir-ci/repo/commit/ac0f3feef038a27e98e40274571c9f9dbd068483) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The GitHub App end-to-end test now waits for the "can't reach GitHub" banner to leave the project page, instead of counting it at the first paint, when the page is still drawn from the browser's stored copy of the project.
+
 ## 0.0.1
 
 ### Patch Changes
