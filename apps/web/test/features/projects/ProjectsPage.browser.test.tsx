@@ -226,9 +226,6 @@ describe('ProjectsPage', () => {
       body: 'A project is one app or library whose screenshots your CI uploads.',
       centred: true,
     })
-    // The Argos hint is a footnote below the state, not a second action.
-    await expect.element(page.getByText(/Already uploading with Argos\?/)).toBeVisible()
-    await expect.element(page.getByText(/ARGOS_API_BASE_URL=/)).toBeVisible()
     await expect
       .poll(() => page.getByRole('button', { name: 'New project' }).elements().length)
       .toBe(1)

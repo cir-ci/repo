@@ -94,13 +94,8 @@ export async function processBuild(
   const baseBuild = resolution.via === 'none' ? undefined : resolution.build
   await setBuildBaseline(db, build.id, {
     baseBuildId: baseBuild?.id ?? null,
-    // The history came from our CLI or from an Argos SDK, whichever created the build.
     baselineSource:
-      resolution.via === 'ancestry'
-        ? build.historySource
-        : resolution.via === 'fallback'
-          ? 'fallback'
-          : 'none',
+      resolution.via === 'ancestry' ? 'cli' : resolution.via === 'fallback' ? 'fallback' : 'none',
   })
 
   // 2. Pair by name.

@@ -1,15 +1,13 @@
-import { ValidationError } from '@circi/core'
 import { type Build, type Database } from '@circi/db'
 import { getFile, getProjectBuild } from '@circi/db/queries'
-import { markFileVerified, setParallelTotal } from '@circi/db/repositories'
+import { markFileVerified } from '@circi/db/repositories'
 import type { StorageDriver } from '@circi/storage'
 
 import { finalizeBuild } from '#src/builds/lifecycle.ts'
 
 /**
  * A shard (or a chunk of one) of a project's build reports its screenshots. The one entry for
- * every upload route: it looks the build up in the project, optionally corrects the parallel total
- * and confirms directly-uploaded files, then hands the shard to `finalizeBuild`, which owns the
+ * every upload route: it looks the build up in the project, confirms directly-uploaded files, then hands the shard to `finalizeBuild`, which owns the
  * build's state change.
  */
 export async function finalizeProjectBuild(
@@ -24,15 +22,6 @@ export async function finalizeProjectBuild(
     await verifyStoredObjects(db, input.verifyIn, [
       ...new Set(input.shard.screenshots.map((s) => s.sha256)),
     ])
-  }
-  const total = input.parallelTotal
-  if (total !== undefined) {
-    if (total < 1) {
-      throw new ValidationError(
-        "Parallel builds that are finalized manually (parallelTotal -1) aren't supported: pass the total number of shards",
-      )
-    }
-    await db.transaction((tx) => setParallelTotal(tx, build.id, total))
   }
   const result = await finalizeBuild(db, { buildId: build.id, ...input.shard })
   if (result.status === 'missing') return { status: 'missing', missing: result.missing }
@@ -51,8 +40,6 @@ export namespace finalizeProjectBuild {
     buildId: string
     /** The shard, as `finalizeBuild` takes it. */
     shard: Omit<Parameters<typeof finalizeBuild>[1], 'buildId'>
-    /** Argos SDKs learn the number of shards late: corrects it before the shard is applied. */
-    parallelTotal?: number | undefined
     /** With storage that takes uploads directly (S3): check each pending object's checksum. */
     verifyIn?: StorageDriver | undefined
   }

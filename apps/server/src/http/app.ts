@@ -3,7 +3,6 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 import { VERSION } from '../version.ts'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import type { Deps } from './lib/deps.ts'
-import { argosRoutes } from './routes/argos/routes.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { healthRoutes } from './routes/health.ts'
 import { integrationWebhookRoutes } from './routes/integration-webhook.ts'
@@ -48,7 +47,6 @@ export namespace buildServer {
  *   /healthz    /readyz          no auth
  *   /internal/…  reverse proxy checks (Caddy's TLS ask), only with static site hosting
  *   /v1/…       CI API           project token
- *   /v2/…       Argos-compatible CI API   project token
  *   /webhooks/:kind   git hosts    signature or token (also /api/integrations/:kind/webhook)
  *   /api/auth/… sign-in          public (better-auth)
  *   /api/…      dashboard API    session cookie
@@ -99,12 +97,6 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
   if (options.tlsAsk) void app.register(internalRoutes, options.tlsAsk)
   const { api } = options
   if (api) {
-    void app.register(
-      async (scope) => {
-        await scope.register(argosRoutes, api)
-      },
-      { prefix: '/v2' },
-    )
     void app.register(
       async (scope) => {
         await scope.register(v1Routes, api)

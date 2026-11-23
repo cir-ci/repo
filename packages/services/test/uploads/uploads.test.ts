@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { Readable } from 'node:stream'
 
-import { getFile, getProjectBuild } from '@circi/db/queries'
+import { getFile } from '@circi/db/queries'
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { ChecksumMismatchError, FsStorage } from '@circi/storage'
 import { useTempDir } from '@circi/testing'
@@ -156,25 +156,6 @@ describe('finalizeProjectBuild', () => {
     expect(res).toMatchObject({ status: 'ok', complete: true, shardsTotal: 1 })
     if (res.status !== 'ok') return
     expect(res.build.status).toBe('processing')
-  })
-
-  it('refuses a manual-finalization total and applies a real one', async () => {
-    const { project } = await seedProject(t.db)
-    const { build } = await startBuildUpload(t.db, {
-      build: { projectId: project.id, commitSha: 'abc1234', parallel: { nonce: 'n', total: 8 } },
-      files: [],
-      storageKeyFor: (s) => s,
-    })
-    const input = {
-      projectId: project.id,
-      buildId: build.id,
-      shard: { screenshots: [], hold: true },
-    }
-    await expect(finalizeProjectBuild(t.db, { ...input, parallelTotal: -1 })).rejects.toThrow(
-      /aren't supported/,
-    )
-    await finalizeProjectBuild(t.db, { ...input, parallelTotal: 3 })
-    expect((await getProjectBuild(t.db, project.id, build.id))?.parallelTotal).toBe(3)
   })
 })
 

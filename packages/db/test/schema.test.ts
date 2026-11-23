@@ -40,7 +40,6 @@ describe('migrations', () => {
       'build_shards',
       'builds',
       'comments',
-      'commit_ancestry',
       'email_code_requests',
       'expired_site_hostnames',
       'files',

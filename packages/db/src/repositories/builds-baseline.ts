@@ -1,4 +1,3 @@
-import { resolveBaseline } from '@circi/core'
 import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm'
 
 import { type BaselineSource, builds, projects, snapshotReviews } from '#schema/index.ts'
@@ -92,28 +91,4 @@ export async function setBuildBaseline(
   },
 ): Promise<void> {
   await db.update(builds).set(baseline).where(eq(builds.id, buildId))
-}
-
-/**
- * The baseline an Argos SDK asks for: the newest eligible build of this project and build name
- * on one of `commits` (nearest first), if any.
- */
-export async function findBaselineByCommits(
-  db: Database,
-  input: { projectId: string; name: string; commits: string[] },
-): Promise<{ id: string; commitSha: string; branch: string | null } | undefined> {
-  const candidates = await listBaselineCandidates(db, {
-    projectId: input.projectId,
-    name: input.name,
-    ancestorShas: input.commits,
-  })
-  const project = await db
-    .select({ defaultBranch: projects.defaultBranch })
-    .from(projects)
-    .where(eq(projects.id, input.projectId))
-  const resolved = resolveBaseline(
-    { ancestorShas: input.commits, defaultBranch: project[0]?.defaultBranch ?? 'main' },
-    candidates,
-  )
-  return resolved.via === 'none' ? undefined : resolved.build
 }

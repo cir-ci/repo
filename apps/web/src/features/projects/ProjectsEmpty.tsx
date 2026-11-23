@@ -1,14 +1,11 @@
-import { BuildingIcon, Button, EmptyState, LayersIcon, Ref, Text } from '@circi/ui'
+import { BuildingIcon, Button, EmptyState, LayersIcon } from '@circi/ui'
 
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
-import styles from './ProjectsEmpty.module.css'
-
 /**
  * The Projects page with no project yet (the canvas's "Empty states · Projects" board): one empty state
- * for what the person can do about it. Owners and admins create the first project, and, for people
- * coming from Argos, a footnote gives the one variable that points the Argos SDK at this server.
- * Everyone else is told whom to ask, with no button.
+ * for what the person can do about it. Owners and admins create the first project (the button is in
+ * the page header). Everyone else is told whom to ask, with no button.
  */
 export function ProjectsEmpty({
   canCreateProject,
@@ -19,21 +16,9 @@ export function ProjectsEmpty({
 
   if (canCreateProject) {
     return (
-      <div className={styles.root}>
-        <EmptyState icon={<LayersIcon />} title="Create your first project" className={styles.top}>
-          A project is one app or library whose screenshots your CI uploads.
-        </EmptyState>
-        <div className={styles.argos}>
-          <Text as="p" variant="small" tone="secondary">
-            Already uploading with Argos? Point the Argos SDK at this server:
-          </Text>
-          <Ref
-            value={`ARGOS_API_BASE_URL=${location.origin}/v2`}
-            label="Argos address"
-            className={styles.code}
-          />
-        </div>
-      </div>
+      <EmptyState icon={<LayersIcon />} title="Create your first project">
+        A project is one app or library whose screenshots your CI uploads.
+      </EmptyState>
     )
   }
 

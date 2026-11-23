@@ -64,9 +64,6 @@ export namespace Deps {
     originFor(label: string): string
   }
 
-  /** What the Argos-compatible API (`/v2`) needs: the same as the CI API. */
-  export type V2 = Deps.V1
-
   /** What the dashboard (sign-in, `/api` and the web app) needs. */
   export interface Dashboard extends Deps.Base {
     /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */
