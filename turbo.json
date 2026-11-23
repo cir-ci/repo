@@ -9,6 +9,12 @@
     "tsdown.shared.ts"
   ],
   "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": [
+    "CI",
+    "CIRCLE_BUILD_URL",
+    "FLAKINESS_ACCESS_TOKEN",
+    "FLAKINESS_DISABLE_UPLOAD"
+  ],
   "tasks": {
     "transit": {
       "dependsOn": ["^transit"]

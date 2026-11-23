@@ -132,6 +132,10 @@ describe('ListRow title, subtitle and action', () => {
       </>,
     )
     const hidden = page.getByText('Open ↗').element()
+    // The pointer stays where an earlier test in this file clicked, which can be on this first
+    // row, and Chromium decides whether that makes it hovered on a timer. Rest it on the selected
+    // row (its chip shows anyway) so this row starts not hovered.
+    await page.getByRole('button', { name: /Chosen/ }).hover()
     await expect.poll(() => getComputedStyle(hidden).display).toBe('none')
     await expect
       .poll(() => getComputedStyle(page.getByText('Go ↗').element()).display)

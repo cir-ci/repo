@@ -238,7 +238,10 @@ workflows:
   gate:
     unless: << pipeline.parameters.nightly >>
     jobs:
-      - gate
+      # The Flakiness context holds FLAKINESS_ACCESS_TOKEN, with which the test runs upload their
+      # reports to Flakiness.io (vitest.config.ts).
+      - gate:
+          context: Flakiness
       - terraform
       - helm
       - changeset:
@@ -256,5 +259,7 @@ workflows:
         - << pipeline.parameters.nightly >>
         - equal: [main, << pipeline.git.branch >>]
     jobs:
-      - e2e
-      - compose-smoke
+      - e2e:
+          context: Flakiness
+      - compose-smoke:
+          context: Flakiness

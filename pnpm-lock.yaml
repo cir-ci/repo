@@ -257,6 +257,9 @@ catalogs:
     '@fastify/static':
       specifier: 10.1.11
       version: 10.1.11
+    '@flakiness/vitest':
+      specifier: 1.12.0
+      version: 1.12.0
     '@fontsource-variable/inter':
       specifier: 5.3.0
       version: 5.3.0
@@ -433,6 +436,9 @@ importers:
       '@circi/vitest':
         specifier: 'catalog:'
         version: link:packages/vitest
+      '@flakiness/vitest':
+        specifier: 'catalog:'
+        version: 1.12.0
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
@@ -2091,6 +2097,10 @@ packages:
 
   '@fastify/static@10.1.11':
     resolution: {integrity: sha512-WjEpDqkzOziIipghh4ki3ZNfLCmI1kRWlYKar3+9FiuY2LzoeogKiDqxIH68r6vYUSxvUzyEiV1BOP0yfW+glQ==}
+
+  '@flakiness/vitest@1.12.0':
+    resolution: {integrity: sha512-EK62OOfDNwBzAToRODUAZwbubJdvxnntHj4PokwvKVTvbypDgZs/4RQiQGshGnKZ2hpC9luIvQ/73/GOvWMb+w==}
+    engines: {node: ^20.17.0 || >=22.9.0}
 
   '@floating-ui/core@1.8.0':
     resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
@@ -7003,6 +7013,8 @@ snapshots:
       fastify-plugin: 6.0.1
       fastq: 1.20.3
       glob: 14.0.6
+
+  '@flakiness/vitest@1.12.0': {}
 
   '@floating-ui/core@1.8.0':
     dependencies:

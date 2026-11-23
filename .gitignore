@@ -38,3 +38,6 @@ packages/cypress/test/fixtures/.run-*/
 
 # copies of packages/storybook/test/fixtures/basic made by its integration test
 packages/storybook/test/fixtures/.run-*/
+
+# Flakiness.io reports, written by the test runs on CI (vitest.config.ts)
+flakiness-report/
