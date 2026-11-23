@@ -56,8 +56,13 @@ jobs:
           NPM_CONFIG_PROVENANCE: 'true'
 
   # The app's images, once per version: ghcr.io/<owner>/circi:<version> (also :<major>.<minor> and :latest) and the
-  # matching Caddy image. A push whose version already has an image (any merge that isn't a release) does nothing.
-  image:
+  # matching Caddy image, each for linux/amd64 and linux/arm64. A push whose version already has an image (any merge
+  # that isn't a release) does nothing. Three jobs: `image-version` decides, `image-build` builds each platform on a
+  # native runner of that architecture (no QEMU: the Rust diff and the pnpm install would take many times longer
+  # emulated) and pushes it by digest, without a tag, and `image` joins the digests into the tagged multi-platform
+  # images. Only that last step tags, so a version's tag appears once, with both platforms, or not at all; a failed
+  # run leaves untagged digests, and a rerun builds again.
+  image-version:
     needs: release
     runs-on: ubuntu-latest
     outputs:
@@ -65,7 +70,7 @@ jobs:
       publish: ${{ steps.version.outputs.publish }}
     permissions:
       contents: read
-      packages: write # push to ghcr.io with the job's GITHUB_TOKEN
+      packages: read # docker manifest inspect on ghcr.io
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/circi
     steps:
@@ -85,37 +90,127 @@ jobs:
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-      - if: steps.version.outputs.publish == 'true'
+
+  image-build:
+    needs: image-version
+    if: needs.image-version.outputs.publish == 'true'
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm # GitHub's arm64 runner, free for public repositories
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io with the job's GITHUB_TOKEN
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/circi
+    steps:
+      - id: platform
+        run: echo "pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v4
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+      - id: app
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=circi-${{ steps.platform.outputs.pair }}
+          cache-to: type=gha,scope=circi-${{ steps.platform.outputs.pair }},mode=max
+      - id: caddy
+        uses: docker/build-push-action@v7
+        with:
+          context: deploy/caddy
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }}-caddy,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=caddy-${{ steps.platform.outputs.pair }}
+          cache-to: type=gha,scope=caddy-${{ steps.platform.outputs.pair }},mode=max
+      # One empty file per digest, named by it; the `image` job reads the names back.
+      - run: |
+          mkdir -p digests/app digests/caddy
+          touch "digests/app/${APP#sha256:}" "digests/caddy/${CADDY#sha256:}"
+        env:
+          APP: ${{ steps.app.outputs.digest }}
+          CADDY: ${{ steps.caddy.outputs.digest }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ steps.platform.outputs.pair }}
+          path: digests
+          if-no-files-found: error
+          retention-days: 1
+
+  # Always runs once `image-version` has (so the jobs below get the version even when nothing is published), and tags
+  # only when `image-build` published both platforms.
+  image:
+    needs: [image-version, image-build]
+    if: ${{ !cancelled() && needs.image-version.result == 'success' && needs.image-build.result != 'failure' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ needs.image-version.outputs.version }}
+      publish: ${{ needs.image-version.outputs.publish }}
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io with the job's GITHUB_TOKEN
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/circi
+      VERSION: ${{ needs.image-version.outputs.version }}
+    steps:
+      - if: needs.image-version.outputs.publish == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: digests-*
+          path: digests
+          merge-multiple: true
+      - if: needs.image-version.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - if: needs.image-version.outputs.publish == 'true'
         uses: docker/setup-buildx-action@v4
-      - if: steps.version.outputs.publish == 'true'
+      - if: needs.image-version.outputs.publish == 'true'
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.VERSION }}
             type=raw,value=latest
-      - if: steps.version.outputs.publish == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: deploy/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=circi
-          cache-to: type=gha,scope=circi,mode=max
-      - if: steps.version.outputs.publish == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: deploy/caddy
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.IMAGE }}-caddy:${{ steps.version.outputs.version }}
-          cache-from: type=gha,scope=caddy
-          cache-to: type=gha,scope=caddy,mode=max
+      # The version's tag goes last, after `latest` and `<major>.<minor>`: `image-version` checks it to decide whether
+      # a version is published, so it must not exist until every other tag does.
+      - if: needs.image-version.outputs.publish == 'true'
+        run: |
+          app=() caddy=()
+          for f in digests/app/*; do app+=("$IMAGE@sha256:$(basename "$f")"); done
+          for f in digests/caddy/*; do caddy+=("$IMAGE-caddy@sha256:$(basename "$f")"); done
+          if [ "${#app[@]}" -ne 2 ] || [ "${#caddy[@]}" -ne 2 ]; then
+            echo "Expected one digest per platform (2) of each image, got ${#app[@]} and ${#caddy[@]}."
+            exit 1
+          fi
+          jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON" | grep -v ":$VERSION\$" | while read -r tag; do
+            docker buildx imagetools create -t "$tag" "${app[@]}"
+          done
+          docker buildx imagetools create -t "$IMAGE-caddy:$VERSION" "${caddy[@]}"
+          docker buildx imagetools create -t "$IMAGE:$VERSION" "${app[@]}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
 
   # The Helm chart (deploy/helm/circi) as an OCI chart, once per version, when the image job has just published that
   # version: the chart runs that image (its appVersion is the app's version, which `pnpm version-packages` keeps in
