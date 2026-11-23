@@ -1,0 +1,38 @@
+# Every pull request (and every push to main) publishes its npm packages to pkg.pr.new, so a change
+# can be tried before it's released: the pkg-pr-new app comments install commands on the pull request
+# (`npm i https://pkg.pr.new/@circi/cli@<sha>`). These are previews only; releases are release.yml.
+#
+# Needs the pkg-pr-new GitHub App installed on the repository (https://github.com/apps/pkg-pr-new),
+# and nothing else: it checks the workflow run with GitHub, so there's no secret, and pull requests
+# from forks work too. It has to run on GitHub Actions, not CircleCI, for that check.
+name: Preview packages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # reads the pnpm version from package.json's packageManager
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json # devEngines.runtime
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The published packages, as `pnpm release` builds them.
+      - run: pnpm turbo run build --filter=@circi/cli --filter=@circi/vitest --filter=@circi/storybook --filter=@circi/cypress
+      # --pnpm packs with pnpm, so `workspace:` and `catalog:` versions become real ones.
+      - run: >-
+          pnpm dlx pkg-pr-new@0.0.93 publish --pnpm
+          './packages/cli' './packages/vitest' './packages/storybook' './packages/cypress'

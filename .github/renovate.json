@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Dependency updates. Every npm version lives in pnpm-workspace.yaml's catalog (catalogMode: strict), which Renovate updates in place; it also keeps Docker images, GitHub Actions, CircleCI orbs and images, Terraform providers, the Helm chart's images and the Rust crate's dependencies current.",
+  "extends": ["config:recommended"],
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "One pull request a week for everything that isn't a major update.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "minor and patch updates"
+    },
+    {
+      "description": "Vitest and its packages move together: the browser provider and coverage must match the runner.",
+      "matchPackageNames": ["vitest", "@vitest/**"],
+      "groupName": "Vitest"
+    },
+    {
+      "description": "better-auth's packages are released together and must match.",
+      "matchPackageNames": ["better-auth", "@better-auth/**"],
+      "groupName": "better-auth"
+    },
+    {
+      "description": "The AWS SDK's clients are released together.",
+      "matchPackageNames": ["@aws-sdk/**"],
+      "groupName": "AWS SDK"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  }
+}
