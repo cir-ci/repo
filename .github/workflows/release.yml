@@ -13,8 +13,8 @@
 # The `helm-chart` job publishes deploy/helm/circi as oci://ghcr.io/<owner>/charts/circi:<version> next to the image.
 # The `docs` job asks cir-ci/documentation to rebuild circi.dev after a release, so its changelog is current.
 #
-# Needs: the NPM_TOKEN Actions secret, and Settings > Actions > General > "Allow GitHub Actions to create and
-# approve pull requests".
+# Needs: the NPM_TOKEN Actions secret, the CIRCI_APP_CLIENT_ID variable and CIRCI_APP_PRIVATE_KEY secret (the `docs`
+# job), and Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
 name: Release
 
 on:

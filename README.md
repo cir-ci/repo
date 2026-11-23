@@ -46,13 +46,13 @@ conventions. [Local development](https://circi.dev/contributing/local-developmen
 
 | Folder | |
 | --- | --- |
-| `apps/server` | The HTTP server and the admin CLI (`circi`), bundled into the image |
-| `apps/worker` | The job runner (builds, notifications, webhooks); the server bundle inlines it |
-| `apps/web` | The dashboard (React, Vite) |
-| `packages/` | `core` (rules, no I/O), `services` (use cases), `db` (Drizzle schema, queries, queue), `config`, `auth`, `api` (wire types), `diff`, `storage`, `sites`, [`integrations`](packages/integrations/README.md), `ui` (the design system, with [its visual tests](packages/ui/visual/README.md)), `testing` |
-| `packages/cli`, `packages/vitest` | The npm packages: [`@circi/cli`](packages/cli/README.md) and [`@circi/vitest`](packages/vitest/README.md) |
+| [`apps/server`](apps/server) | The HTTP server and the admin CLI (`circi`), bundled into the image |
+| [`apps/worker`](apps/worker) | The job runner (builds, notifications, webhooks); the server bundle inlines it |
+| [`apps/web`](apps/web) | The dashboard (React, Vite) |
+| [`packages/`](packages) | [`core`](packages/core) (rules, no I/O), [`services`](packages/services) (use cases), [`db`](packages/db) (Drizzle schema, queries, queue), [`config`](packages/config), [`auth`](packages/auth), [`api`](packages/api) (wire types), [`diff`](packages/diff), [`storage`](packages/storage), [`sites`](packages/sites), [`integrations`](packages/integrations/README.md), [`ui`](packages/ui) (the design system, with [its visual tests](packages/ui/visual/README.md)), [`testing`](packages/testing) |
+| [`packages/cli`](packages/cli/README.md), [`packages/vitest`](packages/vitest/README.md), [`packages/storybook`](packages/storybook/README.md), [`packages/cypress`](packages/cypress/README.md) | The npm packages: `@circi/cli`, `@circi/vitest`, `@circi/storybook` and `@circi/cypress` |
 | [`deploy/`](deploy/README.md) | The image, the Compose files, Caddy and [the Terraform module](deploy/terraform/README.md) |
-| `dev/` | `pnpm dev`, the local environment and its seed |
+| [`dev/`](dev) | `pnpm dev`, the local environment and its seed |
 | [`e2e/`](e2e/README.md) | End-to-end tests against the real Docker stack |
 | [`perf/`](perf/README.md) | The k6 load tests and the diff benchmark |
 
