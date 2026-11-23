@@ -55,6 +55,11 @@ function screenshot(
   const name = typeof first === 'string' ? first : undefined
   const given: Options = (isOptions(first) ? first : isOptions(second) ? second : undefined) ?? {}
   const chained = subjectElement(subject)
+  // The real `cy.screenshot` runs inside the last `.then()`, so that step gets the screenshot's own
+  // limit (its `timeout`, else `responseTimeout`) rather than `.then()`'s 4 s: a full-page capture of
+  // a tall page is several captures stitched together, which took longer than 4 s on CI.
+  const own: unknown = Reflect.get(given, 'timeout')
+  const timeout = typeof own === 'number' ? own : Cypress.config('responseTimeout')
 
   return cy
     .window({ log: false })
@@ -75,7 +80,7 @@ function screenshot(
         target: plan.element ? Cypress.$(plan.element) : undefined,
       }
     })
-    .then(({ win, options, target }) => {
+    .then({ timeout }, ({ win, options, target }) => {
       const merged: Options = {
         ...given,
         ...options,

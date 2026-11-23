@@ -2,4 +2,4 @@
 '@circi/cypress': patch
 ---
 
-A screenshot no longer hangs when the browser doesn't paint the page for a while, as can happen on a busy CI machine: the wait for animation frames before each capture gives up on a frame after 100 ms.
+A full-page screenshot of a tall page no longer times out after 4 seconds on a slow machine: the capture gets the screenshot's own time limit (its `timeout` option, or Cypress's `responseTimeout`).
