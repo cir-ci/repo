@@ -1,4 +1,5 @@
-import sharp, { type Metadata } from 'sharp'
+import type sharpModule from 'sharp'
+import type { Metadata } from 'sharp'
 
 import { comparePixels, type DiffEngine } from '#src/engine.ts'
 
@@ -17,6 +18,12 @@ export {
 
 /** Refuse decompression bombs: 100 megapixels is far beyond any real screenshot. */
 const MAX_INPUT_PIXELS = 100_000_000
+
+// sharp is loaded on first use, not on import: its native module costs ~350 ms to load, and most of
+// what imports this package (every service, through the build pipeline) never touches an image.
+let loading: Promise<typeof sharpModule> | undefined
+const loadSharp = (): Promise<typeof sharpModule> =>
+  (loading ??= import('sharp').then((m) => m.default))
 
 export class InvalidImageError extends Error {
   /** What was wrong, in plain words for a person ("not a PNG", "the file is truncated"). */
@@ -59,6 +66,7 @@ export namespace readPngInfo {
 
 /** Checks the bytes really are a PNG (whatever the client claimed) and reads its size. */
 export async function readPngInfo(png: Buffer): Promise<readPngInfo.Info> {
+  const sharp = await loadSharp()
   let meta: Metadata
   try {
     meta = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()
@@ -172,6 +180,7 @@ export async function diffImages(
   headPng: Buffer,
   options: diffImages.Options = {},
 ): Promise<diffImages.Result> {
+  const sharp = await loadSharp()
   const [base, head] = await Promise.all([readPngInfo(basePng), readPngInfo(headPng)])
   const width = Math.max(base.width, head.width)
   const height = Math.max(base.height, head.height)
@@ -238,6 +247,7 @@ async function toRgbaCanvas(
   width: number,
   height: number,
 ): Promise<Uint8Array> {
+  const sharp = await loadSharp()
   let data: Buffer
   try {
     data = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS })
@@ -268,6 +278,7 @@ const THUMB_MAX_HEIGHT = 720
 
 /** List thumbnail: the top of the screenshot, at most 480×720, as WebP. */
 export async function makeThumbnail(png: Buffer): Promise<makeThumbnail.Result> {
+  const sharp = await loadSharp()
   const info = await readPngInfo(png)
   const scale = Math.min(1, THUMB_WIDTH / info.width)
   const scaledHeight = Math.max(1, Math.round(info.height * scale))
@@ -309,6 +320,7 @@ export async function makeWorkspacePicture(
   size: number,
   options: { minSide?: number } = {},
 ): Promise<makeWorkspacePicture.Result> {
+  const sharp = await loadSharp()
   let format: string | undefined
   let width: number | undefined
   let height: number | undefined
