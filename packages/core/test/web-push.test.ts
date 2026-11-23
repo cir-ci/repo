@@ -38,6 +38,32 @@ describe('web push crypto', () => {
     expect(isValidVapidKeys({ publicKey: 'x', privateKey: 'y' })).toBe(false)
   })
 
+  it('keeps a private key whose first byte is zero (about 1 in 256) at its 32 bytes, and uses one stored short', () => {
+    // Node's getPrivateKey() drops leading zero bytes: such a key once read as invalid, and the
+    // instance replaced its keys and dropped every device's subscription.
+    let ecdh = createECDH('prime256v1')
+    do {
+      ecdh = createECDH('prime256v1')
+      ecdh.generateKeys()
+    } while (ecdh.getPrivateKey().length === 32)
+    const short = {
+      publicKey: ecdh.getPublicKey().toString('base64url'),
+      privateKey: ecdh.getPrivateKey().toString('base64url'),
+    }
+    expect(isValidVapidKeys(short)).toBe(true)
+    const header = vapidAuthorization({
+      endpoint: 'https://push.example.com/send',
+      keys: short,
+      subject: 'mailto:ops@ci.acme.io',
+    })
+    expect(header).toMatch(
+      new RegExp(`^vapid t=[\\w-]+\\.[\\w-]+\\.[\\w-]+, k=${short.publicKey}$`),
+    )
+    for (let i = 0; i < 2000; i++) {
+      expect(Buffer.from(generateVapidKeys().privateKey, 'base64url')).toHaveLength(32)
+    }
+  })
+
   it('signs a VAPID token for the endpoint origin that the public key verifies', () => {
     const keys = generateVapidKeys()
     const now = new Date('2026-11-10T10:00:00Z')
