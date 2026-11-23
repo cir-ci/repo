@@ -9,7 +9,9 @@ const RECONNECT_MAX_MS = 30_000
 /**
  * Keeps a LISTEN on the jobs channel alive: every notification wakes the poll loops, and a
  * dropped connection is re-established with exponential backoff. Logs once per outage, then once
- * when it is back (a wake-up follows, since notifications sent meanwhile were missed).
+ * when it is back. Every connection, the first included, is followed by a wake-up: a notification
+ * sent before it was listening is missed, and a lane that already went to sleep for the whole poll
+ * would otherwise miss a job that came due sooner (a delayed enqueue while the worker starts).
  */
 export function startListening(
   listen: ListenFn,
@@ -40,8 +42,8 @@ export function startListening(
       if (outage) {
         outage = false
         logger.info('job notifications are back')
-        wake()
       }
+      wake()
     } catch (err) {
       lostConnection(err)
     }
