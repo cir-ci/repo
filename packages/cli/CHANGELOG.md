@@ -1,5 +1,11 @@
 # @circi/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#44](https://github.com/cir-ci/repo/pull/44) [`365fbaa`](https://github.com/cir-ci/repo/commit/365fbaa8e5857dc73cc2723504c0627377f7aa07) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Removed `circi argos-env`: the Argos SDKs never accepted CirCI tokens, so use `circi upload`, the Vitest plugin or the Cypress plugin instead.
+
 ## 0.2.1
 
 ### Patch Changes
