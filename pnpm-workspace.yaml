@@ -6,6 +6,8 @@ packages:
   - perf
 allowBuilds:
   esbuild: true
+  # Not run at install (it would download the Cypress binary, ~200 MB, for everyone): the Cypress test and CI run `cypress install`.
+  cypress: false
 minimumReleaseAgeExclude:
   - tsdown
   - '@tsdown/*'
@@ -28,6 +30,7 @@ catalog:
   '@circi/cli': workspace:*
   '@circi/config': workspace:*
   '@circi/core': workspace:*
+  '@circi/cypress': workspace:*
   '@circi/db': workspace:*
   '@circi/diff': workspace:*
   '@circi/integrations': workspace:*
@@ -65,6 +68,7 @@ catalog:
   better-auth: 1.7.25
   boring-avatars: 2.0.4
   commander: 15.1.0
+  cypress: 16.3.0
   drizzle-kit: 0.31.11
   drizzle-orm: 0.45.4
   fastify: 5.12.8

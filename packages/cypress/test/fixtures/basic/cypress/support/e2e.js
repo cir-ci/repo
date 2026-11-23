@@ -1,0 +1,1 @@
+import '@circi/cypress/support'

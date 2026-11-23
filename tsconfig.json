@@ -21,6 +21,7 @@
     "packages/cli/tsdown.config.ts",
     "packages/storybook/tsdown.config.ts",
     "packages/vitest/tsdown.config.ts",
+    "packages/cypress/tsdown.config.ts",
     "scripts/retry-reporter.ts",
     "vitest.config.ts"
   ],
@@ -28,6 +29,10 @@
     "apps/web",
     "packages/ui",
     "packages/vitest/test/fixtures",
+    "packages/cypress/src/support.ts",
+    "packages/cypress/src/page.ts",
+    "packages/cypress/test/types",
+    "packages/cypress/test/fixtures",
     "packages/storybook/test/fixtures"
   ]
 }

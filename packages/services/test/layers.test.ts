@@ -424,7 +424,7 @@ const RULES: Rule[] = [
         .map((f) => f.file)
         .filter(
           (f) =>
-            !/^packages\/(config|cli|testing|vitest|storybook)\//.test(f) &&
+            !/^packages\/(config|cli|testing|vitest|storybook|cypress)\//.test(f) &&
             !f.startsWith('packages/db/src/testing/') &&
             !f.startsWith('apps/server/src/cli/') &&
             !/(^|\/)main\.ts$/.test(f) &&

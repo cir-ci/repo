@@ -15,6 +15,7 @@ import RetryReporter from './scripts/retry-reporter.ts'
  *
  *   node         logic (`*.test.ts`), including the web app's render-free tests     `pnpm test:node`
  *   storybook    @circi/storybook's CLI against a real Storybook build (slow)       `pnpm test:storybook`
+ *   cypress      @circi/cypress over real Cypress in Electron (slow)                `pnpm test:cypress`
  *   deploy       the deploys (deploy/) against @circi/config's lists of settings     `pnpm test:deploy`
  *   ui           @circi/ui's components in headless Chromium                         `pnpm test:ui`
  *   web-browser  the dashboard's components in headless Chromium                     `pnpm test:web-browser`
@@ -96,6 +97,8 @@ function chromium(env?: Record<string, string>, reducedMotion = false) {
 const DEPLOY_SETTINGS_TEST = 'packages/config/test/deploy-settings.test.ts'
 // Builds a real Storybook and drives Chromium over it: a project of its own, so it doesn't slow the Node tests.
 const STORYBOOK_TEST = 'packages/storybook/test/**/*.integration.test.ts'
+// Runs real Cypress (Electron) over the built package: a project of its own for the same reason.
+const CYPRESS_TEST = 'packages/cypress/test/**/*.integration.test.ts'
 
 const node: TestProjectInlineConfiguration = {
   extends: true,
@@ -113,7 +116,7 @@ const node: TestProjectInlineConfiguration = {
       'e2e/test/fakes/**/*.test.ts',
     ],
     // Its own project (below), so a change to deploy/ reruns that one file, not every Node test.
-    exclude: [DEPLOY_SETTINGS_TEST, STORYBOOK_TEST],
+    exclude: [DEPLOY_SETTINGS_TEST, STORYBOOK_TEST, CYPRESS_TEST],
   },
 }
 
@@ -138,6 +141,21 @@ const storybook: TestProjectInlineConfiguration = {
     name: 'storybook',
     include: [STORYBOOK_TEST],
     testTimeout: 240_000,
+    hookTimeout: 300_000,
+  },
+}
+
+/**
+ * `@circi/cypress` over real Cypress (headless Electron, end-to-end and component testing) with only
+ * CirCI faked. Slow (it starts Cypress), hence its own project and turbo task (`//#test:cypress`),
+ * cached on the cypress, cli and testing packages alone. No database.
+ */
+const cypress: TestProjectInlineConfiguration = {
+  extends: true,
+  test: {
+    name: 'cypress',
+    include: [CYPRESS_TEST],
+    testTimeout: 300_000,
     hookTimeout: 300_000,
   },
 }
@@ -336,6 +354,7 @@ export default defineConfig({
       node,
       deploy,
       storybook,
+      cypress,
       ui,
       webBrowser,
       ...(E2E ? [e2e('api'), e2e('browser')] : []),
