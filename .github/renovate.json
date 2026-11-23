@@ -1,12 +1,18 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Dependency updates. Every npm version lives in pnpm-workspace.yaml's catalog (catalogMode: strict), which Renovate updates in place; it also keeps Docker images, GitHub Actions, CircleCI orbs and images, Terraform providers, the Helm chart's images and the Rust crate's dependencies current.",
+  "description": "Dependency updates, run by the CircleCI `renovate` job (.circleci/config.yml), not the hosted app: the post-upgrade task needs a Renovate we configure. Every npm version lives in pnpm-workspace.yaml's catalog (catalogMode: strict), which Renovate updates in place; it also keeps Docker images, GitHub Actions, CircleCI orbs and images, Terraform providers, the Helm chart's images and the Rust crate's dependencies current.",
   "extends": ["config:recommended"],
   "schedule": ["before 6am on monday"],
   "minimumReleaseAge": "3 days",
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 5,
   "labels": ["dependencies"],
+  "postUpgradeTasks": {
+    "commands": ["node scripts/renovate-changeset.mjs"],
+    "dataFileTemplate": "{\"branch\":\"{{{branchName}}}\",\"upgrades\":[{{#each upgrades}}{\"depName\":\"{{{depName}}}\",\"currentVersion\":\"{{{currentVersion}}}\",\"newVersion\":\"{{{newVersion}}}\",\"packageFile\":\"{{{packageFile}}}\"}{{#unless @last}},{{/unless}}{{/each}}]}",
+    "fileFilters": [".changeset/renovate-*.md"],
+    "executionMode": "branch"
+  },
   "packageRules": [
     {
       "description": "One pull request a week for everything that isn't a major update.",
