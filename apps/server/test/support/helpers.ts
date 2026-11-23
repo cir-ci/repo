@@ -34,7 +34,7 @@ export function createTestAuth(
 let n = 0
 
 export interface Tenant {
-  owner: { id: string; email: string; password: string }
+  owner: { id: string; email: string; name: string; password: string }
   workspaceSlug: string
   project: Awaited<ReturnType<typeof createProjectWithToken>>['project']
   /** The project's CI token. */
@@ -66,7 +66,12 @@ export async function seedTenant(
     memberIds: [owner.id],
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
-  return { owner: { id: owner.id, email: owner.email, password }, workspaceSlug, project, token }
+  return {
+    owner: { id: owner.id, email: owner.email, name: owner.name, password },
+    workspaceSlug,
+    project,
+    token,
+  }
 }
 
 /**

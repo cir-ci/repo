@@ -88,6 +88,8 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers()
+  // The store outlives this file (the Node tests share modules between files): leave it disconnected.
+  useLiveStore.getState().reset()
 })
 
 describe('startLive', () => {
