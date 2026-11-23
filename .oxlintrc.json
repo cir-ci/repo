@@ -10,7 +10,13 @@
     "builtin": true,
     "node": true
   },
-  "ignorePatterns": [".claude/**", "**/dist/**", "packages/db/migrations/**"],
+  "ignorePatterns": [
+    ".claude/**",
+    "**/dist/**",
+    "packages/db/migrations/**",
+    // Cypress specs (chai, `cy`), run by Cypress inside the integration test.
+    "packages/cypress/test/fixtures/**"
+  ],
   "rules": {
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
@@ -127,6 +133,11 @@
           }
         ]
       }
+    },
+    {
+      // Typed against the DOM and Cypress by packages/cypress/tsconfig.browser.json, outside the program the linter reads.
+      "files": ["packages/cypress/src/support.ts", "packages/cypress/src/page.ts"],
+      "rules": { "typescript/no-redundant-type-constituents": "off" }
     },
     {
       // Core is pure: it imports no @circi package and no I/O. The root is also browser-safe, so no Node built-ins at all.

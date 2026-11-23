@@ -1,0 +1,73 @@
+{
+  "name": "@circi/cypress",
+  "version": "0.0.0",
+  "description": "Cypress integration: cy.circiScreenshot() and a plugin that uploads the screenshots to CirCI",
+  "keywords": [
+    "cypress",
+    "cypress-plugin",
+    "screenshots",
+    "visual-regression",
+    "visual-testing"
+  ],
+  "homepage": "https://circi.dev/ci/cypress/",
+  "bugs": {
+    "url": "https://github.com/cir-ci/repo/issues"
+  },
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cir-ci/repo.git",
+    "directory": "packages/cypress"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "exports": {
+    ".": {
+      "@circi/source": "./src/index.ts",
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./support": {
+      "@circi/source": "./src/support.ts",
+      "types": "./dist/support.d.mts",
+      "default": "./dist/support.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "./support": {
+        "types": "./dist/support.d.mts",
+        "default": "./dist/support.mjs"
+      }
+    },
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "catalog:",
+    "@circi/cli": "catalog:",
+    "cypress": "catalog:",
+    "publint": "catalog:",
+    "tsdown": "catalog:",
+    "vite": "catalog:"
+  },
+  "peerDependencies": {
+    "cypress": ">=13"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -3,7 +3,7 @@
 CirCI screenshots its own design system with its Vitest plugin, `@circi/vitest`: `packages/ui/visual/ui.visual.test.tsx` renders every component's case (the `packages/ui/visual/previews` files, plus `packages/ui/visual/cases.tsx` for Button, TextField, Dialog, ColorSchemeControl and the icons) in light and dark and calls `toMatchScreenshot('<component>/<case>/<scheme>')`. The plugin is in the root `vitest.config.ts`, and only with `VISUAL=1`. The project `ui-visual` exists only when `VISUAL=1`, so `pnpm test` never takes them.
 
 ```sh
-pnpm test:visual                    # no CIRCI_* variables: pictures are saved to .circi/screenshots, the run passes
+pnpm test:visual                    # no CIRCI_* variables: pictures are saved to .circi/screenshots/vitest, the run passes
 ```
 
 To upload to a local CirCI (a dev stack, or any server you can reach), create a project, copy its CI token and:

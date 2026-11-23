@@ -88,9 +88,15 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
       return { project, ci, commitSha: ci.commitSha, isBaseBranchBuild, ancestry }
     })(),
   ])
-  if (shots.length === 0) throw new UsageError(`No .png files found in ${options.dir}`)
+  // A shard with nothing to show (more shards than tests, or every test skipped) still reports in:
+  // the build is processed once all its shards have arrived, so a missing one would stall it.
+  if (shots.length === 0 && !options.shard) {
+    throw new UsageError(`No .png files found in ${options.dir}`)
+  }
   const { project, ci, commitSha, isBaseBranchBuild, ancestry } = context
   log(`Found ${plural(shots.length, 'screenshot')} in ${options.dir}`)
+  if (shots.length === 0)
+    log('This shard has no screenshots; reporting it so the build can complete')
   if (ancestry.warning) {
     log(
       `warning: ${ancestry.warning}. CirCI will compare against the latest ${project.defaultBranch} build instead.`,

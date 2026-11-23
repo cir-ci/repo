@@ -1,9 +1,9 @@
+import { FakeCirci } from '@circi/testing/hosts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ApiClient, ApiError, backoffDelay, NetworkError } from '#src/api.ts'
 
 import { closedAddress } from './support/closed-port.ts'
-import { FakeCirci } from './support/fake-circi.ts'
 
 // A fresh server per test: `failUploads` counts down, so a shared one would fail whichever test
 // uploads first.

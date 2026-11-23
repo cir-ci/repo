@@ -2,8 +2,8 @@
 import { Command, Option } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
-import { debugOn, reportError, UsageError } from './errors.ts'
-import { parseShard } from './shard.ts'
+import { debugOn, ignoreBrokenPipe, reportError, UsageError } from './errors.ts'
+import { shardFlag } from './shard.ts'
 import { uploadSite } from './site.ts'
 import { upload } from './upload.ts'
 
@@ -18,13 +18,7 @@ function connection(apiUrl: string | undefined): { apiUrl: string; token: string
   return { apiUrl, token }
 }
 
-// If whoever reads our output goes away (e.g. `circi upload … | head -1`), keep uploading
-// quietly instead of dying halfway with EPIPE.
-for (const stream of [process.stdout, process.stderr]) {
-  stream.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code !== 'EPIPE') throw err
-  })
-}
+ignoreBrokenPipe()
 
 const program = new Command()
   .name('circi')
@@ -166,13 +160,3 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(reportError(err, debugOn(process.argv, process.env)))
   process.exitCode = 2
 })
-
-function shardFlag(text: string, nonce: string | undefined) {
-  const shard = parseShard(text)
-  if (!shard) {
-    throw new UsageError(
-      "--shard must look like 1/4: this job's number, then how many jobs there are",
-    )
-  }
-  return { ...shard, ...(nonce ? { nonce } : {}) }
-}

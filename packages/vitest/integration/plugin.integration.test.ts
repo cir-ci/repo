@@ -2,7 +2,9 @@ import { execFile } from 'node:child_process'
 import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { gunzipSync } from 'node:zlib'
 
+import { FakeCirci } from '@circi/testing/hosts'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /**
@@ -82,8 +84,8 @@ describe('circi() with local: false (the default)', () => {
       expect({ passed: first.passed, tail: first.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      // `.circi/screenshots/<test file>/<name>.png`; the unnamed call is `<describe> <test> <n>`.
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      // `.circi/screenshots/vitest/<test file>/<name>.png`; the unnamed call is `<describe> <test> <n>`.
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
       // Nothing is stored locally.
       expect(await fixture.list('__screenshots__')).toEqual([])
       expect(await fixture.list('.vitest')).toEqual([])
@@ -94,14 +96,14 @@ describe('circi() with local: false (the default)', () => {
     'passes again, with the same names, even when the pixels changed',
     { timeout: RUN_TIMEOUT },
     async () => {
-      const before = await fixture.read('.circi/screenshots/shots.fixture.mjs/box.png')
+      const before = await fixture.read('.circi/screenshots/vitest/shots.fixture.mjs/box.png')
       const second = await fixture.vitest({ VITE_FIXTURE_COLOR: 'blue' })
       expect({ passed: second.passed, tail: second.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
       expect(
-        (await fixture.read('.circi/screenshots/shots.fixture.mjs/box.png')).equals(before),
+        (await fixture.read('.circi/screenshots/vitest/shots.fixture.mjs/box.png')).equals(before),
       ).toBe(false)
       expect(await fixture.list('__screenshots__')).toEqual([])
     },
@@ -119,7 +121,7 @@ describe('circi() as published', () => {
       expect({ passed: outcome.passed, tail: outcome.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
     },
   )
 })
@@ -145,7 +147,7 @@ describe('circi() with local: true', () => {
       expect({ passed: third.passed, tail: third.output.slice(-1500) }).toMatchObject({
         passed: true,
       })
-      expect(await fixture.list('.circi/screenshots')).toEqual(CAPTURES)
+      expect(await fixture.list('.circi/screenshots/vitest')).toEqual(CAPTURES)
     },
   )
 
@@ -156,7 +158,62 @@ describe('circi() with local: true', () => {
       const changed = await fixture.vitest({ ...env, VITE_FIXTURE_COLOR: 'blue' })
       expect(changed.passed).toBe(false)
       expect(changed.output).toContain('does not match the stored reference')
-      expect(await fixture.list('.circi/screenshots')).toContain('shots.fixture.mjs/box.png')
+      expect(await fixture.list('.circi/screenshots/vitest')).toContain('shots.fixture.mjs/box.png')
     },
   )
+})
+
+describe('circi() hosting the HTML report', () => {
+  const fixture = useFixture()
+  const ci = { CIRCI_COMMIT: 'd'.repeat(40), CIRCI_BRANCH: 'main' }
+
+  it(
+    "uploads the report Vitest's html reporter wrote, after it was written, as a vitest-report site",
+    { timeout: RUN_TIMEOUT },
+    async () => {
+      const fake = await new FakeCirci().start()
+      try {
+        // No `reporters` in the fixture's config: the plugin adds the html reporter itself.
+        const outcome = await fixture.vitest({
+          FIXTURE_SITE: '1',
+          CIRCI_API_URL: fake.url,
+          CIRCI_TOKEN: 'circi_t',
+          ...ci,
+        })
+        expect({ passed: outcome.passed, tail: outcome.output.slice(-1500) }).toMatchObject({
+          passed: true,
+        })
+        // The screenshots went up first, then the site.
+        const paths = fake.requests.map((r) => `${r.method} ${r.path.split('?')[0]}`)
+        expect(paths.indexOf('POST /v1/sites')).toBeGreaterThan(
+          paths.indexOf('POST /v1/builds/b1/finalize'),
+        )
+        const [site] = fake.to('/v1/sites?')
+        const query = Object.fromEntries(new URL(`http://x${site?.path}`).searchParams)
+        expect(query).toMatchObject({ name: 'vitest-report', kind: 'vitest-report' })
+        // The archive holds the whole report as it was when it finished: the page and its data.
+        const archive = gunzipSync(site?.body ?? Buffer.alloc(0)).toString('latin1')
+        expect(archive.includes('index.html')).toBe(true)
+        expect(archive.includes('html.meta.json.gz')).toBe(true)
+      } finally {
+        await fake.stop()
+      }
+    },
+  )
+
+  it('uploads no site unless asked', { timeout: RUN_TIMEOUT }, async () => {
+    const fake = await new FakeCirci().start()
+    try {
+      const outcome = await fixture.vitest({
+        CIRCI_API_URL: fake.url,
+        CIRCI_TOKEN: 'circi_t',
+        ...ci,
+      })
+      expect(outcome.passed).toBe(true)
+      expect(fake.to('/v1/builds/b1/finalize')).toHaveLength(1)
+      expect(fake.to('/v1/sites')).toHaveLength(0)
+    } finally {
+      await fake.stop()
+    }
+  })
 })

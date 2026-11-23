@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { captureName, capturePath } from '#src/names.ts'
+import { captureName, capturePath, DEFAULT_DIR, toolDir } from '#src/names.ts'
 
 describe('captureName', () => {
   it("applies Vitest's own rule, so a name means the same file in both", () => {
@@ -34,5 +34,19 @@ describe('capturePath', () => {
 
   it('keeps a test file path inside the folder', () => {
     expect(capturePath('d', '../outside.test.ts', 'a')).toBe('d/outside.test.ts/a.png')
+  })
+})
+
+describe('toolDir', () => {
+  it("is the tool's own folder inside the captures' folder, whatever the tool", () => {
+    expect(toolDir(DEFAULT_DIR, 'vitest')).toBe('.circi/screenshots/vitest')
+    expect(toolDir('shots/', 'storybook')).toBe('shots/storybook')
+    expect(toolDir('/abs/dir', 'cypress')).toBe('/abs/dir/cypress')
+  })
+
+  it("keeps names free of the tool's folder: a capture's name is its path inside it", () => {
+    expect(capturePath(toolDir(DEFAULT_DIR, 'vitest'), 'a.test.ts', 'x')).toBe(
+      '.circi/screenshots/vitest/a.test.ts/x.png',
+    )
   })
 })

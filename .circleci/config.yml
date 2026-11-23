@@ -104,6 +104,21 @@ commands:
           paths:
             - ~/.cache/ms-playwright
 
+  # The Cypress binary (about 200 MB) isn't downloaded by the install (pnpm-workspace.yaml's
+  # allowBuilds); @circi/cypress's integration test runs real Cypress in Electron.
+  install-cypress:
+    steps:
+      - restore_cache:
+          keys:
+            - cypress-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+      - run:
+          name: Install the Cypress binary
+          command: pnpm --filter @circi/cypress exec cypress install
+      - save_cache:
+          key: cypress-v1-{{ arch }}-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.cache/Cypress
+
 jobs:
   # Required status check. Everything in `pnpm gate`, without Docker. The image has no Rust toolchain, so
   # the build skips the native diff engine and the JS engine (the default) is what the tests use.
@@ -116,6 +131,7 @@ jobs:
       - setup
       - install-chromium:
           with-deps: false # the image has them
+      - install-cypress
       - restore-turbo
       # `pnpm gate` in its two halves, one after the other: tsgolint (`oxlint --type-aware`) and the four
       # `tsc` runs started beside the Node and browser tests took the job to 7.2 of its 8 GiB, and the

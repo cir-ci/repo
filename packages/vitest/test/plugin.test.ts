@@ -49,9 +49,9 @@ describe('circi()', () => {
     const off = applied(circi())
     expect(off.test?.provide?.['circi:screenshots']).toEqual({
       local: false,
-      dir: '.circi/screenshots',
+      dir: '.circi/screenshots/vitest',
     })
     const on = applied(circi({ local: true, dir: 'shots' }))
-    expect(on.test?.provide?.['circi:screenshots']).toEqual({ local: true, dir: 'shots' })
+    expect(on.test?.provide?.['circi:screenshots']).toEqual({ local: true, dir: 'shots/vitest' })
   })
 })

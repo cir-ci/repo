@@ -1,0 +1,86 @@
+{
+  "name": "@circi/storybook",
+  "version": "0.0.0",
+  "description": "Screenshot every Storybook story with Playwright and upload them to CirCI",
+  "keywords": [
+    "playwright",
+    "screenshots",
+    "storybook",
+    "visual-regression",
+    "visual-testing"
+  ],
+  "homepage": "https://circi.dev/ci/storybook/",
+  "bugs": {
+    "url": "https://github.com/cir-ci/repo/issues"
+  },
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cir-ci/repo.git",
+    "directory": "packages/storybook"
+  },
+  "bin": {
+    "circi-storybook": "./dist/main.mjs"
+  },
+  "files": [
+    "dist",
+    "!dist/main.d.mts",
+    "README.md"
+  ],
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "exports": {
+    ".": {
+      "@circi/source": "./src/index.ts",
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./preset": {
+      "@circi/source": "./src/preset.ts",
+      "types": "./dist/preset.d.mts",
+      "default": "./dist/preset.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "./preset": {
+        "types": "./dist/preset.d.mts",
+        "default": "./dist/preset.mjs"
+      }
+    },
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "node --conditions=@circi/source src/main.ts"
+  },
+  "dependencies": {
+    "commander": "catalog:",
+    "tar": "catalog:"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "catalog:",
+    "@circi/cli": "catalog:",
+    "@storybook/react-vite": "catalog:",
+    "playwright": "catalog:",
+    "publint": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "storybook": "catalog:",
+    "tsdown": "catalog:",
+    "vite": "catalog:"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

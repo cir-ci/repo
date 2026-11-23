@@ -6,6 +6,8 @@ packages:
   - perf
 allowBuilds:
   esbuild: true
+  # Not run at install (it would download the Cypress binary, ~200 MB, for everyone): the Cypress test and CI run `cypress install`.
+  cypress: false
 minimumReleaseAgeExclude:
   - tsdown
   - '@tsdown/*'
@@ -28,6 +30,7 @@ catalog:
   '@circi/cli': workspace:*
   '@circi/config': workspace:*
   '@circi/core': workspace:*
+  '@circi/cypress': workspace:*
   '@circi/db': workspace:*
   '@circi/diff': workspace:*
   '@circi/integrations': workspace:*
@@ -36,6 +39,7 @@ catalog:
   '@circi/storage': workspace:*
   '@circi/testing': workspace:*
   '@circi/ui': workspace:*
+  '@circi/storybook': workspace:*
   '@circi/vitest': workspace:*
   '@circi/worker': workspace:*
   '@electric-sql/pglite': 0.5.16
@@ -44,6 +48,7 @@ catalog:
   '@flakiness/vitest': 1.12.0
   '@fontsource-variable/inter': 5.3.0
   '@fontsource-variable/jetbrains-mono': 5.3.0
+  '@storybook/react-vite': 10.6.8
   '@tanstack/query-async-storage-persister': 5.108.0
   '@tanstack/query-persist-client-core': 5.108.0
   '@tanstack/react-query': 5.108.0
@@ -58,11 +63,13 @@ catalog:
   '@vitejs/plugin-react': 6.3.0
   '@vitest/browser-playwright': 5.1.1
   '@vitest/coverage-v8': 5.1.1
+  '@vitest/ui': 5.1.1
   auth: 1.7.25
   axe-core: 4.14.1
   better-auth: 1.7.25
   boring-avatars: 2.0.4
   commander: 15.1.0
+  cypress: 16.3.0
   drizzle-kit: 0.31.11
   drizzle-orm: 0.45.4
   fastify: 5.12.8
@@ -81,6 +88,7 @@ catalog:
   react: 19.3.1
   react-dom: 19.3.1
   sharp: 0.35.5
+  storybook: 10.6.8
   tar: 7.5.23
   tsdown: 0.23.7
   turbo: 2.11.13

@@ -1,0 +1,6 @@
+---
+'@circi/cypress': minor
+'@circi/services': patch
+---
+
+New package `@circi/cypress`: send your Cypress screenshots to CirCI for review. Add `setupNodeEvents: circi({ name: 'cypress-chrome' })` to `cypress.config.ts` and `import '@circi/cypress/support'` to the support file; tests keep `cy.screenshot('name')`. Every named screenshot (not Cypress's automatic failure screenshot) is saved as `.circi/screenshots/cypress/<spec path>/<name>.png`, named `<spec path from the project root>/<name>` in CirCI (so two specs with one file name in different folders stay apart; a name with nothing usable is skipped with a notice) with a `.png.json` sidecar (spec, browser, viewport) and `cypress run` uploads them when it ends, with the same options and token, CI and shard settings as `@circi/vitest` (`CIRCI_SHARD=2/4` for parallel machines). A screenshot shows only what it is of: an element's own box, a page's content (not padded to the viewport), a mounted component (padding on a page stops at the end of the document), and an element with nothing to show is an error. Tested with Cypress 16.3 in Electron. The plugin writes, empties and uploads only its own folder under the shared `dir`. The services package only gains a layer-test exception for the new package's `process.env` use.

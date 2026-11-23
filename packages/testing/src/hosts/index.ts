@@ -1,9 +1,10 @@
 /**
  * Fakes of the external services' HTTP edges (GitHub, GitLab, Bitbucket, Slack, Linear, Jira,
- * Figma, an OpenID provider). They hold no database, so every package, and e2e, imports them as
+ * Figma, an OpenID provider) and of CirCI's own API (what the CLI and the integrations upload to). They hold no database, so every package, and e2e, imports them as
  * `@circi/testing/hosts`.
  */
 export * from './bitbucket.ts'
+export * from './circi.ts'
 export * from './figma.ts'
 export * from './github.ts'
 export * from './gitlab.ts'

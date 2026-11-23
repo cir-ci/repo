@@ -218,7 +218,8 @@ describe('the stored GitHub App', () => {
     slug: 'circi-test',
     clientId: 'Iv1.x',
     clientSecret: 'client-secret',
-    privateKey: 'PEM',
+    // Has spaces, which base64url never does, so the sealed value can't contain it by chance (a bare 'PEM' once did).
+    privateKey: '-----BEGIN PRIVATE KEY----- test key -----END PRIVATE KEY-----',
     webhookSecret: 'whsec',
     htmlUrl: 'https://github.com/apps/circi-test',
     apiUrl: 'https://api.github.com',
@@ -228,7 +229,7 @@ describe('the stored GitHub App', () => {
     const db = (await createTestDb()).db
     expect(await readStoredGithubApp(db, SECRET)).toBeUndefined()
     await storeGithubApp(db, SECRET, app)
-    expect(await getSetting(db, 'github_app')).not.toContain('PEM')
+    expect(await getSetting(db, 'github_app')).not.toContain('PRIVATE KEY')
     expect(await readStoredGithubApp(db, SECRET)).toEqual(app)
     expect(await readStoredGithubApp(db, 'another-secret-entirely')).toBeUndefined()
 

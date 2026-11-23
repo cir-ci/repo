@@ -3,6 +3,8 @@
  * and where the captures go.
  */
 
+import { DEFAULT_DIR, STABILIZE_CSS } from '@circi/cli/names'
+
 export namespace settlePage {
   /** The part of a browser document this uses (the package is built without the DOM library). */
   export interface Document {
@@ -13,17 +15,7 @@ export namespace settlePage {
   }
 }
 
-export const DEFAULT_DIR = '.circi/screenshots'
-
-/** CSS that stops everything that moves or blinks. */
-export const STABILIZE_CSS = `
-*, *::before, *::after {
-  animation: none !important;
-  transition: none !important;
-  caret-color: transparent !important;
-  scroll-behavior: auto !important;
-}
-`
+export { DEFAULT_DIR, STABILIZE_CSS }
 
 function currentDocument(): settlePage.Document {
   const found: unknown = Reflect.get(globalThis, 'document')
