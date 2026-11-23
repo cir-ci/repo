@@ -145,17 +145,6 @@ siteCommand(site, 'upload', 'upload a built site (Storybook, a test report, cove
 const storybook = program.command('storybook').description('Storybook shortcuts')
 siteCommand(storybook, 'upload', 'upload a built Storybook (storybook build)', 'storybook')
 
-program
-  .command('argos-env')
-  .description('print the environment that points the Argos SDKs at this CirCI server')
-  .addOption(apiUrlOption())
-  .action((opts: { apiUrl?: string }) => {
-    const { apiUrl, token } = connection(opts.apiUrl)
-    // `eval "$(circi argos-env)"` in a shell, or append the output to $GITHUB_ENV.
-    console.log(`ARGOS_API_BASE_URL=${apiUrl.replace(/\/$/, '')}/v2`)
-    console.log(`ARGOS_TOKEN=${token}`)
-  })
-
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(reportError(err, debugOn(process.argv, process.env)))
   process.exitCode = 2

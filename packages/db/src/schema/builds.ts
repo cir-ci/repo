@@ -51,8 +51,6 @@ export const builds = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     ancestryStatus: text('ancestry_status').$type<AncestryStatus>().notNull().default('missing'),
-    /** Who supplied the commit history used to find the baseline: our CLI or an Argos SDK. */
-    historySource: text('history_source').$type<'cli' | 'sdk'>().notNull().default('cli'),
     baselineSource: text('baseline_source').$type<BaselineSource>(),
     baseBuildId: uuid('base_build_id').references((): AnyPgColumn => builds.id, {
       onDelete: 'set null',
@@ -121,19 +119,4 @@ export const buildShards = pgTable(
     finalizedAt: timestamp('finalized_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.buildId, t.shardIndex] })],
-)
-
-/** History registered by `circi argos-env` before an Argos SDK build arrives (PLAN §7.2). */
-export const commitAncestry = pgTable(
-  'commit_ancestry',
-  {
-    projectId: uuid('project_id')
-      .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
-    commitSha: text('commit_sha').notNull(),
-    mergeBaseSha: text('merge_base_sha'),
-    ancestorShas: text('ancestor_shas').array().notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [primaryKey({ columns: [t.projectId, t.commitSha] })],
 )

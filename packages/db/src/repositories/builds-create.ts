@@ -30,7 +30,6 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     mergeBaseSha: input.mergeBaseSha?.toLowerCase() ?? null,
     ancestorShas,
     ancestryStatus: input.ancestryStatus ?? (ancestorShas.length > 0 ? 'ok' : 'missing'),
-    historySource: input.historySource ?? 'cli',
     status: 'uploading' as const,
     idempotencyKey: input.idempotencyKey ?? null,
     parallelNonce: input.parallel?.nonce ?? null,
@@ -94,8 +93,6 @@ export namespace createBuild {
     mergeBaseSha?: string | null
     ancestorShas?: string[]
     ancestryStatus?: 'ok' | 'missing' | 'truncated'
-    /** Who sent `ancestorShas`; `sdk` for an Argos SDK. Default `cli`. */
-    historySource?: 'cli' | 'sdk'
     /** A client-chosen key: sending the same one again returns the build it first created. */
     idempotencyKey?: string
     parallel?: { nonce: string; total: number }

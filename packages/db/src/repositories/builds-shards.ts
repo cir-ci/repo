@@ -1,4 +1,4 @@
-import { MAX_PARALLEL_SHARDS, ValidationError, assertFound } from '@circi/core'
+import { ValidationError, assertFound } from '@circi/core'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import { buildShards, builds, files, screenshots, uploadClaims } from '#schema/index.ts'
@@ -195,20 +195,4 @@ export namespace finalizeShard {
       }
     /** Some files aren't verified yet: the client must (re)upload them. */
     | { status: 'missing'; missing: string[] }
-}
-
-/**
- * Sets how many shards a parallel build has. Argos SDKs only learn the total when the last
- * shard reports, so a build starts with the most it could have and is corrected here.
- */
-export async function setParallelTotal(
-  db: Database,
-  buildId: string,
-  total: number,
-): Promise<void> {
-  const clamped = Math.min(Math.max(Math.trunc(total), 1), MAX_PARALLEL_SHARDS)
-  await db
-    .update(builds)
-    .set({ parallelTotal: clamped })
-    .where(and(eq(builds.id, buildId), inArray(builds.status, ['pending', 'uploading'])))
 }

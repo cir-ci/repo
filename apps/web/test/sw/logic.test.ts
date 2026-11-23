@@ -36,7 +36,6 @@ describe('strategyFor', () => {
       '/api/inbox',
       '/api/auth/get-session',
       '/v1/builds',
-      '/v2/builds',
       '/webhooks/github',
       '/internal/tls-ask',
       '/healthz',

@@ -66,16 +66,9 @@ beforeAll(async () => {
 afterAll(() => close())
 
 describe('the route table', () => {
-  it('lists every scope: health, /v1, /v2, webhooks, dashboard API', () => {
+  it('lists every scope: health, /v1, webhooks, dashboard API', () => {
     const routes = routeList(tree)
-    for (const prefix of [
-      '/healthz',
-      '/v1/',
-      '/v2/',
-      '/webhooks/',
-      '/api/projects/',
-      '/api/workspaces/',
-    ]) {
+    for (const prefix of ['/healthz', '/v1/', '/webhooks/', '/api/projects/', '/api/workspaces/']) {
       expect(routes.some((r) => r.split(' ')[1]?.startsWith(prefix))).toBe(true)
     }
   })

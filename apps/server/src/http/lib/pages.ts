@@ -76,5 +76,5 @@ export function noticePage(title: string, body: string): string {
 
 /** Paths answered with JSON, never with an HTML page or the app shell. */
 export function isApiPath(url: string): boolean {
-  return url.startsWith('/api/') || url.startsWith('/v1/') || url.startsWith('/v2/')
+  return url.startsWith('/api/') || url.startsWith('/v1/')
 }

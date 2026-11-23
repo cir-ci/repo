@@ -89,7 +89,6 @@ GET /readyz
 GET /v1/builds/:id/status
 GET /v1/project
 GET /v1/sites/served
-GET /v2/project
 HEAD *
 HEAD /api/account/email-change
 HEAD /api/auth-methods
@@ -158,7 +157,6 @@ HEAD /readyz
 HEAD /v1/builds/:id/status
 HEAD /v1/project
 HEAD /v1/sites/served
-HEAD /v2/project
 PATCH /api/instance/accounts/:id
 PATCH /api/projects/:workspace/:project/appearance
 PATCH /api/projects/:workspace/:project/builds/:number/comments/:id
@@ -230,9 +228,6 @@ POST /api/workspaces/:workspace/views
 POST /v1/builds
 POST /v1/builds/:id/finalize
 POST /v1/sites
-POST /v2/baseline
-POST /v2/builds
-POST /v2/uploads/:buildId/:sha256
 POST /webhooks/:kind
 PUT /api/inbox/preferences
 PUT /api/instance/health/address-checklist/dismissed
@@ -246,6 +241,5 @@ PUT /api/workspaces/:workspace/last-opened
 PUT /api/workspaces/:workspace/picture
 PUT /api/workspaces/:workspace/pinned-projects/:project
 PUT /api/workspaces/:workspace/views/order
-PUT /v1/files/:sha256
-PUT /v2/builds/:id"
+PUT /v1/files/:sha256"
 `;

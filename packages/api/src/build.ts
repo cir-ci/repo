@@ -107,7 +107,7 @@ export namespace Build {
     build: ListItem & {
       baseBranch: string | null
       ancestryStatus: 'ok' | 'missing' | 'truncated'
-      baselineSource: 'cli' | 'sdk' | 'provider' | 'fallback' | 'none' | null
+      baselineSource: 'cli' | 'provider' | 'fallback' | 'none' | null
       errorMessage: string | null
       completedAt: string | null
     }

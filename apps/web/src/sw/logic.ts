@@ -33,7 +33,7 @@ export const META_CACHE = 'circi-meta-v1'
 export const IMAGE_MAX_ENTRY_BYTES = 20 * 1024 * 1024
 
 /** Paths the server answers itself (JSON, files, webhooks, probes): the worker never touches them. */
-const SERVER_PREFIXES = ['/api/', '/v1/', '/v2/', '/webhooks/', '/internal/']
+const SERVER_PREFIXES = ['/api/', '/v1/', '/webhooks/', '/internal/']
 const SERVER_PATHS = new Set(['/healthz', '/readyz', '/sw.js'])
 
 export type Strategy =

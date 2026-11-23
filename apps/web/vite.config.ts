@@ -14,7 +14,7 @@ import { type BuiltFile, precacheEntries } from './src/sw/precache.ts'
 // all), or the one `pnpm dev` at the repository root starts (CIRCI_DEV_API_URL). Not only `/api`:
 // with local-disk storage, CI uploads go to PUBLIC_URL/v1/files, and PUBLIC_URL is this server.
 const api = process.env.CIRCI_DEV_API_URL ?? 'http://localhost:3000'
-const serverPaths = ['/api', '/v1', '/v2', '/webhooks', '/healthz', '/readyz', '/internal']
+const serverPaths = ['/api', '/v1', '/webhooks', '/healthz', '/readyz', '/internal']
 // One identifier per build: the stored query cache and the service worker's precache list both
 // belong to it. CIRCI_BUILD_ID lets a release pin it.
 const buildId = process.env.CIRCI_BUILD_ID ?? Date.now().toString(36)
