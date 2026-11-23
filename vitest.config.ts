@@ -1,3 +1,4 @@
+import { globSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 
@@ -100,25 +101,45 @@ const STORYBOOK_TEST = 'packages/storybook/test/**/*.integration.test.ts'
 // Runs real Cypress (Electron) over the built package: a project of its own for the same reason.
 const CYPRESS_TEST = 'packages/cypress/test/**/*.integration.test.ts'
 
-const node: TestProjectInlineConfiguration = {
+const NODE_TESTS = [
+  'apps/{server,worker,web}/test/**/*.test.ts',
+  'packages/*/test/**/*.test.ts',
+  // The `pnpm dev` environment's pure logic.
+  'dev/test/**/*.test.ts',
+  // The e2e harness's own fakes: plain Node tests, no Docker.
+  'e2e/test/fakes/**/*.test.ts',
+]
+// Their own projects (below), so a change to deploy/ reruns that one file, not every Node test.
+const NOT_NODE = [DEPLOY_SETTINGS_TEST, STORYBOOK_TEST, CYPRESS_TEST]
+
+// The Node tests share their modules between files (`isolate: false`): loading the server, the
+// database code and better-auth again for each of 400 files was half the run's time. A file that
+// mocks a module (`vi.mock`) can't share: its mock would stay in place for the next file in the same
+// worker, so those files run in `node-isolated`, each with its own modules, found by reading them.
+const MOCKING = globSync(NODE_TESTS, { cwd: root, exclude: NOT_NODE }).filter((file) =>
+  /\bvi\.mock\(/.test(readFileSync(resolve(root, file), 'utf8')),
+)
+
+const nodeProject = (
+  name: string,
+  test: { isolate: boolean; include: string[]; exclude: string[] },
+): TestProjectInlineConfiguration => ({
   extends: true,
   test: {
-    name: 'node',
+    name,
     // One migrated PGlite dump for every createTestDb(), and TZ/mocks pinned per file.
     globalSetup: ['packages/db/src/testing/template-db.ts'],
     setupFiles: ['packages/testing/src/setup-node.ts'],
-    include: [
-      'apps/{server,worker,web}/test/**/*.test.ts',
-      'packages/*/test/**/*.test.ts',
-      // The `pnpm dev` environment's pure logic.
-      'dev/test/**/*.test.ts',
-      // The e2e harness's own fakes: plain Node tests, no Docker.
-      'e2e/test/fakes/**/*.test.ts',
-    ],
-    // Its own project (below), so a change to deploy/ reruns that one file, not every Node test.
-    exclude: [DEPLOY_SETTINGS_TEST, STORYBOOK_TEST, CYPRESS_TEST],
+    ...test,
   },
-}
+})
+
+const node = nodeProject('node', {
+  isolate: false,
+  include: NODE_TESTS,
+  exclude: [...NOT_NODE, ...MOCKING],
+})
+const nodeIsolated = nodeProject('node-isolated', { isolate: true, include: MOCKING, exclude: [] })
 
 /**
  * The deploys against @circi/config's lists of settings: reads deploy/ (the image, Compose, the
@@ -352,6 +373,7 @@ export default defineConfig({
     },
     projects: [
       node,
+      nodeIsolated,
       deploy,
       storybook,
       cypress,

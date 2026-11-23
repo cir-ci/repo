@@ -63,8 +63,8 @@ describe('comment routes', () => {
         region: { x: 0.1 },
         mine: false,
         canDelete: false,
-        author: { name: 'Owner 1' },
-        authorName: 'Owner 1',
+        author: { name: acme.owner.name },
+        authorName: acme.owner.name,
       },
       {
         id: reply.json().id,
@@ -218,7 +218,7 @@ describe('comment routes', () => {
     ).toMatchObject({
       state: 'rejected',
       reason: 'hero is cropped',
-      by: { name: 'Owner 1' },
+      by: { name: acme.owner.name },
     })
     const times = events.map((e: { at: string }) => Date.parse(e.at))
     expect(times).toEqual([...times].toSorted((a, b) => a - b))

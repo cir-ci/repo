@@ -28,6 +28,12 @@ const packageName = (spec: string) =>
     .slice(0, spec.startsWith('@') ? 2 : 1)
     .join('/')
 
+// Imports a library tries inside try/catch and does without: not installed, and not needed.
+const OPTIONAL = new Set([
+  // better-auth's tracing, used only when the app has OpenTelemetry.
+  '@opentelemetry/api',
+])
+
 describe('the server bundle', () => {
   it('imports only Node and the declared externals', () => {
     const specifiers = new Set<string>()
@@ -35,6 +41,13 @@ describe('the server bundle', () => {
       const code = readFileSync(join(out, file), 'utf8')
       for (const m of code.matchAll(/^(?:import|export)\b[^;]*?\bfrom\s+"([^"./][^"]*)"/gm)) {
         specifiers.add(m[1]!)
+      }
+      // A package loaded on first use counts too (sharp, in @circi/diff): `import("…")` outside a
+      // comment (JSDoc types say `import("fastify").…`).
+      for (const m of code.matchAll(
+        /^(?!\s*(?:\*|\/\/|\/\*)).*?\bimport\(\s*"([^"./][^"]*)"\s*\)/gm,
+      )) {
+        if (!OPTIONAL.has(m[1]!)) specifiers.add(m[1]!)
       }
     }
     const external = [...specifiers]
