@@ -54,6 +54,7 @@
     "@circi/testing": "catalog:",
     "@circi/ui": "catalog:",
     "@circi/vitest": "catalog:",
+    "@flakiness/vitest": "catalog:",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",

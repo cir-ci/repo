@@ -31,6 +31,35 @@ const VISUAL = Boolean(process.env['VISUAL'])
 
 const root = import.meta.dirname
 
+// On CI, every run also reports its tests to Flakiness.io (project CirCI/repo), which tracks which
+// tests fail now and then. It uploads with FLAKINESS_ACCESS_TOKEN (a CircleCI project variable;
+// CircleCI has no OIDC sign-in the reporter knows) and only writes the report without it, as on a
+// pull request from a fork. Each `pnpm test:*` task is its own Vitest process and Turbo runs them in
+// parallel, so each one gets its own folder and is titled by the projects it ran.
+// turbo.json passes CI, CIRCLE_BUILD_URL and the FLAKINESS_ variables through without hashing
+// them: a report doesn't change a run's result, and a token must never be part of a cache key.
+const runProjects = process.argv.flatMap((arg, i, all) =>
+  arg === '--project' ? (all[i + 1] ?? []) : arg.startsWith('--project=') ? arg.slice(10) : [],
+)
+const runLabel = runProjects.join('+') || 'all'
+// The report links to the CI job through BUILD_URL, which CircleCI calls CIRCLE_BUILD_URL.
+const circleBuild = process.env['CIRCLE_BUILD_URL']
+if (circleBuild) process.env['BUILD_URL'] ??= circleBuild
+// By name, as its README does: the package's default export is a class whose types its package.json
+// doesn't point to.
+const flakiness: [string, Record<string, unknown>][] = process.env['CI']
+  ? [
+      [
+        '@flakiness/vitest',
+        {
+          flakinessProject: 'CirCI/repo',
+          title: runLabel,
+          outputFolder: `flakiness-report/${runLabel}`,
+        },
+      ],
+    ]
+  : []
+
 // Vite pre-bundles the dependencies it finds while a browser project runs, and the first run after
 // a new dependency can fail with import errors until it is rerun. Listing them up front makes that
 // run optimize them before the first test: add a package here when a browser test starts importing
@@ -304,7 +333,7 @@ export default defineConfig({
     expect: { poll: { timeout: 5_000, interval: 50 } },
     // End-to-end runs also write e2e/.artifacts/timings.json and print a timing summary.
     // Component runs also list the tests that passed only on their retry (.vitest/retried-tests.txt).
-    reporters: ['default', E2E ? new E2eTimingReporter() : new RetryReporter()],
+    reporters: ['default', E2E ? new E2eTimingReporter() : new RetryReporter(), ...flakiness],
     // Stopping an end-to-end stack (docker compose down -v) happens in global teardown.
     teardownTimeout: 120_000,
     // `pnpm test:coverage` (Node project only: browser projects need their own provider setup).

@@ -32,3 +32,6 @@ test-results/
 
 # copies of packages/vitest/test/fixtures/basic made by its integration test
 packages/vitest/test/fixtures/.run-*/
+
+# Flakiness.io reports, written by the test runs on CI (vitest.config.ts)
+flakiness-report/
