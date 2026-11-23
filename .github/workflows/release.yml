@@ -134,7 +134,15 @@ jobs:
       - uses: azure/setup-helm@v5
       - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
       - run: helm package deploy/helm/circi --destination chart
-      - run: helm push "chart/circi-$VERSION.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+      # Tried up to three times: right after a push creates the package (the first chart ever pushed, 0.1.1), ghcr.io
+      # can answer "not found" when Helm tags the manifest it just uploaded. Pushing the same version again is safe.
+      - run: |
+          for attempt in 1 2 3; do
+            helm push "chart/circi-$VERSION.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts" && exit 0
+            echo "::warning::helm push failed (attempt $attempt of 3)"
+            sleep $((attempt * 15))
+          done
+          exit 1
 
   # The Terraform module on the Terraform Registry (cir-ci/circi/docker), which needs a repository of its own with the
   # module at its root and `vX.Y.Z` tags: each app version is copied to cir-ci/terraform-docker-circi once its image is
