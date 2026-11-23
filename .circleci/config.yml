@@ -8,10 +8,17 @@
 #         with kubeconform (`pnpm test:helm`, no cluster).
 #   e2e   pushes to main and the nightly pipeline: the end-to-end tests against the real Docker stack
 #         (`e2e`) and the shipped Compose files (`compose-smoke`). Machine executor, so Docker works.
+#   renovate  the scheduled pipeline with `renovate` = true: Renovate opens and updates the dependency
+#         pull requests (.github/renovate.json). Self-hosted here, not the hosted app, because its
+#         post-upgrade task (scripts/renovate-changeset.mjs, the changeset) must be allowed by
+#         Renovate's own configuration. It signs in as the organization's `cir-ci` GitHub App.
 #
 # The nightly run is a scheduled pipeline that sets the `nightly` parameter to true. Scheduled pipelines
 # are created in the CircleCI UI (Project Settings > Triggers > Add Trigger), not in this file: pick the
 # branch (main), a time, and add the pipeline parameter `nightly` = true. See CONTRIBUTING.md.
+# Renovate's is another such trigger, hourly on main, with `renovate` = true (the schedule in
+# .github/renovate.json decides when it opens pull requests; the other runs rebase and answer the
+# dependency dashboard).
 version: 2.1
 
 orbs:
@@ -20,6 +27,9 @@ orbs:
 
 parameters:
   nightly:
+    type: boolean
+    default: false
+  renovate:
     type: boolean
     default: false
 
@@ -234,9 +244,36 @@ jobs:
           name: helm lint, template and kubeconform
           command: deploy/helm/test.sh
 
+  # Renovate, run on its own schedule (see the top of this file). Its image has Node, which mints
+  # the app's token (scripts/github-app-token.mjs); the token lives an hour and stays in this job.
+  renovate:
+    docker:
+      - image: renovate/renovate:44.222.5
+    resource_class: medium
+    environment:
+      RENOVATE_PLATFORM: github
+      RENOVATE_REPOSITORIES: '["cir-ci/repo"]'
+      # The one command the post-upgrade task may run.
+      RENOVATE_ALLOWED_COMMANDS: '["^node scripts/renovate-changeset\\.mjs$"]'
+      # The repository has its config already; commits go through GitHub's API, as the app.
+      RENOVATE_ONBOARDING: 'false'
+      RENOVATE_REQUIRE_CONFIG: required
+      RENOVATE_PLATFORM_COMMIT: enabled
+    steps:
+      - checkout
+      - run:
+          name: Renovate
+          command: |
+            RENOVATE_TOKEN=$(node scripts/github-app-token.mjs cir-ci/repo)
+            export RENOVATE_TOKEN
+            renovate
+
 workflows:
   gate:
-    unless: << pipeline.parameters.nightly >>
+    unless:
+      or:
+        - << pipeline.parameters.nightly >>
+        - << pipeline.parameters.renovate >>
     jobs:
       # The Flakiness context holds FLAKINESS_ACCESS_TOKEN, with which the test runs upload their
       # reports to Flakiness.io (vitest.config.ts).
@@ -255,11 +292,20 @@ workflows:
 
   e2e:
     when:
-      or:
-        - << pipeline.parameters.nightly >>
-        - equal: [main, << pipeline.git.branch >>]
+      and:
+        - not: << pipeline.parameters.renovate >>
+        - or:
+            - << pipeline.parameters.nightly >>
+            - equal: [main, << pipeline.git.branch >>]
     jobs:
       - e2e:
           context: Flakiness
       - compose-smoke:
           context: Flakiness
+
+  renovate:
+    when: << pipeline.parameters.renovate >>
+    jobs:
+      # The renovate context holds CIRCI_APP_CLIENT_ID and CIRCI_APP_PRIVATE_KEY (the `cir-ci` app's).
+      - renovate:
+          context: renovate
