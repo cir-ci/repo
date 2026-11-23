@@ -32,7 +32,7 @@ const VISUAL = Boolean(process.env['VISUAL'])
 const root = import.meta.dirname
 
 // On CI, every run also reports its tests to Flakiness.io (project CirCI/repo), which tracks which
-// tests fail now and then. It uploads with FLAKINESS_ACCESS_TOKEN (a CircleCI project variable;
+// tests fail now and then. It uploads with FLAKINESS_ACCESS_TOKEN (from the CircleCI context Flakiness;
 // CircleCI has no OIDC sign-in the reporter knows) and only writes the report without it, as on a
 // pull request from a fork. Each `pnpm test:*` task is its own Vitest process and Turbo runs them in
 // parallel, so each one gets its own folder and is titled by the projects it ran.
