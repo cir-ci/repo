@@ -67,6 +67,7 @@
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@circi/cli": "catalog:",
+    "@vitest/ui": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:"
   },

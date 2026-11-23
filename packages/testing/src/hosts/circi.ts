@@ -12,6 +12,8 @@ export interface FakeCirciOptions {
   defaultBranch?: string
   /** Outcome states returned by `GET /v1/builds/:id/status`, one per poll (the last repeats). */
   outcomes?: ('pending' | 'pass' | 'fail')[]
+  /** The same answer on every poll: shorthand for `outcomes: [outcome]`. */
+  outcome?: 'pass' | 'fail'
   /** What `GET /v1/builds/:id/status` says about who gates the merge. */
   gate?: 'exit-code' | 'status'
   /** The first finalize answers 409 asking for these files again. */
@@ -93,8 +95,27 @@ export class FakeCirci {
     return this.requests.filter((r) => r.path.startsWith(prefix))
   }
 
-  json(request: Recorded): unknown {
-    return JSON.parse(request.body.toString('utf8'))
+  /** The file uploads (`PUT /files/<sha256>`) received so far. */
+  uploads(): Recorded[] {
+    return this.requests.filter((r) => r.method === 'PUT' && r.path.startsWith('/files/'))
+  }
+
+  /** The JSON body of a recorded request, or of the first one to `path` (a prefix) with `method`. */
+  json(request: Pick<Recorded, 'body'>): Record<string, unknown>
+  json(method: string, path: string): Record<string, unknown>
+  json(first: Pick<Recorded, 'body'> | string, path?: string): Record<string, unknown> {
+    const request =
+      typeof first === 'string'
+        ? this.requests.find((r) => r.method === first && r.path.startsWith(path ?? ''))
+        : first
+    if (!request)
+      throw new Error(
+        `no ${typeof first === 'string' ? first : 'such'} request${path ? ` to ${path}` : ''}`,
+      )
+    const parsed: unknown = JSON.parse(request.body.toString('utf8'))
+    return typeof parsed === 'object' && parsed !== null
+      ? Object.fromEntries(Object.entries(parsed))
+      : {}
   }
 
   private build() {
@@ -165,7 +186,7 @@ export class FakeCirci {
         reply(200, { build: this.build(), complete: true, shardsReceived: 1, shardsTotal: 1 })
       }
     } else if (method === 'GET' && /^\/v1\/builds\/[^/]+\/status$/.test(path)) {
-      const outcomes = this.options.outcomes ?? ['pass']
+      const outcomes = this.options.outcomes ?? [this.options.outcome ?? 'pass']
       const state = outcomes[Math.min(this.polls, outcomes.length - 1)] ?? 'pass'
       this.polls += 1
       reply(200, {

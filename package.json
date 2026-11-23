@@ -14,14 +14,15 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware --deny-warnings",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui && tsc -p packages/ui/tsconfig.previews.json",
-    "gate": "turbo run //#format:check //#lint //#typecheck //#test:node //#test:deploy //#test:vitest //#test:ui //#test:web-browser build",
+    "gate": "turbo run //#format:check //#lint //#typecheck //#test:node //#test:deploy //#test:storybook //#test:vitest //#test:ui //#test:web-browser build",
     "gate:checks": "turbo run //#format:check //#lint //#typecheck",
-    "gate:tests": "turbo run //#test:node //#test:deploy //#test:vitest //#test:ui //#test:web-browser build",
-    "gate:full": "E2E_ENV_FINGERPRINT=$(node e2e/src/stack/env-fingerprint.ts) turbo run //#format:check //#lint //#typecheck //#test:node //#test:deploy //#test:vitest //#test:ui //#test:web-browser build //#e2e:api //#e2e:browser",
+    "gate:tests": "turbo run //#test:node //#test:deploy //#test:storybook //#test:vitest //#test:ui //#test:web-browser build",
+    "gate:full": "E2E_ENV_FINGERPRINT=$(node e2e/src/stack/env-fingerprint.ts) turbo run //#format:check //#lint //#typecheck //#test:node //#test:deploy //#test:storybook //#test:vitest //#test:ui //#test:web-browser build //#e2e:api //#e2e:browser",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:node": "vitest run --project node",
     "test:deploy": "vitest run --project deploy",
+    "test:storybook": "vitest run --project storybook",
     "test:vitest": "vitest run --config packages/vitest/vitest.integration.config.ts",
     "test:ui": "vitest run --project ui --maxWorkers=25%",
     "test:web-browser": "vitest run --project web-browser --maxWorkers=25%",
@@ -46,7 +47,7 @@
     "perf:bench": "node perf/bench/diff.ts",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-chart-version.mjs && pnpm install --lockfile-only && pnpm format",
-    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest && changeset publish"
+    "release": "turbo run build --filter=@circi/cli --filter=@circi/vitest --filter=@circi/storybook && changeset publish"
   },
   "devDependencies": {
     "@changesets/changelog-github": "catalog:",

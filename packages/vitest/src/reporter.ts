@@ -1,36 +1,36 @@
-import { rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
-import { errorLine, upload } from '@circi/cli'
+import {
+  type CirciOptions,
+  shardFromArgs,
+  type upload,
+  uploadCaptures,
+  uploadSiteAfter,
+} from '@circi/cli'
+import { toolDir } from '@circi/cli/names'
 
 import { type CollectedScreenshot, collectDirectory } from './collect.ts'
+import { type HtmlReport, watchHtmlReporter } from './html-report.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
-import { type Shard, shardFromArgs } from './shard.ts'
 
 export namespace CirciReporter {
-  export interface Options {
-    /** CirCI address. Default: `CIRCI_API_URL`. */
-    apiUrl?: string
-    /** Project CI token. Default: `CIRCI_TOKEN`. */
-    token?: string
-    /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
-    name?: string
-    /** Where captures are written, relative to the project root. Default `.circi/screenshots`. */
-    dir?: string
-    /** Empty `dir` when the run starts, so a build holds only this run's captures. Default false. */
-    clean?: boolean
-    /** Project root to look in. Default: the root of the Vitest run. */
-    root?: string
-    /** Wait for the result and fail the run when changes need review. Default false. */
-    wait?: boolean
-    /** Fail the Vitest run if the upload fails. Default false: tests passed or failed on their own. */
-    strict?: boolean
-    /** This process's shard, if not given by `--shard`. */
-    shard?: Shard
+  /** `name` defaults to `vitest`; give each browser project its own (`vitest-chromium`). */
+  export interface Options extends CirciOptions.Common {
+    /**
+     * Also host Vitest's HTML report as a site (kind `vitest-report`), so reviewers can open the
+     * run's results next to the screenshots. Default `false`. It is uploaded after the screenshots
+     * and only when they were, from the first shard only. By default the report is the one
+     * Vitest's own `html` reporter writes (`.vitest`, or its `outputDir`): the `circi()` plugin
+     * adds that reporter itself when `@vitest/ui` is installed, otherwise add
+     * `reporters: ['default', 'html']`. `name` defaults to `vitest-report`; `dir` (relative to the
+     * project root) hosts a folder you made yourself instead.
+     */
+    site?: boolean | { name?: string; dir?: string }
     /** For tests. */
     uploadImpl?: (options: upload.Options) => Promise<Pick<upload.Result, 'exitCode'>>
     collectImpl?: (options: CirciReporter.Options) => Promise<CollectedScreenshot[]>
-    log?: (line: string) => void
+    uploadSiteImpl?: uploadSiteAfter.Options['uploadSiteImpl']
   }
 }
 
@@ -47,51 +47,80 @@ type RunEnd = (
  */
 export class CirciReporter {
   readonly onTestRunEnd: RunEnd
-  readonly onInit: (vitest: { config: { root: string } }) => void
+  readonly onInit: (vitest: { config: { root: string }; reporters?: unknown[] }) => void
 
   constructor(options: CirciReporter.Options = {}) {
     // Captures are written under the Vitest project's root, so that is where to look, whatever
     // directory the run was started from.
     let vitestRoot: string | undefined
+    let html: HtmlReport | undefined
     this.onInit = (vitest) => {
       vitestRoot = vitest.config.root
+      if (options.site) html = watchHtmlReporter(vitestRoot, vitest.reporters)
       // A run uploads only its own captures. Synchronous and at init, before any test can write one.
       if (options.clean) {
-        rmSync(resolve(vitestRoot, options.dir ?? DEFAULT_DIR), { recursive: true, force: true })
+        rmSync(resolve(vitestRoot, toolDir(options.dir ?? DEFAULT_DIR, 'vitest')), {
+          recursive: true,
+          force: true,
+        })
       }
     }
     this.onTestRunEnd = async () => {
-      const log = options.log ?? ((l: string) => console.log(l))
-      const apiUrl = options.apiUrl ?? process.env.CIRCI_API_URL
-      const token = options.token ?? process.env.CIRCI_TOKEN
-      if (!apiUrl || !token) {
-        log('[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots')
-        return
-      }
       const root = options.root ?? vitestRoot ?? process.cwd()
-      const dir = resolve(root, options.dir ?? DEFAULT_DIR)
-      const shots = await (options.collectImpl?.({ ...options, root }) ?? collectDirectory(dir))
-      if (shots.length === 0) {
-        log('[circi] no screenshots found, nothing to upload')
-        return
-      }
+      const dir = resolve(root, toolDir(options.dir ?? DEFAULT_DIR, 'vitest'))
       const shard = options.shard ?? shardFromArgs(process.argv)
-      try {
-        const result = await (options.uploadImpl ?? upload)({
-          // The captures are already laid out by name, which is how the CLI names a directory's files.
-          dir,
-          apiUrl,
-          token,
-          name: options.name ?? 'vitest',
-          wait: options.wait ?? false,
-          ...(shard ? { shard } : {}),
-          log,
-        })
-        if (result.exitCode !== 0 && options.wait) process.exitCode = result.exitCode
-      } catch (err) {
-        log(`[circi] upload failed: ${errorLine(err)}`)
-        if (options.strict) process.exitCode = 1
+      const result = await uploadCaptures({
+        // The captures are already laid out by name, which is how the CLI names a directory's files.
+        dir,
+        defaultName: 'vitest',
+        name: options.name,
+        apiUrl: options.apiUrl,
+        token: options.token,
+        wait: options.wait,
+        strict: options.strict,
+        // What this reporter has always exited with when a strict upload fails.
+        strictExitCode: 1,
+        shard,
+        log: options.log,
+        isEmpty: async () =>
+          (await (options.collectImpl?.({ ...options, root }) ?? collectDirectory(dir))).length ===
+          0,
+        uploadImpl: options.uploadImpl,
+      })
+      let exitCode = result.exitCode
+      const site = options.site
+      if (site && result.status === 'uploaded' && (shard?.index ?? 0) === 0) {
+        const log = options.log ?? ((line: string) => console.log(line))
+        const given = typeof site === 'object' ? site : {}
+        const siteDir = given.dir ? resolve(root, given.dir) : html?.dir
+        if (!siteDir) {
+          log(
+            "[circi] site skipped: Vitest's HTML report isn't configured. Add reporters: ['default', 'html'] (needs @vitest/ui), or give site.dir a folder to host.",
+          )
+        } else {
+          // Every reporter's onTestRunEnd runs at once: the HTML report may still be being written.
+          await html?.finished()
+          if (existsSync(join(siteDir, 'index.html'))) {
+            const hosted = await uploadSiteAfter({
+              dir: siteDir,
+              name: given.name ?? 'vitest-report',
+              kind: 'vitest-report',
+              capturesUploaded: true,
+              apiUrl: options.apiUrl,
+              token: options.token,
+              strict: options.strict,
+              strictExitCode: 1,
+              shard,
+              log: options.log,
+              uploadSiteImpl: options.uploadSiteImpl,
+            })
+            if (hosted.exitCode !== 0) exitCode = hosted.exitCode
+          } else {
+            log(`[circi] site skipped: ${join(siteDir, 'index.html')} doesn't exist`)
+          }
+        }
       }
+      if (exitCode !== 0) process.exitCode = exitCode
     }
   }
 }

@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 
-/** Finding the captures a Vitest run left in `.circi/screenshots`, for upload. */
+/** Finding the captures a Vitest run left in `.circi/screenshots/vitest`, for upload. */
 
 async function walk(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])

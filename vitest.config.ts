@@ -14,6 +14,7 @@ import RetryReporter from './scripts/retry-reporter.ts'
  * One Vitest run, several projects:
  *
  *   node         logic (`*.test.ts`), including the web app's render-free tests     `pnpm test:node`
+ *   storybook    @circi/storybook's CLI against a real Storybook build (slow)       `pnpm test:storybook`
  *   deploy       the deploys (deploy/) against @circi/config's lists of settings     `pnpm test:deploy`
  *   ui           @circi/ui's components in headless Chromium                         `pnpm test:ui`
  *   web-browser  the dashboard's components in headless Chromium                     `pnpm test:web-browser`
@@ -93,6 +94,8 @@ function chromium(env?: Record<string, string>, reducedMotion = false) {
 }
 
 const DEPLOY_SETTINGS_TEST = 'packages/config/test/deploy-settings.test.ts'
+// Builds a real Storybook and drives Chromium over it: a project of its own, so it doesn't slow the Node tests.
+const STORYBOOK_TEST = 'packages/storybook/test/**/*.integration.test.ts'
 
 const node: TestProjectInlineConfiguration = {
   extends: true,
@@ -110,7 +113,7 @@ const node: TestProjectInlineConfiguration = {
       'e2e/test/fakes/**/*.test.ts',
     ],
     // Its own project (below), so a change to deploy/ reruns that one file, not every Node test.
-    exclude: [DEPLOY_SETTINGS_TEST],
+    exclude: [DEPLOY_SETTINGS_TEST, STORYBOOK_TEST],
   },
 }
 
@@ -122,6 +125,21 @@ const node: TestProjectInlineConfiguration = {
 const deploy: TestProjectInlineConfiguration = {
   extends: true,
   test: { name: 'deploy', include: [DEPLOY_SETTINGS_TEST] },
+}
+
+/**
+ * `@circi/storybook` against a real Storybook 10 build (React and Vite), screenshotted in headless
+ * Chromium, with only CirCI faked. Slow (it builds Storybook), hence its own project and turbo task
+ * (`//#test:storybook`), cached on the storybook and cli packages alone. No database.
+ */
+const storybook: TestProjectInlineConfiguration = {
+  extends: true,
+  test: {
+    name: 'storybook',
+    include: [STORYBOOK_TEST],
+    testTimeout: 240_000,
+    hookTimeout: 300_000,
+  },
 }
 
 /**
@@ -284,7 +302,7 @@ export default defineConfig({
   plugins: [
     // Fills the token variables into @circi/ui's global.css, as the real builds do.
     circiTokensCss(),
-    // Visual runs: `toMatchScreenshot` captures go to .circi/screenshots and are sent to CirCI when
+    // Visual runs: `toMatchScreenshot` captures go to .circi/screenshots/vitest and are sent to CirCI when
     // CIRCI_API_URL and CIRCI_TOKEN are set.
     ...(VISUAL ? [circi({ name: 'ui-chromium', wait: true })] : []),
   ],
@@ -317,6 +335,7 @@ export default defineConfig({
     projects: [
       node,
       deploy,
+      storybook,
       ui,
       webBrowser,
       ...(E2E ? [e2e('api'), e2e('browser')] : []),

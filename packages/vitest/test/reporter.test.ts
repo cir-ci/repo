@@ -13,7 +13,7 @@ describe('CirciReporter', () => {
   const quiet = { log: () => {} }
 
   it('uploads what it finds as one build named for the run, with its shard', async () => {
-    await touch('.circi/screenshots/a.png')
+    await touch('.circi/screenshots/vitest/a.png')
     const seen: upload.Options[] = []
     const reporter = new CirciReporter({
       apiUrl: 'https://ci.acme.io',
@@ -61,7 +61,7 @@ describe('CirciReporter', () => {
     }).onTestRunEnd([], [], 'passed')
     expect(called).toBe(0)
 
-    await touch('.circi/screenshots/a.png')
+    await touch('.circi/screenshots/vitest/a.png')
     const lines: string[] = []
     const failing = new CirciReporter({
       apiUrl: 'https://x',
@@ -81,7 +81,7 @@ describe('CirciReporter', () => {
   it('looks in the root Vitest reports, not the directory the run was started from', async () => {
     // The plugin saves under the Vitest project's root; `vitest --root x` or a run from a
     // subfolder must still find those pictures.
-    await touch('.circi/screenshots/button/primary.png')
+    await touch('.circi/screenshots/vitest/button/primary.png')
     const staged: string[] = []
     const reporter = new CirciReporter({
       apiUrl: 'https://x',
@@ -99,7 +99,7 @@ describe('CirciReporter', () => {
   })
 
   it('with clean, starts from an empty folder so only this run is uploaded', async () => {
-    await touch('.circi/screenshots/stale.png')
+    await touch('.circi/screenshots/vitest/stale.png')
     const names: string[] = []
     const reporter = new CirciReporter({
       apiUrl: 'https://x',
@@ -107,13 +107,15 @@ describe('CirciReporter', () => {
       clean: true,
       collectImpl: async (o) => {
         const { collectDirectory } = await import('#src/collect.ts')
-        names.push(...(await collectDirectory(`${o.root}/.circi/screenshots`)).map((c) => c.name))
+        names.push(
+          ...(await collectDirectory(`${o.root}/.circi/screenshots/vitest`)).map((c) => c.name),
+        )
         return []
       },
       ...quiet,
     })
     reporter.onInit({ config: { root: tmp.root() } })
-    await touch('.circi/screenshots/fresh.png')
+    await touch('.circi/screenshots/vitest/fresh.png')
     await reporter.onTestRunEnd([], [], 'passed')
     // The folder was emptied at init, before the fresh capture was written; stale is gone.
     expect(names).toEqual(['fresh'])

@@ -19,9 +19,15 @@
     "perf/bench/**/*.ts",
     "apps/server/tsdown.config.ts",
     "packages/cli/tsdown.config.ts",
+    "packages/storybook/tsdown.config.ts",
     "packages/vitest/tsdown.config.ts",
     "scripts/retry-reporter.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["apps/web", "packages/ui", "packages/vitest/test/fixtures"]
+  "exclude": [
+    "apps/web",
+    "packages/ui",
+    "packages/vitest/test/fixtures",
+    "packages/storybook/test/fixtures"
+  ]
 }
