@@ -1,6 +1,6 @@
 {
   "name": "@circi/cli",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Upload screenshots from any CI to CirCI, the self-hosted visual regression testing server",
   "keywords": [
     "ci",
