@@ -1,5 +1,33 @@
 # @circi/server
 
+## 0.1.1
+
+### Patch Changes
+
+- [#7](https://github.com/cir-ci/repo/pull/7) [`72a2172`](https://github.com/cir-ci/repo/commit/72a2172b64bda357daf3c2f7b5235e33cfb93d4d) Thanks [@michaelhazan](https://github.com/michaelhazan)! - `circi admin doctor`'s hosted-sites warning links to https://circi.dev/self-hosting/site-domains/ instead of a file in the source repository, and so do the deploy files (the Caddyfile, the Caddy overlay, `.env.example` and the Terraform module).
+
+- [#25](https://github.com/cir-ci/repo/pull/25) [`613c6f6`](https://github.com/cir-ci/repo/commit/613c6f61dd0d458fa038cea02b921f52381e8b0b) Thanks [@michaelhazan](https://github.com/michaelhazan)! - CirCI now has a Helm chart for running it on an existing Kubernetes cluster such as EKS, published with each release as `oci://ghcr.io/cir-ci/charts/circi`. You bring Postgres, the S3 bucket and the IAM role; the chart runs the app (together or as separate serve and worker pods), reads secrets as files, and can run Caddy for hosted sites or use an Ingress for the dashboard. The Terraform module for a Docker host is unchanged.
+
+- [#38](https://github.com/cir-ci/repo/pull/38) [`6efde8b`](https://github.com/cir-ci/repo/commit/6efde8bb1b3a199fe9d4894439cf36dab21a51e6) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The site kind detection tests each have their own name, so Flakiness.io can track them separately. Nothing changes in how sites are detected.
+
+- [#23](https://github.com/cir-ci/repo/pull/23) [`1d1c195`](https://github.com/cir-ci/repo/commit/1d1c195e51355895e018c00c5a9ba12a0ab83866) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The Terraform module will be on the Terraform Registry as `cir-ci/circi/docker`, one version per release, so `source = "cir-ci/circi/docker"` with `version = "<release>"` replaces the Git URL (which keeps working). The module now reads a `Caddyfile` inside its own folder; the Caddy configuration it applies is unchanged.
+
+- [#33](https://github.com/cir-ci/repo/pull/33) [`6c341b8`](https://github.com/cir-ci/repo/commit/6c341b8bfaf548da2d019c160f2de8a68fdc1a50) Thanks [@michaelhazan](https://github.com/michaelhazan)! - A test of the stored GitHub App no longer fails now and then: its fake private key could show up by chance in the encrypted value it checks. Nothing changes for people running CirCI.
+
+- [#40](https://github.com/cir-ci/repo/pull/40) [`a485d66`](https://github.com/cir-ci/repo/commit/a485d6669f5bd06c50305b180aee282952f45d91) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Push notifications no longer stop for everyone now and then. About 1 in 256 of the server's web push keys was read back as invalid, so the server made new keys and dropped every device's subscription, and people had to turn push on again. Keys made before this release keep working.
+
+- [#38](https://github.com/cir-ci/repo/pull/38) [`6efde8b`](https://github.com/cir-ci/repo/commit/6efde8bb1b3a199fe9d4894439cf36dab21a51e6) Thanks [@michaelhazan](https://github.com/michaelhazan)! - A ListRow test no longer fails now and then on a busy machine: it no longer depends on where an earlier test left the mouse pointer. Nothing changes in the component.
+
+- [#39](https://github.com/cir-ci/repo/pull/39) [`5d0dc77`](https://github.com/cir-ci/repo/commit/5d0dc778f9d8340ac1d967f22e20899dfbe17e50) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The server and dashboard tests run in about half the time: test files now share loaded modules instead of loading the server again for each one. Nothing changes in the app.
+
+- [#39](https://github.com/cir-ci/repo/pull/39) [`5d0dc77`](https://github.com/cir-ci/repo/commit/5d0dc778f9d8340ac1d967f22e20899dfbe17e50) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The image library is loaded when the server first reads, diffs or resizes an image, not when it starts, which makes startup and the test suite faster. Image handling is unchanged.
+
+- [#34](https://github.com/cir-ci/repo/pull/34) [`3d7a9f9`](https://github.com/cir-ci/repo/commit/3d7a9f96ca6e11e1f251d77a3a3ab57a71b9b7a2) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Server-side test cleanup, with nothing to change in how the app or the packages behave: shared helpers for seeded builds and members, the mail fake, sign-in by email code, PNG builders, temp directories, the auth secret and fake timers; duplicated and wrapper-only tests removed (each assertion still has a test that covers it); fixed waits in the live-stream tests replaced by ordered marker events; one database per file in the triage tests; the CLI's slow spawned test kept only where the exit code matters. `@circi/vitest`'s slow plugin test (a real nested Vitest run in Chromium) now runs as its own `pnpm test:vitest` task, part of `pnpm gate`, instead of on the Node tests' critical path.
+
+- [#8](https://github.com/cir-ci/repo/pull/8) [`37c0620`](https://github.com/cir-ci/repo/commit/37c0620c68278e75d67fae9257b6028ce1046828) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The repository's READMEs are about the code, and using and running CirCI is documented on https://circi.dev only: the root README links the site and maps the code's folders, `deploy/README.md` and `deploy/terraform/README.md` explain how the image and the Terraform module are built (their usage is on the Docker Compose and Terraform pages), and the `docs/` folder is gone, its pages being on the site. `.env.example`'s GitHub App note links https://circi.dev/integrations/github/.
+
+- [#26](https://github.com/cir-ci/repo/pull/26) [`aa2c4c6`](https://github.com/cir-ci/repo/commit/aa2c4c6f8563a59652432f69f965fc76c9a47099) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The Terraform module works from a Windows Git checkout (it no longer relies on a symlink for its `Caddyfile`), and each version on the Terraform Registry holds the module exactly as it was released, with the license.
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,5 +1,19 @@
 # @circi/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- [#35](https://github.com/cir-ci/repo/pull/35) [`ab6be07`](https://github.com/cir-ci/repo/commit/ab6be076a8559f5167443de59bd7d3df5140e28b) Thanks [@michaelhazan](https://github.com/michaelhazan)! - For tools built on the CLI (`@circi/vitest`, `@circi/storybook`): adds `CirciOptions.Common` (the options they share), `uploadCaptures` (upload a folder of captures when a run ends: credentials from the options or the environment, a notice and no upload without them, a failed upload reported rather than thrown), `writeCapture`, `mapLimit`, `shardFlag`, `shardFromArgs`, `shardFromEnv` (`CIRCI_SHARD`), `ignoreBrokenPipe`, `debugOn` and `reportError`, and a browser-safe `@circi/cli/names` (screenshot naming, `DEFAULT_DIR`, `STABILIZE_CSS`). The `circi` command is unchanged.
+
+- [#35](https://github.com/cir-ci/repo/pull/35) [`ab6be07`](https://github.com/cir-ci/repo/commit/ab6be076a8559f5167443de59bd7d3df5140e28b) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Adds `toolDir(dir, tool)` to `@circi/cli/names`: each tool that writes captures owns `<dir>/<tool>` (`.circi/screenshots/vitest`, `.circi/screenshots/storybook`), so tools sharing a project never upload or clean each other's files. A shard with no screenshots (more shards than tests, or every test skipped) now still reports in, so the parallel build completes instead of waiting for it.
+
+- [#35](https://github.com/cir-ci/repo/pull/35) [`ab6be07`](https://github.com/cir-ci/repo/commit/ab6be076a8559f5167443de59bd7d3df5140e28b) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Adds `uploadSiteAfter`, which tools built on the CLI use to host a built site (Storybook, Vitest's HTML report) after their screenshots: only when the screenshots were uploaded, with an address and a token, from the first shard, and a failed upload is logged and fails the run only with `strict`.
+
+- [#30](https://github.com/cir-ci/repo/pull/30) [`2926511`](https://github.com/cir-ci/repo/commit/292651149f71b6deb4efd21a0e96aa9542cefebf) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The npm descriptions and keywords say what the packages are for: uploading screenshots to CirCI, the self-hosted visual regression testing server. `@circi/vitest`'s no longer mentions the screenshot helper removed in 0.3.0.
+
+- [#34](https://github.com/cir-ci/repo/pull/34) [`3d7a9f9`](https://github.com/cir-ci/repo/commit/3d7a9f96ca6e11e1f251d77a3a3ab57a71b9b7a2) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Server-side test cleanup, with nothing to change in how the app or the packages behave: shared helpers for seeded builds and members, the mail fake, sign-in by email code, PNG builders, temp directories, the auth secret and fake timers; duplicated and wrapper-only tests removed (each assertion still has a test that covers it); fixed waits in the live-stream tests replaced by ordered marker events; one database per file in the triage tests; the CLI's slow spawned test kept only where the exit code matters. `@circi/vitest`'s slow plugin test (a real nested Vitest run in Chromium) now runs as its own `pnpm test:vitest` task, part of `pnpm gate`, instead of on the Node tests' critical path.
+
 ## 0.2.0
 
 ### Minor Changes

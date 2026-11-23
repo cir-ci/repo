@@ -1,6 +1,6 @@
 {
   "name": "@circi/e2e",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "End-to-end tests against the real Docker stack (see README.md)",
   "license": "GPL-3.0-only",
