@@ -155,8 +155,9 @@ describe('creating an account', () => {
     })
     await page.getByRole('button', { name: 'Copy password for lior@acme.dev' }).click()
     await expect.poll(() => write).toHaveBeenCalledWith('tide-ember-violet-42')
-    // Exact: the copy toast's text contains "Copied" too.
-    await expect.element(page.getByText('Copied', { exact: true })).toBeVisible()
+    // The toast, not the button: its label reads "Copied" too, and the two together made the
+    // check wait out its timeout.
+    await expect.element(toastNamed('Copied')).toBeVisible()
     await page.getByRole('button', { name: 'Done' }).click()
     await expect.element(page.getByText('tide-ember-violet-42')).not.toBeInTheDocument()
   })

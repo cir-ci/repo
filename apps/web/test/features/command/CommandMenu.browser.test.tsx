@@ -74,6 +74,8 @@ const api = (
       body: sidebarModel({ projects: [web, docs], ...sidebar }),
     },
     'GET /api/workspaces/acme/search': { body: search },
+    // Opening a workspace's page records it; unanswered, its error toast would cover the menu.
+    'PUT /api/workspaces/acme/last-opened': { status: 204 },
     ...extra,
   })
   // The search's own address says which project and kinds were asked for.

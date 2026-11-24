@@ -223,7 +223,13 @@ const auth = mockAuthClient()
 
 beforeEach(() => {
   auth.signOut.mockReset().mockResolvedValue(undefined)
-  fakeFetch(getRoutes(API))
+  fakeFetch({
+    ...getRoutes(API),
+    // Opening a workspace's page records it. Unanswered (a 404), its error toast covers the
+    // bottom of a phone screen for its 10 s, and a click there waits it out.
+    'PUT /api/workspaces/acme/last-opened': () => new Response(null, { status: 204 }),
+    'PUT /api/workspaces/globex/last-opened': () => new Response(null, { status: 204 }),
+  })
 })
 
 afterEach(() => {
