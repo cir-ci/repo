@@ -9,7 +9,7 @@ import { ARTIFACTS_DIR, REPO_ROOT } from '#stack/paths.ts'
 /**
  * Writes `e2e/.artifacts/timings.json` (per file, per test, per stack phase) and prints a summary
  * at the end of an end-to-end run: total, every file, the five slowest tests and the stack phases.
- * Registered by `vitest.config.ts` when `E2E=1`.
+ * Registered by this package's `vitest.config.ts` when `E2E=1`.
  */
 
 interface StackPhases {

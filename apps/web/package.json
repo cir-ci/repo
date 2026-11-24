@@ -14,7 +14,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json",
-    "icons": "node scripts/make-icons.ts"
+    "icons": "node scripts/make-icons.ts",
+    "test": "vitest run --maxWorkers=25%"
   },
   "dependencies": {
     "@circi/api": "catalog:",
@@ -34,6 +35,8 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",

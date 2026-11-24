@@ -1,0 +1,5 @@
+{
+  "extends": "@circi/typescript-config/tsconfig.node.json",
+  "include": ["src", "test", "*.ts"],
+  "exclude": ["src/support.ts", "src/page.ts", "test/types", "test/fixtures"]
+}

@@ -1,10 +1,4 @@
 {
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
-    "noEmit": true
-  },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "extends": "@circi/typescript-config/tsconfig.node.json",
+  "include": ["src", "test", "*.ts"]
 }

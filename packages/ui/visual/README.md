@@ -14,6 +14,6 @@ CIRCI_API_URL=http://localhost:3000 CIRCI_TOKEN=circi_... CIRCI_BRANCH=main pnpm
 
 The plugin is configured with `wait: true`, so the run exits 1 while the build has changes that need review (the first build always does): approve it in the dashboard and the next run on the same code exits 0. `CIRCI_COMMIT` / `CIRCI_BRANCH` override what is read from git, as for `circi upload`. `e2e/test/platform/dogfood.browser.e2e.test.ts` does exactly this on a throwaway stack: upload, approve, upload again, expect `no_changes`.
 
-Notes from making it stable: fixed viewport (1000x700), fonts from `@fontsource-variable/*` imported by the test file, and the plugin's own animation/caret stabilization. Previews outside any package need `react` and `@circi/ui` aliased (see `vitest.config.ts`).
+Notes from making it stable: fixed viewport (1000x700), fonts from `@fontsource-variable/*` imported by the test file, and the plugin's own animation/caret stabilization. Previews outside any package need `react` and `@circi/ui` aliased (see @circi/vitest-config's `vitest.ui.config.ts`).
 
 How the plugin works is on the website: [Vitest plugin](https://circi.dev/ci/vitest/).

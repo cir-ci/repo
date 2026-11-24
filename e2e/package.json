@@ -13,6 +13,16 @@
     "#src/*": "./src/*",
     "#stack/*": "./src/stack/*"
   },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:compose": "COMPOSE_SMOKE=1 vitest run --project compose",
+    "test:e2e": "E2E=1 vitest run --project e2e-api --project e2e-browser",
+    "test:e2e:api": "E2E=1 vitest run --project e2e-api",
+    "test:e2e:browser": "E2E=1 vitest run --project e2e-browser",
+    "e2e:api": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:api",
+    "e2e:browser": "E2E_WORKERS=${E2E_WORKERS:-2} pnpm test:e2e:browser"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
     "@circi/auth": "catalog:",
@@ -31,6 +41,8 @@
     "@circi/api": "catalog:",
     "@circi/integrations": "catalog:",
     "@circi/testing": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "vitest": "catalog:"

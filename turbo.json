@@ -1,13 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
-  "globalDependencies": [
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    "tsconfig.base.json",
-    "tsconfig.json",
-    "tsdown.shared.ts"
-  ],
+  "globalDependencies": ["pnpm-lock.yaml", "pnpm-workspace.yaml"],
   "globalEnv": ["NODE_ENV"],
   "globalPassThroughEnv": [
     "CI",
@@ -17,11 +11,37 @@
   ],
   "tasks": {
     "transit": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"]
     },
     "build": {
       "dependsOn": ["^build", "transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"],
       "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"],
+      "outputs": []
+    },
+    "@circi/vitest#test": {
+      "dependsOn": ["transit", "build"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"],
+      "outputs": []
+    },
+    "@circi/cypress#test": {
+      "dependsOn": ["transit", "build"],
+      "inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md"],
+      "outputs": []
+    },
+    "@circi/ui#test:visual": {
+      "dependsOn": ["@circi/vitest#build"],
+      "cache": false
     },
     "//#format:check": {
       "inputs": [
@@ -48,126 +68,12 @@
       ],
       "outputs": []
     },
-    "//#typecheck": {
-      "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e,dev,perf}/**/*.{ts,tsx,js,json,css,d.ts}",
-        "$TURBO_ROOT$/*.{ts,json}",
-        "!**/node_modules/**",
-        "!**/target/**",
-        "!**/dist/**",
-        "!$TURBO_ROOT$/e2e/.artifacts/**",
-        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**"
-      ],
-      "outputs": []
-    },
-    "//#test:node": {
-      "inputs": [
-        "$TURBO_ROOT$/{apps,packages}/**",
-        "$TURBO_ROOT$/e2e/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "$TURBO_ROOT$/{dev,perf}/package.json",
-        "!$TURBO_ROOT$/e2e/.artifacts/**",
-        "!$TURBO_ROOT$/perf/{fixtures,.state,results}/**",
-        "!**/node_modules/**",
-        "!**/target/**",
-        "!**/dist/**",
-        "!**/coverage/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#test:deploy": {
-      "inputs": [
-        "$TURBO_ROOT$/packages/config/**",
-        "$TURBO_ROOT$/deploy/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/.terraform/**",
-        "!**/.turbo/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#test:storybook": {
-      "inputs": [
-        "$TURBO_ROOT$/packages/{storybook,cli,testing}/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/dist/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**",
-        "!$TURBO_ROOT$/packages/storybook/test/fixtures/.run-*/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#test:cypress": {
-      "inputs": [
-        "$TURBO_ROOT$/packages/{cypress,cli,testing}/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/dist/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**",
-        "!$TURBO_ROOT$/packages/cypress/test/fixtures/.run-*/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build", "@circi/cypress#build"]
-    },
-    "//#test:vitest": {
-      "inputs": [
-        "$TURBO_ROOT$/packages/{vitest,cli,testing}/**",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/dist/**",
-        "!**/.run-*/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#test:ui": {
-      "inputs": [
-        "$TURBO_ROOT$/packages/ui/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/target/**",
-        "!**/dist/**",
-        "!**/coverage/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#test:web-browser": {
-      "inputs": [
-        "$TURBO_ROOT$/{apps/web,packages/ui,packages/api,packages/core}/**",
-        "$TURBO_ROOT$/vitest.config.ts",
-        "$TURBO_ROOT$/package.json",
-        "!**/node_modules/**",
-        "!**/target/**",
-        "!**/dist/**",
-        "!**/coverage/**",
-        "!**/.vitest/**",
-        "!**/.turbo/**"
-      ],
-      "outputs": [],
-      "dependsOn": ["@circi/vitest#build"]
-    },
-    "//#e2e:api": {
+    "@circi/e2e#e2e:api": {
       "inputs": [
         "$TURBO_ROOT$/deploy/Dockerfile",
         "$TURBO_ROOT$/.dockerignore",
-        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/e2e/vitest.config.ts",
+        "$TURBO_ROOT$/packages/vitest-config/**",
         "$TURBO_ROOT$/e2e/compose.yml",
         "$TURBO_ROOT$/e2e/package.json",
         "$TURBO_ROOT$/e2e/tsconfig.json",
@@ -208,13 +114,14 @@
         "PLAYWRIGHT_*",
         "CI"
       ],
-      "dependsOn": ["@circi/vitest#build"]
+      "dependsOn": ["@circi/cli#build"]
     },
-    "//#e2e:browser": {
+    "@circi/e2e#e2e:browser": {
       "inputs": [
         "$TURBO_ROOT$/deploy/Dockerfile",
         "$TURBO_ROOT$/.dockerignore",
-        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/e2e/vitest.config.ts",
+        "$TURBO_ROOT$/packages/vitest-config/**",
         "$TURBO_ROOT$/e2e/compose.yml",
         "$TURBO_ROOT$/e2e/package.json",
         "$TURBO_ROOT$/e2e/tsconfig.json",
@@ -244,7 +151,7 @@
         "PLAYWRIGHT_*",
         "CI"
       ],
-      "dependsOn": ["@circi/vitest#build"]
+      "dependsOn": ["@circi/cli#build"]
     }
   }
 }

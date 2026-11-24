@@ -8,8 +8,16 @@
     "#src/*": "./src/*"
   },
   "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@circi/core": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:"
   }
 }

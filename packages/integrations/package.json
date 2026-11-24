@@ -15,12 +15,18 @@
     "./gitlab": "./src/kinds/gitlab/index.ts",
     "./bitbucket": "./src/kinds/bitbucket/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@circi/api": "catalog:",
     "@circi/core": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "catalog:"
+    "@circi/testing": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:"
   }
 }

@@ -154,6 +154,10 @@ jobs:
     executor:
       name: node
       variant: -browsers
+    environment:
+      # Each package's tests are their own Vitest process, about 20 of them: three at a time keeps the
+      # job inside its 8 GiB (Turborepo's default of 10 at once is for a bigger machine).
+      TURBO_CONCURRENCY: '3'
     steps:
       - checkout
       - setup
@@ -161,7 +165,7 @@ jobs:
           with-deps: false # the image has them
       - install-cypress
       - restore-turbo
-      # `pnpm gate` in its two halves, one after the other: tsgolint (`oxlint --type-aware`) and the four
+      # `pnpm gate` in its two halves, one after the other: tsgolint (`oxlint --type-aware`) and the
       # `tsc` runs started beside the Node and browser tests took the job to 7.2 of its 8 GiB, and the
       # kernel killed tsgolint (SIGKILL).
       - run:
@@ -188,7 +192,7 @@ jobs:
           name: Changeset status
           command: pnpm exec changeset status --since=origin/main
 
-  # The end-to-end groups of `pnpm gate:full` (//#e2e:api and //#e2e:browser): the real server, worker and
+  # The end-to-end groups of `pnpm gate:full` (@circi/e2e's e2e:api and e2e:browser): the real server, worker and
   # CLI image on Docker, with Chromium for the dashboard. The gate's own tasks run in the `gate` job.
   e2e:
     executor: docker-vm
@@ -207,7 +211,7 @@ jobs:
           name: End-to-end tests
           command: |
             E2E_ENV_FINGERPRINT="$(pnpm --silent e2e:fingerprint)" \
-              pnpm exec turbo run //#e2e:api //#e2e:browser
+              pnpm exec turbo run e2e:api e2e:browser --filter=@circi/e2e
           no_output_timeout: 30m
       - save-turbo
       - store_artifacts:
@@ -227,9 +231,9 @@ jobs:
       - setup
       - run:
           name: Compose smoke test
-          command: pnpm test:compose --reporter=default --reporter=junit --outputFile.junit=test-results/compose/junit.xml
+          command: pnpm test:compose --reporter=default --reporter=junit --outputFile.junit=test-results/compose/junit.xml # in e2e/, where its tests run
       - store_test_results:
-          path: test-results
+          path: e2e/test-results
 
   terraform:
     executor:
@@ -294,7 +298,7 @@ workflows:
         - << pipeline.parameters.renovate >>
     jobs:
       # The Flakiness context holds FLAKINESS_ACCESS_TOKEN, with which the test runs upload their
-      # reports to Flakiness.io (vitest.config.ts).
+      # reports to Flakiness.io (packages/vitest-config/shared.ts).
       - gate:
           context: Flakiness
       - terraform

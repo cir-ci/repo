@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  describeRetried,
-  type ModuleLike,
-  retriedTests,
-} from '../../../../scripts/retry-reporter.ts'
+import { describeRetried, type ModuleLike, retriedTests } from '../retry-reporter.ts'
 
 const test = (fullName: string, retryCount: number, state = 'passed') => ({
   fullName,
@@ -19,7 +15,7 @@ const module = (moduleId: string, tests: ReturnType<typeof test>[]): ModuleLike 
 })
 
 describe('the retry reporter', () => {
-  const root = new URL('../../../..', import.meta.url).pathname
+  const root = new URL('../../..', import.meta.url).pathname
 
   it('lists the tests that needed a retry, by file and name, and none that passed first time', () => {
     const retried = retriedTests([

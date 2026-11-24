@@ -7,7 +7,8 @@ import type { Reporter, TestModule } from 'vitest/node'
  * The tests that passed only on a retry. The browser projects retry a test once (a lost frame in
  * the runner, a slow machine), which keeps a run green; this lists every such test at the end of
  * the run and writes the list to `.vitest/retried-tests.txt`, so CI shows flakiness instead of
- * hiding it. It never fails the run: a test that fails both times already does.
+ * hiding it. It never fails the run: a test that fails both times already does. Each package's run
+ * writes its own list (`<package>/.vitest/retried-tests.txt`); file names are from the repository root.
  */
 export interface Retried {
   project: string
@@ -18,8 +19,10 @@ export interface Retried {
   passed: boolean
 }
 
-const root = resolve(import.meta.dirname, '..')
-export const RETRIED_FILE = resolve(root, '.vitest/retried-tests.txt')
+// This package sits at packages/vitest-config: the repository is two levels up.
+const root = resolve(import.meta.dirname, '../..')
+/** The list of the package whose tests are running (Vitest runs in the package's folder). */
+export const retriedFile = (): string => resolve(process.cwd(), '.vitest/retried-tests.txt')
 
 /** The part of Vitest's `TestModule` this reads (so a test can pass plain objects). */
 export interface ModuleLike {
@@ -66,8 +69,9 @@ export default class RetryReporter implements Reporter {
   onTestRunEnd(modules: ReadonlyArray<TestModule>): void {
     const retried = retriedTests(modules)
     const text = describeRetried(retried)
-    mkdirSync(dirname(RETRIED_FILE), { recursive: true })
-    writeFileSync(RETRIED_FILE, `${text}\n`)
-    if (retried.length > 0) console.log(`\n${text}\n(also in ${relative(root, RETRIED_FILE)})`)
+    const file = retriedFile()
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, `${text}\n`)
+    if (retried.length > 0) console.log(`\n${text}\n(also in ${relative(root, file)})`)
   }
 }

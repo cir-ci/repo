@@ -12,7 +12,9 @@
   },
   "exports": "./src/index.ts",
   "scripts": {
-    "schema": "auth generate --config src/schema-config.ts --output ../db/src/schema/auth.ts --yes"
+    "schema": "auth generate --config src/schema-config.ts --output ../db/src/schema/auth.ts --yes",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/api-key": "catalog:",
@@ -28,6 +30,8 @@
   },
   "devDependencies": {
     "@circi/testing": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@types/nodemailer": "catalog:",
     "auth": "catalog:"

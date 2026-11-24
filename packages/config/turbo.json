@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!CHANGELOG.md",
+        "$TURBO_ROOT$/deploy/**",
+        "!$TURBO_ROOT$/deploy/**/.terraform/**"
+      ]
+    }
+  }
+}

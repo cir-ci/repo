@@ -15,7 +15,7 @@ Rules on top of CLAUDE.md:
 
 - Read `CLAUDE.md` first and follow it: the layers, style, copy rules (straight apostrophes, "screenshot", "ID", sentence case), toasts, settings rules, one primary button per area, Base UI wrappers, `#` imports, namespaces, and no `@testing-library`.
 - Never run whole test suites. Run only the files you touch: `pnpm exec vitest run --project <node|web-browser|ui> <files or one folder>`.
-- Before you finish, run `pnpm format`, then `TURBO_CACHE_DIR=/Users/mikey/Work/circi/repo/.turbo pnpm exec turbo run //#format:check //#lint //#typecheck`. It must exit 0 with zero warnings. Recurring lint traps:
+- Before you finish, run `pnpm format`, then `TURBO_CACHE_DIR=/Users/mikey/Work/circi/repo/.turbo pnpm exec turbo run //#format:check //#lint typecheck`. It must exit 0 with zero warnings. Recurring lint traps:
   - helpers that capture nothing must be top-level;
   - no `await` inside loops;
   - `expect` must sit inside the test itself, not only in a helper (`expect-expect`);

@@ -8,8 +8,14 @@
     ".": "./src/index.ts",
     "./hosts": "./src/hosts/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
   "dependencies": {
     "sharp": "catalog:",
     "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/typescript-config": "catalog:"
   }
 }

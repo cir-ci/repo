@@ -9,7 +9,7 @@ import { reportPhases, startStack, type Stack } from './stack.ts'
  * test file of a Vitest worker that asks for a profile boots it, later files of that worker reuse
  * it. Files of one worker run one after another, so a shared stack is never used by two at once;
  * every file makes its own tenant (workspace, owner, project) on it, which keeps the files'
- * data apart. Needs `isolate: false` for the e2e project (see vitest.config.ts), otherwise every
+ * data apart. Needs `isolate: false` for the e2e project (see @circi/vitest-config's vitest.e2e.config.ts), otherwise every
  * file gets a fresh module scope and with it an empty pool.
  *
  * A worker keeps at most `E2E_POOL_MAX` stacks (default 2; each is about 450 MB, 620 MB with

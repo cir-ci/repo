@@ -9,13 +9,17 @@
   },
   "exports": "./src/index.ts",
   "scripts": {
-    "build": "node scripts/build-native.mjs"
+    "build": "node scripts/build-native.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "pixelmatch": "catalog:",
     "sharp": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "catalog:"
+    "@circi/testing": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:"
   }
 }
