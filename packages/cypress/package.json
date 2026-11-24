@@ -56,6 +56,9 @@
   "scripts": {
     "build": "tsdown"
   },
+  "dependencies": {
+    "tar": "catalog:"
+  },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@circi/cli": "catalog:",
