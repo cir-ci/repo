@@ -41,7 +41,8 @@
     },
     "@circi/ui#test:visual": {
       "dependsOn": ["@circi/vitest#build"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["CIRCI_*"]
     },
     "//#format:check": {
       "inputs": [
