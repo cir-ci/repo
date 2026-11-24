@@ -142,10 +142,10 @@ describe('deploy/docker-compose.yml with the S3 overlay', () => {
         'node',
         '--reporter=json',
         `--outputFile=${outputFile}`,
-        'packages/storage',
       ],
       {
-        cwd: REPO_ROOT,
+        // @circi/storage's own Node tests, from its folder, where its vitest.config.ts is.
+        cwd: join(REPO_ROOT, 'packages/storage'),
         // Empty, not unset: this run must not register the end-to-end projects or reporters.
         env: { CIRCI_TEST_S3_ENDPOINT: s3Url, E2E: '' },
         allowFail: true,

@@ -14,9 +14,10 @@ export interface UiOptions {
   plugins: ViteUserConfig['plugins']
   /**
    * The visual run (`pnpm test:visual`, VISUAL=1): the `circi()` plugin of the built @circi/vitest,
-   * loaded only then, so the other runs need no build of it.
+   * loaded only then, so the other runs need no build of it. It gets the visual project's root (the
+   * repository), where the captures are written, so its uploader looks there and not in packages/ui.
    */
-  visual?: () => Promise<Plugin>
+  visual?: (root: string) => Promise<Plugin>
 }
 
 /**
@@ -82,7 +83,7 @@ function visualProject(uiRoot: string): TestProjectInlineConfiguration {
 export default async function ui(root: string, { plugins, visual }: UiOptions) {
   if (process.env['VISUAL']) {
     if (!visual) throw new Error('The visual run needs the `circi()` plugin (`visual`).')
-    const config = node(root, { plugins: [plugins, await visual()] })
+    const config = node(root, { plugins: [plugins, await visual(resolve(root, '../..'))] })
     return { ...config, test: { ...config.test, projects: [visualProject(root)] } }
   }
   return node(root, {
