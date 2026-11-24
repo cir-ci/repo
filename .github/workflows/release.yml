@@ -13,8 +13,16 @@
 # The `helm-chart` job publishes deploy/helm/circi as oci://ghcr.io/<owner>/charts/circi:<version> next to the image.
 # The `docs` job asks cir-ci/documentation to rebuild circi.dev after a release, so its changelog is current.
 #
-# Needs: the NPM_TOKEN Actions secret, the CIRCI_APP_CLIENT_ID variable and CIRCI_APP_PRIVATE_KEY secret (the `docs`
-# job), and Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+# Everything this workflow writes to GitHub (the Version Packages pull request and its commit, tags, GitHub releases, the
+# circi.dev rebuild, the Terraform mirror's commit) is done as the organization's `cir-ci` GitHub App, cir-ci[bot], not as
+# github-actions[bot]: a token from its client ID (the CIRCI_APP_CLIENT_ID variable) and private key (the
+# CIRCI_APP_PRIVATE_KEY secret). The app is installed on the organization's repositories with Contents and Pull requests:
+# write. A pull request the app opens also starts the other workflows, which one opened with GITHUB_TOKEN doesn't.
+# Images and the chart still go to ghcr.io with the job's GITHUB_TOKEN (packages: write), which an app token can't do.
+#
+# Needs: the NPM_TOKEN Actions secret, and the CIRCI_APP_CLIENT_ID variable and CIRCI_APP_PRIVATE_KEY secret. Without the
+# key, the release job falls back to GITHUB_TOKEN (and Settings > Actions > General > "Allow GitHub Actions to create and
+# approve pull requests") and says so, and the docs job only says so.
 name: Release
 
 on:
@@ -47,11 +55,29 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      # The app's token, so the pull request, its commit, the tags and the releases are cir-ci[bot]'s (see the top).
+      - id: app
+        run: |
+          if [ "${{ secrets.CIRCI_APP_PRIVATE_KEY != '' }}" = true ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CIRCI_APP_PRIVATE_KEY is not set, so the release runs as github-actions[bot] with GITHUB_TOKEN."
+          fi
+      - if: steps.app.outputs.set
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CIRCI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CIRCI_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       # v2: v1 read what was published from the CLI's output, which Changesets v3 changed, so it skipped the
       # tags and GitHub releases. v2 reads the file CHANGESETS_OUTPUT names, which `pnpm release` passes down.
+      # It commits through the GitHub API (not git), so the commit's author is the token's: cir-ci[bot].
       - id: changesets
         uses: changesets/action@v2
         with:
+          github-token: ${{ steps.token.outputs.token || github.token }}
           version-script: pnpm version-packages
           publish-script: pnpm release
         env:
@@ -307,7 +333,8 @@ jobs:
           cp ../deploy/Caddyfile Caddyfile
           cp ../LICENSE LICENSE
           git add -A
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+          # Committed as cir-ci[bot], the app that does the rest of the release (its noreply address is its user ID).
+          git -c user.name='cir-ci[bot]' -c user.email='352933691+cir-ci[bot]@users.noreply.github.com' \
             commit --quiet --allow-empty -m "CirCI $VERSION" -m "Generated from ${{ github.repository }}, release @circi/server@$VERSION."
           git tag "v$VERSION"
           git push --quiet --atomic origin HEAD:main "v$VERSION"
