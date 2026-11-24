@@ -1,4 +1,6 @@
-import { resolve } from 'node:path'
+import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 
 import { playwright } from '@vitest/browser-playwright'
 import type { TestProjectInlineConfiguration } from 'vitest/config'
@@ -46,6 +48,52 @@ export const baseUiDeps = [
 ].map((part) => `@base-ui/react/${part}`)
 // The project icons load from `lucide-react/dynamic.mjs` on demand: listed so a first run doesn't
 // discover it mid-test and reload the page.
+/**
+ * A hash of a folder's files, for a pre-bundled workspace package (`sourceKeyed`). Vite keys its
+ * pre-bundle cache on the lockfile and the config, not on a linked package's source: without this,
+ * a change to that source would leave the tests running the old bundle.
+ */
+function folderHash(dir: string): string {
+  const hash = createHash('sha256')
+  const walk = (d: string) => {
+    for (const entry of readdirSync(d, { withFileTypes: true }).toSorted((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
+      const path = join(d, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else hash.update(path).update(readFileSync(path))
+    }
+  }
+  walk(dir)
+  return hash.digest('hex').slice(0, 16)
+}
+
+/**
+ * `project` with workspace packages pre-bundled like an installed dependency: one module instead of
+ * one per source file. Each test file's page loads them again (a fresh iframe per file), so for
+ * @circi/ui in the dashboard's tests that is about a hundred fewer modules per file, and less
+ * memory and time in the browser. `sources` are the packages' source folders: their hash is part of
+ * Vite's cache key (through a define nothing reads), so a change there re-bundles on the next run.
+ * A running watch session keeps the bundle it started with.
+ */
+export function sourceKeyed(
+  project: TestProjectInlineConfiguration,
+  ids: string[],
+  sources: string[],
+): TestProjectInlineConfiguration {
+  const key = sources.map(folderHash).join('-')
+  return {
+    ...project,
+    optimizeDeps: {
+      ...project.optimizeDeps,
+      include: [...ids, ...(project.optimizeDeps?.include ?? [])],
+      rolldownOptions: {
+        transform: { define: { __CIRCI_PREBUNDLED_SOURCE__: JSON.stringify(key) } },
+      },
+    },
+  }
+}
+
 export const iconDeps = ['boring-avatars', 'lucide-react', 'lucide-react/dynamic.mjs']
 // Base UI and lucide are installed under @circi/ui; projects rooted elsewhere go through it.
 export const viaUi = (ids: string[]): string[] => ids.map((id) => `@circi/ui > ${id}`)
