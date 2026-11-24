@@ -15,7 +15,7 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json",
     "icons": "node scripts/make-icons.ts",
-    "test": "vitest run --maxWorkers=25%"
+    "test": "vitest run --maxWorkers=50%"
   },
   "dependencies": {
     "@circi/api": "catalog:",
