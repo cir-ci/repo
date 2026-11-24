@@ -1,6 +1,6 @@
 {
   "name": "@circi/dev",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Local QA environment: `pnpm dev` (see README.md)",
   "license": "GPL-3.0-only",

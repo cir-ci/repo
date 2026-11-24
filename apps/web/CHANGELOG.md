@@ -1,5 +1,13 @@
 # @circi/web
 
+## 0.1.1
+
+### Patch Changes
+
+- [#53](https://github.com/cir-ci/repo/pull/53) [`d7e643c`](https://github.com/cir-ci/repo/commit/d7e643cc99088f127e5b8cb3ea410a89969b56b4) Thanks [@michaelhazan](https://github.com/michaelhazan)! - Each package now typechecks, tests and builds on its own, with its configs from three new config packages: `@circi/typescript-config` (one tsconfig per kind of package), `@circi/vitest-config` (one Vitest config per kind) and `@circi/tsdown-config` (one build config per built package). Turborepo caches every package's typecheck and tests separately, so a change reruns only the packages it touches and the ones that depend on them, and a release's version bumps no longer rerun the whole gate. Nothing in what the packages ship changes: the built output is byte for byte the same.
+
+- [#59](https://github.com/cir-ci/repo/pull/59) [`8381d8a`](https://github.com/cir-ci/repo/commit/8381d8a2babf0277e9adbcddc809291058e6c043) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The dashboard's tests are faster on CI: 242 s instead of 441 s, which brings the gate's test half from 8m02s to 5m33s. Most of that comes from running two workers there instead of one. The gate had spent its last minutes waiting on web's tests alone, and the memory a single worker used to protect is free now that the test databases live on a Postgres server. Two tests no longer wait out a timeout. In Shell, opening a project page recorded the workspace as last opened through a request the test hadn't faked. Its "not found" toast covered the phone-sized menu for 10 seconds, and the next click waited it out. In Accounts, a check for the "Copied" toast also matched the copy button, which reads "Copied" too, so it ran until its 5-second timeout.
+
 ## 0.1.0
 
 ### Minor Changes

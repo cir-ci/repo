@@ -1,6 +1,6 @@
 {
   "name": "@circi/perf",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Performance suite: k6 scenarios, a diff microbenchmark and a runner (see README.md)",
   "license": "GPL-3.0-only",
