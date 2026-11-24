@@ -30,7 +30,7 @@ binary is installed by `pnpm --filter @circi/cypress exec cypress install`, not 
 in Chromium (`integration/`, over its build). `@circi/testing` has no database code (the PGlite test database and seeders are
 `@circi/db/testing`, part of `db`), so no package pair forms a cycle.
 `pnpm gate:checks` (format check, lint, typecheck) and `pnpm gate:tests` (the tests and the build) are its two halves; CI runs them
-one after the other, because together they ran its 8 GiB machine out of memory, and runs three tasks at a time (`TURBO_CONCURRENCY`).
+one after the other, because together they ran its 8 GiB machine out of memory, and runs four tasks at a time (`TURBO_CONCURRENCY`).
 `pnpm gate:full` is `gate` plus the two end-to-end groups, `@circi/e2e`'s cached tasks `e2e:api` (the server, worker and CLI image,
 no browser) and `e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
 `pnpm gate` stays Docker-free. Both tasks also hash `E2E_ENV_FINGERPRINT` (Playwright, Chromium and Docker server versions, printed by

@@ -155,9 +155,9 @@ jobs:
       name: node
       variant: -browsers
     environment:
-      # Each package's tests are their own Vitest process, about 20 of them: three at a time keeps the
-      # job inside its 8 GiB (Turborepo's default of 10 at once is for a bigger machine).
-      TURBO_CONCURRENCY: '3'
+      # Each package's tests are their own Vitest process, about 20 of them: four at a time keeps the
+      # job inside its 8 GiB (three peaked at 5.3 GiB; Turborepo's default of 10 at once is for a bigger machine).
+      TURBO_CONCURRENCY: '4'
     steps:
       - checkout
       - setup
