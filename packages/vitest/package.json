@@ -1,6 +1,6 @@
 {
   "name": "@circi/vitest",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Vitest plugin for CirCI: uploads every toMatchScreenshot screenshot for self-hosted visual regression review",
   "keywords": [
     "browser-testing",
