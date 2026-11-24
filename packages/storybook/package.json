@@ -1,6 +1,6 @@
 {
   "name": "@circi/storybook",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Screenshot every Storybook story with Playwright and upload them to CirCI",
   "keywords": [
     "playwright",

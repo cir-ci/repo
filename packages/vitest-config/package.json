@@ -1,6 +1,6 @@
 {
   "name": "@circi/vitest-config",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "The Vitest setup of every package: what they share, and one config per kind of package.",
   "license": "GPL-3.0-only",

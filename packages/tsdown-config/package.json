@@ -1,6 +1,6 @@
 {
   "name": "@circi/tsdown-config",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "The tsdown build of every built package: what they share, and one file per package.",
   "license": "GPL-3.0-only",

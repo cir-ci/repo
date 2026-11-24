@@ -1,6 +1,6 @@
 {
   "name": "@circi/typescript-config",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "The TypeScript settings every package extends: one file per kind of package.",
   "license": "GPL-3.0-only",
