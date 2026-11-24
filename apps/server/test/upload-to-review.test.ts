@@ -21,7 +21,7 @@ import { createTestAuth, seedTenant } from './support/helpers.ts'
 
 /**
  * M1 end to end (PLAN §9): the real CLI uploads to a real HTTP server, the worker diffs, and
- * `--wait` reports the outcome. Only the database (PGlite) and git remote (a local path) differ
+ * `--wait` reports the outcome. Only the database (the test Postgres) and git remote (a local path) differ
  * from production.
  */
 

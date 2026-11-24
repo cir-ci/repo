@@ -12,7 +12,7 @@ import { base, type BaseOptions, SETUP_NODE } from './shared.ts'
 export interface NodeOptions extends BaseOptions {
   /**
    * Global setup files, absolute. The packages whose tests create a database (`createTestDb()`) pass
-   * @circi/db's `template-db.ts`, which migrates one PGlite database for every test of the run.
+   * @circi/db's `template-db.ts`, which starts (or finds) the test Postgres server and its migrated template.
    */
   globalSetup?: string[]
   /** The package's Node tests, from its folder. */
@@ -43,7 +43,7 @@ export function nodeProjects(
     test: { isolate: boolean; include: string[]; exclude: string[] },
   ): TestProjectInlineConfiguration => ({
     extends: true,
-    // Pins TZ and restores mocks per file; with `globalSetup`, one migrated PGlite dump for every createTestDb().
+    // Pins TZ and restores mocks per file; with `globalSetup`, the test Postgres server for every createTestDb().
     test: { name, globalSetup, setupFiles: [SETUP_NODE], ...test },
   })
   return [

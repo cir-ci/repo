@@ -51,7 +51,7 @@ async function untilClaimed(id: number, timeout: number): Promise<number> {
 }
 
 describe('worker wake-up by NOTIFY', () => {
-  it('claims a job enqueued while idle well under the poll interval (PGlite LISTEN)', async () => {
+  it('claims a job enqueued while idle well under the poll interval (LISTEN)', async () => {
     const worker = await startWorker({
       db: t.db,
       storage,

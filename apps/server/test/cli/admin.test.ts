@@ -17,7 +17,7 @@ import { snapshotDb } from '#test/support/db-snapshot.ts'
 const world = vi.hoisted(() => ({ db: undefined as unknown, storage: undefined as unknown }))
 
 // The commands open a runtime from the environment (a real Postgres pool). Keep the real one, and
-// swap in the PGlite database and a temp-dir storage; nothing else about the commands is faked.
+// swap in the test database and a temp-dir storage; nothing else about the commands is faked.
 vi.mock('#composition/runtime.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof RuntimeModule>()
   return {

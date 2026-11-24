@@ -7,7 +7,10 @@
     "CI",
     "CIRCLE_BUILD_URL",
     "FLAKINESS_ACCESS_TOKEN",
-    "FLAKINESS_DISABLE_UPLOAD"
+    "FLAKINESS_DISABLE_UPLOAD",
+    "CIRCI_TEST_DATABASE_URL",
+    "DOCKER_*",
+    "TESTCONTAINERS_*"
   ],
   "tasks": {
     "transit": {

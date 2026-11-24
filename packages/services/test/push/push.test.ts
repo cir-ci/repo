@@ -13,7 +13,7 @@ import * as schema from '@circi/db/schema'
 import { createTestDb, seedMember, seedProject, seedUser } from '@circi/db/testing'
 import { fakeMailer } from '@circi/testing'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 
 import {
   deliverNotification,
@@ -382,7 +382,9 @@ describe('devices', () => {
 
 describe('getVapidKeys', () => {
   it('makes a pair once, keeps it across calls, and stores the private half sealed', async () => {
-    const db = (await createTestDb()).db
+    const own = await createTestDb()
+    onTestFinished(() => own.close())
+    const db = own.db
     const a = await getVapidKeys(db, { authSecret: SECRET })
     const b = await getVapidKeys(db, { authSecret: SECRET })
     expect(b).toEqual(a)

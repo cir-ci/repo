@@ -23,18 +23,28 @@ export async function snapshotDb(
     rows.set(name, copy[0]?.data ?? '[]')
   }
   return async () => {
-    await client.transaction(async (tx) => {
-      await tx.exec(`set local session_replication_role = replica`)
-      await tx.exec(`truncate ${tables.map((x) => x.name).join(', ')} cascade`)
+    // One connection for the whole restore: `set local` and the triggers it turns off hold only
+    // inside this transaction.
+    const conn = await client.connect()
+    try {
+      await conn.query('begin')
+      await conn.query(`set local session_replication_role = replica`)
+      await conn.query(`truncate ${tables.map((x) => x.name).join(', ')} cascade`)
       for (const { name } of tables) {
         const data = rows.get(name) ?? '[]'
         if (data === '[]') continue
         // oxlint-disable-next-line no-await-in-loop -- one table at a time on one connection
-        await tx.query(
+        await conn.query(
           `insert into ${name} overriding system value select * from jsonb_populate_recordset(null::${name}, $1::jsonb)`,
           [data],
         )
       }
-    })
+      await conn.query('commit')
+    } catch (err) {
+      await conn.query('rollback').catch(() => {})
+      throw err
+    } finally {
+      conn.release()
+    }
   }
 }

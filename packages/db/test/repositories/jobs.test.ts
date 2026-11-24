@@ -226,7 +226,7 @@ describe('deleteFinishedJobs', () => {
 describe('job notifications', () => {
   it('notifies the jobs channel with the queue name once the job is committed', async () => {
     const received: string[] = []
-    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    const unsub = await t.listen('circi_jobs', (p) => received.push(p))
     try {
       await enqueueJob(t.db, { queue: 'qn1', payload: {} })
       await expect.poll(() => received).toEqual(['qn1'])
@@ -237,7 +237,7 @@ describe('job notifications', () => {
 
   it('notifies for a job that is not due yet too, so idle workers can sleep until it is', async () => {
     const received: string[] = []
-    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    const unsub = await t.listen('circi_jobs', (p) => received.push(p))
     try {
       await enqueueJob(t.db, { queue: 'qn2', payload: {}, runAt: new Date(Date.now() + 60_000) })
       await enqueueJob(t.db, { queue: 'qn3', payload: {} })
@@ -249,7 +249,7 @@ describe('job notifications', () => {
 
   it('notifies when a failed job is set to retry, and not when it fails for good', async () => {
     const received: string[] = []
-    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    const unsub = await t.listen('circi_jobs', (p) => received.push(p))
     try {
       await enqueueJob(t.db, { queue: 'qn4', payload: {}, maxAttempts: 2 })
       const first = await claimJob(t.db, 'qn4', 60)

@@ -8,8 +8,8 @@ import { useStack } from '#stack/vitest.ts'
 const gate = () => Promise.withResolvers<void>()
 
 /**
- * The sweep lock (`tryAdvisoryLock`) on real Postgres: PGlite has one session, so "another
- * process holds the lock" can only be shown with separate connections. Each test uses a key of its
+ * The sweep lock (`tryAdvisoryLock`) on the stack's Postgres: "another process holds the lock"
+ * is shown with separate connections. Each test uses a key of its
  * own, so a failure can't leave a lock that another test trips over.
  */
 describe('tryAdvisoryLock on real Postgres', () => {

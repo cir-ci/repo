@@ -15,7 +15,7 @@ import type * as RuntimeModule from '#composition/runtime.ts'
 /** What the mocked runtime hands the commands: the test database. */
 const world = vi.hoisted(() => ({ db: undefined as unknown }))
 
-// As in admin.test.ts: the real runtime, with the PGlite database swapped in. GitHub is faked at
+// As in admin.test.ts: the real runtime, with the test database swapped in. GitHub is faked at
 // its HTTP edge (`fetch`), so the command's own verification runs for real.
 vi.mock('#composition/runtime.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof RuntimeModule>()

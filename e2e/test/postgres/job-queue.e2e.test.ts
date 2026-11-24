@@ -36,8 +36,7 @@ const silent = { info() {}, warn() {}, error() {} }
 
 /**
  * The job queue on real Postgres, from several connection pools at once (a pool is what one
- * worker process has). PGlite has one session, so `FOR UPDATE SKIP LOCKED` never meets a second
- * claimer there.
+ * worker process has), so `FOR UPDATE SKIP LOCKED` meets a second claimer.
  */
 describe('job queue on real Postgres', () => {
   const ctx = useStack({ profile: 'default' })

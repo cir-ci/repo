@@ -8,7 +8,7 @@ import {
   IntegrationConflictError,
   type IntegrationDefinition,
 } from '@circi/integrations'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest'
 import { z } from 'zod'
 
 import {
@@ -226,7 +226,9 @@ describe('the stored GitHub App', () => {
   }
 
   it('seals the secrets, reads them back, fills the live config and syncs another replica', async () => {
-    const db = (await createTestDb()).db
+    const own = await createTestDb()
+    onTestFinished(() => own.close())
+    const db = own.db
     expect(await readStoredGithubApp(db, SECRET)).toBeUndefined()
     await storeGithubApp(db, SECRET, app)
     expect(await getSetting(db, 'github_app')).not.toContain('PRIVATE KEY')

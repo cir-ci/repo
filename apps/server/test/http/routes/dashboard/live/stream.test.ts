@@ -9,9 +9,7 @@ import { ORIGIN, addMember, signIn } from '#test/support/helpers.ts'
 
 /**
  * `GET /api/live` over a real socket (a stream never ends, so `app.inject` can't read it). The
- * database feed is PGlite's LISTEN/NOTIFY, which behaves like Postgres's for this; the pg
- * connection in production (`createDb().listen`) is covered by the same `ListenFn` contract only
- * against the dev stack.
+ * database feed is a real LISTEN on the test database, through production's `createDb().listen`.
  */
 
 const fx = await startDashboard({}, { liveHeartbeatMs: 150 })

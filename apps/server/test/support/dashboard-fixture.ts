@@ -32,7 +32,7 @@ export const png = (color: string): Promise<Buffer> => pngBytes({ color })
 
 /**
  * The dashboard server the dashboard route tests share: two unrelated workspaces (`acme` has
- * two builds, `rival` is someone else), both signed in, over a real PGlite database and local
+ * two builds, `rival` is someone else), both signed in, over a real test database and local
  * file storage.
  */
 export async function startDashboard(

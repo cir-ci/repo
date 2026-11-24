@@ -1,7 +1,7 @@
 import { createTestDb, seedProject } from '@circi/db/testing'
 import { eq, sql } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/pglite'
-import { migrate } from 'drizzle-orm/pglite/migrator'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { migrationsFolder, pgErrorCode } from '#src/index.ts'

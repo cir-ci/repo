@@ -50,6 +50,35 @@ executors:
     environment:
       CI: 'true'
       TURBO_TELEMETRY_DISABLED: '1'
+  # The gate's: `node` with the -browsers image, plus the Postgres server the database tests run on
+  # (@circi/db/testing: a database per test file, cloned from a migrated template). The same image and
+  # settings as the container Testcontainers starts locally; durability off, as nothing outlives the job.
+  node-postgres:
+    docker:
+      - image: cimg/node:26.13-browsers
+      - image: postgres:18-alpine
+        command:
+          [
+            postgres,
+            -c,
+            fsync=off,
+            -c,
+            synchronous_commit=off,
+            -c,
+            full_page_writes=off,
+            -c,
+            max_connections=500,
+          ]
+        environment:
+          POSTGRES_USER: circi
+          POSTGRES_PASSWORD: circi
+          POSTGRES_DB: postgres
+    resource_class: large # 4 vCPU, 8 GB for both containers
+    working_directory: ~/circi
+    environment:
+      CI: 'true'
+      TURBO_TELEMETRY_DISABLED: '1'
+      CIRCI_TEST_DATABASE_URL: postgres://circi:circi@localhost:5432/postgres
   docker-vm:
     machine:
       image: ubuntu-2404:current
@@ -151,9 +180,7 @@ jobs:
   # Required status check. Everything in `pnpm gate`, without Docker. The image has no Rust toolchain, so
   # the build skips the native diff engine and the JS engine (the default) is what the tests use.
   gate:
-    executor:
-      name: node
-      variant: -browsers
+    executor: node-postgres
     environment:
       # Each package's tests are their own Vitest process, about 20 of them: three at a time keeps the
       # job inside its 8 GiB (Turborepo's default of 10 at once is for a bigger machine).

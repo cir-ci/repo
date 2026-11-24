@@ -11,8 +11,8 @@ import * as schema from './schema/index.ts'
 export type Schema = typeof schema
 
 /**
- * Any drizzle Postgres database with our schema: node-postgres in production, PGlite in tests.
- * Repository functions take this type so they run against both.
+ * Any drizzle Postgres database with our schema (node-postgres, in production and in tests).
+ * Repository functions take this type, so a transaction's `tx` works wherever a `db` does.
  */
 export type Database = PgDatabase<PgQueryResultHKT, Schema>
 

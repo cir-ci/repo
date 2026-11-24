@@ -1,6 +1,6 @@
 /**
- * Test support that needs the database: an in-process Postgres (PGlite) with the real migrations
- * applied, and seeders that insert rows the way better-auth leaves them. It lives inside
+ * Test support that needs the database: a database of its own per test file on a real Postgres
+ * server, with the real migrations applied (server.ts), and seeders that insert rows the way better-auth leaves them. It lives inside
  * `@circi/db` (imported as `@circi/db/testing`, never from production code) so that db's own
  * tests can use it without a package cycle; `@circi/testing` keeps only what needs no database.
  */
