@@ -36,4 +36,4 @@ Tested with Vitest 5.1 (Chromium through Playwright); needs Node 22 or later.
 - [Vitest plugin documentation](https://circi.dev/ci/vitest/)
 - [Changelog](https://github.com/cir-ci/repo/blob/main/packages/vitest/CHANGELOG.md)
 
-Licensed under the GNU GPL v3.
+Licensed under the [MIT License](LICENSE), so you can add it to any project. The CirCI server it talks to is GPL-3.0-only.

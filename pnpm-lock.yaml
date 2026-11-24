@@ -821,6 +821,10 @@ importers:
   packages/core: {}
 
   packages/cypress:
+    dependencies:
+      tar:
+        specifier: 'catalog:'
+        version: 7.5.23
     devDependencies:
       '@arethetypeswrong/core':
         specifier: 'catalog:'

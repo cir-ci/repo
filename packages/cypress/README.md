@@ -80,4 +80,4 @@ Tested with Cypress 16.3 (Electron, end-to-end and component testing); needs Nod
 
 - [Changelog](https://github.com/cir-ci/repo/blob/main/packages/cypress/CHANGELOG.md)
 
-Licensed under the GNU GPL v3.
+Licensed under the [MIT License](LICENSE), so you can add it to any project. The CirCI server it talks to is GPL-3.0-only.

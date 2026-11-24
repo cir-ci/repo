@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/cir-ci/repo/issues"
   },
-  "license": "GPL-3.0-only",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cir-ci/repo.git",
@@ -55,6 +55,9 @@
   },
   "scripts": {
     "build": "tsdown"
+  },
+  "dependencies": {
+    "tar": "catalog:"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
