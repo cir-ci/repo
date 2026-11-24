@@ -74,15 +74,33 @@ commands:
   # run saves; the restore falls back to the branch's latest, then to any run.
   restore-turbo:
     steps:
-      - restore_cache:
-          # This branch's last cache, else main's: a new pull request branch starts from main, so main's
-          # cache replays every task its changes don't touch. Any branch's cache comes last: one cut from
-          # an older main matches little and reran the whole gate.
-          keys:
-            - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
-            - turbo-v1-{{ arch }}-{{ .Branch }}-
-            - turbo-v1-{{ arch }}-main-
-            - turbo-v1-{{ arch }}-
+      # The release PR's branch is cut again from main for every release, so its own last cache is from
+      # an older main (the previous release) and matches nothing: it takes main's.
+      - when:
+          condition:
+            matches:
+              pattern: '^(changesets-ghcommit-temp/)?changeset-release/main$'
+              value: << pipeline.git.branch >>
+          steps:
+            - restore_cache:
+                keys:
+                  - turbo-v1-{{ arch }}-main-
+                  - turbo-v1-{{ arch }}-
+      - unless:
+          condition:
+            matches:
+              pattern: '^(changesets-ghcommit-temp/)?changeset-release/main$'
+              value: << pipeline.git.branch >>
+          steps:
+            - restore_cache:
+                # This branch's last cache, else main's: a new pull request branch starts from main, so main's
+                # cache replays every task its changes don't touch. Any branch's cache comes last: one cut from
+                # an older main matches little and reran the whole gate.
+                keys:
+                  - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
+                  - turbo-v1-{{ arch }}-{{ .Branch }}-
+                  - turbo-v1-{{ arch }}-main-
+                  - turbo-v1-{{ arch }}-
 
   save-turbo:
     steps:
