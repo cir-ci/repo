@@ -29,7 +29,9 @@ export async function snapshotDb(
     try {
       await conn.query('begin')
       await conn.query(`set local session_replication_role = replica`)
-      await conn.query(`truncate ${tables.map((x) => x.name).join(', ')} cascade`)
+      // Deletes rather than truncates: TRUNCATE gives every table new files, many times the cost
+      // of deleting a test's few rows (see `reset` in @circi/db/testing).
+      await conn.query(tables.map((x) => `delete from ${x.name};`).join(' '))
       for (const { name } of tables) {
         const data = rows.get(name) ?? '[]'
         if (data === '[]') continue

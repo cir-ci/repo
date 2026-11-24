@@ -87,13 +87,20 @@ export async function createTestDb({
     logger: { logQuery: (query) => void log.push(query) },
   })
   const queries = { count: () => log.length, sql: () => [...log], reset: () => void (log = []) }
+  // Deletes every row rather than truncating: a test's tables hold a few rows, and TRUNCATE gives
+  // each of the 60 tables and their indexes new files (about 45 ms of server CPU a time, against
+  // next to nothing), which made it half of the test server's work. Foreign keys aren't checked
+  // (`session_replication_role = replica`, a superuser setting, as the test server's user is), so
+  // the order doesn't matter, and the sequences restart as `restart identity` did.
   const reset = async () => {
-    const { rows } = await handle.pool.query<{ name: string }>(
-      `select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname = 'public'`,
+    const { rows } = await handle.pool.query<{ sql: string }>(
+      `select format('delete from %I.%I;', schemaname, tablename) as sql from pg_tables where schemaname = 'public'
+       union all
+       select format('select setval(%L, 1, false);', format('%I.%I', schemaname, sequencename)) from pg_sequences where schemaname = 'public'`,
     )
     if (rows.length === 0) return
     await handle.pool.query(
-      `truncate ${rows.map((r) => r.name).join(', ')} restart identity cascade`,
+      `begin; set local session_replication_role = replica; ${rows.map((r) => r.sql).join(' ')} commit;`,
     )
   }
   const close = async () => {
