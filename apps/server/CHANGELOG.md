@@ -1,5 +1,13 @@
 # @circi/server
 
+## 0.2.1
+
+### Patch Changes
+
+- [#46](https://github.com/cir-ci/repo/pull/46) [`5b0393f`](https://github.com/cir-ci/repo/commit/5b0393f45ff43120dd9bf71d53daed64b104aa62) Thanks [@michaelhazan](https://github.com/michaelhazan)! - The Docker images, `ghcr.io/cir-ci/circi` and `ghcr.io/cir-ci/circi-caddy`, are published for `linux/arm64` as well as `linux/amd64`, so CirCI runs natively on ARM servers (AWS Graviton, Ampere, a Raspberry Pi 4 or 5 with a 64-bit OS) and Apple Silicon. Docker picks the right one; nothing changes in Compose, Terraform or Helm. Each platform is built on a native runner, including the Rust diff engine.
+
+- [#48](https://github.com/cir-ci/repo/pull/48) [`4dd281f`](https://github.com/cir-ci/repo/commit/4dd281f64da4e9435a771cbc4a5fa408ac2b6a21) Thanks [@michaelhazan](https://github.com/michaelhazan)! - A worker that has just started no longer misses a delayed job queued while it was connecting to the database's notifications: it checks for work as soon as it is listening, so the job starts at its run time instead of up to a poll interval (5 seconds) later.
+
 ## 0.2.0
 
 ### Minor Changes
