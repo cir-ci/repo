@@ -1,7 +1,8 @@
 # CirCI's CI. Two workflows:
 #
 #   gate  every push and pull request: `pnpm gate` (format check, lint, typecheck, the Node, UI and web
-#         browser tests, build). No Docker. Required status check: `gate`.
+#         browser tests, build). No Docker. Required status check: `gate`. On the release PR, when it only
+#         versions packages (scripts/release-only-diff.mjs), the tests and build are skipped: main ran them.
 #         The `changeset` job (branches other than main) fails when a published package changed without a
 #         changeset. The `terraform` job checks and tests deploy/terraform (`terraform test`, a mocked
 #         Docker provider: no Docker); the `helm` job lints deploy/helm/circi and checks its renders
@@ -74,15 +75,33 @@ commands:
   # run saves; the restore falls back to the branch's latest, then to any run.
   restore-turbo:
     steps:
-      - restore_cache:
-          # This branch's last cache, else main's: a new pull request branch starts from main, so main's
-          # cache replays every task its changes don't touch. Any branch's cache comes last: one cut from
-          # an older main matches little and reran the whole gate.
-          keys:
-            - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
-            - turbo-v1-{{ arch }}-{{ .Branch }}-
-            - turbo-v1-{{ arch }}-main-
-            - turbo-v1-{{ arch }}-
+      # The release PR's branch is cut again from main for every release, so its own last cache is from
+      # an older main (the previous release) and matches nothing: it takes main's.
+      - when:
+          condition:
+            matches:
+              pattern: '^(changesets-ghcommit-temp/)?changeset-release/main$'
+              value: << pipeline.git.branch >>
+          steps:
+            - restore_cache:
+                keys:
+                  - turbo-v1-{{ arch }}-main-
+                  - turbo-v1-{{ arch }}-
+      - unless:
+          condition:
+            matches:
+              pattern: '^(changesets-ghcommit-temp/)?changeset-release/main$'
+              value: << pipeline.git.branch >>
+          steps:
+            - restore_cache:
+                # This branch's last cache, else main's: a new pull request branch starts from main, so main's
+                # cache replays every task its changes don't touch. Any branch's cache comes last: one cut from
+                # an older main matches little and reran the whole gate.
+                keys:
+                  - turbo-v1-{{ arch }}-{{ .Branch }}-{{ .Revision }}
+                  - turbo-v1-{{ arch }}-{{ .Branch }}-
+                  - turbo-v1-{{ arch }}-main-
+                  - turbo-v1-{{ arch }}-
 
   save-turbo:
     steps:
@@ -150,9 +169,21 @@ jobs:
           name: pnpm gate:checks
           command: pnpm gate:checks
           no_output_timeout: 20m
+      # The release PR ("Version Packages") changes only versions, changelogs and consumed changesets: the
+      # code is main's, which passed this gate. A new version of @circi/vitest changes every Turborepo hash
+      # (the root depends on it), so the tests would all run again for nothing; they're skipped when
+      # scripts/release-only-diff.mjs finds nothing else in the diff. The checks above still run (the
+      # changelogs are formatted), and any other change on the branch runs the full gate.
       - run:
           name: pnpm gate:tests
-          command: pnpm gate:tests
+          command: |
+            if [[ "$CIRCLE_BRANCH" =~ ^(changesets-ghcommit-temp/)?changeset-release/main$ ]] \
+              && git fetch -q origin main:refs/remotes/origin/main \
+              && node scripts/release-only-diff.mjs origin/main; then
+              echo "Skipping the tests: the release PR only versions what main already tested."
+              exit 0
+            fi
+            pnpm gate:tests
           no_output_timeout: 20m
       - save-turbo
 
