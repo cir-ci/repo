@@ -1,0 +1,25 @@
+{
+  "name": "@circi/vitest-config",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The Vitest setup of every package: what they share, and one config per kind of package.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./*": "./*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@flakiness/vitest": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "playwright": "catalog:",
+    "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/typescript-config": "catalog:"
+  }
+}

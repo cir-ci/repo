@@ -33,7 +33,10 @@
     }
   },
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.previews.json",
+    "test": "vitest run --maxWorkers=25%",
+    "test:visual": "VISUAL=1 vitest run"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
@@ -42,7 +45,10 @@
     "react": "catalog:"
   },
   "devDependencies": {
+    "@circi/tsdown-config": "catalog:",
+    "@circi/typescript-config": "catalog:",
     "@circi/vitest": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@fontsource-variable/jetbrains-mono": "catalog:",
     "@tsdown/css": "catalog:",

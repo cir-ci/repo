@@ -7,7 +7,7 @@ import { E2E_ROOT } from '#stack/paths.ts'
 
 /**
  * The end-to-end tests run as two groups (vitest projects `e2e-api` and `e2e-browser`, turbo
- * tasks `//#e2e:api` and `//#e2e:browser`), told apart by file name. A file that drives Chromium
+ * tasks `e2e:api` and `e2e:browser`), told apart by file name. A file that drives Chromium
  * must be named `*.browser.e2e.test.ts` and no other may be: the name decides which cached
  * task runs it.
  */

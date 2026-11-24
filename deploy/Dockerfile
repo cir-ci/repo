@@ -28,6 +28,10 @@ COPY packages/services/package.json packages/services/
 COPY packages/sites/package.json packages/sites/
 COPY packages/storage/package.json packages/storage/
 COPY packages/testing/package.json packages/testing/
+# The config packages every package's tsconfig.json, tsdown.config.ts and vitest.config.ts come from.
+COPY packages/tsdown-config/package.json packages/tsdown-config/
+COPY packages/typescript-config/package.json packages/typescript-config/
+COPY packages/vitest-config/package.json packages/vitest-config/
 COPY packages/ui/package.json packages/ui/
 COPY packages/vitest/package.json packages/vitest/
 COPY e2e/package.json e2e/
@@ -46,7 +50,6 @@ RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
 FROM manifests AS build
 # --no-runtime: the image's Node builds it; package.json's devEngines Node is for development and CI.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --no-runtime
-COPY tsconfig.base.json tsconfig.json tsdown.shared.ts ./
 COPY apps apps
 COPY packages packages
 # tsdown copies it next to the server bundle (apps/server/tsdown.config.ts), where @circi/diff looks.

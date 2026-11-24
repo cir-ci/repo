@@ -13,7 +13,7 @@ import { useStack } from '#stack/vitest.ts'
 /**
  * CirCI tests its own design system. `pnpm test:visual` screenshots every `@circi/ui` component in
  * both colour schemes with Vitest's `toMatchScreenshot` in browser mode and uploads them through the
- * `@circi/vitest` plugin (`circi()` in the root vitest.config.ts); here that
+ * `@circi/vitest` plugin (`circi()` in packages/ui/vitest.config.ts); here that
  * runs as a child process against the real stack, the way a CI job would. Run twice on the same
  * commit, the second build must find nothing changed: a screenshot that differs between two runs
  * of unchanged code is flakiness in the suite, and is fixed there (animations, fonts, time).

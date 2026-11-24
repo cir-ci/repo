@@ -19,10 +19,13 @@
     "./repositories": "./src/repositories/index.ts",
     "./queue": "./src/queue/index.ts",
     "./schema": "./src/schema/index.ts",
-    "./testing": "./src/testing/index.ts"
+    "./testing": "./src/testing/index.ts",
+    "./testing/template-db": "./src/testing/template-db.ts"
   },
   "scripts": {
-    "generate": "drizzle-kit generate"
+    "generate": "drizzle-kit generate",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@circi/core": "catalog:",
@@ -31,6 +34,8 @@
   },
   "devDependencies": {
     "@circi/testing": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",

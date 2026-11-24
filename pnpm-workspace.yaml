@@ -38,9 +38,12 @@ catalog:
   '@circi/sites': workspace:*
   '@circi/storage': workspace:*
   '@circi/testing': workspace:*
+  '@circi/tsdown-config': workspace:*
+  '@circi/typescript-config': workspace:*
   '@circi/ui': workspace:*
   '@circi/storybook': workspace:*
   '@circi/vitest': workspace:*
+  '@circi/vitest-config': workspace:*
   '@circi/worker': workspace:*
   '@electric-sql/pglite': 0.5.16
   '@fastify/multipart': 10.1.9

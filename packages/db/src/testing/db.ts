@@ -18,6 +18,14 @@ import {
 
 import { nextCreatedAt } from './created-at.ts'
 
+// The migrated dump that template-db.ts (the run's global setup) provides and `createTestDb()` restores.
+// Declared here, beside the `inject` that reads it, so every package whose tests use this file sees it.
+declare module 'vitest' {
+  export interface ProvidedContext {
+    templateDump: string
+  }
+}
+
 export namespace createTestDb {
   export interface Result {
     client: PGlite

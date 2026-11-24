@@ -6,31 +6,44 @@ Self-hosted visual regression testing. The documentation is circi.dev (its own r
 
 pnpm 12, which installs and runs Node 26 itself (package.json `devEngines.runtime`). Before committing: `pnpm format`, then `pnpm gate` (Turborepo: format check, lint, typecheck, test and
 build in parallel where independent, each cached by its inputs; a second run on an unchanged tree is instant). The old chain
-`pnpm lint && pnpm typecheck && pnpm test && pnpm build` still works. `pnpm build` is `turbo run build`: per-package
-caching of `dist/**`, with a `transit` task so a package's build is invalidated by changes in the packages it depends on, but
-not by unrelated ones. Lint and typecheck are single root commands cached as root tasks (`//#lint`, `//#typecheck` in `turbo.json`); the tests are
-one root task per Vitest project, each cached on its own inputs: `//#test:node` (the Node project: logic tests of every app and
-package, which read most of the tree, so it reruns on almost any change; its files share modules (`isolate: false`), except the ones that call `vi.mock`, which `vitest.config.ts` finds and runs isolated as `node-isolated`, so state a test sets on a module must be reset by that test), `//#test:ui` (packages/ui only) and
-`//#test:web-browser` (apps/web, ui, api, core); `//#test:cypress` runs real Cypress in Electron over the built `@circi/cypress` (its own Vitest project, cached on the cypress, cli and testing packages, and the Cypress binary is installed by `pnpm --filter @circi/cypress exec cypress install`, not by `pnpm install`); the two browser tasks each take a quarter of the cores (`--maxWorkers=25%`), so together with the Node tests they don't overload the machine and flake; each browser test gets one retry, for the runner's own lost-frame errors (`Frame was detached`), and a retried test still shows in the report. `pnpm test` still runs every project in one Vitest process. `@circi/testing` has no database
-code (the PGlite test database and seeders are `@circi/db/testing`, part of `db`), so no package pair forms a cycle and the root's
-dependency on `testing` does not reach `db` or `core`: a change in `db` reruns the Node tests, lint, typecheck, format check and the
-server build, and leaves the UI/web tests and the cli, vitest, ui and web builds cached (a change in `core` also reruns what reads
-`core`: the web browser tests and the web build).
-`pnpm gate:checks` (format check, lint, typecheck) and `pnpm gate:tests` (the three test tasks and the build) are its two halves; CI runs them
-one after the other, because together they ran its 8 GiB machine out of memory.
-`pnpm gate:full` is `gate` plus the two end-to-end groups as cached root tasks, `//#e2e:api` (the server, worker and CLI image,
-no browser) and `//#e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
+`pnpm lint && pnpm typecheck && pnpm test && pnpm build` still works.
+Every package typechecks, tests and builds on its own, from its own folder, with configs from three config packages: its
+`tsconfig.json` extends `@circi/typescript-config` (`tsconfig.node.json`, `tsconfig.ui.json`, `tsconfig.web.json`, `tsconfig.cypress.json`),
+its `vitest.config.ts` calls the config for its kind from `@circi/vitest-config` (`vitest.node.config.ts`, `vitest.web.config.ts`,
+`vitest.ui.config.ts`, `vitest.e2e.config.ts`, and the plugins' `vitest.{storybook,cypress,vitest}.config.ts`), and a built package's
+`tsdown.config.ts` is `@circi/tsdown-config`'s `tsdown.<package>.ts`. A package passes only what is its own (its folder, a plugin of its
+own, @circi/db's `template-db.ts` when its tests create databases); there is no root tsconfig, Vitest or tsdown config. So in
+`turbo.json`, `typecheck`, `test` and `build` are per-package tasks (`pnpm typecheck`, `pnpm test`, `pnpm build` run them for every
+package; `pnpm --filter @circi/<name> test` for one, or `pnpm test` in its folder), each cached on that package's files, and
+invalidated through `transit` by changes in the packages it depends on (the config packages included), but not by unrelated ones:
+a change in `db` reruns db's, services', auth's, the worker's, the server's and e2e's tasks, and leaves ui, web, the CLI and the
+plugins cached. `CHANGELOG.md` is never an input, so a release ("Version Packages") reruns only what a new `version` touches. The root
+depends on no workspace package, which would put that package into every task's hash. Lint and the format check stay root tasks
+(`//#lint`, `//#format:check`). A package's Node tests share modules between files (`isolate: false`), except the ones that call
+`vi.mock`, which the node config finds and runs isolated as `node-isolated`, so state a test sets on a module must be reset by that
+test. The component tests (`*.browser.test.tsx`: `apps/web`'s `web-browser`, `packages/ui`'s `ui`) run in headless Chromium with a
+quarter of the cores (`--maxWorkers=25%` in those two packages' `test`), so beside the other packages' tests they don't overload the
+machine and flake; each browser test gets one retry, for the runner's own lost-frame errors (`Frame was detached`), and a retried test
+still shows in the report (and in `<package>/.vitest/retried-tests.txt`). The plugins' slow tests are their own projects in those
+packages: `@circi/storybook` against a real Storybook build, `@circi/cypress` over the built package in real Cypress (Electron; the
+binary is installed by `pnpm --filter @circi/cypress exec cypress install`, not by `pnpm install`), and `@circi/vitest`'s nested Vitest
+in Chromium (`integration/`, over its build). `@circi/testing` has no database code (the PGlite test database and seeders are
+`@circi/db/testing`, part of `db`), so no package pair forms a cycle.
+`pnpm gate:checks` (format check, lint, typecheck) and `pnpm gate:tests` (the tests and the build) are its two halves; CI runs them
+one after the other, because together they ran its 8 GiB machine out of memory, and runs three tasks at a time (`TURBO_CONCURRENCY`).
+`pnpm gate:full` is `gate` plus the two end-to-end groups, `@circi/e2e`'s cached tasks `e2e:api` (the server, worker and CLI image,
+no browser) and `e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
 `pnpm gate` stays Docker-free. Both tasks also hash `E2E_ENV_FINGERPRINT` (Playwright, Chromium and Docker server versions, printed by
-`pnpm e2e:fingerprint`; `pnpm gate:full` sets it), so a new Chromium or Docker reruns them; run `turbo run //#e2e:api` directly and the
+`pnpm e2e:fingerprint`; `pnpm gate:full` sets it), so a new Chromium or Docker reruns them; run `pnpm e2e:api` directly and the
 variable is empty. They share one `docker build` of `circi:e2e` through a lock (`e2e/src/stack/build-lock.ts`). End-to-end files are named `*.browser.e2e.test.ts` when they drive Chromium (checked by
-`e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs are never
-cached.
+`e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs
+(`pnpm test:visual`, @circi/ui's `ui-visual`, over the built @circi/vitest) are never cached.
 The deploys: `pnpm test:compose` brings up `deploy/docker-compose.yml` (Docker); `pnpm test:terraform` runs `deploy/terraform`'s
 `terraform test` (a mocked Docker provider; the CI job `terraform`). Both are held to `@circi/config`'s lists of settings
 (`packages/config/src/settings.ts`: the secrets, what the image sets, what goes together) by `packages/config/test/deploy-settings.test.ts`,
-its own Vitest project and root task (`pnpm test:deploy`, `//#test:deploy`, in `pnpm gate`), cached on `packages/config` and `deploy/` only, so a
-change under `deploy/` reruns it and not the Node tests (`//#test:node` doesn't read `deploy/`). `@circi/vitest`'s one slow test (a real nested Vitest in Chromium, `packages/vitest/integration/`) is likewise its own root task (`pnpm test:vitest`, `//#test:vitest`, in `pnpm gate`), cached on `packages/vitest` only.
-What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
+one of `@circi/config`'s tests, whose `test` task also reads `deploy/` (packages/config/turbo.json), so a change under `deploy/` reruns
+only that package's tests.
+What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown (with @circi/tsdown-config's configs) for
 `@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published to npm, `dist`; the only non-private packages, versioned with Changesets like every package, private ones included (`privatePackages.version` in `.changeset/config.json`): a change to any package needs a changeset, which the husky post-commit hook (`scripts/auto-changeset.mjs`) writes from the commit message when none is added (patch, or `[minor]`/`[major]` in the message), checked in CI by `changeset status`; every changeset carries a written release note, even for a private package or a change to tests, `perf/` or docs (never `pnpm changeset --empty`): rewrite the hook's note, which is only the commit message, into one or two sentences for the people who use what changed, released by `.github/workflows/release.yml`; the app is versioned the same way as `@circi/server`, whose release publishes `ghcr.io/cir-ci/circi:<version>`, the version `deploy/terraform` runs; how a release is used: circi.dev/self-hosting/upgrades-and-migrations/) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.

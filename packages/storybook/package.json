@@ -59,7 +59,9 @@
   },
   "scripts": {
     "build": "tsdown",
-    "dev": "node --conditions=@circi/source src/main.ts"
+    "dev": "node --conditions=@circi/source src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "commander": "catalog:",
@@ -68,6 +70,10 @@
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@circi/cli": "catalog:",
+    "@circi/testing": "catalog:",
+    "@circi/tsdown-config": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@storybook/react-vite": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",

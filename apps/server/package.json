@@ -16,7 +16,9 @@
   "scripts": {
     "build": "tsdown",
     "start": "node dist/main.mjs",
-    "dev": "node --conditions=@circi/source src/main.ts"
+    "dev": "node --conditions=@circi/source src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
@@ -36,7 +38,10 @@
     "@circi/sites": "catalog:",
     "@circi/storage": "catalog:",
     "@circi/testing": "catalog:",
+    "@circi/tsdown-config": "catalog:",
+    "@circi/typescript-config": "catalog:",
     "@circi/ui": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@circi/worker": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@fastify/multipart": "catalog:",

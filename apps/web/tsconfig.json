@@ -1,19 +1,4 @@
 {
-  "compilerOptions": {
-    "target": "es2023",
-    "lib": ["es2023", "dom", "dom.iterable"],
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "types": ["node", "@circi/ui/css-modules"],
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "customConditions": ["@circi/source"]
-  },
-  "include": ["src", "test", "vite.config.ts"]
+  "extends": "@circi/typescript-config/tsconfig.web.json",
+  "include": ["src", "test", "*.ts"]
 }

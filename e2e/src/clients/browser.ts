@@ -1,13 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { browserEnv } from '@circi/vitest-config/no-netlink.ts'
 import { type Browser, type BrowserContext, chromium, type Page } from 'playwright'
 
 import { ARTIFACTS_DIR } from '#stack/paths.ts'
 
 import type { Session } from './admin.ts'
 import { clientAddressHeaders, freshIp } from './client-address.ts'
-import { browserEnv } from './no-netlink.ts'
 
 /**
  * Chromium with `host.docker.internal` mapped to loopback, so a fake running on the host (an

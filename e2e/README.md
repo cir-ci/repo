@@ -12,7 +12,7 @@ They are **not** part of `pnpm test` (which never starts Docker).
 Two groups, told apart by file name (two Vitest projects, `e2e-api` and `e2e-browser`; a test in
 `e2e/test/fakes/e2e-groups.test.ts` fails when a file that drives Chromium, through Playwright or
 `pnpm test:visual`, lacks the `.browser.e2e.test.ts` suffix or the reverse). `pnpm gate:full` runs
-them as the cached turbo tasks `//#e2e:api` and `//#e2e:browser` (2 workers each, so both fit the
+them as the cached turbo tasks `e2e:api` and `e2e:browser` of this package (2 workers each, so both fit the
 Docker VM together; `E2E_WORKERS` overrides). Both need the whole image, so both rerun when server,
 worker, a server-side package, `deploy/Dockerfile` or `e2e/src` changes; the browser group alone
 also reruns for `apps/web`, `packages/ui` and `packages/vitest`. A passing run is cached by the
@@ -30,10 +30,10 @@ network is needed after the images are pulled once (`postgres:18-alpine`,
 pnpm test:e2e                                   # everything (both groups)
 pnpm test:e2e:api                               # only the files that never open a browser
 pnpm test:e2e:browser                           # only *.browser.e2e.test.ts
-pnpm test:e2e e2e/test/platform/review.browser.e2e.test.ts       # one file
+pnpm test:e2e test/platform/review.browser.e2e.test.ts           # one file (paths from e2e/)
 pnpm test:e2e -t "rejecting"                    # by test name
 E2E_SKIP_BUILD=1 pnpm test:e2e                  # reuse the existing circi:e2e image
-E2E_KEEP=1 pnpm test:e2e e2e/test/platform/smoke.browser.e2e.test.ts   # leave the stack up (see Debugging)
+E2E_KEEP=1 pnpm test:e2e test/platform/smoke.browser.e2e.test.ts   # leave the stack up (see Debugging)
 E2E_HEADED=1 pnpm test:e2e ...                  # watch the browser
 E2E_WORKERS=1 pnpm test:e2e                     # one file at a time (default 3 in parallel)
 pnpm test:e2e --sequence.shuffle.files          # random file order (add --sequence.seed=N to repeat one)
@@ -44,7 +44,7 @@ Without Docker the run fails within seconds with a message saying so. The image 
 every run (`docker build`, which builds only the server bundle and the web app, so the layer cache makes an unchanged tree take seconds; the first
 build on a machine takes several minutes). `circi:e2e` is a shared tag: change code, rerun, and
 the new image is what every parallel run of the same checkout sees next. Concurrent builds of the tag (the two turbo
-tasks `//#e2e:api` and `//#e2e:browser` start together) take a lock (`src/stack/build-lock.ts`, a `mkdir` lock in the temp directory,
+tasks `e2e:api` and `e2e:browser` start together) take a lock (`src/stack/build-lock.ts`, a `mkdir` lock in the temp directory,
 taken over when its owner died): one builds, the other waits and then finds every layer cached.
 
 Turbo hashes `E2E_ENV_FINGERPRINT` (Playwright, its pinned Chromium and the Docker server version, from `src/stack/env-fingerprint.ts`;
@@ -93,8 +93,8 @@ Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files s
   the first-run admin), later files of that worker reuse it. A worker's files run one after
   another, so a shared stack is never in use by two files; different workers have different stacks.
   A worker keeps at most `E2E_POOL_MAX` (default 2) stacks and removes the least recently used one
-  when a third profile is asked for; the rest go when the run ends. The `vitest.config.ts` setting
-  `isolate: false` is what keeps a worker's pool alive between files.
+  when a third profile is asked for; the rest go when the run ends. The setting
+  `isolate: false` (@circi/vitest-config's `vitest.e2e.config.ts`) is what keeps a worker's pool alive between files.
 - Every file gets **its own tenant** on a shared stack: `ctx.setup` is a fresh workspace with
   its own owner (an instance admin, like the first-run account) and a signed-in session, so files
   never see each other's data. `await ctx.tenant({ project: 'Web' })` makes more of them (a test

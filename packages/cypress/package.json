@@ -54,7 +54,9 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.typecheck.json && tsc -p tsconfig.browser.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "tar": "catalog:"
@@ -62,6 +64,10 @@
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@circi/cli": "catalog:",
+    "@circi/testing": "catalog:",
+    "@circi/tsdown-config": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "cypress": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

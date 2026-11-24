@@ -239,10 +239,19 @@ catalogs:
     '@circi/testing':
       specifier: workspace:*
       version: workspace:*
+    '@circi/tsdown-config':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/typescript-config':
+      specifier: workspace:*
+      version: workspace:*
     '@circi/ui':
       specifier: workspace:*
       version: workspace:*
     '@circi/vitest':
+      specifier: workspace:*
+      version: workspace:*
+    '@circi/vitest-config':
       specifier: workspace:*
       version: workspace:*
     '@circi/worker':
@@ -427,15 +436,6 @@ importers:
       '@changesets/cli':
         specifier: 'catalog:'
         version: 3.0.3
-      '@circi/testing':
-        specifier: 'catalog:'
-        version: link:packages/testing
-      '@circi/ui':
-        specifier: 'catalog:'
-        version: link:packages/ui
-      '@circi/vitest':
-        specifier: 'catalog:'
-        version: link:packages/vitest
       '@flakiness/vitest':
         specifier: 'catalog:'
         version: 1.12.0
@@ -524,9 +524,18 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../../packages/testing
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../../packages/tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../../packages/typescript-config
       '@circi/ui':
         specifier: 'catalog:'
         version: link:../../packages/ui
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../../packages/vitest-config
       '@circi/worker':
         specifier: 'catalog:'
         version: link:../worker
@@ -609,6 +618,12 @@ importers:
         specifier: 'catalog:'
         version: 5.1.0(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
     devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../../packages/typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../../packages/vitest-config
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
@@ -658,6 +673,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../../packages/testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../../packages/typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../../packages/vitest-config
       '@electric-sql/pglite':
         specifier: 'catalog:'
         version: 0.5.16
@@ -680,6 +701,12 @@ importers:
       '@circi/cli':
         specifier: 'catalog:'
         version: link:../packages/cli
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../packages/typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../packages/vitest-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
@@ -732,6 +759,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../packages/testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../packages/typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../packages/vitest-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
@@ -742,7 +775,11 @@ importers:
         specifier: 'catalog:'
         version: 5.1.1(@types/node@26.6.6)(@vitest/browser-playwright@5.1.1)(@vitest/coverage-v8@5.1.1)(@vitest/ui@5.1.1)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  packages/api: {}
+  packages/api:
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
 
   packages/auth:
     dependencies:
@@ -780,6 +817,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       '@electric-sql/pglite':
         specifier: 'catalog:'
         version: 0.5.16
@@ -802,6 +845,18 @@ importers:
       '@arethetypeswrong/core':
         specifier: 'catalog:'
         version: 0.18.5
+      '@circi/testing':
+        specifier: 'catalog:'
+        version: link:../testing
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       publint:
         specifier: 'catalog:'
         version: 0.3.25
@@ -817,8 +872,22 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.7
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
-  packages/core: {}
+  packages/core:
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
   packages/cypress:
     dependencies:
@@ -832,6 +901,18 @@ importers:
       '@circi/cli':
         specifier: 'catalog:'
         version: link:../cli
+      '@circi/testing':
+        specifier: 'catalog:'
+        version: link:../testing
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       cypress:
         specifier: 'catalog:'
         version: 16.3.0
@@ -860,6 +941,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       '@electric-sql/pglite':
         specifier: 'catalog:'
         version: 0.5.16
@@ -885,6 +972,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
   packages/integrations:
     dependencies:
@@ -901,6 +994,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
   packages/services:
     dependencies:
@@ -926,6 +1025,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.4(@electric-sql/pglite@0.5.16)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1)
@@ -942,6 +1047,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
   packages/storage:
     dependencies:
@@ -958,6 +1069,12 @@ importers:
       '@circi/testing':
         specifier: 'catalog:'
         version: link:../testing
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
 
   packages/storybook:
     dependencies:
@@ -974,6 +1091,18 @@ importers:
       '@circi/cli':
         specifier: 'catalog:'
         version: link:../cli
+      '@circi/testing':
+        specifier: 'catalog:'
+        version: link:../testing
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       '@storybook/react-vite':
         specifier: 'catalog:'
         version: 10.6.8(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.8(@types/react@19.3.0)(prettier@3.10.1)(react@19.3.1))(supports-color@8.1.1)(typescript@7.1.0-beta)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -1007,6 +1136,22 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.1.1(@types/node@26.6.6)(@vitest/browser-playwright@5.1.1)(@vitest/coverage-v8@5.1.1)(@vitest/ui@5.1.1)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+
+  packages/tsdown-config:
+    dependencies:
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.7(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.7)(oxc-resolver@11.21.2)(publint@0.3.25)(tsx@4.23.15)(typescript@7.1.0-beta)
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+
+  packages/typescript-config: {}
 
   packages/ui:
     dependencies:
@@ -1023,9 +1168,18 @@ importers:
         specifier: 'catalog:'
         version: 19.3.1
     devDependencies:
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
       '@circi/vitest':
         specifier: 'catalog:'
         version: link:../vitest
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
       '@fontsource-variable/inter':
         specifier: 'catalog:'
         version: 5.3.0
@@ -1069,6 +1223,21 @@ importers:
       '@circi/cli':
         specifier: 'catalog:'
         version: link:../cli
+      '@circi/testing':
+        specifier: 'catalog:'
+        version: link:../testing
+      '@circi/tsdown-config':
+        specifier: 'catalog:'
+        version: link:../tsdown-config
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+      '@circi/vitest-config':
+        specifier: 'catalog:'
+        version: link:../vitest-config
+      '@vitest/browser-playwright':
+        specifier: 'catalog:'
+        version: 5.1.1(playwright@1.65.1)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.1.1)
       '@vitest/ui':
         specifier: 'catalog:'
         version: 5.1.1(vitest@5.1.1)
@@ -1079,6 +1248,28 @@ importers:
         specifier: 'catalog:'
         version: 0.23.7(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.7)(oxc-resolver@11.21.2)(publint@0.3.25)(tsx@4.23.15)(typescript@7.1.0-beta)
 
+  packages/vitest-config:
+    dependencies:
+      '@flakiness/vitest':
+        specifier: 'catalog:'
+        version: 1.12.0
+      '@vitest/browser-playwright':
+        specifier: 'catalog:'
+        version: 5.1.1(playwright@1.65.1)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.1.1)
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 5.1.1(@vitest/browser@5.1.1)(vitest@5.1.1)
+      playwright:
+        specifier: 'catalog:'
+        version: 1.65.1
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.1(@types/node@26.6.6)(@vitest/browser-playwright@5.1.1)(@vitest/coverage-v8@5.1.1)(@vitest/ui@5.1.1)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+    devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../typescript-config
+
   perf:
     dependencies:
       '@circi/diff':
@@ -1088,6 +1279,9 @@ importers:
         specifier: 'catalog:'
         version: 0.35.5(@types/node@26.6.6)
     devDependencies:
+      '@circi/typescript-config':
+        specifier: 'catalog:'
+        version: link:../packages/typescript-config
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6

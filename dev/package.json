@@ -8,12 +8,18 @@
   "imports": {
     "#src/*": "./src/*"
   },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@circi/core": "catalog:",
     "sharp": "catalog:"
   },
   "devDependencies": {
     "@circi/cli": "catalog:",
+    "@circi/typescript-config": "catalog:",
+    "@circi/vitest-config": "catalog:",
     "@types/node": "catalog:"
   }
 }

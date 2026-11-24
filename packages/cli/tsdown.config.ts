@@ -1,8 +1,2 @@
-import { defineConfig } from 'tsdown'
-
-import { publishedNodePackage } from '../../tsdown.shared.ts'
-
-export default defineConfig({
-  entry: ['src/index.ts', 'src/main.ts', 'src/names.ts'],
-  ...publishedNodePackage,
-})
+// The build lives in @circi/tsdown-config (tsdown.cli.ts), with what the other packages' builds share.
+export { default } from '@circi/tsdown-config/tsdown.cli.ts'

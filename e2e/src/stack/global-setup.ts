@@ -18,7 +18,7 @@ let imageBuild: Promise<void> | undefined
 async function buildImage(): Promise<void> {
   const started = Date.now()
   console.log('[e2e] building circi:e2e (docker layer cache applies)...')
-  // `//#e2e:api` and `//#e2e:browser` run in parallel under turbo, each in its own process:
+  // `e2e:api` and `e2e:browser` run in parallel under turbo, each in its own process:
   // the lock (keyed on the tag) lets one build while the other waits and then reuses its layers.
   const built = await withBuildLock('circi-e2e', () =>
     run('docker', ['build', '-q', '-f', 'deploy/Dockerfile', '-t', 'circi:e2e', '.'], {

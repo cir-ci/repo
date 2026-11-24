@@ -10,12 +10,6 @@ import type { TestProject } from 'vitest/node'
 import * as schema from '#schema/index.ts'
 import { migrationsFolder } from '#src/index.ts'
 
-declare module 'vitest' {
-  export interface ProvidedContext {
-    templateDump: string
-  }
-}
-
 /**
  * Vitest global setup for the node project: migrates one PGlite database, dumps it to a file
  * and provides its path, so each `createTestDb()` restores the dump instead of replaying every

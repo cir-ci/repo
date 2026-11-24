@@ -1,13 +1,9 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "@circi/typescript-config/tsconfig.cypress.json",
   "compilerOptions": {
-    "noEmit": true,
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
-    "lib": ["es2025", "dom"],
-    "types": ["node", "cypress"],
-    "paths": { "@circi/cli": ["./test/types/cli-stub.d.ts"] }
+    "paths": {
+      "@circi/cli": ["./test/types/cli-stub.d.ts"]
+    }
   },
   "include": ["src", "tsdown.config.ts", "test/types"]
 }
