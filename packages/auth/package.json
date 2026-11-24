@@ -32,7 +32,6 @@
     "@circi/testing": "catalog:",
     "@circi/typescript-config": "catalog:",
     "@circi/vitest-config": "catalog:",
-    "@electric-sql/pglite": "catalog:",
     "@types/nodemailer": "catalog:",
     "auth": "catalog:"
   }

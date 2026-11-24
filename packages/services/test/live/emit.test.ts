@@ -19,7 +19,7 @@ import {
   reviewBuildUndoable,
 } from '#src/index.ts'
 
-/** What the services say on the live channel; PGlite's LISTEN stands in for Postgres (the same NOTIFY semantics). */
+/** What the services say on the live channel, heard through a real LISTEN on the test database. */
 
 let t: createTestDb.Result
 beforeAll(async () => {

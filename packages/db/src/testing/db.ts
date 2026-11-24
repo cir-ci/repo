@@ -1,37 +1,40 @@
-import { readFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 
-import { PGlite } from '@electric-sql/pglite'
 import { eq } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/pglite'
-import { migrate } from 'drizzle-orm/pglite/migrator'
+import { drizzle } from 'drizzle-orm/node-postgres'
+import type { Pool } from 'pg'
 import { inject } from 'vitest'
 
 import { createProject } from '#repositories/index.ts'
 import * as schema from '#schema/index.ts'
-import {
-  type Database,
-  type ListenFn,
-  migrationsFolder,
-  type Workspace,
-  type User,
-} from '#src/index.ts'
+import { createDb, type Database, type ListenFn, type Workspace, type User } from '#src/index.ts'
 
 import { nextCreatedAt } from './created-at.ts'
+import {
+  cloneTemplate,
+  databaseUrl,
+  dropDatabase,
+  prepareTestServer,
+  TEST_DATABASE_PREFIX,
+  type TestServer,
+} from './server.ts'
 
-// The migrated dump that template-db.ts (the run's global setup) provides and `createTestDb()` restores.
-// Declared here, beside the `inject` that reads it, so every package whose tests use this file sees it.
+// The server and template that template-db.ts (the run's global setup) provides. Declared here,
+// beside the `inject` that reads it, so every package whose tests use this file sees it.
 declare module 'vitest' {
   export interface ProvidedContext {
-    templateDump: string
+    testServer: TestServer
   }
 }
 
 export namespace createTestDb {
   export interface Result {
-    client: PGlite
+    /** The database's connection pool, for a test that runs SQL of its own. */
+    client: Pool
     db: Database
-    /** PGlite's LISTEN, shaped like the production `ListenFn`. */
+    /** LISTEN on a dedicated connection, as in production (`createDb`). */
     listen: ListenFn
+    /** Closes the connections and drops the database. */
     close(): Promise<void>
     /** The statements the Drizzle `db` has run since `queries.reset()` (a transaction's BEGIN and COMMIT are not counted). */
     queries: { count(): number; sql(): string[]; reset(): void }
@@ -40,46 +43,71 @@ export namespace createTestDb {
   }
 }
 
-let template: Promise<Blob | null> | undefined
+let server: Promise<TestServer> | undefined
 
-/** The migrated database the global setup dumped, or null when it did not run (a lone file). */
-function loadTemplate(): Promise<Blob | null> {
-  template ??= (async () => {
+/** The run's server and template, or, for a file run without the global setup, prepared here. */
+function testServer(): Promise<TestServer> {
+  server ??= (async () => {
     try {
-      const path = inject('templateDump')
-      return path ? new Blob([await readFile(path)]) : null
+      const provided = inject('testServer')
+      if (provided) return provided
     } catch {
-      return null
+      // Not under Vitest's global setup.
     }
+    return prepareTestServer()
   })()
-  return template
+  return server
 }
 
+let created = 0
+
 /**
- * A fresh in-process Postgres (PGlite) with every migration applied: restored from the dump
- * the global setup made once, or migrated here when there is none.
+ * A database of its own on the test Postgres server, with every migration applied: a copy of the
+ * migrated template the global setup made (server.ts). It uses production's connection code
+ * (`createDb`: a pool, and LISTEN on a dedicated connection). Close it when the file is done
+ * (`afterAll(() => t.close())`): that drops it. `empty` gives a database with no tables at all, as
+ * a server is before its first migration.
  */
-export async function createTestDb(): Promise<createTestDb.Result> {
-  const dump = await loadTemplate()
-  const client = dump ? new PGlite({ loadDataDir: dump }) : new PGlite()
+export async function createTestDb({
+  empty = false,
+}: { empty?: boolean } = {}): Promise<createTestDb.Result> {
+  const target = await testServer()
+  created += 1
+  const name = `${TEST_DATABASE_PREFIX}${process.pid}_${created}_${randomBytes(3).toString('hex')}`
+  await cloneTemplate(target, name, empty)
+  const handle = createDb({
+    url: databaseUrl(target.url, name),
+    poolMax: 4,
+    applicationName: 'circi-test',
+  })
   let log: string[] = []
-  const db = drizzle({ client, schema, logger: { logQuery: (query) => void log.push(query) } })
+  const db = drizzle({
+    client: handle.pool,
+    schema,
+    logger: { logQuery: (query) => void log.push(query) },
+  })
   const queries = { count: () => log.length, sql: () => [...log], reset: () => void (log = []) }
-  if (!dump) await migrate(db, { migrationsFolder })
-  const listen: ListenFn = async (channel, onNotify) => {
-    const unsubscribe = await client.listen(channel, onNotify)
-    return async () => {
-      await unsubscribe()
-    }
-  }
+  // Deletes every row rather than truncating: a test's tables hold a few rows, and TRUNCATE gives
+  // each of the 60 tables and their indexes new files (about 45 ms of server CPU a time, against
+  // next to nothing), which made it half of the test server's work. Foreign keys aren't checked
+  // (`session_replication_role = replica`, a superuser setting, as the test server's user is), so
+  // the order doesn't matter, and the sequences restart as `restart identity` did.
   const reset = async () => {
-    const { rows } = await client.query<{ name: string }>(
-      `select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname = 'public'`,
+    const { rows } = await handle.pool.query<{ sql: string }>(
+      `select format('delete from %I.%I;', schemaname, tablename) as sql from pg_tables where schemaname = 'public'
+       union all
+       select format('select setval(%L, 1, false);', format('%I.%I', schemaname, sequencename)) from pg_sequences where schemaname = 'public'`,
     )
     if (rows.length === 0) return
-    await client.exec(`truncate ${rows.map((r) => r.name).join(', ')} restart identity cascade`)
+    await handle.pool.query(
+      `begin; set local session_replication_role = replica; ${rows.map((r) => r.sql).join(' ')} commit;`,
+    )
   }
-  return { client, db, listen, close: () => client.close(), queries, reset }
+  const close = async () => {
+    await handle.close()
+    await dropDatabase(target.url, name)
+  }
+  return { client: handle.pool, db, listen: handle.listen, close, queries, reset }
 }
 
 let n = 0

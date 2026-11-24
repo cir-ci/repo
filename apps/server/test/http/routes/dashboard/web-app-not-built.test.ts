@@ -24,7 +24,10 @@ const app = buildServer({
   },
 })
 await app.ready()
-afterAll(() => app.close())
+afterAll(async () => {
+  await app.close()
+  await t.close()
+})
 
 describe('web app not built', () => {
   it('serves the notice page for app routes', async () => {

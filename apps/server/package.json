@@ -43,7 +43,6 @@
     "@circi/ui": "catalog:",
     "@circi/vitest-config": "catalog:",
     "@circi/worker": "catalog:",
-    "@electric-sql/pglite": "catalog:",
     "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",
     "commander": "catalog:",

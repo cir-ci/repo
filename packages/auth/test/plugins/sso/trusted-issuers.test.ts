@@ -1,4 +1,3 @@
-import * as schema from '@circi/db/schema'
 import { createTestDb, seedWorkspace, seedSsoProvider } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -31,13 +30,12 @@ describe('trustedOriginsFor', () => {
   })
 
   it('survives a database that has no tables yet (better-auth asks while starting up)', async () => {
-    const { PGlite } = await import('@electric-sql/pglite')
-    const { drizzle } = await import('drizzle-orm/pglite')
-    const empty = new PGlite()
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const db = drizzle({ client: empty, schema }) as never
-    expect(await trustedOriginsFor(db)()).toEqual([])
-    await empty.close()
+    const empty = await createTestDb({ empty: true })
+    try {
+      expect(await trustedOriginsFor(empty.db)()).toEqual([])
+    } finally {
+      await empty.close()
+    }
   })
 })
 

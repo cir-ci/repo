@@ -18,7 +18,7 @@ const env = (): InstanceConfig.Env => ({
 /**
  * The instance settings on real Postgres, through several connection pools at once (each pool is
  * what another replica of the server would have). Saving takes an advisory lock and reads the
- * saved settings inside the transaction; on PGlite's single connection that can't be raced.
+ * saved settings inside the transaction, which only separate connections can race.
  */
 describe('instance settings under contention', () => {
   const ctx = useStack({ profile: 'default' })

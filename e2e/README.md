@@ -77,8 +77,8 @@ have runners and expect the slowest to set the time. Each job needs a Docker dae
 
 ### Real Postgres from the test process
 
-Every stack publishes its Postgres on a host port (`stack.databaseUrl`, user `circi`). Tests that need what PGlite's single
-in-process connection can't show (several connections or "processes", advisory locks, `FOR UPDATE SKIP LOCKED`, `pg_stat_activity`)
+Every stack publishes its Postgres on a host port (`stack.databaseUrl`, user `circi`). Tests that need the stack's own
+Postgres, with other processes on it (several connections or "processes", advisory locks, `FOR UPDATE SKIP LOCKED`, `pg_stat_activity`)
 call `freshDatabase(stack)` (`src/clients/database.ts`): a migrated database of its own next to the stack's `circi`, with
 `open({ poolMax })` for each pool that stands in for another process, and `query()` on a connection of its own. They run the
 real packages (`@circi/db`, `@circi/services`, `@circi/worker`) in the test process, so this is real Postgres but not the built

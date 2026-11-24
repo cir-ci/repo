@@ -7,8 +7,8 @@ import type { Stack } from '#stack/stack.ts'
 
 /**
  * A database of its own on a stack's real Postgres, migrated like production's, for tests that
- * need what PGlite (one in-process connection) can't give: several connections and processes,
- * advisory locks, `pg_stat_activity`. It is a sibling of the stack's `circi` database, so the
+ * need the stack's own Postgres: several connections and processes, advisory locks,
+ * `pg_stat_activity`. It is a sibling of the stack's `circi` database, so the
  * stack's server and worker never see it, and any number of files can use the same stack.
  */
 export interface TestDatabase {

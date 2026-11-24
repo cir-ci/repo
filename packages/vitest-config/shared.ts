@@ -53,8 +53,16 @@ export interface BaseOptions {
 export function base(root: string, { reporter }: BaseOptions = {}): ViteUserConfig {
   return {
     root,
-    // Workspace packages that Vitest runs through Node itself (e.g. @circi/testing) need the condition too.
-    ssr: { resolve: { externalConditions: ['node', '@circi/source'] } },
+    // The Node projects resolve through Vite's SSR settings, which don't take `resolve.conditions`:
+    // without the condition there, a workspace package resolves to its dist/, which a build running
+    // beside the tests (the gate runs them in parallel) may be rewriting ("Cannot find module …").
+    // Workspace packages that Vitest runs through Node itself (e.g. @circi/testing) need it as well.
+    ssr: {
+      resolve: {
+        conditions: ['@circi/source', 'node', 'development|production'],
+        externalConditions: ['node', '@circi/source'],
+      },
+    },
     resolve: { conditions: ['@circi/source'] },
     // Build output is never test input. A build running beside the tests (the gate runs them in
     // parallel) rewrites thousands of files there, the Rust crate's target/ above all, and a watcher

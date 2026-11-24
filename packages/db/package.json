@@ -36,7 +36,7 @@
     "@circi/testing": "catalog:",
     "@circi/typescript-config": "catalog:",
     "@circi/vitest-config": "catalog:",
-    "@electric-sql/pglite": "catalog:",
+    "@testcontainers/postgresql": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",
     "vitest": "catalog:"

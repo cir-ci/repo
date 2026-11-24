@@ -27,7 +27,7 @@ machine and flake; each browser test gets one retry, for the runner's own lost-f
 still shows in the report (and in `<package>/.vitest/retried-tests.txt`). The plugins' slow tests are their own projects in those
 packages: `@circi/storybook` against a real Storybook build, `@circi/cypress` over the built package in real Cypress (Electron; the
 binary is installed by `pnpm --filter @circi/cypress exec cypress install`, not by `pnpm install`), and `@circi/vitest`'s nested Vitest
-in Chromium (`integration/`, over its build). `@circi/testing` has no database code (the PGlite test database and seeders are
+in Chromium (`integration/`, over its build). `@circi/testing` has no database code (the test database and seeders are
 `@circi/db/testing`, part of `db`), so no package pair forms a cycle.
 `pnpm gate:checks` (format check, lint, typecheck) and `pnpm gate:tests` (the tests and the build) are its two halves; CI runs them
 one after the other, because together they ran its 8 GiB machine out of memory, and runs three tasks at a time (`TURBO_CONCURRENCY`).
@@ -74,7 +74,7 @@ the worker; `http/routes/<area>/` holds routes, schemas and presenters; `http/ro
 loop and thin job adapters, no build: the server bundle inlines it); `apps/web/src/{app,lib,features/<feature>}`;
 `packages/api` (the wire types, types only); `packages/auth` (better-auth composition);
 `packages/cli` (`circi upload`); `packages/config` (environment parsing); `packages/testing`
-(db-free test support: clock, hashes, fake hosts; the PGlite test database and seeders are `@circi/db/testing`); `packages/ui` (design system: Base UI parts, CSS modules,
+(db-free test support: clock, hashes, fake hosts; the test database and seeders are `@circi/db/testing`); `packages/ui` (design system: Base UI parts, CSS modules,
 `var(--circi-…)` tokens, one `Name.tsx` + `Name.module.css` per component). Dependencies point
 downwards; `core` and `api` depend on nothing.
 
@@ -203,8 +203,12 @@ A namespace must contain only types. Never put a value in one.
 
 ## Tests
 
-- Node projects (`apps/{server,worker}/test`, `packages/*/test`) run with real migrations on PGlite
-  via `@circi/testing`. Never import another package's `test/` folder.
+- Node projects (`apps/{server,worker}/test`, `packages/*/test`) run with real migrations on a real
+  Postgres server (`@circi/db/testing`'s `createTestDb()`): each test file gets a database of its own, a copy of a migrated
+  template, closed and dropped by `t.close()`, through production's connection code (`createDb`). The server is
+  `CIRCI_TEST_DATABASE_URL` when set (CI's service container), otherwise a `postgres:18-alpine` container Testcontainers starts
+  once and every later run reuses (it stays up between runs; `docker rm -f` it to stop it), so these tests need Docker running
+  locally. Never import another package's `test/` folder.
 - Server route tests build the app with `buildServer` and use `app.inject`; sign in through the real
   `/api/auth` endpoints (see `apps/server/test/support/helpers.ts`).
 - No `@testing-library/*`. Logic (`*.test.ts`, including `apps/web/test`) runs in Node; components
