@@ -92,4 +92,4 @@ Playwright is a peer dependency: you pick its version and install its browsers, 
 - [CirCI documentation](https://circi.dev)
 - [Changelog](https://github.com/cir-ci/repo/blob/main/packages/storybook/CHANGELOG.md)
 
-Licensed under the GNU GPL v3.
+Licensed under the [MIT License](LICENSE), so you can add it to any project. The CirCI server it talks to is GPL-3.0-only.

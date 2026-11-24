@@ -58,4 +58,4 @@ conventions. [Local development](https://circi.dev/contributing/local-developmen
 
 ## License
 
-CirCI is free software under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-only). Contributions are licensed the same way.
+CirCI is free software under the [GNU General Public License v3.0](LICENSE) (GPL-3.0-only). The packages you add to your own projects, [`@circi/cli`](packages/cli), [`@circi/vitest`](packages/vitest), [`@circi/cypress`](packages/cypress) and [`@circi/storybook`](packages/storybook), are under the [MIT License](packages/cli/LICENSE) instead, so they can go into any project's dependencies. Contributions are licensed like the package they change.

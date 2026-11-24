@@ -13,7 +13,7 @@ The full guide is on the documentation site: **https://circi.dev/contributing/ho
 - **Conventions:** [CLAUDE.md](CLAUDE.md) has the layers, naming, copy and test rules; `packages/services/test/layers.test.ts` enforces the layering.
 - **Tests are required**, in the smallest kind that covers the change. Anything only tested against a fake of an external service (GitHub, Slack, S3, ...) is said so in the pull request. The live S3 storage tests run when `CIRCI_TEST_S3_ENDPOINT` is set (e.g. `http://localhost:9000` with `deploy/docker-compose.s3.yml`) and are skipped otherwise.
 - **Commits** say what changed and why in the subject, explain behavior and reasoning in the body, and stay focused.
-- **License:** contributions are licensed under the [GNU GPL v3](LICENSE), like the rest of CirCI.
+- **License:** contributions are licensed like the package they change: the [MIT License](packages/cli/LICENSE) for `packages/cli`, `packages/vitest`, `packages/cypress` and `packages/storybook`, the [GNU GPL v3](LICENSE) for everything else.
 
 ## CI
 

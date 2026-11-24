@@ -12,4 +12,4 @@ Or install it and run `circi upload ./screenshots --wait`. Needs Node 22 or late
 - [CI examples](https://circi.dev/ci/ci-examples/)
 - [Changelog](https://github.com/cir-ci/repo/blob/main/packages/cli/CHANGELOG.md)
 
-Licensed under the GNU GPL v3.
+Licensed under the [MIT License](LICENSE), so you can add it to any project. The CirCI server it talks to is GPL-3.0-only.
